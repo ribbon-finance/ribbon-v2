@@ -9,6 +9,7 @@
     "ethereum-waffle": "^3.0.0",
     "ethers": "^5.0.0",
     "hardhat": "^2.3.0",
+    "hardhat-contract-sizer": "^2.0.3",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.4"
   },
@@ -18,6 +19,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@openzeppelin/contracts": "^3.2.0"
+    "@openzeppelin/contracts": "^3.2.0",
+    "@openzeppelin/contracts-upgradeable": "^3.4.1"
   }
 }
