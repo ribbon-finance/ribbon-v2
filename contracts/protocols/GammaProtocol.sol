@@ -185,48 +185,4 @@ contract GammaProtocol is DSMath {
 
         return endCollateralBalance.sub(startCollateralBalance);
     }
-
-    function _closeShortBeforeExpiry() internal returns (uint256) {
-        // gets the currently active vault ID
-        uint256 vaultID =
-            GAMMA_CONTROLLER.getAccountVaultCounter(address(this));
-
-        GammaTypes.Vault memory vault =
-            GAMMA_CONTROLLER.getVault(address(this), vaultID);
-
-        // Burning otokens given by vault.shortAmounts[0] (closing the entire short position),
-        // then withdrawing all the collateral from the vault
-        IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](2);
-
-        address collateral = vault.collateralAssets[0];
-        address otoken = vault.shortOtokens[0];
-
-        // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
-        actions[0] = IController.ActionArgs(
-            IController.ActionType.BurnShortOption,
-            address(this), // owner
-            address(this), // address to transfer to
-            otoken, // otoken address
-            vaultID, // vaultId
-            vault.shortAmounts[0], // amount
-            0, //index
-            "" //data
-        );
-
-        actions[1] = IController.ActionArgs(
-            IController.ActionType.WithdrawCollateral,
-            address(this), // owner
-            address(this), // address to transfer to
-            collateral, // withdrawn asset
-            vaultID, // vaultId
-            vault.collateralAmounts[0], // amount
-            0, //index
-            "" //data
-        );
-
-        GAMMA_CONTROLLER.operate(actions);
-
-        return vault.collateralAmounts[0];
-    }
 }

@@ -425,21 +425,6 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
     }
 
     /**
-     * @notice Withdraw from the options protocol by closing short in an event of a emergency
-     */
-    function emergencyWithdrawFromShort() external onlyManager nonReentrant {
-        address oldOption = currentOption;
-        require(oldOption != address(0), "!currentOption");
-
-        currentOption = address(0);
-        nextOption = address(0);
-        lockedAmount = 0;
-
-        uint256 withdrawAmount = GammaProtocol._closeShortBeforeExpiry();
-        emit CloseShort(oldOption, withdrawAmount, msg.sender);
-    }
-
-    /**
      * @notice Performs a swap of `currentOption` token to `asset` token with a counterparty
      */
     function sellOptions() external onlyManager {}
