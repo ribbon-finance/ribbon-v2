@@ -186,7 +186,7 @@ contract GammaProtocol is DSMath {
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
-    function _closeShortBeforeExpiry() internal {
+    function _closeShortBeforeExpiry() internal returns (uint256) {
         // gets the currently active vault ID
         uint256 vaultID =
             GAMMA_CONTROLLER.getAccountVaultCounter(address(this));
@@ -226,5 +226,7 @@ contract GammaProtocol is DSMath {
         );
 
         GAMMA_CONTROLLER.operate(actions);
+
+        return vault.collateralAmounts[0];
     }
 }
