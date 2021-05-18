@@ -123,9 +123,9 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
     ) external initializer {
         require(_owner != address(0), "!_owner");
         require(_feeRecipient != address(0), "!_feeRecipient");
-        require(_initCap > 0, "_initCap > 0");
-        require(bytes(_tokenName).length > 0, "_tokenName != 0x");
-        require(bytes(_tokenSymbol).length > 0, "_tokenSymbol != 0x");
+        require(_initCap > 0, "!_initCap");
+        require(bytes(_tokenName).length > 0, "!_tokenName");
+        require(bytes(_tokenSymbol).length > 0, "!_tokenSymbol");
 
         __ReentrancyGuard_init();
         __ERC20_init(_tokenName, _tokenSymbol);
@@ -197,8 +197,8 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
-        require(asset == WETH, "asset is not WETH");
-        require(msg.value > 0, "No value passed");
+        require(asset == WETH, "Not WETH");
+        require(msg.value > 0, "No value");
 
         IWETH(WETH).deposit{value: msg.value}();
         _deposit(msg.value);
@@ -219,10 +219,10 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      */
     function _deposit(uint256 amount) private {
         uint256 totalWithDepositedAmount = totalBalance();
-        require(totalWithDepositedAmount < cap, "Cap exceeded");
+        require(totalWithDepositedAmount < cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= MINIMUM_SUPPLY,
-            "Insufficient asset balance"
+            "Insufficient balance"
         );
 
         // amount needs to be subtracted from totalBalance because it has already been
@@ -239,7 +239,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
 
         require(
             shareSupply.add(share) >= MINIMUM_SUPPLY,
-            "Insufficient share supply"
+            "Insufficient supply"
         );
 
         emit Deposit(msg.sender, amount, share);
@@ -257,7 +257,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
 
         IWETH(WETH).withdraw(withdrawAmount);
         (bool success, ) = msg.sender.call{value: withdrawAmount}("");
-        require(success, "ETH transfer failed");
+        require(success, "Transfer failed");
     }
 
     /**
@@ -293,7 +293,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
         require(shares > 0, "!shares");
         require(
             scheduledWithdrawals[msg.sender] == 0,
-            "Scheduled withdrawal already exists"
+            "Withdrawal already exists"
         );
 
         emit ScheduleWithdraw(msg.sender, shares);
@@ -308,7 +308,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      */
     function completeScheduledWithdrawal() external nonReentrant {
         uint256 withdrawShares = scheduledWithdrawals[msg.sender];
-        require(withdrawShares > 0, "Scheduled withdrawal not found");
+        require(withdrawShares > 0, "Withdrawal not found");
 
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
@@ -324,7 +324,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
         if (asset == WETH) {
             IWETH(WETH).withdraw(amountAfterFee);
             (bool success, ) = msg.sender.call{value: amountAfterFee}("");
-            require(success, "ETH transfer failed");
+            require(success, "Transfer failed");
         } else {
             IERC20(asset).safeTransfer(msg.sender, amountAfterFee);
         }
@@ -358,7 +358,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      */
     function _setNextOption(address oTokenAddress) private {
         IOtoken otoken = IOtoken(oTokenAddress);
-        require(otoken.isPut() == isPut, "Option type does not match");
+        require(otoken.isPut() == isPut, "Type mismatch");
         require(
             otoken.underlyingAsset() == underlying,
             "Wrong underlyingAsset"
@@ -371,7 +371,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
         uint256 readyAt = block.timestamp.add(delay);
         require(
             otoken.expiryTimestamp() >= readyAt,
-            "Option expiry cannot be before delay"
+            "Expiry cannot be before delay"
         );
 
         nextOption = oTokenAddress;
@@ -390,7 +390,7 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
             IOtoken otoken = IOtoken(oldOption);
             require(
                 block.timestamp > otoken.expiryTimestamp(),
-                "Cannot close short before expiry"
+                "Cannot close before expiry"
             );
             uint256 withdrawAmount = GammaProtocol._settleShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
@@ -401,13 +401,10 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyManager nonReentrant {
-        require(
-            block.timestamp >= nextOptionReadyAt,
-            "Cannot roll before delay"
-        );
+        require(block.timestamp >= nextOptionReadyAt, "Not ready");
 
         address newOption = nextOption;
-        require(newOption != address(0), "No found option");
+        require(newOption != address(0), "!nextOption");
 
         currentOption = newOption;
         nextOption = address(0);
@@ -469,11 +466,8 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
             "Cannot withdraw more than available"
         );
 
-        require(newShareSupply >= MINIMUM_SUPPLY, "Insufficient share supply");
-        require(
-            newAssetBalance >= MINIMUM_SUPPLY,
-            "Insufficient asset balance"
-        );
+        require(newShareSupply >= MINIMUM_SUPPLY, "Insufficient supply");
+        require(newAssetBalance >= MINIMUM_SUPPLY, "Insufficient balance");
 
         feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         amountAfterFee = withdrawAmount.sub(feeAmount);

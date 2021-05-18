@@ -90,10 +90,7 @@ contract GammaProtocol is DSMath {
 
             if (mintAmount > scaleBy && collateralDecimals > 8) {
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-                require(
-                    mintAmount > 0,
-                    "Must deposit more than 10**8 collateral"
-                );
+                require(mintAmount > 0, "depositAmount < 10**8");
             }
         }
 
@@ -156,7 +153,7 @@ contract GammaProtocol is DSMath {
         GammaTypes.Vault memory vault =
             GAMMA_CONTROLLER.getVault(address(this), vaultID);
 
-        require(vault.shortOtokens.length > 0, "No active short");
+        require(vault.shortOtokens.length > 0, "No short");
 
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
