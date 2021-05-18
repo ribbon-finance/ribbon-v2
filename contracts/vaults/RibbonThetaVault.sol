@@ -15,6 +15,10 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
+    /************************************************
+     *  IMMUTABLES & CONSTANTS
+     ***********************************************/
+
     address public immutable WETH;
     address public immutable USDC;
     uint8 private immutable _decimals;
@@ -26,9 +30,9 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
 
     uint256 public immutable MINIMUM_SUPPLY;
 
-    /**
-     * EVENTS
-     */
+    /************************************************
+     *  EVENTS
+     ***********************************************/
 
     event ManagerChanged(address oldManager, address newManager);
 
@@ -61,9 +65,9 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
 
     event ScheduledWithdrawCompleted(address account, uint256 amount);
 
-    /**
-     * CONSTRUCTOR & INITIALIZATION
-     */
+    /************************************************
+     *  CONSTRUCTOR & INITIALIZATION
+     ***********************************************/
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -134,6 +138,10 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
         feeRecipient = _feeRecipient;
     }
 
+    /************************************************
+     *  SETTERS
+     ***********************************************/
+
     /**
      * @notice Sets the new manager of the vault.
      * @param newManager is the new manager of the vault
@@ -170,6 +178,20 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
 
         instantWithdrawalFee = newWithdrawalFee;
     }
+
+    /**
+     * @notice Sets a new cap for deposits
+     * @param newCap is the new cap for deposits
+     */
+    function setCap(uint256 newCap) external onlyManager {
+        uint256 oldCap = cap;
+        cap = newCap;
+        emit CapSet(oldCap, newCap, msg.sender);
+    }
+
+    /************************************************
+     *  DEPOSIT & WITHDRAWALS
+     ***********************************************/
 
     /**
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
@@ -308,6 +330,10 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
         }
     }
 
+    /************************************************
+     *  VAULT OPERATIONS
+     ***********************************************/
+
     /**
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
@@ -418,15 +444,9 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      */
     function sellOptions() external onlyManager {}
 
-    /**
-     * @notice Sets a new cap for deposits
-     * @param newCap is the new cap for deposits
-     */
-    function setCap(uint256 newCap) external onlyManager {
-        uint256 oldCap = cap;
-        cap = newCap;
-        emit CapSet(oldCap, newCap, msg.sender);
-    }
+    /************************************************
+     *  GETTERS
+     ***********************************************/
 
     /**
      * @notice Returns the expiry of the current option the vault is shorting
@@ -587,6 +607,10 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
+
+    /************************************************
+     *  MODIFIERS
+     ***********************************************/
 
     /**
      * @notice Only allows manager to execute a function
