@@ -1,60 +1,73 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.2;
+pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {
     IOtokenFactory,
-    OtokenInterface,
+    IOtoken,
     IController,
-    OracleInterface,
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
+import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {DSMath} from "../lib/DSMath.sol";
 
-contract GammaProtocol {
+contract GammaProtocol is DSMath {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    // gammaController is the top-level contract in Gamma protocol
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
+    uint256 private constant OTOKEN_DECIMALS = 10**8;
+
+    // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
     IController public immutable GAMMA_CONTROLLER;
 
     // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
-    address public immutable OTOKEN_FACTORY;
+    IOtokenFactory public immutable OTOKEN_FACTORY;
 
     // MARGIN_POOL is Gamma protocol's collateral pool.
     // Needed to approve collateral.safeTransferFrom for minting otokens.
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
 
-    function createShort(address oToken, uint256 depositAmount)
-        external
+    constructor(
+        address _oTokenFactory,
+        address _gammaController,
+        address _marginPool
+    ) {
+        require(_oTokenFactory != address(0), "!_oTokenFactory");
+        require(_gammaController != address(0), "!_gammaController");
+        require(_marginPool != address(0), "!_marginPool");
+
+        OTOKEN_FACTORY = IOtokenFactory(_oTokenFactory);
+        GAMMA_CONTROLLER = IController(_gammaController);
+        MARGIN_POOL = _marginPool;
+    }
+
+    function _createShort(address oTokenAddress, uint256 depositAmount)
+        internal
         returns (uint256)
     {
-        IController controller = IController(gammaController);
+        IController controller = IController(GAMMA_CONTROLLER);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
+        IOtoken oToken = IOtoken(oTokenAddress);
+        uint256 strikePrice = oToken.strikePrice();
+        bool isPut = oToken.isPut();
         address collateralAsset = oToken.collateralAsset();
-        IERC20Detailed collateralToken = IERC20Detailed(collateralAsset);
+        IERC20 collateralToken = IERC20(collateralAsset);
 
-        uint256 collateralDecimals = uint256(collateralToken.decimals());
+        uint256 collateralDecimals =
+            uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
-        if (optionTerms.optionType == ProtocolAdapterTypes.OptionType.Call) {
-            mintAmount = depositAmount;
-            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
-
-            if (mintAmount > scaleBy && collateralDecimals > 8) {
-                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-                require(
-                    mintAmount > 0,
-                    "Must deposit more than 10**8 collateral"
-                );
-            }
-        } else {
+        if (isPut) {
             // For minting puts, there will be instances where the full depositAmount will not be used for minting.
             // This is because of an issue with precision.
             //
@@ -69,12 +82,19 @@ contract GammaProtocol {
             // To test this behavior, we can console.log
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
-            mintAmount = wdiv(
-                depositAmount.mul(OTOKEN_DECIMALS),
-                optionTerms
-                    .strikePrice
-            )
+            mintAmount = wdiv(depositAmount.mul(OTOKEN_DECIMALS), strikePrice)
                 .div(10**collateralDecimals);
+        } else {
+            mintAmount = depositAmount;
+            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
+
+            if (mintAmount > scaleBy && collateralDecimals > 8) {
+                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+                require(
+                    mintAmount > 0,
+                    "Must deposit more than 10**8 collateral"
+                );
+            }
         }
 
         // double approve to fix non-compliant ERC20s
@@ -110,14 +130,14 @@ contract GammaProtocol {
             IController.ActionType.MintShortOption,
             address(this), // owner
             address(this), // address to transfer to
-            oToken, // deposited asset
+            oTokenAddress, // deposited asset
             newVaultID, // vaultId
             mintAmount, // amount
             0, //index
             "" //data
         );
 
-        controller.operate(actions);
+        GAMMA_CONTROLLER.operate(actions);
 
         return mintAmount;
     }
@@ -128,30 +148,25 @@ contract GammaProtocol {
      * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
      * this assumption should hold.
      */
-    function settleShort() external returns (uint256) {
-        IController controller = IController(gammaController);
-
+    function _settleShort() internal returns (uint256) {
         // gets the currently active vault ID
-        uint256 vaultID = controller.getAccountVaultCounter(address(this));
+        uint256 vaultID =
+            GAMMA_CONTROLLER.getAccountVaultCounter(address(this));
 
         GammaTypes.Vault memory vault =
-            controller.getVault(address(this), vaultID);
+            GAMMA_CONTROLLER.getVault(address(this), vaultID);
 
         require(vault.shortOtokens.length > 0, "No active short");
 
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
-        OtokenInterface otoken = OtokenInterface(vault.shortOtokens[0]);
 
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
-        IController.ActionArgs[] memory actions;
-
         // If it is after expiry, we need to settle the short position using the normal way
         // Delete the vault and withdraw all remaining collateral from the vault
-        //
-        // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
-        actions = new IController.ActionArgs[](1);
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
 
         actions[0] = IController.ActionArgs(
             IController.ActionType.SettleVault,
@@ -164,23 +179,35 @@ contract GammaProtocol {
             "" // not used
         );
 
-        controller.operate(actions);
+        GAMMA_CONTROLLER.operate(actions);
 
         uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
 
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
-    function closeShortBeforeExpiry() external {
+    function _closeShortBeforeExpiry() internal {
+        // gets the currently active vault ID
+        uint256 vaultID =
+            GAMMA_CONTROLLER.getAccountVaultCounter(address(this));
+
+        GammaTypes.Vault memory vault =
+            GAMMA_CONTROLLER.getVault(address(this), vaultID);
+
         // Burning otokens given by vault.shortAmounts[0] (closing the entire short position),
         // then withdrawing all the collateral from the vault
-        actions = new IController.ActionArgs[](2);
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](2);
 
+        address collateral = vault.collateralAssets[0];
+        address otoken = vault.shortOtokens[0];
+
+        // If it is before expiry, we need to burn otokens in order to withdraw collateral from the vault
         actions[0] = IController.ActionArgs(
             IController.ActionType.BurnShortOption,
             address(this), // owner
             address(this), // address to transfer to
-            address(otoken), // otoken address
+            otoken, // otoken address
             vaultID, // vaultId
             vault.shortAmounts[0], // amount
             0, //index
@@ -191,13 +218,13 @@ contract GammaProtocol {
             IController.ActionType.WithdrawCollateral,
             address(this), // owner
             address(this), // address to transfer to
-            address(collateralToken), // withdrawn asset
+            collateral, // withdrawn asset
             vaultID, // vaultId
             vault.collateralAmounts[0], // amount
             0, //index
             "" //data
         );
 
-        controller.operate(actions);
+        GAMMA_CONTROLLER.operate(actions);
     }
 }
