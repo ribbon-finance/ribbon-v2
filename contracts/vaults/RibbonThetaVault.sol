@@ -6,12 +6,20 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
+import {DSMath} from "../lib/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
+import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 
-contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
+contract RibbonThetaVault is
+    DSMath,
+    GammaProtocol,
+    GnosisAuction,
+    OptionsVaultStorage
+{
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -27,6 +35,8 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
     uint256 public constant lockedRatio = 0.9 ether;
 
     uint256 public constant delay = 1 hours;
+
+    uint256 public constant period = 7 days;
 
     uint256 public immutable MINIMUM_SUPPLY;
 
@@ -338,17 +348,47 @@ contract RibbonThetaVault is GammaProtocol, OptionsVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose(address oTokenAddress)
-        external
-        onlyManager
-        nonReentrant
-    {
-        _setNextOption(oTokenAddress);
+    function commitAndClose() external onlyManager nonReentrant {
+        uint256 strikePrice =
+            IStrikeSelection(strikeSelection).getStrikePrice();
+        address otokenAddress = getOrDeployOtoken(strikePrice, 0);
+
+        _setNextOption(otokenAddress);
         _closeShort();
     }
 
     function closeShort() external nonReentrant {
         _closeShort();
+    }
+
+    function getOrDeployOtoken(uint256 strikePrice, uint256 expiry)
+        private
+        returns (address)
+    {
+        address onFactory =
+            OTOKEN_FACTORY.getOtoken(
+                underlying,
+                USDC,
+                asset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+
+        if (onFactory != address(0)) {
+            return onFactory;
+        }
+
+        address otoken =
+            OTOKEN_FACTORY.createOtoken(
+                underlying,
+                USDC,
+                asset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+        return otoken;
     }
 
     /**

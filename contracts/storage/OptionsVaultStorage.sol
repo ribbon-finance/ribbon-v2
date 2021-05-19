@@ -68,6 +68,9 @@ contract OptionsVaultStorageV3 {
 
     // Minimum supply of the vault shares issued
     uint256 public minimumSupply;
+
+    // Logic contract used to select strike prices
+    address public strikeSelection;
 }
 
 // We are following Compound's method of upgrading new contract implementations
