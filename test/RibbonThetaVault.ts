@@ -227,15 +227,15 @@ function behavesLikeRibbonOptionsVault(params) {
         parseEther("500"),
         this.tokenName,
         this.tokenSymbol,
+        this.tokenDecimals,
+        this.minimumSupply,
+        this.asset,
+        this.isPut,
       ];
 
       const deployArgs = [
-        this.asset,
         WETH_ADDRESS,
         USDC_ADDRESS,
-        this.isPut,
-        this.tokenDecimals,
-        this.minimumSupply,
         OTOKEN_FACTORY,
         GAMMA_CONTROLLER,
         MARGIN_POOL,
@@ -347,12 +347,14 @@ function behavesLikeRibbonOptionsVault(params) {
       }
 
       this.rollToNextOption = async () => {
+        console.log(this.optionTerms);
         await this.vault
           .connect(managerSigner)
           .commitAndClose(this.optionTerms);
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
+
         await this.vault.connect(managerSigner).rollToNextOption();
       };
     });
@@ -363,94 +365,6 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("constructor", () => {
       time.revertToSnapshotAfterEach();
-
-      it("reverts when asset is 0x", async function () {
-        const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault"
-        );
-
-        await expect(
-          VaultContract.deploy(
-            constants.AddressZero,
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            this.isPut,
-            this.tokenDecimals,
-            this.minimumSupply,
-            OTOKEN_FACTORY,
-            GAMMA_CONTROLLER,
-            MARGIN_POOL
-          )
-        ).to.be.revertedWith("!_asset");
-      });
-
-      it("reverts when decimals is 0", async function () {
-        const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault"
-        );
-
-        await expect(
-          VaultContract.deploy(
-            this.asset,
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            this.isPut,
-            0,
-            this.minimumSupply,
-            OTOKEN_FACTORY,
-            GAMMA_CONTROLLER,
-            MARGIN_POOL
-          )
-        ).to.be.revertedWith("!_tokenDecimals");
-      });
-
-      it("reverts when minimumSupply is 0", async function () {
-        const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault"
-        );
-
-        await expect(
-          VaultContract.deploy(
-            this.asset,
-            WETH_ADDRESS,
-            USDC_ADDRESS,
-            this.isPut,
-            this.tokenDecimals,
-            0,
-            OTOKEN_FACTORY,
-            GAMMA_CONTROLLER,
-            MARGIN_POOL
-          )
-        ).to.be.revertedWith("!_minimumSupply");
-      });
-
-      it("sets the correct asset, decimals and minimum supply", async function () {
-        const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault"
-        );
-
-        const asset = params.asset;
-        const collateralAsset = params.collateralAsset;
-        const decimals = 6;
-        const isPut = false;
-        const minSupply = BigNumber.from("10").pow("6").toString();
-
-        const vault = await VaultContract.deploy(
-          asset,
-          WETH_ADDRESS,
-          USDC_ADDRESS,
-          isPut,
-          decimals,
-          minSupply,
-          OTOKEN_FACTORY,
-          GAMMA_CONTROLLER,
-          MARGIN_POOL
-        );
-        assert.equal(await vault.decimals(), decimals);
-        assert.equal(await vault.asset(), collateralAsset);
-        assert.equal(await vault.minimumSupply(), minSupply);
-        assert.equal(await vault.isPut(), isPut);
-      });
     });
 
     describe("#initialize", () => {
@@ -459,12 +373,8 @@ function behavesLikeRibbonOptionsVault(params) {
           "RibbonThetaVault"
         );
         this.testVault = await RibbonThetaVault.deploy(
-          this.asset,
           WETH_ADDRESS,
           USDC_ADDRESS,
-          this.isPut,
-          this.tokenDecimals,
-          this.minimumSupply,
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
           MARGIN_POOL
@@ -480,7 +390,6 @@ function behavesLikeRibbonOptionsVault(params) {
           (await this.vault.instantWithdrawalFee()).toString(),
           parseEther("0.005").toString()
         );
-        assert.equal(await this.vault.SWAP_CONTRACT(), SWAP_CONTRACT);
         assert.equal(await this.vault.WETH(), WETH_ADDRESS);
         assert.equal(await this.vault.USDC(), USDC_ADDRESS);
       });
@@ -492,7 +401,11 @@ function behavesLikeRibbonOptionsVault(params) {
             feeRecipient,
             parseEther("500"),
             this.tokenName,
-            this.tokenSymbol
+            this.tokenSymbol,
+            this.tokenDecimals,
+            this.minimumSupply,
+            this.asset,
+            this.isPut
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
       });
@@ -504,7 +417,11 @@ function behavesLikeRibbonOptionsVault(params) {
             feeRecipient,
             parseEther("500"),
             this.tokenName,
-            this.tokenSymbol
+            this.tokenSymbol,
+            this.tokenDecimals,
+            this.minimumSupply,
+            this.asset,
+            this.isPut
           )
         ).to.be.revertedWith("!_owner");
       });
@@ -516,7 +433,11 @@ function behavesLikeRibbonOptionsVault(params) {
             constants.AddressZero,
             parseEther("500"),
             this.tokenName,
-            this.tokenSymbol
+            this.tokenSymbol,
+            this.tokenDecimals,
+            this.minimumSupply,
+            this.asset,
+            this.isPut
           )
         ).to.be.revertedWith("!_feeRecipient");
       });
@@ -528,9 +449,61 @@ function behavesLikeRibbonOptionsVault(params) {
             feeRecipient,
             "0",
             this.tokenName,
-            this.tokenSymbol
+            this.tokenSymbol,
+            this.tokenDecimals,
+            this.minimumSupply,
+            this.asset,
+            this.isPut
           )
         ).to.be.revertedWith("!_initCap");
+      });
+
+      it("reverts when asset is 0x", async function () {
+        await expect(
+          this.testVault.initialize(
+            owner,
+            feeRecipient,
+            parseEther("500"),
+            this.tokenName,
+            this.tokenSymbol,
+            this.tokenDecimals,
+            this.minimumSupply,
+            constants.AddressZero,
+            this.isPut
+          )
+        ).to.be.revertedWith("!_asset");
+      });
+
+      it("reverts when decimals is 0", async function () {
+        await expect(
+          this.testVault.initialize(
+            owner,
+            feeRecipient,
+            parseEther("500"),
+            this.tokenName,
+            this.tokenSymbol,
+            0,
+            this.minimumSupply,
+            this.asset,
+            this.isPut
+          )
+        ).to.be.revertedWith("!_tokenDecimals");
+      });
+
+      it("reverts when minimumSupply is 0", async function () {
+        await expect(
+          this.testVault.initialize(
+            owner,
+            feeRecipient,
+            parseEther("500"),
+            this.tokenName,
+            this.tokenSymbol,
+            this.tokenDecimals,
+            0,
+            this.asset,
+            this.isPut
+          )
+        ).to.be.revertedWith("!_minimumSupply");
       });
     });
 
@@ -588,21 +561,12 @@ function behavesLikeRibbonOptionsVault(params) {
       it("sets the first manager", async function () {
         await this.vault.connect(ownerSigner).setManager(manager);
         assert.equal(await this.vault.manager(), manager);
-        assert.isFalse(
-          await this.airswap.senderAuthorizations(this.vault.address, manager)
-        );
       });
 
       it("changes the manager", async function () {
         await this.vault.connect(ownerSigner).setManager(owner);
         await this.vault.connect(ownerSigner).setManager(manager);
         assert.equal(await this.vault.manager(), manager);
-        assert.isFalse(
-          await this.airswap.senderAuthorizations(this.vault.address, owner)
-        );
-        assert.isFalse(
-          await this.airswap.senderAuthorizations(this.vault.address, manager)
-        );
       });
     });
 
@@ -2346,7 +2310,7 @@ function behavesLikeRibbonOptionsVault(params) {
           BigNumber.from("100000000000")
         );
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
       });
 
       it("rejects a withdrawLater of 0 shares", async function () {
