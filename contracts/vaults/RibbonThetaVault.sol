@@ -38,8 +38,6 @@ contract RibbonThetaVault is
 
     uint256 public constant period = 7 days;
 
-    uint256 public immutable MINIMUM_SUPPLY;
-
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -112,7 +110,7 @@ contract RibbonThetaVault is
         WETH = _weth;
         USDC = _usdc;
         _decimals = _tokenDecimals;
-        MINIMUM_SUPPLY = _minimumSupply;
+        minimumSupply = _minimumSupply;
         isPut = _isPut;
     }
 
@@ -231,7 +229,7 @@ contract RibbonThetaVault is
         uint256 totalWithDepositedAmount = totalBalance();
         require(totalWithDepositedAmount < cap, "Exceed cap");
         require(
-            totalWithDepositedAmount >= MINIMUM_SUPPLY,
+            totalWithDepositedAmount >= minimumSupply,
             "Insufficient balance"
         );
 
@@ -247,10 +245,7 @@ contract RibbonThetaVault is
         uint256 share =
             shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
 
-        require(
-            shareSupply.add(share) >= MINIMUM_SUPPLY,
-            "Insufficient supply"
-        );
+        require(shareSupply.add(share) >= minimumSupply, "Insufficient supply");
 
         emit Deposit(msg.sender, amount, share);
 
@@ -506,8 +501,8 @@ contract RibbonThetaVault is
             "Cannot withdraw more than available"
         );
 
-        require(newShareSupply >= MINIMUM_SUPPLY, "Insufficient supply");
-        require(newAssetBalance >= MINIMUM_SUPPLY, "Insufficient balance");
+        require(newShareSupply >= minimumSupply, "Insufficient supply");
+        require(newAssetBalance >= minimumSupply, "Insufficient balance");
 
         feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
         amountAfterFee = withdrawAmount.sub(feeAmount);
@@ -551,7 +546,7 @@ contract RibbonThetaVault is
             withdrawableBalance
                 .mul(totalSupply())
                 .div(total)
-                .sub(MINIMUM_SUPPLY)
+                .sub(minimumSupply)
                 .sub(queuedWithdrawShares);
     }
 
