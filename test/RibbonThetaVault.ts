@@ -1,6 +1,6 @@
 import hre, { ethers } from "hardhat";
 import { expect, assert } from "chai";
-import { BigNumber, constants } from "ethers";
+import { BigNumber, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import { createOrder, signTypedDataOrder } from "@airswap/utils";
 import moment from "moment-timezone";
@@ -8,6 +8,7 @@ import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
   CHAINLINK_WETH_PRICER,
+  GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
   SWAP_CONTRACT,
@@ -75,75 +76,80 @@ describe("RibbonThetaVault", () => {
     },
   });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS,
-    assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WETH_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
-    chainlinkPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("90000000"),
-    premium: parseEther("0.1"),
-    tokenDecimals: 8,
-    isPut: false,
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon ETH Theta Vault (Call)`,
+  //   tokenName: "Ribbon ETH Theta Vault",
+  //   tokenSymbol: "rETH-THETA",
+  //   asset: WETH_ADDRESS,
+  //   assetContractName: "IWETH",
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: WETH_ADDRESS,
+  //   wrongUnderlyingAsset: WBTC_ADDRESS,
+  //   wrongStrikeAsset: WBTC_ADDRESS,
+  //   firstOptionStrike: 63000,
+  //   secondOptionStrike: 64000,
+  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
+  //   depositAmount: parseEther("1"),
+  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
+  //   expectedMintAmount: BigNumber.from("90000000"),
+  //   premium: parseEther("0.1"),
+  //   tokenDecimals: 8,
+  //   isPut: false,
+  // });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon WBTC Theta Vault (Put)`,
-    tokenName: "Ribbon BTC Theta Vault Put",
-    tokenSymbol: "rWBTC-THETA-P",
-    asset: WBTC_ADDRESS,
-    assetContractName: "IUSDC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WETH_ADDRESS,
-    wrongStrikeAsset: WETH_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
-    chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
-    depositAmount: BigNumber.from("100000000"),
-    premium: BigNumber.from("10000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("3600000"),
-    isPut: true,
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon WBTC Theta Vault (Put)`,
+  //   tokenName: "Ribbon BTC Theta Vault Put",
+  //   tokenSymbol: "rWBTC-THETA-P",
+  //   asset: WBTC_ADDRESS,
+  //   assetContractName: "IUSDC",
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   wrongUnderlyingAsset: WETH_ADDRESS,
+  //   wrongStrikeAsset: WETH_ADDRESS,
+  //   firstOptionStrike: 2400,
+  //   secondOptionStrike: 2500,
+  //   chainlinkPricer: CHAINLINK_WBTC_PRICER,
+  //   tokenDecimals: 18,
+  //   depositAmount: BigNumber.from("100000000"),
+  //   premium: BigNumber.from("10000000"),
+  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
+  //   expectedMintAmount: BigNumber.from("3600000"),
+  //   isPut: true,
+  //   mintConfig: {
+  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
+  //   },
+  // });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Put) `,
-    tokenName: "Ribbon ETH Theta Vault Put",
-    tokenSymbol: "rETH-THETA-P",
-    asset: WETH_ADDRESS,
-    assetContractName: "IUSDC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
-    chainlinkPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: BigNumber.from("100000000000"),
-    premium: BigNumber.from("10000000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("140625000"),
-    tokenDecimals: 8,
-    isPut: true,
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon ETH Theta Vault (Put) `,
+  //   tokenName: "Ribbon ETH Theta Vault Put",
+  //   tokenSymbol: "rETH-THETA-P",
+  //   asset: WETH_ADDRESS,
+  //   assetContractName: "IUSDC",
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   wrongUnderlyingAsset: WBTC_ADDRESS,
+  //   wrongStrikeAsset: WBTC_ADDRESS,
+  //   firstOptionStrike: 63000,
+  //   secondOptionStrike: 64000,
+  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
+  //   depositAmount: BigNumber.from("100000000000"),
+  //   premium: BigNumber.from("10000000000"),
+  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
+  //   expectedMintAmount: BigNumber.from("140625000"),
+  //   tokenDecimals: 8,
+  //   isPut: true,
+  //   mintConfig: {
+  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
+  //   },
+  // });
 });
+
+type Option = {
+  address: string;
+  expiry: number;
+};
 
 /**
  *
@@ -171,24 +177,11 @@ describe("RibbonThetaVault", () => {
  */
 function behavesLikeRibbonOptionsVault(params) {
   describe(`${params.name}`, () => {
-    let initSnapshotId;
-    let firstOption;
-    let secondOption;
+    let initSnapshotId: string;
+    let firstOption: Option;
+    let secondOption: Option;
 
     before(async function () {
-      // Reset block
-      await hre.network.provider.request({
-        method: "hardhat_reset",
-        params: [
-          {
-            forking: {
-              jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 12238727,
-            },
-          },
-        ],
-      });
-
       initSnapshotId = await time.takeSnapshot();
 
       [
@@ -235,14 +228,17 @@ function behavesLikeRibbonOptionsVault(params) {
         this.tokenName,
         this.tokenSymbol,
       ];
+
       const deployArgs = [
         this.asset,
         WETH_ADDRESS,
-        params.strikeAsset,
-        SWAP_CONTRACT,
+        USDC_ADDRESS,
+        this.isPut,
         this.tokenDecimals,
         this.minimumSupply,
-        this.isPut,
+        OTOKEN_FACTORY,
+        GAMMA_CONTROLLER,
+        MARGIN_POOL,
       ];
 
       this.vault = (
@@ -327,8 +323,6 @@ function behavesLikeRibbonOptionsVault(params) {
         params.assetContractName,
         this.collateralAsset
       );
-
-      this.airswap = await getContractAt("ISwap", SWAP_CONTRACT);
 
       // If mintable token, then mine the token
       if (params.mintConfig) {

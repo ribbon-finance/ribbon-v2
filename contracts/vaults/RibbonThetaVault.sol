@@ -92,9 +92,9 @@ contract RibbonThetaVault is
         address _asset,
         address _weth,
         address _usdc,
+        bool _isPut,
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
-        bool _isPut,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool

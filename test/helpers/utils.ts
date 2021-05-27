@@ -3,7 +3,6 @@ import hre, { ethers, artifacts } from "hardhat";
 import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
-
 import {
   GAMMA_ORACLE,
   GAMMA_WHITELIST,
@@ -13,7 +12,7 @@ import {
   USDC_ADDRESS,
 } from "../helpers/constants";
 
-const { provider, BigNumber, constants } = ethers;
+const { provider, BigNumber } = ethers;
 const { parseEther } = ethers.utils;
 
 export async function deployProxy(
@@ -21,8 +20,8 @@ export async function deployProxy(
   adminSigner: Signer,
   initializeTypes: string[],
   initializeArgs: any[],
-  factoryOptions = {},
-  logicDeployParams = []
+  logicDeployParams = [],
+  factoryOptions = {}
 ) {
   const AdminUpgradeabilityProxy = await ethers.getContractFactory(
     "AdminUpgradeabilityProxy",
@@ -34,9 +33,10 @@ export async function deployProxy(
   );
   const logic = await LogicContract.deploy(...logicDeployParams);
 
-  const iface = new ethers.utils.Interface(logic.abi);
-
-  const initBytes = iface.encodeFunctionData("initialize", initializeArgs);
+  const initBytes = LogicContract.interface.encodeFunctionData(
+    "initialize",
+    initializeArgs
+  );
 
   const proxy = await AdminUpgradeabilityProxy.deploy(
     logic.address,
@@ -60,7 +60,10 @@ export function wmul(x, y) {
     .div(parseEther("1"));
 }
 
-export async function parseLog(contractName, log) {
+export async function parseLog(
+  contractName: string,
+  log: { topics: string[]; data: string }
+) {
   if (typeof contractName !== "string") {
     throw new Error("contractName must be string");
   }

@@ -55,6 +55,17 @@ interface IOtokenFactory {
         uint256 _expiry,
         bool _isPut
     ) external returns (address);
+
+    event OtokenCreated(
+        address tokenAddress,
+        address creator,
+        address indexed underlying,
+        address indexed strike,
+        address indexed collateral,
+        uint256 strikePrice,
+        uint256 expiry,
+        bool isPut
+    );
 }
 
 interface IController {
