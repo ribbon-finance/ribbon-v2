@@ -345,46 +345,30 @@ contract RibbonThetaVault is
      *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose() external onlyManager nonReentrant {
+        address oldOption = currentOption;
+        uint256 expiry = IOtoken(oldOption).expiryTimestamp() + 7 days;
+
         uint256 strikePrice =
             IStrikeSelection(strikeSelection).getStrikePrice();
-        address otokenAddress = getOrDeployOtoken(strikePrice, 0);
+        address otokenAddress =
+            GammaProtocol._getOrDeployOtoken(
+                underlying,
+                USDC,
+                asset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+
+        require(otokenAddress != address(0), "!otokenAddress");
 
         _setNextOption(otokenAddress);
-        _closeShort();
+        _closeShort(oldOption);
     }
 
     function closeShort() external nonReentrant {
-        _closeShort();
-    }
-
-    function getOrDeployOtoken(uint256 strikePrice, uint256 expiry)
-        private
-        returns (address)
-    {
-        address onFactory =
-            OTOKEN_FACTORY.getOtoken(
-                underlying,
-                USDC,
-                asset,
-                strikePrice,
-                expiry,
-                isPut
-            );
-
-        if (onFactory != address(0)) {
-            return onFactory;
-        }
-
-        address otoken =
-            OTOKEN_FACTORY.createOtoken(
-                underlying,
-                USDC,
-                asset,
-                strikePrice,
-                expiry,
-                isPut
-            );
-        return otoken;
+        address oldOption = currentOption;
+        _closeShort(oldOption);
     }
 
     /**
@@ -417,8 +401,7 @@ contract RibbonThetaVault is
     /**
      * @notice Closes the existing short position for the vault.
      */
-    function _closeShort() private {
-        address oldOption = currentOption;
+    function _closeShort(address oldOption) private {
         currentOption = address(0);
         lockedAmount = 0;
 

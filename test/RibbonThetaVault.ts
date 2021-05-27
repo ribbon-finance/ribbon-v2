@@ -347,10 +347,7 @@ function behavesLikeRibbonOptionsVault(params) {
       }
 
       this.rollToNextOption = async () => {
-        console.log(this.optionTerms);
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
+        await this.vault.connect(managerSigner).commitAndClose();
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );

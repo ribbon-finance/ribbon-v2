@@ -182,4 +182,38 @@ contract GammaProtocol is DSMath {
 
         return endCollateralBalance.sub(startCollateralBalance);
     }
+
+    function _getOrDeployOtoken(
+        address underlying,
+        address strikeAsset,
+        address collateralAsset,
+        uint256 strikePrice,
+        uint256 expiry,
+        bool isPut
+    ) internal returns (address) {
+        address otokenFromFactory =
+            OTOKEN_FACTORY.getOtoken(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+
+        if (otokenFromFactory != address(0)) {
+            return otokenFromFactory;
+        }
+
+        address otoken =
+            OTOKEN_FACTORY.createOtoken(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+        return otoken;
+    }
 }
