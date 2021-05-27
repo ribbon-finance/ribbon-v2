@@ -1,6 +1,6 @@
 import hre, { ethers } from "hardhat";
 import { expect, assert } from "chai";
-import { BigNumber, constants, Contract } from "ethers";
+import { BigNumber, Contract, constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import { createOrder, signTypedDataOrder } from "@airswap/utils";
 import moment from "moment-timezone";
@@ -364,178 +364,110 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("constructor", () => {
       time.revertToSnapshotAfterEach();
 
-      it("reverts when deployed with 0x0 factory", async function () {
-        const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
-        );
-        await expect(
-          VaultContract.deploy(
-            this.asset,
-            constants.AddressZero,
-            WETH_ADDRESS,
-            params.strikeAsset,
-            SWAP_CONTRACT,
-            this.tokenDecimals,
-            this.minimumSupply,
-            this.isPut
-          )
-        ).to.be.revertedWith("!_factory");
-      });
-
-      it("reverts when adapter not set yet", async function () {
-        const Factory = await ethers.getContractFactory("RibbonFactory");
-        const factory = await Factory.deploy();
-
-        const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
-        );
-
-        await expect(
-          VaultContract.deploy(
-            this.asset,
-            factory.address,
-            WETH_ADDRESS,
-            params.strikeAsset,
-            SWAP_CONTRACT,
-            this.tokenDecimals,
-            this.minimumSupply,
-            this.isPut
-          )
-        ).to.be.revertedWith("Adapter not set");
-      });
-
       it("reverts when asset is 0x", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
+          "RibbonThetaVault"
         );
 
         await expect(
           VaultContract.deploy(
             constants.AddressZero,
-            this.factory.address,
             WETH_ADDRESS,
-            params.strikeAsset,
-            SWAP_CONTRACT,
+            USDC_ADDRESS,
+            this.isPut,
             this.tokenDecimals,
             this.minimumSupply,
-            this.isPut
+            OTOKEN_FACTORY,
+            GAMMA_CONTROLLER,
+            MARGIN_POOL
           )
         ).to.be.revertedWith("!_asset");
       });
 
       it("reverts when decimals is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
+          "RibbonThetaVault"
         );
 
         await expect(
           VaultContract.deploy(
             this.asset,
-            this.factory.address,
             WETH_ADDRESS,
-            params.strikeAsset,
-            SWAP_CONTRACT,
+            USDC_ADDRESS,
+            this.isPut,
             0,
             this.minimumSupply,
-            this.isPut
+            OTOKEN_FACTORY,
+            GAMMA_CONTROLLER,
+            MARGIN_POOL
           )
         ).to.be.revertedWith("!_tokenDecimals");
       });
 
       it("reverts when minimumSupply is 0", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
+          "RibbonThetaVault"
         );
 
         await expect(
           VaultContract.deploy(
             this.asset,
-            this.factory.address,
             WETH_ADDRESS,
-            params.strikeAsset,
-            SWAP_CONTRACT,
+            USDC_ADDRESS,
+            this.isPut,
             this.tokenDecimals,
             0,
-            this.isPut
+            OTOKEN_FACTORY,
+            GAMMA_CONTROLLER,
+            MARGIN_POOL
           )
         ).to.be.revertedWith("!_minimumSupply");
       });
 
       it("sets the correct asset, decimals and minimum supply", async function () {
         const VaultContract = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
+          "RibbonThetaVault"
         );
 
         const asset = params.asset;
         const collateralAsset = params.collateralAsset;
         const decimals = 6;
+        const isPut = false;
         const minSupply = BigNumber.from("10").pow("6").toString();
 
         const vault = await VaultContract.deploy(
           asset,
-          this.factory.address,
           WETH_ADDRESS,
-          params.strikeAsset,
-          SWAP_CONTRACT,
+          USDC_ADDRESS,
+          isPut,
           decimals,
           minSupply,
-          this.isPut
+          OTOKEN_FACTORY,
+          GAMMA_CONTROLLER,
+          MARGIN_POOL
         );
         assert.equal(await vault.decimals(), decimals);
         assert.equal(await vault.asset(), collateralAsset);
-        assert.equal(await vault.MINIMUM_SUPPLY(), minSupply);
+        assert.equal(await vault.minimumSupply(), minSupply);
+        assert.equal(await vault.isPut(), isPut);
       });
     });
 
     describe("#initialize", () => {
       time.revertToSnapshotAfterEach(async function () {
         const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaVault",
-          {
-            libraries: {
-              ProtocolAdapter: this.protocolAdapterLib.address,
-            },
-          }
+          "RibbonThetaVault"
         );
         this.testVault = await RibbonThetaVault.deploy(
           this.asset,
-          this.factory.address,
           WETH_ADDRESS,
-          params.strikeAsset,
-          SWAP_CONTRACT,
+          USDC_ADDRESS,
+          this.isPut,
           this.tokenDecimals,
           this.minimumSupply,
-          this.isPut
+          OTOKEN_FACTORY,
+          GAMMA_CONTROLLER,
+          MARGIN_POOL
         );
       });
 
@@ -598,7 +530,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenName,
             this.tokenSymbol
           )
-        ).to.be.revertedWith("_initCap > 0");
+        ).to.be.revertedWith("!_initCap");
       });
     });
 

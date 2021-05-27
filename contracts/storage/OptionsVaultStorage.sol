@@ -66,6 +66,9 @@ contract OptionsVaultStorageV3 {
     // Option type the vault is selling
     bool public isPut;
 
+    // Token decimals for vault shares
+    uint8 internal _decimals;
+
     // Minimum supply of the vault shares issued
     uint256 public minimumSupply;
 

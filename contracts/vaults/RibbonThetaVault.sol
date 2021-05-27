@@ -29,7 +29,6 @@ contract RibbonThetaVault is
 
     address public immutable WETH;
     address public immutable USDC;
-    uint8 private immutable _decimals;
 
     // 90% locked in options protocol, 10% of the pool reserved for withdrawals
     uint256 public constant lockedRatio = 0.9 ether;
@@ -79,39 +78,24 @@ contract RibbonThetaVault is
 
     /**
      * @notice Initializes the contract with immutable variables
-     * @param _asset is the asset used for collateral and premiums
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
-     * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
      * It's important to bake the _factory variable into the contract with the constructor
      * If we do it in the `initialize` function, users get to set the factory variable and
      * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
      */
     constructor(
-        address _asset,
         address _weth,
         address _usdc,
-        bool _isPut,
-        uint8 _tokenDecimals,
-        uint256 _minimumSupply,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool
     ) GammaProtocol(_oTokenFactory, _gammaController, _marginPool) {
-        require(_asset != address(0), "!_asset");
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
-        require(_tokenDecimals > 0, "!_tokenDecimals");
-        require(_minimumSupply > 0, "!_minimumSupply");
 
-        asset = _isPut ? _usdc : _asset;
-        underlying = _asset;
         WETH = _weth;
         USDC = _usdc;
-        _decimals = _tokenDecimals;
-        minimumSupply = _minimumSupply;
-        isPut = _isPut;
     }
 
     /**
@@ -121,25 +105,42 @@ contract RibbonThetaVault is
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary.
      * @param _tokenName is the name of the vault share token
      * @param _tokenSymbol is the symbol of the vault share token
+     * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
+     * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
+     * @param _asset is the asset used for collateral and premiums
+     * @param _isPut is the option type
      */
     function initialize(
         address _owner,
         address _feeRecipient,
         uint256 _initCap,
         string calldata _tokenName,
-        string calldata _tokenSymbol
+        string calldata _tokenSymbol,
+        uint8 _tokenDecimals,
+        uint256 _minimumSupply,
+        address _asset,
+        bool _isPut
     ) external initializer {
+        require(_asset != address(0), "!_asset");
         require(_owner != address(0), "!_owner");
         require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "!_initCap");
         require(bytes(_tokenName).length > 0, "!_tokenName");
         require(bytes(_tokenSymbol).length > 0, "!_tokenSymbol");
+        require(_tokenDecimals > 0, "!_tokenDecimals");
+        require(_minimumSupply > 0, "!_minimumSupply");
 
         __ReentrancyGuard_init();
         __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
+
+        _decimals = _tokenDecimals;
         cap = _initCap;
+        asset = _isPut ? USDC : _asset;
+        underlying = _asset;
+        minimumSupply = _minimumSupply;
+        isPut = _isPut;
 
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
