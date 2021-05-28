@@ -13,7 +13,6 @@ import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
-import "hardhat/console.sol";
 
 contract RibbonThetaVault is
     DSMath,
@@ -301,10 +300,7 @@ contract RibbonThetaVault is
      */
     function withdrawLater(uint256 shares) external nonReentrant {
         require(shares > 0, "!shares");
-        require(
-            scheduledWithdrawals[msg.sender] == 0,
-            "Withdrawal already exists"
-        );
+        require(scheduledWithdrawals[msg.sender] == 0, "Existing withdrawal");
 
         emit ScheduleWithdraw(msg.sender, shares);
 
@@ -318,7 +314,7 @@ contract RibbonThetaVault is
      */
     function completeScheduledWithdrawal() external nonReentrant {
         uint256 withdrawShares = scheduledWithdrawals[msg.sender];
-        require(withdrawShares > 0, "Withdrawal not found");
+        require(withdrawShares > 0, "No withdrawal");
 
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
@@ -361,10 +357,6 @@ contract RibbonThetaVault is
 
         uint256 strikePrice =
             IStrikeSelection(strikeSelection).getStrikePrice();
-
-        // console.log(underlying, USDC, asset);
-        // console.log(strikePrice, expiry);
-        // console.log(isPut);
 
         address otokenAddress =
             GammaProtocol._getOrDeployOtoken(
@@ -425,7 +417,7 @@ contract RibbonThetaVault is
             IOtoken otoken = IOtoken(oldOption);
             require(
                 block.timestamp > otoken.expiryTimestamp(),
-                "Cannot close before expiry"
+                "Before expiry"
             );
             uint256 withdrawAmount = GammaProtocol._settleShort();
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
@@ -455,11 +447,6 @@ contract RibbonThetaVault is
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
-
-    /**
-     * @notice Performs a swap of `currentOption` token to `asset` token with a counterparty
-     */
-    function sellOptions() external onlyManager {}
 
     /************************************************
      *  GETTERS
@@ -498,7 +485,7 @@ contract RibbonThetaVault is
 
         require(
             withdrawAmount <= currentAssetBalance,
-            "Cannot withdraw more than available"
+            "Withdrawing more than available"
         );
 
         require(newShareSupply >= minimumSupply, "Insufficient supply");

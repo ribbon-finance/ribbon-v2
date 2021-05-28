@@ -960,9 +960,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("reverts when closing short before expiry", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
+        await this.vault.connect(managerSigner).commitAndClose();
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -971,14 +969,12 @@ function behavesLikeRibbonOptionsVault(params) {
         await this.vault.connect(managerSigner).rollToNextOption();
 
         await expect(this.vault.closeShort()).to.be.revertedWith(
-          "Cannot close short before expiry"
+          "Before expiry"
         );
       });
 
       it("closes the short after expiry", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
+        await this.vault.connect(managerSigner).commitAndClose();
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -1007,7 +1003,7 @@ function behavesLikeRibbonOptionsVault(params) {
         await expect(closeTx)
           .to.emit(this.vault, "CloseShort")
           .withArgs(
-            secondOption.address,
+            firstOption.address,
             wmul(this.depositAmount, LOCKED_RATIO),
             user
           );
@@ -1068,14 +1064,12 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("reverts when delay not passed", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
+        await this.vault.connect(managerSigner).commitAndClose();
 
         // will revert when trying to roll immediately
         await expect(
           this.vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("Cannot roll before delay");
+        ).to.be.revertedWith("Not ready");
 
         time.increaseTo(
           (await this.vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
@@ -1083,7 +1077,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("Cannot roll before delay");
+        ).to.be.revertedWith("Not ready");
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
@@ -1141,17 +1135,7 @@ function behavesLikeRibbonOptionsVault(params) {
       it("reverts when calling before expiry", async function () {
         const firstOptionAddress = firstOption.address;
 
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            firstOption.expiry.toString(),
-            parseEther(params.firstOptionStrike.toString()),
-            this.optionType,
-            params.asset,
-          ]);
+        await this.vault.connect(managerSigner).commitAndClose();
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -1175,35 +1159,15 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         await expect(
-          this.vault
-            .connect(managerSigner)
-            .commitAndClose([
-              params.asset,
-              params.strikeAsset,
-              params.collateralAsset,
-              secondOption.expiry.toString(),
-              parseEther(params.secondOptionStrike.toString()),
-              this.optionType,
-              params.asset,
-            ])
-        ).to.be.revertedWith("Cannot close short before expiry");
+          this.vault.connect(managerSigner).commitAndClose()
+        ).to.be.revertedWith("Before expiry");
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
 
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            firstOption.expiry.toString(),
-            parseEther(params.firstOptionStrike.toString()),
-            this.optionType,
-            params.asset,
-          ]);
+        await this.vault.connect(managerSigner).commitAndClose();
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
@@ -1226,18 +1190,7 @@ function behavesLikeRibbonOptionsVault(params) {
             manager
           );
 
-        // Perform the swap to deposit premiums and remove otokens
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: firstOptionAddress,
-          buyToken: params.collateralAsset,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        await this.vault.connect(managerSigner).sellOptions(signedOrder);
+        await depositIntoVault(params.asset, this.vault, this.premium);
 
         // only the premium should be left over because the funds are locked into Opyn
         assert.equal(
@@ -1265,17 +1218,13 @@ function behavesLikeRibbonOptionsVault(params) {
           this.vault.address
         );
 
+        await this.strikeSelection.setStrikePrice(
+          parseUnits(params.secondOptionStrike.toString(), 8)
+        );
+
         const firstCloseTx = await this.vault
           .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            secondOption.expiry.toString(),
-            parseEther(params.secondOptionStrike.toString()),
-            this.optionType,
-            params.asset,
-          ]);
+          .commitAndClose();
 
         const afterBalance = await this.assetContract.balanceOf(
           this.vault.address
@@ -1328,17 +1277,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
 
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            firstOption.expiry.toString(),
-            parseEther(params.firstOptionStrike.toString()),
-            this.optionType,
-            params.collateralAsset,
-          ]);
+        await this.vault.connect(managerSigner).commitAndClose();
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
@@ -1355,18 +1294,7 @@ function behavesLikeRibbonOptionsVault(params) {
             manager
           );
 
-        // Perform the swap to deposit premiums and remove otokens
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: firstOptionAddress,
-          buyToken: params.collateralAsset,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        await this.vault.connect(managerSigner).sellOptions(signedOrder);
+        await depositIntoVault(params.asset, this.vault, this.premium);
 
         // only the premium should be left over because the funds are locked into Opyn
         assert.equal(
@@ -1394,17 +1322,13 @@ function behavesLikeRibbonOptionsVault(params) {
           this.vault.address
         );
 
+        await this.strikeSelection.setStrikePrice(
+          parseUnits(params.secondOptionStrike.toString(), 8)
+        );
+
         const firstCloseTx = await this.vault
           .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            secondOption.expiry.toString(),
-            parseEther(params.secondOptionStrike.toString()),
-            this.optionType,
-            params.collateralAsset,
-          ]);
+          .commitAndClose();
 
         const afterBalance = await this.assetContract.balanceOf(
           this.vault.address
@@ -1453,17 +1377,7 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("is not able to roll to new option consecutively without setNextOption", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            firstOption.expiry.toString(),
-            parseEther(params.firstOptionStrike.toString()),
-            this.optionType,
-            params.asset,
-          ]);
+        await this.vault.connect(managerSigner).commitAndClose();
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
         );
@@ -1472,182 +1386,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("No found option");
-      });
-    });
-
-    describe("#emergencyWithdrawFromShort", () => {
-      time.revertToSnapshotAfterTest();
-
-      it("reverts when not allocated to a short", async function () {
-        await expect(
-          this.vault.connect(managerSigner).emergencyWithdrawFromShort()
-        ).to.be.revertedWith("!currentOption");
-
-        // doesn't matter if the nextOption is set
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
-
-        await expect(
-          this.vault.connect(managerSigner).emergencyWithdrawFromShort()
-        ).to.be.revertedWith("!currentOption");
-      });
-
-      it("withdraws locked funds by closing short", async function () {
-        const depositAmount = BigNumber.from("1000000000000");
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          depositAmount
-        );
-
-        await this.rollToNextOption();
-        assert.equal(
-          (await this.vault.assetBalance()).toString(),
-          BigNumber.from("100000000000")
-        );
-        // this assumes that we found a way to get back the otokens
-        await this.vault.connect(managerSigner).emergencyWithdrawFromShort();
-        assert.equal(
-          (await this.vault.assetBalance()).toString(),
-          depositAmount
-        );
-        assert.equal(
-          (await this.oToken.balanceOf(this.vault.address)).toString(),
-          "0"
-        );
-        assert.equal(await this.vault.currentOption(), constants.AddressZero);
-        assert.equal(await this.vault.nextOption(), constants.AddressZero);
-        assert.isTrue((await this.vault.lockedAmount()).isZero());
-        assert.equal(
-          (await this.vault.totalBalance()).toString(),
-          depositAmount
-        ); // has to be same as initial amount
-      });
-    });
-
-    describe("#sellOptions", () => {
-      time.revertToSnapshotAfterEach(async function () {
-        this.premium = BigNumber.from("100000000000");
-        this.depositAmount = BigNumber.from("1000000000000");
-        this.sellAmount = BigNumber.from("9");
-
-        // Deposit counter party with asset
-        if (params.collateralAsset === WETH_ADDRESS) {
-          const weth = this.assetContract.connect(counterpartySigner);
-          await weth.deposit({ value: this.premium });
-          await weth.approve(SWAP_CONTRACT, this.premium);
-        } else {
-          await mintToken(
-            this.assetContract,
-            params.mintConfig.contractOwnerAddress,
-            counterpartySigner,
-            SWAP_CONTRACT,
-            this.premium
-          );
-        }
-
-        await depositIntoVault(
-          params.collateralAsset,
-          this.vault,
-          this.depositAmount
-        );
-
-        await this.rollToNextOption();
-      });
-
-      it("completes the trade with the counterparty", async function () {
-        const startSellTokenBalance = await this.oToken.balanceOf(
-          this.vault.address
-        );
-        const startBuyTokenBalance = await this.assetContract.balanceOf(
-          this.vault.address
-        );
-
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: this.oTokenAddress,
-          buyToken: params.collateralAsset,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        const res = await this.vault
-          .connect(managerSigner)
-          .sellOptions(signedOrder);
-
-        await expect(res)
-          .to.emit(this.oToken, "Transfer")
-          .withArgs(this.vault.address, counterparty, this.sellAmount);
-
-        const wethERC20 = await getContractAt(
-          "IERC20",
-          this.assetContract.address
-        );
-
-        await expect(res)
-          .to.emit(wethERC20, "Transfer")
-          .withArgs(counterparty, this.vault.address, this.premium);
-
-        assert.deepEqual(
-          await this.oToken.balanceOf(this.vault.address),
-          startSellTokenBalance.sub(this.sellAmount)
-        );
-        assert.deepEqual(
-          await this.assetContract.balanceOf(this.vault.address),
-          startBuyTokenBalance.add(this.premium)
-        );
-      });
-
-      it("reverts when not selling option token", async function () {
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: constants.AddressZero,
-          buyToken: params.asset,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        await expect(
-          this.vault.connect(managerSigner).sellOptions(signedOrder)
-        ).to.be.revertedWith("Can only sell currentOption");
-      });
-
-      it("reverts when not buying asset token", async function () {
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: this.oTokenAddress,
-          buyToken: constants.AddressZero,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        await expect(
-          this.vault.connect(managerSigner).sellOptions(signedOrder)
-        ).to.be.revertedWith("Can only buy with asset token");
-      });
-
-      it("reverts when sender.wallet is not vault", async function () {
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: constants.AddressZero,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken: this.oTokenAddress,
-          buyToken: params.asset,
-          sellAmount: this.sellAmount.toString(),
-          buyAmount: this.premium.toString(),
-        });
-
-        await expect(
-          this.vault.connect(managerSigner).sellOptions(signedOrder)
-        ).to.be.revertedWith("Sender can only be vault");
+        ).to.be.revertedWith("!nextOption");
       });
     });
 
@@ -1703,7 +1442,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
           await expect(
             this.vault.withdrawETH(parseEther("2"))
-          ).to.be.revertedWith("Cannot withdraw more than available");
+          ).to.be.revertedWith("Withdrawing more than available");
         });
 
         it("should withdraw funds, sending withdrawal fee to feeRecipient if <10%", async function () {
@@ -1852,13 +1591,11 @@ function behavesLikeRibbonOptionsVault(params) {
           await this.vault.depositETH({ value: parseEther("1") });
 
           // simulate setting a bad otoken
-          await this.vault
-            .connect(managerSigner)
-            .commitAndClose(this.optionTerms);
+          await this.vault.connect(managerSigner).commitAndClose();
 
           // users should have time to withdraw
           await this.vault.withdrawETH(
-            parseEther("1").sub(await this.vault.MINIMUM_SUPPLY())
+            parseEther("1").sub(await this.vault.minimumSupply())
           );
         });
 
@@ -1910,7 +1647,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const depositAmount = BigNumber.from("100000000000");
 
         const minWithdrawAmount = depositAmount.sub(
-          await this.vault.MINIMUM_SUPPLY()
+          await this.vault.minimumSupply()
         );
 
         await depositIntoVault(
@@ -1958,7 +1695,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         assert.equal(
           (await this.vault.maxWithdrawableShares()).toString(),
-          depositAmount.sub(await this.vault.MINIMUM_SUPPLY()).toString()
+          depositAmount.sub(await this.vault.minimumSupply()).toString()
         );
       });
     });
@@ -2124,7 +1861,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.withdrawLater(BigNumber.from("100000000000"))
-        ).to.be.revertedWith("Scheduled withdrawal already exists");
+        ).to.be.revertedWith("Existing withdrawal");
       });
 
       it("assets reserved by withdrawLater are not used to short", async function () {
@@ -2186,7 +1923,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
+        ).to.be.revertedWith("No withdrawal");
       });
 
       it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
@@ -2295,7 +2032,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.completeScheduledWithdrawal()
-        ).to.be.revertedWith("Scheduled withdrawal not found");
+        ).to.be.revertedWith("No withdrawal");
       });
     });
 
@@ -2314,7 +2051,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
         await expect(
           this.vault.withdraw(BigNumber.from("20000000000"))
-        ).to.be.revertedWith("Cannot withdraw more than available");
+        ).to.be.revertedWith("Withdrawing more than available");
       });
 
       it("should withdraw funds, sending withdrawal fee to feeRecipient", async function () {
@@ -2512,13 +2249,11 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         // simulate setting a bad otoken
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
+        await this.vault.connect(managerSigner).commitAndClose();
 
         // users should have time to withdraw
         await this.vault.withdraw(
-          depositAmount.sub(await this.vault.MINIMUM_SUPPLY())
+          depositAmount.sub(await this.vault.minimumSupply())
         );
       });
 
@@ -2534,7 +2269,7 @@ function behavesLikeRibbonOptionsVault(params) {
         // Only 1 ether - MINIMUM_SUPPLY works
         await expect(
           this.vault.withdraw(depositAmount.sub(BigNumber.from("1")))
-        ).to.be.revertedWith("Insufficient share supply");
+        ).to.be.revertedWith("Insufficient supply");
       });
     });
 
@@ -2620,39 +2355,6 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
   });
-}
-
-async function signOrderForSwap({
-  counterpartyAddress,
-  vaultAddress,
-  sellToken,
-  buyToken,
-  sellAmount,
-  buyAmount,
-  signerPrivateKey,
-}) {
-  let order = createOrder({
-    signer: {
-      wallet: counterpartyAddress,
-      token: buyToken,
-      amount: buyAmount,
-    },
-    sender: {
-      wallet: vaultAddress,
-      token: sellToken,
-      amount: sellAmount,
-    },
-    affiliate: {
-      wallet: TRADER_AFFILIATE,
-    },
-  });
-
-  const signedOrder = await signTypedDataOrder(
-    order,
-    signerPrivateKey,
-    SWAP_CONTRACT
-  );
-  return signedOrder;
 }
 
 async function depositIntoVault(asset, vault, amount) {
