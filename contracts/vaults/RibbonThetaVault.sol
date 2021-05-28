@@ -362,6 +362,10 @@ contract RibbonThetaVault is
         uint256 strikePrice =
             IStrikeSelection(strikeSelection).getStrikePrice();
 
+        // console.log(underlying, USDC, asset);
+        // console.log(strikePrice, expiry);
+        // console.log(isPut);
+
         address otokenAddress =
             GammaProtocol._getOrDeployOtoken(
                 underlying,

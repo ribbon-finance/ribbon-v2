@@ -325,6 +325,10 @@ function behavesLikeRibbonOptionsVault(params) {
         expiry: secondOptionExpiry,
       };
 
+      await this.strikeSelection.setStrikePrice(
+        parseUnits(params.firstOptionStrike.toString(), 8)
+      );
+
       this.asset = params.asset;
 
       this.oTokenAddress = firstOption.address;
@@ -360,7 +364,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
       this.rollToNextOption = async () => {
         await this.strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
+          parseUnits(params.firstOptionStrike.toString(), 8)
         );
 
         await this.vault.connect(managerSigner).commitAndClose();
@@ -888,272 +892,19 @@ function behavesLikeRibbonOptionsVault(params) {
       });
     });
 
-    describe("signing an order message", () => {
-      it("signs an order message", async function () {
-        const sellToken = this.oTokenAddress;
-        const buyToken = params.asset;
-        const buyAmount = parseEther("0.1");
-        const sellAmount = BigNumber.from("100000000");
-
-        const signedOrder = await signOrderForSwap({
-          vaultAddress: this.vault.address,
-          counterpartyAddress: counterparty,
-          signerPrivateKey: this.counterpartyWallet.privateKey,
-          sellToken,
-          buyToken,
-          sellAmount: sellAmount.toString(),
-          buyAmount: buyAmount.toString(),
-        });
-
-        const { signatory, validator } = signedOrder.signature;
-        const {
-          wallet: signerWallet,
-          token: signerToken,
-          amount: signerAmount,
-        } = signedOrder.signer;
-        const {
-          wallet: senderWallet,
-          token: senderToken,
-          amount: senderAmount,
-        } = signedOrder.sender;
-        assert.equal(ethers.utils.getAddress(signatory), counterparty);
-        assert.equal(ethers.utils.getAddress(validator), SWAP_CONTRACT);
-        assert.equal(ethers.utils.getAddress(signerWallet), counterparty);
-        assert.equal(ethers.utils.getAddress(signerToken), params.asset);
-        assert.equal(ethers.utils.getAddress(senderWallet), this.vault.address);
-        assert.equal(ethers.utils.getAddress(senderToken), this.oTokenAddress);
-        assert.equal(signerAmount, buyAmount.toString());
-        assert.equal(senderAmount, sellAmount.toString());
-      });
-    });
-
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
       it("reverts when not called with manager", async function () {
         await expect(
-          this.vault
-            .connect(userSigner)
-            .commitAndClose(this.optionTerms, { from: user })
+          this.vault.connect(userSigner).commitAndClose({ from: user })
         ).to.be.revertedWith("Only manager");
-      });
-
-      it("reverts when option is 0x0", async function () {
-        const optionTerms = [
-          params.asset,
-          params.strikeAsset,
-          params.collateralAsset,
-          "1610697601",
-          parseEther("1480"),
-          this.optionType,
-          params.asset,
-        ];
-
-        await expect(
-          this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("!option");
-      });
-
-      it("reverts when otoken underlying is different from vault's underlying", async function () {
-        const underlying = params.wrongUnderlyingAsset;
-        const strike = params.strikeAsset;
-        const strikePrice = parseEther("50000");
-        const expiry = secondOption.expiry.toString();
-        const isPut = params.isPut;
-        const collateral = isPut ? params.collateralAsset : underlying;
-
-        await whitelistProduct(underlying, strike, collateral, isPut);
-
-        await this.oTokenFactory.createOtoken(
-          underlying,
-          strike,
-          collateral,
-          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
-          expiry,
-          isPut
-        );
-
-        const optionTerms = [
-          underlying,
-          strike,
-          collateral,
-          expiry,
-          strikePrice,
-          this.optionType,
-          params.strikeAsset,
-        ];
-
-        await expect(
-          this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("Wrong underlyingAsset");
-      });
-
-      it("reverts when otoken collateral is different from vault's asset", async function () {
-        const underlying = params.asset;
-        const strike = params.strikeAsset;
-        const strikePrice = parseEther("50000");
-        const expiry = secondOption.expiry.toString();
-        const isPut = params.isPut;
-
-        // We reverse this so that put
-        const collateral = isPut ? underlying : strike;
-
-        await whitelistProduct(underlying, strike, collateral, isPut);
-
-        await this.oTokenFactory.createOtoken(
-          underlying,
-          strike,
-          collateral,
-          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
-          expiry,
-          isPut
-        );
-
-        const optionTerms = [
-          underlying,
-          strike,
-          collateral,
-          expiry,
-          strikePrice,
-          this.optionType,
-          params.strikeAsset,
-        ];
-
-        await expect(
-          this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("Wrong collateralAsset");
-      });
-
-      it("reverts when the strike is not USDC", async function () {
-        const underlying = params.asset;
-        const strike = params.wrongStrikeAsset;
-        const collateral = params.collateralAsset;
-        const strikePrice = parseEther("50000");
-        const expiry = secondOption.expiry.toString();
-        const isPut = params.isPut;
-
-        await whitelistProduct(underlying, strike, collateral, isPut);
-
-        await this.oTokenFactory.createOtoken(
-          underlying,
-          strike,
-          collateral,
-          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
-          expiry,
-          isPut
-        );
-
-        const optionTerms = [
-          underlying,
-          strike,
-          collateral,
-          expiry,
-          strikePrice,
-          this.optionType,
-          params.strikeAsset,
-        ];
-
-        await expect(
-          this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("strikeAsset != USDC");
-      });
-
-      it("reverts when the option type does not match", async function () {
-        const underlying = params.asset;
-        const strike = params.strikeAsset;
-        const strikePrice = parseEther("50000");
-        const expiry = secondOption.expiry.toString();
-        const isPut = false;
-
-        await whitelistProduct(underlying, strike, underlying, false);
-
-        await this.oTokenFactory.createOtoken(
-          underlying,
-          strike,
-          underlying,
-          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
-          expiry,
-          isPut
-        );
-
-        const optionTerms = [
-          underlying,
-          strike,
-          underlying,
-          expiry,
-          strikePrice,
-          this.isPut ? 2 : 1,
-          params.strikeAsset,
-        ];
-
-        await expect(
-          this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith(this.isPut ? "!put" : "!call");
-      });
-
-      it("reverts when the expiry is before the delay", async function () {
-        const block = await provider.getBlock("latest");
-
-        const underlying = params.asset;
-        const strike = params.strikeAsset;
-        const collateral = params.collateralAsset;
-        const strikePrice = parseEther(params.firstOptionStrike.toString());
-        const isPut = params.isPut;
-
-        let expiryDate;
-
-        const currentBlock = moment.utc(block.timestamp * 1000);
-
-        // get the same day's 8am
-        const sameDay8AM = moment
-          .utc()
-          .year(currentBlock.year())
-          .month(currentBlock.month())
-          .date(currentBlock.date())
-          .hour(8)
-          .minute(0)
-          .second(0)
-          .millisecond(0);
-
-        if (currentBlock.isBefore(sameDay8AM)) {
-          expiryDate = sameDay8AM;
-        } else {
-          // use next day's 8am
-          expiryDate = sameDay8AM.add(1, "day");
-        }
-        const expiry = Math.round(expiryDate.valueOf() / 1000);
-
-        await this.oTokenFactory.createOtoken(
-          underlying,
-          strike,
-          collateral,
-          strikePrice.div(BigNumber.from("10").pow(BigNumber.from("10"))),
-          expiry,
-          isPut
-        );
-        await time.increaseTo(
-          expiryDate.subtract(OPTION_DELAY, "seconds").valueOf() / 1000
-        );
-
-        const optionTerms = [
-          underlying,
-          strike,
-          collateral,
-          expiry,
-          strikePrice,
-          this.optionType,
-          params.strikeAsset,
-        ];
-
-        await expect(
-          this.vault.connect(managerSigner).commitAndClose(optionTerms)
-        ).to.be.revertedWith("Option expiry cannot be before delay");
       });
 
       it("sets the next option and closes existing short", async function () {
         const res = await this.vault
           .connect(managerSigner)
-          .commitAndClose(this.optionTerms, { from: manager });
+          .commitAndClose({ from: manager });
 
         const receipt = await res.wait();
         const block = await provider.getBlock(receipt.blockNumber);
@@ -1168,29 +919,9 @@ function behavesLikeRibbonOptionsVault(params) {
       });
 
       it("should set the next option twice", async function () {
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            firstOption.expiry.toString(),
-            parseEther(params.firstOptionStrike.toString()),
-            this.optionType,
-            params.asset,
-          ]);
+        await this.vault.connect(managerSigner).commitAndClose();
 
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose([
-            params.asset,
-            params.strikeAsset,
-            params.collateralAsset,
-            secondOption.expiry.toString(),
-            parseEther(params.secondOptionStrike.toString()),
-            this.optionType,
-            params.asset,
-          ]);
+        await this.vault.connect(managerSigner).commitAndClose();
       });
     });
 
@@ -1362,8 +1093,6 @@ function behavesLikeRibbonOptionsVault(params) {
         const startMarginBalance = await this.assetContract.balanceOf(
           MARGIN_POOL
         );
-
-        await this.strikeSelection.setStrikePrice(firstOption.strikePrice);
 
         await this.vault.connect(managerSigner).commitAndClose();
 
