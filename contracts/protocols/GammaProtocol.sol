@@ -82,7 +82,10 @@ contract GammaProtocol is DSMath {
             // To test this behavior, we can console.log
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
-            mintAmount = wdiv(depositAmount.mul(OTOKEN_DECIMALS), strikePrice)
+            mintAmount = wdiv(
+                depositAmount.mul(OTOKEN_DECIMALS),
+                strikePrice.mul(10**10) // we need to scale strikePrice to wad
+            )
                 .div(10**collateralDecimals);
         } else {
             mintAmount = depositAmount;

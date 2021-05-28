@@ -1,8 +1,7 @@
-import hre, { ethers } from "hardhat";
+import { ethers } from "hardhat";
 import { expect, assert } from "chai";
-import { BigNumber, Contract, constants } from "ethers";
+import { BigNumber, constants } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
-import { createOrder, signTypedDataOrder } from "@airswap/utils";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -12,7 +11,6 @@ import {
   MARGIN_POOL,
   OTOKEN_FACTORY,
   SWAP_CONTRACT,
-  TRADER_AFFILIATE,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WBTC_ADDRESS,
@@ -25,7 +23,6 @@ import {
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
-  parseLog,
   mintToken,
 } from "./helpers/utils";
 
@@ -75,74 +72,74 @@ describe("RibbonThetaVault", () => {
     },
   });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon ETH Theta Vault (Call)`,
-  //   tokenName: "Ribbon ETH Theta Vault",
-  //   tokenSymbol: "rETH-THETA",
-  //   asset: WETH_ADDRESS,
-  //   assetContractName: "IWETH",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: WETH_ADDRESS,
-  //   wrongUnderlyingAsset: WBTC_ADDRESS,
-  //   wrongStrikeAsset: WBTC_ADDRESS,
-  //   firstOptionStrike: 63000,
-  //   secondOptionStrike: 64000,
-  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
-  //   depositAmount: parseEther("1"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("90000000"),
-  //   premium: parseEther("0.1"),
-  //   tokenDecimals: 8,
-  //   isPut: false,
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Theta Vault (Call)`,
+    tokenName: "Ribbon ETH Theta Vault",
+    tokenSymbol: "rETH-THETA",
+    asset: WETH_ADDRESS,
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: WETH_ADDRESS,
+    wrongUnderlyingAsset: WBTC_ADDRESS,
+    wrongStrikeAsset: WBTC_ADDRESS,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("90000000"),
+    premium: parseEther("0.1"),
+    tokenDecimals: 8,
+    isPut: false,
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon WBTC Theta Vault (Put)`,
-  //   tokenName: "Ribbon BTC Theta Vault Put",
-  //   tokenSymbol: "rWBTC-THETA-P",
-  //   asset: WBTC_ADDRESS,
-  //   assetContractName: "IUSDC",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: USDC_ADDRESS,
-  //   wrongUnderlyingAsset: WETH_ADDRESS,
-  //   wrongStrikeAsset: WETH_ADDRESS,
-  //   firstOptionStrike: 2400,
-  //   secondOptionStrike: 2500,
-  //   chainlinkPricer: CHAINLINK_WBTC_PRICER,
-  //   tokenDecimals: 18,
-  //   depositAmount: BigNumber.from("100000000"),
-  //   premium: BigNumber.from("10000000"),
-  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
-  //   expectedMintAmount: BigNumber.from("3600000"),
-  //   isPut: true,
-  //   mintConfig: {
-  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
-  //   },
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon WBTC Theta Vault (Put)`,
+    tokenName: "Ribbon BTC Theta Vault Put",
+    tokenSymbol: "rWBTC-THETA-P",
+    asset: WBTC_ADDRESS,
+    assetContractName: "IERC20",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    wrongUnderlyingAsset: WETH_ADDRESS,
+    wrongStrikeAsset: WETH_ADDRESS,
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
+    chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    tokenDecimals: 18,
+    depositAmount: BigNumber.from("100000000"),
+    premium: BigNumber.from("10000000"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("3750000"),
+    isPut: true,
+    mintConfig: {
+      contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon ETH Theta Vault (Put) `,
-  //   tokenName: "Ribbon ETH Theta Vault Put",
-  //   tokenSymbol: "rETH-THETA-P",
-  //   asset: WETH_ADDRESS,
-  //   assetContractName: "IUSDC",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: USDC_ADDRESS,
-  //   wrongUnderlyingAsset: WBTC_ADDRESS,
-  //   wrongStrikeAsset: WBTC_ADDRESS,
-  //   firstOptionStrike: 63000,
-  //   secondOptionStrike: 64000,
-  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
-  //   depositAmount: BigNumber.from("100000000000"),
-  //   premium: BigNumber.from("10000000000"),
-  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
-  //   expectedMintAmount: BigNumber.from("140625000"),
-  //   tokenDecimals: 8,
-  //   isPut: true,
-  //   mintConfig: {
-  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
-  //   },
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Theta Vault (Put) `,
+    tokenName: "Ribbon ETH Theta Vault Put",
+    tokenSymbol: "rETH-THETA-P",
+    asset: WETH_ADDRESS,
+    assetContractName: "IERC20",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    wrongUnderlyingAsset: WBTC_ADDRESS,
+    wrongStrikeAsset: WBTC_ADDRESS,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: BigNumber.from("100000000000"),
+    premium: BigNumber.from("10000000000"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("142857142"),
+    tokenDecimals: 8,
+    isPut: true,
+    mintConfig: {
+      contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
+  });
 });
 
 type Option = {
@@ -640,14 +637,14 @@ function behavesLikeRibbonOptionsVault(params) {
             .withArgs(user, depositAmount, depositAmount);
         });
 
-        it("consumes less than 100k gas in ideal scenario", async function () {
+        it("consumes less than 120k gas in ideal scenario [ @skip-on-coverage ]", async function () {
           await this.vault
             .connect(managerSigner)
             .depositETH({ value: parseEther("0.1") });
 
           const res = await this.vault.depositETH({ value: parseEther("0.1") });
           const receipt = await res.wait();
-          assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
+          assert.isAtMost(receipt.gasUsed.toNumber(), 120000);
         });
 
         it("returns the correct number of shares back", async function () {
@@ -719,7 +716,7 @@ function behavesLikeRibbonOptionsVault(params) {
         it("reverts when no value passed", async function () {
           await expect(
             this.vault.connect(userSigner).depositETH({ value: 0 })
-          ).to.be.revertedWith("No value passed");
+          ).to.be.revertedWith("No value");
         });
 
         it("does not inflate the share tokens on initialization", async function () {
@@ -744,7 +741,7 @@ function behavesLikeRibbonOptionsVault(params) {
             this.vault.connect(userSigner).depositETH({
               value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
             })
-          ).to.be.revertedWith("Insufficient asset balance");
+          ).to.be.revertedWith("Insufficient balance");
         });
       });
     }
@@ -794,13 +791,13 @@ function behavesLikeRibbonOptionsVault(params) {
           .withArgs(user, depositAmount, depositAmount);
       });
 
-      it("consumes less than 100k gas in ideal scenario", async function () {
+      it("consumes less than 120k gas in ideal scenario [ @skip-on-coverage ]", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await this.vault.connect(managerSigner).deposit(depositAmount);
 
         const res = await this.vault.deposit(depositAmount);
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 120000);
       });
 
       it("returns the correct number of shares back", async function () {
@@ -1012,23 +1009,7 @@ function behavesLikeRibbonOptionsVault(params) {
 
     describe("#rollToNextOption", () => {
       time.revertToSnapshotAfterEach(async function () {
-        const lockedAmount = wmul(this.depositAmount, LOCKED_RATIO).toString();
         this.sellAmount = params.expectedMintAmount;
-        if (this.isPut) {
-          this.actualMintAmount = BigNumber.from(lockedAmount)
-            .div(params.secondOptionStrike.toString())
-            .mul(BigNumber.from("100000000"))
-            .div(BigNumber.from("1000000"))
-            .toString();
-        } else {
-          if (this.collateralAsset === WETH_ADDRESS) {
-            this.actualMintAmount = BigNumber.from(lockedAmount).div(
-              BigNumber.from("10000000000")
-            );
-          } else {
-            this.actualMintAmount = lockedAmount;
-          }
-        }
 
         await depositIntoVault(
           params.collateralAsset,
@@ -1120,11 +1101,6 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         assert.equal(
-          this.expectedMintAmount.toString(),
-          this.actualMintAmount.toString()
-        );
-
-        assert.equal(
           (await this.oToken.balanceOf(this.vault.address)).toString(),
           this.expectedMintAmount.toString()
         );
@@ -1190,7 +1166,11 @@ function behavesLikeRibbonOptionsVault(params) {
             manager
           );
 
-        await depositIntoVault(params.asset, this.vault, this.premium);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          this.premium
+        );
 
         // only the premium should be left over because the funds are locked into Opyn
         assert.equal(
@@ -1294,7 +1274,11 @@ function behavesLikeRibbonOptionsVault(params) {
             manager
           );
 
-        await depositIntoVault(params.asset, this.vault, this.premium);
+        await depositIntoVault(
+          params.collateralAsset,
+          this.vault,
+          this.premium
+        );
 
         // only the premium should be left over because the funds are locked into Opyn
         assert.equal(
@@ -1605,7 +1589,7 @@ function behavesLikeRibbonOptionsVault(params) {
           // Only 1 ether - MINIMUM_SUPPLY works
           await expect(
             this.vault.withdrawETH(parseEther("1").sub(BigNumber.from("1")))
-          ).to.be.revertedWith("Insufficient share supply");
+          ).to.be.revertedWith("Insufficient supply");
         });
       });
     }
@@ -1777,7 +1761,7 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("#withdrawLater", () => {
       time.revertToSnapshotAfterEach();
 
-      it("is within the gas budget", async function () {
+      it("is within the gas budget [ @skip-on-coverage ]", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await depositIntoVault(
           params.collateralAsset,
@@ -1897,7 +1881,7 @@ function behavesLikeRibbonOptionsVault(params) {
     describe("completeScheduledWithdrawal", () => {
       time.revertToSnapshotAfterEach();
 
-      it("is within the gas budget", async function () {
+      it("is within the gas budget [ @skip-on-coverage ]", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await depositIntoVault(
           params.collateralAsset,
@@ -1910,7 +1894,7 @@ function behavesLikeRibbonOptionsVault(params) {
         const res = await this.vault.completeScheduledWithdrawal();
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 80000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
       });
 
       it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
