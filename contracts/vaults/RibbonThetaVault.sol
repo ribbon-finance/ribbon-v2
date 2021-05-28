@@ -13,6 +13,7 @@ import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 contract RibbonThetaVault is
     DSMath,
@@ -119,7 +120,8 @@ contract RibbonThetaVault is
         uint8 _tokenDecimals,
         uint256 _minimumSupply,
         address _asset,
-        bool _isPut
+        bool _isPut,
+        address _strikeSelection
     ) external initializer {
         require(_asset != address(0), "!_asset");
         require(_owner != address(0), "!_owner");
@@ -145,6 +147,8 @@ contract RibbonThetaVault is
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
         feeRecipient = _feeRecipient;
+
+        strikeSelection = _strikeSelection;
     }
 
     /************************************************
@@ -346,10 +350,18 @@ contract RibbonThetaVault is
      */
     function commitAndClose() external onlyManager nonReentrant {
         address oldOption = currentOption;
-        uint256 expiry = IOtoken(oldOption).expiryTimestamp() + 7 days;
+        uint256 expiry;
+
+        // uninitialized state
+        if (oldOption == address(0)) {
+            expiry = getNextFriday(block.timestamp);
+        } else {
+            expiry = getNextFriday(IOtoken(oldOption).expiryTimestamp());
+        }
 
         uint256 strikePrice =
             IStrikeSelection(strikeSelection).getStrikePrice();
+
         address otokenAddress =
             GammaProtocol._getOrDeployOtoken(
                 underlying,
@@ -604,6 +616,33 @@ contract RibbonThetaVault is
      */
     function decimals() public view override returns (uint8) {
         return _decimals;
+    }
+
+    /************************************************
+     *  HELPERS
+     ***********************************************/
+
+    /**
+     * @notice Gets the next options expiry timestamp
+     */
+    function getNextFriday(uint256 currentExpiry)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 nextWeek = currentExpiry + 86400 * 7;
+        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
+
+        uint256 friday;
+        if (dayOfWeek > 5) {
+            friday = nextWeek - 86400 * (dayOfWeek - 5);
+        } else {
+            friday = nextWeek + 86400 * (5 - dayOfWeek);
+        }
+
+        uint256 friday8am =
+            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
+        return friday8am;
     }
 
     /************************************************

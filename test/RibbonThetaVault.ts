@@ -19,10 +19,6 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
 } from "./helpers/constants";
-
-const { provider, getContractAt } = ethers;
-const { parseEther } = ethers.utils;
-
 import {
   deployProxy,
   wmul,
@@ -32,6 +28,9 @@ import {
   parseLog,
   mintToken,
 } from "./helpers/utils";
+
+const { provider, getContractAt } = ethers;
+const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
@@ -148,6 +147,7 @@ describe("RibbonThetaVault", () => {
 
 type Option = {
   address: string;
+  strikePrice: BigNumber;
   expiry: number;
 };
 
@@ -214,6 +214,11 @@ function behavesLikeRibbonOptionsVault(params) {
         "m/44'/60'/0'/0/4"
       );
 
+      const MockStrikeSelection = await ethers.getContractFactory(
+        "MockStrikeSelection"
+      );
+      this.strikeSelection = await MockStrikeSelection.deploy();
+
       const initializeTypes = [
         "address",
         "address",
@@ -231,6 +236,7 @@ function behavesLikeRibbonOptionsVault(params) {
         this.minimumSupply,
         this.asset,
         this.isPut,
+        this.strikeSelection.address,
       ];
 
       const deployArgs = [
@@ -265,57 +271,63 @@ function behavesLikeRibbonOptionsVault(params) {
         params.isPut
       );
 
+      const latestTimestamp = (await provider.getBlock("latest")).timestamp;
+
       // Create first option
-      let res = await this.oTokenFactory.createOtoken(
-        params.asset,
-        params.strikeAsset,
-        params.collateralAsset,
-        parseEther(params.firstOptionStrike.toString()).div(
-          BigNumber.from("10").pow(BigNumber.from("10"))
-        ),
-        moment().add(7, "days").hours(8).minutes(0).seconds(0).unix(),
-        params.isPut
-      );
-      let receipt = await res.wait();
-      let events = await parseLog("IOtokenFactory", receipt.logs[1]);
+      const firstOptionExpiry = moment(latestTimestamp * 1000)
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hours(8)
+        .minutes(0)
+        .seconds(0)
+        .unix();
+
+      const firstOptionAddress =
+        await this.oTokenFactory.getTargetOtokenAddress(
+          params.asset,
+          params.strikeAsset,
+          params.collateralAsset,
+          parseUnits(params.firstOptionStrike.toString(), 8),
+          firstOptionExpiry,
+          params.isPut
+        );
 
       firstOption = {
-        address: events.args.tokenAddress,
-        expiry: events.args.expiry.toNumber(),
+        address: firstOptionAddress,
+        strikePrice: parseUnits(params.firstOptionStrike.toString(), 8),
+        expiry: firstOptionExpiry,
       };
 
       // Create second option
-      res = await this.oTokenFactory.createOtoken(
-        params.asset,
-        params.strikeAsset,
-        params.collateralAsset,
-        parseEther(params.secondOptionStrike.toString()).div(
-          BigNumber.from("10").pow(BigNumber.from("10"))
-        ),
-        moment().add(14, "days").hours(8).minutes(0).seconds(0).unix(),
-        params.isPut
-      );
-      receipt = await res.wait();
-      events = await parseLog("IOtokenFactory", receipt.logs[1]);
+      const secondOptionExpiry = moment(latestTimestamp * 1000)
+        .startOf("isoWeek")
+        .add(2, "week")
+        .day("friday")
+        .hours(8)
+        .minutes(0)
+        .seconds(0)
+        .unix();
+
+      const secondOptionAddress =
+        await this.oTokenFactory.getTargetOtokenAddress(
+          params.asset,
+          params.strikeAsset,
+          params.collateralAsset,
+          parseUnits(params.secondOptionStrike.toString(), 8),
+          secondOptionExpiry,
+          params.isPut
+        );
 
       secondOption = {
-        address: events.args.tokenAddress,
-        expiry: events.args.expiry.toNumber(),
+        address: secondOptionAddress,
+        strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
+        expiry: secondOptionExpiry,
       };
-
-      this.optionTerms = [
-        params.asset,
-        params.strikeAsset,
-        params.collateralAsset,
-        secondOption.expiry.toString(),
-        parseEther(params.secondOptionStrike.toString()),
-        this.optionType,
-        params.collateralAsset,
-      ];
 
       this.asset = params.asset;
 
-      this.oTokenAddress = secondOption.address;
+      this.oTokenAddress = firstOption.address;
 
       this.oToken = await getContractAt("IERC20", this.oTokenAddress);
 
@@ -347,6 +359,10 @@ function behavesLikeRibbonOptionsVault(params) {
       }
 
       this.rollToNextOption = async () => {
+        await this.strikeSelection.setStrikePrice(
+          parseUnits(params.secondOptionStrike.toString(), 8)
+        );
+
         await this.vault.connect(managerSigner).commitAndClose();
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -402,7 +418,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenDecimals,
             this.minimumSupply,
             this.asset,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
       });
@@ -418,7 +435,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenDecimals,
             this.minimumSupply,
             this.asset,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("!_owner");
       });
@@ -434,7 +452,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenDecimals,
             this.minimumSupply,
             this.asset,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("!_feeRecipient");
       });
@@ -450,7 +469,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenDecimals,
             this.minimumSupply,
             this.asset,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("!_initCap");
       });
@@ -466,7 +486,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenDecimals,
             this.minimumSupply,
             constants.AddressZero,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("!_asset");
       });
@@ -482,7 +503,8 @@ function behavesLikeRibbonOptionsVault(params) {
             0,
             this.minimumSupply,
             this.asset,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("!_tokenDecimals");
       });
@@ -498,7 +520,8 @@ function behavesLikeRibbonOptionsVault(params) {
             this.tokenDecimals,
             0,
             this.asset,
-            this.isPut
+            this.isPut,
+            this.strikeSelection.address
           )
         ).to.be.revertedWith("!_minimumSupply");
       });
@@ -835,7 +858,7 @@ function behavesLikeRibbonOptionsVault(params) {
       it("reverts when no value passed", async function () {
         await expect(
           this.vault.connect(userSigner).deposit(0)
-        ).to.be.revertedWith("Insufficient asset balance");
+        ).to.be.revertedWith("Insufficient balance");
       });
 
       it("does not inflate the share tokens on initialization", async function () {
@@ -861,7 +884,7 @@ function behavesLikeRibbonOptionsVault(params) {
             .deposit(
               BigNumber.from(this.minimumSupply).sub(BigNumber.from("1"))
             )
-        ).to.be.revertedWith("Insufficient asset balance");
+        ).to.be.revertedWith("Insufficient balance");
       });
     });
 
@@ -1340,9 +1363,9 @@ function behavesLikeRibbonOptionsVault(params) {
           MARGIN_POOL
         );
 
-        await this.vault
-          .connect(managerSigner)
-          .commitAndClose(this.optionTerms);
+        await this.strikeSelection.setStrikePrice(firstOption.strikePrice);
+
+        await this.vault.connect(managerSigner).commitAndClose();
 
         await time.increaseTo(
           (await this.vault.nextOptionReadyAt()).toNumber() + 1
@@ -1384,13 +1407,6 @@ function behavesLikeRibbonOptionsVault(params) {
         );
 
         assert.equal(await this.vault.currentOption(), this.oTokenAddress);
-
-        assert.equal(
-          (
-            await this.oToken.allowance(this.vault.address, SWAP_CONTRACT)
-          ).toString(),
-          this.expectedMintAmount.toString()
-        );
       });
 
       it("reverts when calling before expiry", async function () {
@@ -2820,7 +2836,7 @@ function behavesLikeRibbonOptionsVault(params) {
         }
 
         await expect(this.vault.deposit(depositAmount)).to.be.revertedWith(
-          "Cap exceeded"
+          "Exceed cap"
         );
       });
     });
