@@ -56,8 +56,6 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWBTC",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WBTC_ADDRESS,
-    wrongUnderlyingAsset: WETH_ADDRESS,
-    wrongStrikeAsset: WETH_ADDRESS,
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
@@ -80,8 +78,6 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
@@ -101,8 +97,6 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IERC20",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WETH_ADDRESS,
-    wrongStrikeAsset: WETH_ADDRESS,
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
@@ -125,8 +119,6 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IERC20",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
-    wrongUnderlyingAsset: WBTC_ADDRESS,
-    wrongStrikeAsset: WBTC_ADDRESS,
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
@@ -159,8 +151,6 @@ type Option = {
  * @param {string} params.assetContractName - Name of collateral asset contract
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
- * @param {string} params.wrongUnderlyingAsset - Address of wrong underlying assets
- * @param {string} params.wrongStrikeAsset - Address of wrong strike assets
  * @param {number} params.firstOptionStrike - Strike price of first option
  * @param {number} params.secondOptionStrike - Strike price of second option
  * @param {string} params.chainlinkPricer - Address of chainlink pricer
@@ -169,10 +159,30 @@ type Option = {
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
- * @param {BigNumber} params.premium - Minimum supply to maintain for share and asset balance
+ * @param {BigNumber} params.premium - Premium paid for options
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
-function behavesLikeRibbonOptionsVault(params) {
+function behavesLikeRibbonOptionsVault(params: {
+  name: string;
+  tokenName: string;
+  tokenSymbol: string;
+  tokenDecimals: number;
+  asset: string;
+  assetContractName: string;
+  strikeAsset: string;
+  collateralAsset: string;
+  firstOptionStrike: number;
+  secondOptionStrike: number;
+  chainlinkPricer: string;
+  depositAmount: BigNumber;
+  minimumSupply: string;
+  expectedMintAmount: BigNumber;
+  premium: BigNumber;
+  isPut: boolean;
+  mintConfig?: {
+    contractOwnerAddress: string;
+  };
+}) {
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
     let firstOption: Option;
