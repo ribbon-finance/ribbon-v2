@@ -14,12 +14,7 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 
-contract RibbonThetaVault is
-    DSMath,
-    GammaProtocol,
-    GnosisAuction,
-    OptionsVaultStorage
-{
+contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -36,6 +31,19 @@ contract RibbonThetaVault is
     uint256 public constant delay = 1 hours;
 
     uint256 public constant period = 7 days;
+
+    // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
+    // which allows users to perform multiple actions on their vaults
+    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+    address public immutable GAMMA_CONTROLLER;
+
+    // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
+    address public immutable OTOKEN_FACTORY;
+
+    // MARGIN_POOL is Gamma protocol's collateral pool.
+    // Needed to approve collateral.safeTransferFrom for minting otokens.
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
+    address public immutable MARGIN_POOL;
 
     /************************************************
      *  EVENTS
@@ -90,12 +98,18 @@ contract RibbonThetaVault is
         address _oTokenFactory,
         address _gammaController,
         address _marginPool
-    ) GammaProtocol(_oTokenFactory, _gammaController, _marginPool) {
+    ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+        require(_oTokenFactory != address(0), "!_oTokenFactory");
+        require(_gammaController != address(0), "!_gammaController");
+        require(_marginPool != address(0), "!_marginPool");
 
         WETH = _weth;
         USDC = _usdc;
+        OTOKEN_FACTORY = _oTokenFactory;
+        GAMMA_CONTROLLER = _gammaController;
+        MARGIN_POOL = _marginPool;
     }
 
     /**
@@ -359,7 +373,8 @@ contract RibbonThetaVault is
             IStrikeSelection(strikeSelection).getStrikePrice();
 
         address otokenAddress =
-            GammaProtocol._getOrDeployOtoken(
+            GammaProtocol.getOrDeployOtoken(
+                OTOKEN_FACTORY,
                 underlying,
                 USDC,
                 asset,
@@ -419,7 +434,8 @@ contract RibbonThetaVault is
                 block.timestamp > otoken.expiryTimestamp(),
                 "Before expiry"
             );
-            uint256 withdrawAmount = GammaProtocol._settleShort();
+            uint256 withdrawAmount =
+                GammaProtocol.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -443,7 +459,12 @@ contract RibbonThetaVault is
         uint256 shortAmount = wmul(freeBalance, lockedRatio);
         lockedAmount = shortAmount;
 
-        GammaProtocol._createShort(newOption, shortAmount);
+        GammaProtocol.createShort(
+            GAMMA_CONTROLLER,
+            MARGIN_POOL,
+            newOption,
+            shortAmount
+        );
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
