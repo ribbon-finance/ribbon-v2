@@ -11,8 +11,10 @@ import {
   ORACLE_OWNER,
   USDC_ADDRESS,
 } from "../helpers/constants";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { BigNumber, BigNumberish, Contract } from "ethers";
 
-const { provider, BigNumber } = ethers;
+const { provider } = ethers;
 const { parseEther } = ethers.utils;
 
 export async function deployProxy(
@@ -46,20 +48,6 @@ export async function deployProxy(
   return await ethers.getContractAt(logicContractName, proxy.address);
 }
 
-export function wdiv(x, y) {
-  return x
-    .mul(parseEther("1"))
-    .add(y.div(BigNumber.from("2")))
-    .div(y);
-}
-
-export function wmul(x, y) {
-  return x
-    .mul(y)
-    .add(parseEther("1").div(BigNumber.from("2")))
-    .div(parseEther("1"));
-}
-
 export async function parseLog(
   contractName: string,
   log: { topics: string[]; data: string }
@@ -74,10 +62,10 @@ export async function parseLog(
 }
 
 export async function mintAndApprove(
-  tokenAddress,
-  userSigner,
-  spender,
-  amount
+  tokenAddress: string,
+  userSigner: SignerWithAddress,
+  spender: string,
+  amount: BigNumber
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -99,13 +87,14 @@ export async function mintAndApprove(
     spender,
     amount.mul(BigNumber.from("10"))
   );
-  // await hre.network.provider.request({
-  //   method: "hardhat_stopImpersonatingAccount",
-  //   params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"]}
-  // )
 }
 
-export async function whitelistProduct(underlying, strike, collateral, isPut) {
+export async function whitelistProduct(
+  underlying: string,
+  strike: string,
+  collateral: string,
+  isPut: boolean
+) {
   const [adminSigner] = await ethers.getSigners();
 
   await hre.network.provider.request({
@@ -132,7 +121,10 @@ export async function whitelistProduct(underlying, strike, collateral, isPut) {
     .whitelistProduct(underlying, strike, collateral, isPut);
 }
 
-export async function setupOracle(pricerOwner, signer) {
+export async function setupOracle(
+  pricerOwner: string,
+  signer: SignerWithAddress
+) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [pricerOwner],
@@ -164,12 +156,12 @@ export async function setupOracle(pricerOwner, signer) {
 }
 
 export async function setOpynOracleExpiryPrice(
-  asset,
-  oracle,
-  expiry,
-  settlePrice
+  asset: string,
+  oracle: Contract,
+  expiry: BigNumber,
+  settlePrice: BigNumber
 ) {
-  await increaseTo(parseInt(expiry) + ORACLE_LOCKING_PERIOD + 1);
+  await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
   const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
   const receipt = await res.wait();
@@ -179,11 +171,11 @@ export async function setOpynOracleExpiryPrice(
 }
 
 export async function mintToken(
-  contract,
-  contractOwner,
-  recipient,
-  spender,
-  amount
+  contract: Contract,
+  contractOwner: string,
+  recipient: string,
+  spender: string,
+  amount: BigNumberish
 ) {
   const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
 
@@ -200,14 +192,13 @@ export async function mintToken(
   });
 
   if (contract.address == USDC_ADDRESS) {
-    await contract
-      .connect(tokenOwnerSigner)
-      .transfer(recipient.address, amount);
+    await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
-    await contract.connect(tokenOwnerSigner).mint(recipient.address, amount);
+    await contract.connect(tokenOwnerSigner).mint(recipient, amount);
   }
 
-  await contract.connect(recipient).approve(spender, amount);
+  const recipientSigner = await ethers.provider.getSigner(recipient);
+  await contract.connect(recipientSigner).approve(spender, amount);
 
   await hre.network.provider.request({
     method: "hardhat_stopImpersonatingAccount",
