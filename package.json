@@ -5,18 +5,58 @@
     "@types/chai": "^4.2.18",
     "@types/mocha": "^8.2.2",
     "@types/node": "^15.3.0",
+    "@typescript-eslint/eslint-plugin": "^4.25.0",
+    "@typescript-eslint/parser": "^4.25.0",
     "chai": "^4.3.4",
+    "eslint": "^7.27.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
     "ethereum-waffle": "^3.0.0",
     "ethers": "^5.0.0",
     "hardhat": "^2.3.0",
     "hardhat-contract-sizer": "^2.0.3",
+    "hardhat-log-remover": "^2.0.2",
+    "husky": "^6.0.0",
+    "lint-staged": "^11.0.0",
+    "prettier": "^2.2.1",
+    "prettier-plugin-solidity": "1.0.0-beta.10",
+    "solhint": "3.3.4",
+    "solhint-plugin-prettier": "^0.0.5",
     "ts-mocha": "^8.0.0",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.4"
   },
   "scripts": {
     "test": "npx hardhat test",
-    "compile": "npx hardhat compile"
+    "compile": "npx hardhat compile",
+    "prepare": "husky install",
+    "lint:test": "eslint 'test/**/*.ts'",
+    "lint:test:fix": "yarn lint:test --fix",
+    "lint:test:prettier": "prettier --write 'test/**/*.ts'",
+    "lint:ts": "eslint --config .eslintrc.ts.json 'scripts/**/*.ts'",
+    "lint:ts:fix": "yarn lint:ts --fix",
+    "lint:ts:prettier": "prettier --write 'scripts/**/*.ts'",
+    "lint:sol": "solhint -f table contracts/**/*.sol",
+    "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\""
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "contracts/**/*.sol": [
+      "yarn lint:sol",
+      "yarn lint:sol:prettier"
+    ],
+    "test/**": [
+      "yarn lint:test:fix",
+      "yarn lint:test:prettier"
+    ],
+    "scripts/**": [
+      "yarn lint:ts:fix",
+      "yarn lint:ts:prettier"
+    ]
   },
   "license": "MIT",
   "dependencies": {
