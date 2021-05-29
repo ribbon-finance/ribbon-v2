@@ -69,10 +69,10 @@ export function revertToSnapshotAfterEach(
   beforeEach(async function () {
     snapshotId = await takeSnapshot();
 
-    await beforeEachCallback.bind(this)();
+    await beforeEachCallback.bind(this)(); // eslint-disable-line no-invalid-this
   });
   afterEach(async () => {
-    await afterEachCallback.bind(this)();
+    await afterEachCallback.bind(this)(); // eslint-disable-line no-invalid-this
 
     await revertToSnapShot(snapshotId);
   });

@@ -37,9 +37,6 @@ const LOCKED_RATIO = parseEther("0.9");
 const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
 
-const PUT_OPTION_TYPE = 1;
-const CALL_OPTION_TYPE = 2;
-
 describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
