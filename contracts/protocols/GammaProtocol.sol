@@ -13,47 +13,21 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {DSMath} from "../lib/DSMath.sol";
 
-contract GammaProtocol is DSMath {
+library GammaProtocol {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
-    // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
-    // which allows users to perform multiple actions on their vaults
-    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
-    IController public immutable GAMMA_CONTROLLER;
-
-    // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
-    IOtokenFactory public immutable OTOKEN_FACTORY;
-
-    // MARGIN_POOL is Gamma protocol's collateral pool.
-    // Needed to approve collateral.safeTransferFrom for minting otokens.
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
-    address public immutable MARGIN_POOL;
-
-    constructor(
-        address _oTokenFactory,
-        address _gammaController,
-        address _marginPool
-    ) {
-        require(_oTokenFactory != address(0), "!_oTokenFactory");
-        require(_gammaController != address(0), "!_gammaController");
-        require(_marginPool != address(0), "!_marginPool");
-
-        OTOKEN_FACTORY = IOtokenFactory(_oTokenFactory);
-        GAMMA_CONTROLLER = IController(_gammaController);
-        MARGIN_POOL = _marginPool;
-    }
-
-    function _createShort(address oTokenAddress, uint256 depositAmount)
-        internal
-        returns (uint256)
-    {
-        IController controller = IController(GAMMA_CONTROLLER);
+    function createShort(
+        address gammaController,
+        address marginPool,
+        address oTokenAddress,
+        uint256 depositAmount
+    ) internal returns (uint256) {
+        IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
@@ -82,7 +56,7 @@ contract GammaProtocol is DSMath {
             // To test this behavior, we can console.log
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
-            mintAmount = wdiv(
+            mintAmount = dswdiv(
                 depositAmount.mul(OTOKEN_DECIMALS),
                 strikePrice.mul(10**10) // we need to scale strikePrice to wad
             )
@@ -98,8 +72,8 @@ contract GammaProtocol is DSMath {
         }
 
         // double approve to fix non-compliant ERC20s
-        collateralToken.safeApprove(MARGIN_POOL, 0);
-        collateralToken.safeApprove(MARGIN_POOL, depositAmount);
+        collateralToken.safeApprove(marginPool, 0);
+        collateralToken.safeApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -137,7 +111,7 @@ contract GammaProtocol is DSMath {
             "" //data
         );
 
-        GAMMA_CONTROLLER.operate(actions);
+        controller.operate(actions);
 
         return mintAmount;
     }
@@ -148,13 +122,14 @@ contract GammaProtocol is DSMath {
      * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
      * this assumption should hold.
      */
-    function _settleShort() internal returns (uint256) {
+    function settleShort(address gammaController) internal returns (uint256) {
+        IController controller = IController(gammaController);
+
         // gets the currently active vault ID
-        uint256 vaultID =
-            GAMMA_CONTROLLER.getAccountVaultCounter(address(this));
+        uint256 vaultID = controller.getAccountVaultCounter(address(this));
 
         GammaTypes.Vault memory vault =
-            GAMMA_CONTROLLER.getVault(address(this), vaultID);
+            controller.getVault(address(this), vaultID);
 
         require(vault.shortOtokens.length > 0, "No short");
 
@@ -179,14 +154,15 @@ contract GammaProtocol is DSMath {
             "" // not used
         );
 
-        GAMMA_CONTROLLER.operate(actions);
+        controller.operate(actions);
 
         uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
 
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
-    function _getOrDeployOtoken(
+    function getOrDeployOtoken(
+        address otokenFactory,
         address underlying,
         address strikeAsset,
         address collateralAsset,
@@ -194,8 +170,10 @@ contract GammaProtocol is DSMath {
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
+        IOtokenFactory factory = IOtokenFactory(otokenFactory);
+
         address otokenFromFactory =
-            OTOKEN_FACTORY.getOtoken(
+            factory.getOtoken(
                 underlying,
                 strikeAsset,
                 collateralAsset,
@@ -209,7 +187,7 @@ contract GammaProtocol is DSMath {
         }
 
         address otoken =
-            OTOKEN_FACTORY.createOtoken(
+            factory.createOtoken(
                 underlying,
                 strikeAsset,
                 collateralAsset,
@@ -218,5 +196,24 @@ contract GammaProtocol is DSMath {
                 isPut
             );
         return otoken;
+    }
+
+    /***
+     * DSMath Copy paste
+     */
+
+    uint256 constant DSWAD = 10**18;
+
+    function dsadd(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x, "ds-math-add-overflow");
+    }
+
+    function dsmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
+    }
+
+    //rounds to zero if x*y < WAD / 2
+    function dswdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
     }
 }
