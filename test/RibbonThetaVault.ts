@@ -19,12 +19,12 @@ import {
 } from "./helpers/constants";
 import {
   deployProxy,
-  wmul,
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
 } from "./helpers/utils";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const { provider, getContractAt } = ethers;
@@ -198,7 +198,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let minimumSupply = params.minimumSupply;
   let asset = params.asset;
   let collateralAsset = params.collateralAsset;
-  let optionType = params.isPut ? PUT_OPTION_TYPE : CALL_OPTION_TYPE;
   let depositAmount = params.depositAmount;
   let premium = params.premium;
   let expectedMintAmount = params.expectedMintAmount;
@@ -377,7 +376,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
-            addressToDeposit[i],
+            addressToDeposit[i].address,
             vault.address,
             params.collateralAsset == USDC_ADDRESS
               ? BigNumber.from("10000000000000")
@@ -938,7 +937,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
-            counterpartySigner,
+            counterpartySigner.address,
             SWAP_CONTRACT,
             premium
           );
@@ -1012,7 +1011,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
-            counterpartySigner,
+            counterpartySigner.address,
             SWAP_CONTRACT,
             premium
           );
