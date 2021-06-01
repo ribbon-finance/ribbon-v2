@@ -17,4 +17,8 @@ interface IGnosisAuction {
     ) external returns (uint256);
 
     function auctionCounter() external returns (uint256);
+
+    function FEE_DENOMINATOR() external returns (uint256);
+
+    function feeNumerator() external returns (uint256);
 }

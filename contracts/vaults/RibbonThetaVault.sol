@@ -18,7 +18,7 @@ import {
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
 
-contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
+contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -526,31 +526,19 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             shortAmount
         );
 
-        IOtoken newOToken = IOtoken(newOption);
-        uint256 optionPremium =
-            IOptionsPremiumPricer(optionsPremiumPricer)
-                .getPremium(
-                underlying,
-                newOToken.strikePrice(),
-                newOToken.expiryTimestamp(),
-                newOToken.isPut()
-            )
-                .mul(premiumDiscount)
-                .div(1000);
+        GnosisAuction.AuctionDetails memory auctionDetails;
+
+        auctionDetails.oTokenAddress = newOption;
+        auctionDetails.asset = asset;
+        auctionDetails.underlying = underlying;
+        auctionDetails.manager = manager;
+        auctionDetails.premiumDiscount = premiumDiscount;
 
         uint256 auctionCounter =
-            IGnosisAuction(GNOSIS_EASY_AUCTION).initiateAuction(
-                newOption,
-                asset,
-                block.timestamp,
-                block.timestamp.add(6 hours),
-                uint96(IERC20(newOption).balanceOf(address(this))),
-                0,
-                optionPremium,
-                0,
-                false,
-                manager,
-                bytes("")
+            GnosisAuction.startAuction(
+                GNOSIS_EASY_AUCTION,
+                optionsPremiumPricer,
+                auctionDetails
             );
 
         emit InitiateGnosisAuction(newOption, asset, auctionCounter, manager);
