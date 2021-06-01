@@ -16,6 +16,7 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
+  GNOSIS_EASY_AUCTION,
 } from "./helpers/constants";
 import {
   deployProxy,
@@ -52,6 +53,7 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 18,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
+    premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("90000000"),
     isPut: false,
@@ -75,6 +77,7 @@ describe("RibbonThetaVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("90000000"),
     premium: parseEther("0.1"),
+    premiumDiscount: BigNumber.from("997"),
     tokenDecimals: 8,
     isPut: false,
   });
@@ -93,6 +96,7 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 18,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
+    premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("3750000"),
     isPut: true,
@@ -114,6 +118,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER,
     depositAmount: BigNumber.from("100000000000"),
     premium: BigNumber.from("10000000000"),
+    premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("142857142"),
     tokenDecimals: 8,
@@ -150,6 +155,7 @@ type Option = {
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {BigNumber} params.premium - Premium paid for options
+ * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -168,6 +174,7 @@ function behavesLikeRibbonOptionsVault(params: {
   minimumSupply: string;
   expectedMintAmount: BigNumber;
   premium: BigNumber;
+  premiumDiscount: BigNumber;
   isPut: boolean;
   mintConfig?: {
     contractOwnerAddress: string;
@@ -197,11 +204,14 @@ function behavesLikeRibbonOptionsVault(params: {
   let collateralAsset = params.collateralAsset;
   let depositAmount = params.depositAmount;
   let premium = params.premium;
+  let premiumDiscount = params.premiumDiscount;
   let expectedMintAmount = params.expectedMintAmount;
   let isPut = params.isPut;
 
   // Contracts
   let strikeSelection: Contract;
+  let optionsPremiumPricer: Contract;
+  let gnosisAuction: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
@@ -219,6 +229,8 @@ function behavesLikeRibbonOptionsVault(params: {
       await strikeSelection.setStrikePrice(
         parseUnits(params.firstOptionStrike.toString(), 8)
       );
+
+      await optionsPremiumPricer.setPremium(params.premium.toString());
 
       await vault.connect(managerSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -248,12 +260,29 @@ function behavesLikeRibbonOptionsVault(params: {
       );
       strikeSelection = await MockStrikeSelection.deploy();
 
+      const MockOptionsPremiumPricer = await ethers.getContractFactory(
+        "MockOptionsPremiumPricer"
+      );
+      optionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
+
+      gnosisAuction = await getContractAt(
+        "IGnosisAuction",
+        GNOSIS_EASY_AUCTION
+      );
+
       const initializeTypes = [
         "address",
         "address",
         "uint256",
         "string",
         "string",
+        "uint256",
+        "uint256",
+        "address",
+        "bool",
+        "uint256",
+        "address",
+        "address",
       ];
       const initializeArgs = [
         owner,
@@ -265,7 +294,9 @@ function behavesLikeRibbonOptionsVault(params: {
         minimumSupply,
         asset,
         isPut,
+        premiumDiscount,
         strikeSelection.address,
+        optionsPremiumPricer.address,
       ];
 
       const deployArgs = [
@@ -274,6 +305,7 @@ function behavesLikeRibbonOptionsVault(params: {
         OTOKEN_FACTORY,
         GAMMA_CONTROLLER,
         MARGIN_POOL,
+        GNOSIS_EASY_AUCTION,
       ];
 
       vault = (
@@ -353,6 +385,8 @@ function behavesLikeRibbonOptionsVault(params: {
         parseUnits(params.firstOptionStrike.toString(), 8)
       );
 
+      await optionsPremiumPricer.setPremium(params.premium.toString());
+
       defaultOtokenAddress = firstOption.address;
       defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
       assetContract = await getContractAt(
@@ -403,7 +437,8 @@ function behavesLikeRibbonOptionsVault(params: {
           USDC_ADDRESS,
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
-          MARGIN_POOL
+          MARGIN_POOL,
+          GNOSIS_EASY_AUCTION
         );
       });
 
@@ -1057,6 +1092,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(defaultOtokenAddress, lockedAmount, manager);
 
+        await expect(res)
+          .to.emit(vault, "InitiateGnosisAuction")
+          .withArgs(
+            defaultOtokenAddress,
+            params.collateralAsset,
+            (await gnosisAuction.auctionCounter()) + 1,
+            manager
+          );
+
         assert.equal((await vault.lockedAmount()).toString(), lockedAmount);
 
         assert.equal((await vault.assetBalance()).toString(), availableAmount);
@@ -1092,6 +1136,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, lockedAmount, manager);
 
+        await expect(res)
+          .to.emit(vault, "InitiateGnosisAuction")
+          .withArgs(
+            firstOptionAddress,
+            params.collateralAsset,
+            (await gnosisAuction.auctionCounter()) + 1,
+            manager
+          );
+
         // 90% of the vault's balance is allocated to short
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),
@@ -1120,6 +1173,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             firstOptionAddress,
             wmul(depositAmount, LOCKED_RATIO),
+            manager
+          );
+
+        await expect(firstTx)
+          .to.emit(vault, "InitiateGnosisAuction")
+          .withArgs(
+            firstOptionAddress,
+            params.collateralAsset,
+            (await gnosisAuction.auctionCounter()) + 1,
             manager
           );
 
@@ -1187,6 +1249,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, mintAmount, manager);
 
+        await expect(secondTx)
+          .to.emit(vault, "InitiateGnosisAuction")
+          .withArgs(
+            secondOptionAddress,
+            params.collateralAsset,
+            (await gnosisAuction.auctionCounter()) + 1,
+            manager
+          );
+
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),
           wmul(currBalance, WITHDRAWAL_BUFFER).toString()
@@ -1207,6 +1278,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             firstOptionAddress,
             wmul(depositAmount, LOCKED_RATIO),
+            manager
+          );
+
+        await expect(res)
+          .to.emit(vault, "InitiateGnosisAuction")
+          .withArgs(
+            firstOptionAddress,
+            params.collateralAsset,
+            (await gnosisAuction.auctionCounter()) + 1,
             manager
           );
 
@@ -1272,6 +1352,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             secondOptionAddress,
             wmul(depositAmount.add(premium), LOCKED_RATIO),
+            manager
+          );
+
+        await expect(secondTx)
+          .to.emit(vault, "InitiateGnosisAuction")
+          .withArgs(
+            secondOptionAddress,
+            params.collateralAsset,
+            (await gnosisAuction.auctionCounter()) + 1,
             manager
           );
 

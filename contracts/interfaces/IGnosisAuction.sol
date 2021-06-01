@@ -15,4 +15,6 @@ interface IGnosisAuction {
         address accessManagerContract,
         bytes memory accessManagerContractData
     ) external returns (uint256);
+
+    function auctionCounter() external returns (uint256);
 }
