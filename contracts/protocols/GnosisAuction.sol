@@ -19,6 +19,7 @@ library GnosisAuction {
         address underlying;
         address manager;
         uint256 premiumDiscount;
+        uint256 duration;
     }
 
     function startAuction(
@@ -45,8 +46,8 @@ library GnosisAuction {
             IGnosisAuction(gnosisEasyAuction).initiateAuction(
                 auctionDetails.oTokenAddress,
                 auctionDetails.asset,
-                block.timestamp,
-                block.timestamp.add(6 hours),
+                block.timestamp.add(auctionDetails.duration.div(2)),
+                block.timestamp.add(auctionDetails.duration),
                 oTokenSellAmount,
                 0,
                 optionPremium,

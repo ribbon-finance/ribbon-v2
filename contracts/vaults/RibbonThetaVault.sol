@@ -533,6 +533,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         auctionDetails.underlying = underlying;
         auctionDetails.manager = manager;
         auctionDetails.premiumDiscount = premiumDiscount;
+        auctionDetails.duration = 6 hours;
 
         uint256 auctionCounter =
             GnosisAuction.startAuction(
