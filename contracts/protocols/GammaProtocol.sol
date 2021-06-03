@@ -12,7 +12,6 @@ import {
     IController,
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
-import {IGammaProtocol} from "../protocols/IGammaProtocol.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
 library GammaProtocol {
@@ -23,7 +22,7 @@ library GammaProtocol {
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     function createShort(
-        IGammaProtocol protocol,
+        address protocol,
         address gammaController,
         address marginPool,
         address oTokenAddress,
@@ -124,7 +123,7 @@ library GammaProtocol {
      * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
      * this assumption should hold.
      */
-    function settleShort(IGammaProtocol protocol, address gammaController)
+    function settleShort(address protocol, address gammaController)
         external
         returns (uint256)
     {
@@ -172,7 +171,7 @@ library GammaProtocol {
      * only have a single vault open at any given time.
      */
     function burnOtokens(
-        IGammaProtocol protocol,
+        address protocol,
         address gammaController,
         uint256 amount
     ) external returns (uint256) {
@@ -226,7 +225,7 @@ library GammaProtocol {
     }
 
     function getOrDeployOtoken(
-        IGammaProtocol protocol,
+        address protocol,
         address otokenFactory,
         address underlying,
         address strikeAsset,

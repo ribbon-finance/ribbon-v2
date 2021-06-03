@@ -8,7 +8,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {DSMath} from "../lib/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
-import {IGammaProtocol} from "../protocols/IGammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
@@ -21,7 +20,7 @@ import {
 import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, OptionsVaultStorage {
-    using GammaProtocol for IGammaProtocol;
+    using GammaProtocol for address;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -59,7 +58,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     address public immutable MARGIN_POOL;
 
     // Our library for all Opyn related logic
-    IGammaProtocol public immutable gammaProtocol;
+    address public immutable GAMMA_PROTOCOL;
 
     // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
@@ -147,8 +146,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
-
-        gammaProtocol = IGammaProtocol(_gammaProtocol);
+        GAMMA_PROTOCOL = _gammaProtocol;
     }
 
     /**
@@ -443,7 +441,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             IStrikeSelection(strikeSelection).getStrikePrice();
 
         address otokenAddress =
-            gammaProtocol.getOrDeployOtoken(
+            GAMMA_PROTOCOL.getOrDeployOtoken(
                 OTOKEN_FACTORY,
                 underlying,
                 USDC,
@@ -505,7 +503,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 "Before expiry"
             );
             uint256 withdrawAmount =
-                gammaProtocol.settleShort(GAMMA_CONTROLLER);
+                GAMMA_PROTOCOL.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -529,7 +527,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 shortAmount = wmul(freeBalance, lockedRatio);
         lockedAmount = shortAmount;
 
-        gammaProtocol.createShort(
+        GAMMA_PROTOCOL.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -544,7 +542,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyManager nonReentrant {
+    function startAuction() public onlyManager {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         auctionDetails.oTokenAddress = currentOption;
@@ -576,7 +574,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 numOTokensToBurn =
             IERC20(currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "No OTokens to burn!");
-        gammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+        GAMMA_PROTOCOL.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
     }
 
     /************************************************
