@@ -27,7 +27,7 @@ library GnosisAuction {
         address optionsPremiumPricer,
         AuctionDetails memory auctionDetails
     ) internal returns (uint256) {
-        (uint256 optionPremium, uint96 oTokenSellAmount) =
+        (uint96 optionPremium, uint96 oTokenSellAmount) =
             setupAuctionParameters(
                 auctionDetails.oTokenAddress,
                 gnosisEasyAuction,
@@ -49,8 +49,8 @@ library GnosisAuction {
                 block.timestamp.add(auctionDetails.duration.div(2)),
                 block.timestamp.add(auctionDetails.duration),
                 oTokenSellAmount,
-                0,
                 optionPremium,
+                0,
                 0,
                 false,
                 auctionDetails.manager,
@@ -66,7 +66,7 @@ library GnosisAuction {
         address underlying,
         address optionsPremiumPricer,
         uint256 premiumDiscount
-    ) internal returns (uint256 optionPremium, uint96 oTokenSellAmount) {
+    ) internal returns (uint96 optionPremium, uint96 oTokenSellAmount) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IGnosisAuction auction = IGnosisAuction(gnosisEasyAuction);
         oTokenSellAmount = uint96(
@@ -76,14 +76,16 @@ library GnosisAuction {
                 .div(auction.FEE_DENOMINATOR().add(auction.feeNumerator()))
         );
 
-        optionPremium = IOptionsPremiumPricer(optionsPremiumPricer)
-            .getPremium(
-            underlying,
-            newOToken.strikePrice(),
-            newOToken.expiryTimestamp(),
-            newOToken.isPut()
-        )
-            .mul(premiumDiscount)
-            .div(1000);
+        optionPremium = uint96(
+            IOptionsPremiumPricer(optionsPremiumPricer)
+                .getPremium(
+                underlying,
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            )
+                .mul(premiumDiscount)
+                .div(1000)
+        );
     }
 }
