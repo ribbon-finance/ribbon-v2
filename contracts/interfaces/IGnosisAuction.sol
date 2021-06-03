@@ -16,11 +16,11 @@ interface IGnosisAuction {
         bytes memory accessManagerContractData
     ) external returns (uint256);
 
-    function auctionCounter() external returns (uint256);
+    function auctionCounter() external view returns (uint256);
 
-    function FEE_DENOMINATOR() external returns (uint256);
+    function FEE_DENOMINATOR() external view returns (uint256);
 
-    function feeNumerator() external returns (uint256);
+    function feeNumerator() external view returns (uint256);
 
     function settleAuction(uint256 auctionId) external returns (bytes32);
 
