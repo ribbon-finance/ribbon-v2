@@ -21,4 +21,14 @@ interface IGnosisAuction {
     function FEE_DENOMINATOR() external returns (uint256);
 
     function feeNumerator() external returns (uint256);
+
+    function settleAuction(uint256 auctionId) external returns (bytes32);
+
+    function placeSellOrders(
+        uint256 auctionId,
+        uint96[] memory _minBuyAmounts,
+        uint96[] memory _sellAmounts,
+        bytes32[] memory _prevSellOrders,
+        bytes calldata allowListCallData
+    ) external returns (uint64);
 }

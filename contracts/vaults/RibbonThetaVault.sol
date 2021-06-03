@@ -8,6 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {DSMath} from "../lib/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
+import {IGammaProtocol} from "../protocols/IGammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
@@ -17,8 +18,10 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, OptionsVaultStorage {
+    using GammaProtocol for IGammaProtocol;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -54,6 +57,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     // Needed to approve collateral.safeTransferFrom for minting otokens.
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
+
+    // Our library for all Opyn related logic
+    IGammaProtocol public immutable gammaProtocol;
 
     // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
@@ -124,6 +130,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
+        address _gammaProtocol,
         address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
@@ -132,6 +139,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_gammaProtocol != address(0), "!_gammaProtocol");
 
         WETH = _weth;
         USDC = _usdc;
@@ -139,6 +147,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+
+        gammaProtocol = IGammaProtocol(_gammaProtocol);
     }
 
     /**
@@ -433,7 +443,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             IStrikeSelection(strikeSelection).getStrikePrice();
 
         address otokenAddress =
-            GammaProtocol.getOrDeployOtoken(
+            gammaProtocol.getOrDeployOtoken(
                 OTOKEN_FACTORY,
                 underlying,
                 USDC,
@@ -495,7 +505,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 "Before expiry"
             );
             uint256 withdrawAmount =
-                GammaProtocol.settleShort(GAMMA_CONTROLLER);
+                gammaProtocol.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -519,16 +529,25 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 shortAmount = wmul(freeBalance, lockedRatio);
         lockedAmount = shortAmount;
 
-        GammaProtocol.createShort(
+        gammaProtocol.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
             shortAmount
         );
 
+        startAuction();
+
+        emit OpenShort(newOption, shortAmount, msg.sender);
+    }
+
+    /**
+     * @notice Initiate the gnosis auction.
+     */
+    function startAuction() public onlyManager nonReentrant {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        auctionDetails.oTokenAddress = newOption;
+        auctionDetails.oTokenAddress = currentOption;
         auctionDetails.asset = asset;
         auctionDetails.underlying = underlying;
         auctionDetails.manager = manager;
@@ -542,9 +561,22 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 auctionDetails
             );
 
-        emit InitiateGnosisAuction(newOption, asset, auctionCounter, manager);
+        emit InitiateGnosisAuction(
+            currentOption,
+            asset,
+            auctionCounter,
+            manager
+        );
+    }
 
-        emit OpenShort(newOption, shortAmount, msg.sender);
+    /**
+     * @notice Burn the remaining oTokens left over from gnosis auction.
+     */
+    function burnRemainingOTokens() external onlyManager nonReentrant {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+        require(numOTokensToBurn > 0, "No OTokens to burn!");
+        gammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
     }
 
     /************************************************
