@@ -23,6 +23,7 @@ import {
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
+  bidForOToken,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -1076,39 +1077,18 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-        const latestAuction = (await gnosisAuction.auctionCounter()).toString();
-        const totalOptionsAvailableToBuy = expectedMintAmount
-          .mul(await gnosisAuction.FEE_DENOMINATOR())
-          .div(
-            (await gnosisAuction.FEE_DENOMINATOR()).add(
-              await gnosisAuction.feeNumerator()
-            )
-          )
-          .toString();
-
-        await optionsPremiumPricer
-          .connect(userSigner)
-          .setPremium(params.premium);
-        const bidPrice = (
-          await optionsPremiumPricer.getPremium(WETH_ADDRESS, 100, 100, true)
-        ).toString();
-
-        // BID OTOKENS HERE
-        await gnosisAuction
-          .connect(userSigner)
-          .placeSellOrders(
-            latestAuction,
-            [totalOptionsAvailableToBuy],
-            [bidPrice],
-            "",
-            ""
+        const [latestAuction, totalOptionsAvailableToBuy, bid] =
+          await bidForOToken(
+            gnosisAuction,
+            optionsPremiumPricer,
+            assetContract,
+            userSigner.address,
+            defaultOtokenAddress,
+            params.premium,
+            "1"
           );
 
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + 21600
-        );
-
-        await gnosisAuction.settleAuction(latestAuction);
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction);
 
         await expect(
           vault.connect(managerSigner).burnRemainingOTokens()
@@ -1116,43 +1096,21 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns all remaining oTokens", async function () {
-        const latestAuction = (await gnosisAuction.auctionCounter()).toString();
-        const totalOptionsAvailableToBuy = expectedMintAmount
-          .mul(await gnosisAuction.FEE_DENOMINATOR())
-          .div(
-            (await gnosisAuction.FEE_DENOMINATOR()).add(
-              await gnosisAuction.feeNumerator()
-            )
-          )
-          .div(2)
-          .toString();
-
-        await optionsPremiumPricer
-          .connect(userSigner)
-          .setPremium(params.premium);
-        const bidPrice = (
-          await optionsPremiumPricer.getPremium(WETH_ADDRESS, 100, 100, true)
-        ).toString();
-
-        // BID OTOKENS HERE
-        await gnosisAuction
-          .connect(userSigner)
-          .placeSellOrders(
-            latestAuction,
-            [totalOptionsAvailableToBuy],
-            [bidPrice],
-            [ethers.utils.formatBytes32String("")],
-            ethers.utils.formatBytes32String("")
+        const [latestAuction, totalOptionsAvailableToBuy, bid] =
+          await bidForOToken(
+            gnosisAuction,
+            optionsPremiumPricer,
+            assetContract,
+            userSigner.address,
+            defaultOtokenAddress,
+            params.premium,
+            "2"
           );
-
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + 21600
-        );
 
         const vaultOTokenBalanceBefore = (
           await defaultOtoken.balanceOf(vault.address)
         ).toString();
-        await gnosisAuction.settleAuction(latestAuction);
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction);
         const vaultOTokenBalanceAfter = (
           await defaultOtoken.balanceOf(vault.address)
         ).toString();
@@ -1326,6 +1284,27 @@ function behavesLikeRibbonOptionsVault(params: {
             manager
           );
 
+        const [latestAuction, totalOptionsAvailableToBuy, bid] =
+          await bidForOToken(
+            gnosisAuction,
+            optionsPremiumPricer,
+            assetContract,
+            userSigner.address,
+            firstOptionAddress,
+            params.premium,
+            "1"
+          );
+
+        const assetBalanceBeforeAuctionSettles =
+          await this.assetContract.balanceOf(this.vault.address);
+
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction);
+
+        assert.deepEqual(
+          await this.assetContract.balanceOf(this.vault.address),
+          assetBalanceBeforeAuctionSettles.add(bid)
+        );
+
         await depositIntoVault(params.collateralAsset, vault, premium);
 
         // only the premium should be left over because the funds are locked into Opyn
@@ -1399,6 +1378,27 @@ function behavesLikeRibbonOptionsVault(params: {
             manager
           );
 
+        const [latestAuction2, totalOptionsAvailableToBuy2, bid2] =
+          await bidForOToken(
+            gnosisAuction,
+            optionsPremiumPricer,
+            assetContract,
+            userSigner.address,
+            secondOptionAddress,
+            params.premium,
+            "1"
+          );
+
+        const assetBalanceBeforeAuctionSettles2 =
+          await this.assetContract.balanceOf(this.vault.address);
+
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction2);
+
+        assert.deepEqual(
+          await this.assetContract.balanceOf(this.vault.address),
+          assetBalanceBeforeAuctionSettles2.add(bid2)
+        );
+
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),
           wmul(currBalance, WITHDRAWAL_BUFFER).toString()
@@ -1430,6 +1430,27 @@ function behavesLikeRibbonOptionsVault(params: {
             await gnosisAuction.auctionCounter(),
             manager
           );
+
+        const [latestAuction, totalOptionsAvailableToBuy, bid] =
+          await bidForOToken(
+            gnosisAuction,
+            optionsPremiumPricer,
+            assetContract,
+            userSigner.address,
+            firstOptionAddress,
+            params.premium,
+            "1"
+          );
+
+        const assetBalanceBeforeAuctionSettles =
+          await this.assetContract.balanceOf(this.vault.address);
+
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction);
+
+        assert.deepEqual(
+          await this.assetContract.balanceOf(this.vault.address),
+          assetBalanceBeforeAuctionSettles.add(bid)
+        );
 
         await depositIntoVault(params.collateralAsset, vault, premium);
 
@@ -1504,6 +1525,27 @@ function behavesLikeRibbonOptionsVault(params: {
             await gnosisAuction.auctionCounter(),
             manager
           );
+
+        const [latestAuction2, totalOptionsAvailableToBuy2, bid2] =
+          await bidForOToken(
+            gnosisAuction,
+            optionsPremiumPricer,
+            assetContract,
+            userSigner.address,
+            secondOptionAddress,
+            params.premium,
+            "1"
+          );
+
+        const assetBalanceBeforeAuctionSettles2 =
+          await this.assetContract.balanceOf(this.vault.address);
+
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction2);
+
+        assert.deepEqual(
+          await this.assetContract.balanceOf(this.vault.address),
+          assetBalanceBeforeAuctionSettles2.add(bid2)
+        );
 
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),

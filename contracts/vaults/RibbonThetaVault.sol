@@ -17,7 +17,6 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
-import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     using GammaProtocol for address;
@@ -91,18 +90,18 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address manager
     );
 
-    event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
-        uint256 auctionCounter,
-        address manager
-    );
-
     event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
     event PremiumDiscountSet(
         uint256 premiumDiscount,
         uint256 newPremiumDiscount
+    );
+
+    event InitiateGnosisAuction(
+        address auctioningToken,
+        address biddingToken,
+        uint256 auctionCounter,
+        address manager
     );
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
@@ -552,18 +551,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         auctionDetails.premiumDiscount = premiumDiscount;
         auctionDetails.duration = 6 hours;
 
-        uint256 auctionCounter =
-            GnosisAuction.startAuction(
-                GNOSIS_EASY_AUCTION,
-                optionsPremiumPricer,
-                auctionDetails
-            );
-
-        emit InitiateGnosisAuction(
-            currentOption,
-            asset,
-            auctionCounter,
-            manager
+        GnosisAuction.startAuction(
+            GNOSIS_EASY_AUCTION,
+            optionsPremiumPricer,
+            auctionDetails
         );
     }
 
@@ -574,7 +565,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 numOTokensToBurn =
             IERC20(currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "No OTokens to burn!");
+        uint256 assetBalanceBeforeBurn = assetBalance();
         GAMMA_PROTOCOL.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+        uint256 assetBalanceAfterBurn = assetBalance();
+        lockedAmount = lockedAmount.sub(
+            assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
+        );
     }
 
     /************************************************

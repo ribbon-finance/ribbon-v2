@@ -10,6 +10,8 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  WETH_ADDRESS,
+  GNOSIS_EASY_AUCTION,
 } from "../helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -204,4 +206,58 @@ export async function mintToken(
     method: "hardhat_stopImpersonatingAccount",
     params: [contractOwner],
   });
+}
+
+export async function bidForOToken(
+  gnosisAuction: Contract,
+  optionsPremiumPricer: Contract,
+  assetContract: Contract,
+  contractSigner: string,
+  oToken: string,
+  premium: BigNumberish,
+  multiplier: string
+) {
+  const userSigner = await ethers.provider.getSigner(contractSigner);
+
+  const latestAuction = (await gnosisAuction.auctionCounter()).toString();
+  const totalOptionsAvailableToBuy = BigNumber.from(
+    await (
+      await ethers.getContractAt("IERC20", oToken)
+    ).balanceOf(gnosisAuction.address)
+  )
+    .mul(await gnosisAuction.FEE_DENOMINATOR())
+    .div(
+      (await gnosisAuction.FEE_DENOMINATOR()).add(
+        await gnosisAuction.feeNumerator()
+      )
+    )
+    .div(multiplier);
+
+  await optionsPremiumPricer.connect(userSigner).setPremium(premium);
+
+  const bid = (
+    await optionsPremiumPricer.getPremium(WETH_ADDRESS, 100, 100, true)
+  )
+    .mul(totalOptionsAvailableToBuy)
+    .toString();
+
+  const queueStartElement =
+    "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+  await assetContract.connect(userSigner).approve(gnosisAuction.address, bid);
+
+  // BID OTOKENS HERE
+  await gnosisAuction
+    .connect(userSigner)
+    .placeSellOrders(
+      latestAuction,
+      [totalOptionsAvailableToBuy.toString()],
+      [bid],
+      [queueStartElement],
+      "0x"
+    );
+
+  await increaseTo((await provider.getBlock("latest")).timestamp + 21600);
+
+  return [latestAuction, totalOptionsAvailableToBuy, bid];
 }

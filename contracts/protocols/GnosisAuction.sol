@@ -8,10 +8,18 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 library GnosisAuction {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+
+    event InitiateGnosisAuction(
+        address auctioningToken,
+        address biddingToken,
+        uint256 auctionCounter,
+        address manager
+    );
 
     struct AuctionDetails {
         address oTokenAddress;
@@ -26,7 +34,7 @@ library GnosisAuction {
         address gnosisEasyAuction,
         address optionsPremiumPricer,
         AuctionDetails memory auctionDetails
-    ) internal returns (uint256) {
+    ) internal {
         (uint96 optionPremium, uint96 oTokenSellAmount) =
             setupAuctionParameters(
                 auctionDetails.oTokenAddress,
@@ -50,14 +58,24 @@ library GnosisAuction {
                 block.timestamp.add(auctionDetails.duration), // order will last for `duration`
                 oTokenSellAmount, // we are selling all of the otokens minus a fee taken by gnosis
                 optionPremium, // the minimum we are willing to sell the oTokens for. A discount is applied on black-scholes price
-                1, // the minimum bidding amount must be 1 * 10 ** oTokenDecimals
+                1, // the minimum bidding amount must be 1 * 10 ** -assetDecimals
                 0, // the min funding threshold
                 false, // no atomic closure
                 auctionDetails.manager, // manager of auction
                 bytes("") // bytes for storing info like a whitelist for who can bid
             );
 
-        return auctionCounter;
+        console.log(auctionDetails.oTokenAddress);
+        console.log(auctionDetails.asset);
+        console.log(oTokenSellAmount);
+        console.log(optionPremium);
+
+        emit InitiateGnosisAuction(
+            auctionDetails.oTokenAddress,
+            auctionDetails.asset,
+            auctionCounter,
+            auctionDetails.manager
+        );
     }
 
     function setupAuctionParameters(
