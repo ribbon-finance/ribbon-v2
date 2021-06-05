@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { expect, assert } from "chai";
+import { expect } from "chai";
 import { BigNumber, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import moment from "moment-timezone";
@@ -27,6 +27,7 @@ import {
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { assert } from "./helpers/assertions";
 
 const { provider, getContractAt } = ethers;
 const { parseEther } = ethers.utils;
@@ -702,94 +703,31 @@ function behavesLikeRibbonOptionsVault(params: {
       describe("#depositETH", () => {
         time.revertToSnapshotAfterEach();
 
-        it("deposits successfully", async function () {
+        it("creates pending deposit successfully", async function () {
           const depositAmount = parseEther("1");
-          const res = await vault.depositETH({ value: depositAmount });
-          const receipt = await res.wait();
+          const tx = await vault.depositETH({ value: depositAmount });
 
-          assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
-
-          assert.equal((await vault.totalSupply()).toString(), depositAmount);
-          assert.equal((await vault.balanceOf(user)).toString(), depositAmount);
-          await expect(res)
+          // Unchanged for balance and totalSupply
+          assert.bnEqual(await vault.totalSupply(), BigNumber.from(0));
+          assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
+          await expect(tx)
             .to.emit(vault, "Deposit")
-            .withArgs(user, depositAmount, depositAmount);
+            .withArgs(user, depositAmount, 0);
         });
 
-        it("consumes less than 120k gas in ideal scenario [ @skip-on-coverage ]", async function () {
-          await vault
+        it("fits gas budget [ @skip-on-coverage ]", async function () {
+          const tx1 = await vault
             .connect(managerSigner)
             .depositETH({ value: parseEther("0.1") });
+          const receipt1 = await tx1.wait();
+          assert.isAtMost(receipt1.gasUsed.toNumber(), 130000);
 
-          const res = await vault.depositETH({ value: parseEther("0.1") });
-          const receipt = await res.wait();
-          assert.isAtMost(receipt.gasUsed.toNumber(), 120000);
-        });
-
-        it("returns the correct number of shares back", async function () {
-          // first user gets 3 shares
-          await vault
-            .connect(userSigner)
-            .depositETH({ value: parseEther("3") });
-          assert.equal(
-            (await vault.balanceOf(user)).toString(),
-            parseEther("3")
-          );
-
-          // simulate the vault accumulating more WETH
-          await assetContract
-            .connect(userSigner)
-            .deposit({ value: parseEther("1") });
-          await assetContract
-            .connect(userSigner)
-            .transfer(vault.address, parseEther("1"));
-
-          assert.equal(
-            (await vault.totalBalance()).toString(),
-            parseEther("4")
-          );
-
-          // formula:
-          // (depositAmount * totalSupply) / total
-          // (1 * 3) / 4 = 0.75 shares
-          const res = await vault
-            .connect(counterpartySigner)
-            .depositETH({ value: parseEther("1") });
-          assert.equal(
-            (await vault.balanceOf(counterparty)).toString(),
-            parseEther("0.75")
-          );
-          await expect(res)
-            .to.emit(vault, "Deposit")
-            .withArgs(counterparty, parseEther("1"), parseEther("0.75"));
-        });
-
-        it("accounts for the amounts that are locked", async function () {
-          // first user gets 3 shares
-          await vault
-            .connect(userSigner)
-            .depositETH({ value: parseEther("3") });
-
-          // simulate the vault accumulating more WETH
-          await assetContract
-            .connect(userSigner)
-            .deposit({ value: parseEther("1") });
-          await assetContract
-            .connect(userSigner)
-            .transfer(vault.address, parseEther("1"));
-
-          await rollToNextOption();
-
-          // formula:
-          // (depositAmount * totalSupply) / total
-          // (1 * 3) / 4 = 0.75 shares
-          await vault
-            .connect(counterpartySigner)
-            .depositETH({ value: parseEther("1") });
-          assert.equal(
-            (await vault.balanceOf(counterparty)).toString(),
-            parseEther("0.75")
-          );
+          const tx2 = await vault.depositETH({ value: parseEther("0.1") });
+          const receipt2 = await tx2.wait();
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 90000);
+          // Uncomment to benchmark precise numbers
+          // console.log(receipt1.gasUsed.toNumber());
+          // console.log(receipt2.gasUsed.toNumber());
         });
 
         it("reverts when no value passed", async function () {
@@ -810,9 +748,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(userSigner)
             .depositETH({ value: parseEther("1") });
 
-          // user needs to get back exactly 1 ether
-          // even though the total has been incremented
-          assert.isFalse((await vault.balanceOf(user)).isZero());
+          assert.isTrue((await vault.balanceOf(user)).isZero());
         });
 
         it("reverts when minimum shares are not minted", async function () {
