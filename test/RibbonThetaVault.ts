@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, BigNumberish, constants, Contract } from "ethers";
+import { BigNumber, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
@@ -704,32 +704,15 @@ function behavesLikeRibbonOptionsVault(params: {
         time.revertToSnapshotAfterEach();
 
         it("creates pending deposit successfully", async function () {
-          const startBalance = await provider.getBalance(user);
-
           const depositAmount = parseEther("1");
-          const tx = await vault.depositETH({ value: depositAmount, gasPrice });
-          const receipt = await tx.wait();
-          const gasFee = receipt.gasUsed.mul(gasPrice);
+          const tx = await vault.depositETH({ value: depositAmount });
 
-          assert.bnEqual(
-            await provider.getBalance(user),
-            startBalance.sub(depositAmount).sub(gasFee)
-          );
-
-          // Unchanged for share balance and totalSupply
+          // Unchanged for balance and totalSupply
           assert.bnEqual(await vault.totalSupply(), BigNumber.from(0));
           assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
           await expect(tx)
             .to.emit(vault, "Deposit")
             .withArgs(user, depositAmount, 0);
-
-          assert.bnEqual(await vault.totalPending(), depositAmount);
-          const { round, amount, processed } = await vault.pendingDeposits(
-            user
-          );
-          assert.equal(round, 0);
-          assert.bnEqual(amount, depositAmount);
-          assert.equal(processed, false);
         });
 
         it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -742,7 +725,7 @@ function behavesLikeRibbonOptionsVault(params: {
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
           assert.isAtMost(receipt2.gasUsed.toNumber(), 90000);
-          // Uncomment to measure precise gas numbers
+          // Uncomment to benchmark precise numbers
           // console.log(receipt1.gasUsed.toNumber());
           // console.log(receipt2.gasUsed.toNumber());
         });
@@ -799,8 +782,7 @@ function behavesLikeRibbonOptionsVault(params: {
         }
       });
 
-      it("creates a pending deposit", async function () {
-        const startBalance = await assetContract.balanceOf(user);
+      it("deposits successfully", async function () {
         const depositAmount = BigNumber.from("100000000000");
 
         await assetContract
@@ -808,84 +790,82 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
 
         const res = await vault.deposit(depositAmount);
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
 
-        assert.bnEqual(
-          await assetContract.balanceOf(user),
-          startBalance.sub(depositAmount)
-        );
-        assert.isTrue((await vault.totalSupply()).isZero());
-        assert.isTrue((await vault.balanceOf(user)).isZero());
+        assert.equal((await vault.totalSupply()).toString(), depositAmount);
+        assert.equal((await vault.balanceOf(user)).toString(), depositAmount);
         await expect(res)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
-
-        assert.bnEqual(await vault.totalPending(), depositAmount);
-        const { round, amount, processed } = await vault.pendingDeposits(user);
-        assert.equal(round, 0);
-        assert.bnEqual(amount, depositAmount);
-        assert.equal(processed, false);
+          .withArgs(user, depositAmount, depositAmount);
       });
 
-      it("tops up existing deposit", async function () {
-        const startBalance = await assetContract.balanceOf(user);
-        const depositAmount = BigNumber.from("100000000000");
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
-
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
-
-        await vault.deposit(depositAmount);
-
-        const tx = await vault.deposit(depositAmount);
-
-        assert.bnEqual(
-          await assetContract.balanceOf(user),
-          startBalance.sub(totalDepositAmount)
-        );
-        assert.isTrue((await vault.totalSupply()).isZero());
-        assert.isTrue((await vault.balanceOf(user)).isZero());
-        await expect(tx)
-          .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
-
-        assert.bnEqual(await vault.totalPending(), totalDepositAmount);
-        const { round, amount, processed } = await vault.pendingDeposits(user);
-        assert.equal(round, 0);
-        assert.bnEqual(amount, totalDepositAmount);
-        assert.equal(processed, false);
-      });
-
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
+      it("consumes less than 120k gas in ideal scenario [ @skip-on-coverage ]", async function () {
         const depositAmount = BigNumber.from("100000000000");
         await vault.connect(managerSigner).deposit(depositAmount);
 
-        const tx1 = await vault.deposit(depositAmount);
-        const receipt1 = await tx1.wait();
-        assert.isAtMost(receipt1.gasUsed.toNumber(), 100000);
-
-        const tx2 = await vault.deposit(depositAmount);
-        const receipt2 = await tx2.wait();
-        assert.isAtMost(receipt2.gasUsed.toNumber(), 80000);
-
-        // Uncomment to log gas used
-        // console.log(receipt1.gasUsed.toNumber());
-        // console.log(receipt2.gasUsed.toNumber());
+        const res = await vault.deposit(depositAmount);
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 120000);
       });
 
-      it("reverts when deposit amount exceeds uint128", async function () {
-        const depositAmount = BigNumber.from(
-          "340282366920938463463374607431768211455"
+      it("returns the correct number of shares back", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        // first user gets 3 shares
+        await vault.connect(userSigner).deposit(depositAmount);
+        assert.equal((await vault.balanceOf(user)).toString(), depositAmount);
+
+        // simulate the vault accumulating more WETH
+        await assetContract
+          .connect(userSigner)
+          .transfer(vault.address, depositAmount);
+
+        assert.equal(
+          (await vault.totalBalance()).toString(),
+          depositAmount.add(depositAmount)
         );
-        // const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
 
-        // await assetContract
-        //   .connect(userSigner)
-        //   .approve(vault.address, totalDepositAmount);
+        // formula:
+        // (depositAmount * totalSupply) / total
+        // (1 * 1) / 2 = 0.5 shares
+        const res = await vault
+          .connect(counterpartySigner)
+          .deposit(depositAmount);
+        assert.equal(
+          (await vault.balanceOf(counterparty)).toString(),
+          BigNumber.from("50000000000")
+        );
+        await expect(res)
+          .to.emit(vault, "Deposit")
+          .withArgs(counterparty, depositAmount, BigNumber.from("50000000000"));
+      });
 
-        // await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-        //   "Overflow"
-        // );
+      it("accounts for the amounts that are locked", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        // first user gets 3 shares
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        // simulate the vault accumulating more WETH
+        await assetContract
+          .connect(userSigner)
+          .transfer(vault.address, depositAmount);
+
+        await rollToNextOption();
+
+        // formula:
+        // (depositAmount * totalSupply) / total
+        // (1 * 1) / 2 = 0.5 shares
+        await vault.connect(counterpartySigner).deposit(depositAmount);
+        assert.equal(
+          (await vault.balanceOf(counterparty)).toString(),
+          BigNumber.from("50000000000")
+        );
+      });
+
+      it("reverts when no value passed", async function () {
+        await expect(vault.connect(userSigner).deposit(0)).to.be.revertedWith(
+          "Insufficient balance"
+        );
       });
 
       it("does not inflate the share tokens on initialization", async function () {
@@ -899,7 +879,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // user needs to get back exactly 1 ether
         // even though the total has been incremented
-        assert.isTrue((await vault.balanceOf(user)).isZero());
+        assert.isFalse((await vault.balanceOf(user)).isZero());
       });
 
       it("reverts when minimum shares are not minted", async function () {
@@ -2364,11 +2344,7 @@ function behavesLikeRibbonOptionsVault(params: {
   });
 }
 
-async function depositIntoVault(
-  asset: string,
-  vault: Contract,
-  amount: BigNumberish
-) {
+async function depositIntoVault(asset, vault, amount) {
   if (asset === WETH_ADDRESS) {
     await vault.depositETH({ value: amount });
   } else {
