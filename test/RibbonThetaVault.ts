@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, BigNumberish, constants, Contract } from "ethers";
+import { BigNumber, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
@@ -718,19 +718,10 @@ function behavesLikeRibbonOptionsVault(params: {
         time.revertToSnapshotAfterEach();
 
         it("creates pending deposit successfully", async function () {
-          const startBalance = await provider.getBalance(user);
-
           const depositAmount = parseEther("1");
-          const tx = await vault.depositETH({ value: depositAmount, gasPrice });
-          const receipt = await tx.wait();
-          const gasFee = receipt.gasUsed.mul(gasPrice);
+          const tx = await vault.depositETH({ value: depositAmount });
 
-          assert.bnEqual(
-            await provider.getBalance(user),
-            startBalance.sub(depositAmount).sub(gasFee)
-          );
-
-          // Unchanged for share balance and totalSupply
+          // Unchanged for balance and totalSupply
           assert.bnEqual(await vault.totalSupply(), BigNumber.from(0));
           assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
           await expect(tx)
@@ -826,16 +817,19 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
 
         const res = await vault.deposit(depositAmount);
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
 
-        assert.bnEqual(
-          await assetContract.balanceOf(user),
-          startBalance.sub(depositAmount)
-        );
-        assert.isTrue((await vault.totalSupply()).isZero());
-        assert.isTrue((await vault.balanceOf(user)).isZero());
+        assert.equal((await vault.totalSupply()).toString(), depositAmount);
+        assert.equal((await vault.balanceOf(user)).toString(), depositAmount);
         await expect(res)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
+          .withArgs(user, depositAmount, depositAmount);
+      });
+
+      it("consumes less than 120k gas in ideal scenario [ @skip-on-coverage ]", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+        await vault.connect(managerSigner).deposit(depositAmount);
 
         assert.bnEqual(await vault.totalPending(), depositAmount);
         const { round, amount, processed } = await vault.depositReceipts(user);
@@ -848,21 +842,27 @@ function behavesLikeRibbonOptionsVault(params: {
         const startBalance = await assetContract.balanceOf(user);
         const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
 
+        // simulate the vault accumulating more WETH
         await assetContract
           .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
+          .transfer(vault.address, depositAmount);
 
-        await vault.deposit(depositAmount);
-
-        const tx = await vault.deposit(depositAmount);
-
-        assert.bnEqual(
-          await assetContract.balanceOf(user),
-          startBalance.sub(totalDepositAmount)
+        assert.equal(
+          (await vault.totalBalance()).toString(),
+          depositAmount.add(depositAmount)
         );
-        assert.isTrue((await vault.totalSupply()).isZero());
-        assert.isTrue((await vault.balanceOf(user)).isZero());
-        await expect(tx)
+
+        // formula:
+        // (depositAmount * totalSupply) / total
+        // (1 * 1) / 2 = 0.5 shares
+        const res = await vault
+          .connect(counterpartySigner)
+          .deposit(depositAmount);
+        assert.equal(
+          (await vault.balanceOf(counterparty)).toString(),
+          BigNumber.from("50000000000")
+        );
+        await expect(res)
           .to.emit(vault, "Deposit")
           .withArgs(user, depositAmount, 0);
 
@@ -935,7 +935,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // user needs to get back exactly 1 ether
         // even though the total has been incremented
-        assert.isTrue((await vault.balanceOf(user)).isZero());
+        assert.isFalse((await vault.balanceOf(user)).isZero());
       });
 
       it("reverts when minimum shares are not minted", async function () {
@@ -1640,11 +1640,7 @@ function behavesLikeRibbonOptionsVault(params: {
   });
 }
 
-async function depositIntoVault(
-  asset: string,
-  vault: Contract,
-  amount: BigNumberish
-) {
+async function depositIntoVault(asset, vault, amount) {
   if (asset === WETH_ADDRESS) {
     await vault.depositETH({ value: amount });
   } else {
