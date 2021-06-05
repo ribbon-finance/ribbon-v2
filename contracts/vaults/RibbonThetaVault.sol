@@ -261,11 +261,14 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         emit Deposit(msg.sender, amount, _round);
 
-        VaultDeposit.PendingDeposit storage pendingDeposit =
+        VaultDeposit.PendingDeposit memory pendingDeposit =
             pendingDeposits[msg.sender];
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (_round == pendingDeposit.round) {
+            // No deposits allowed until the next round
+            require(!pendingDeposit.processed, "Processed");
+
             uint256 newAmount = uint256(pendingDeposit.amount).add(amount);
             require(newAmount < MAX_UINT128, "Overflow");
 
@@ -283,6 +286,18 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         }
 
         totalPending = totalPending.add(amount);
+    }
+
+    function _redeem() private {
+        VaultDeposit.PendingDeposit storage pendingDeposit =
+            pendingDeposits[msg.sender];
+
+        require(!pendingDeposit.processed, "Processed");
+        require(pendingDeposit.round > round, "Round open");
+
+        pendingDeposit.processed = true;
+
+        transfer(msg.sender, pendingDeposit.amount);
     }
 
     /**
