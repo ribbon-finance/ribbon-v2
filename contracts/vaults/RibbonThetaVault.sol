@@ -179,19 +179,12 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     }
 
     /**
-     * @notice Sets the new withdrawal fee
-     * @param newWithdrawalFee is the fee paid in tokens when withdrawing
+     * @notice Sets the new fee recipient
+     * @param newFeeRecipient is the address of the new fee recipient
      */
-    function setWithdrawalFee(uint256 newWithdrawalFee) external onlyManager {
-        require(newWithdrawalFee > 0, "withdrawalFee != 0");
-
-        // cap max withdrawal fees to 30% of the withdrawal amount
-        require(newWithdrawalFee < 0.3 ether, "withdrawalFee >= 30%");
-
-        uint256 oldFee = instantWithdrawalFee;
-        emit WithdrawalFeeSet(oldFee, newWithdrawalFee);
-
-        instantWithdrawalFee = newWithdrawalFee;
+    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+        require(newFeeRecipient != address(0), "!newFeeRecipient");
+        feeRecipient = newFeeRecipient;
     }
 
     /**
