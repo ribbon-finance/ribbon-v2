@@ -55,7 +55,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     event ManagerChanged(address oldManager, address newManager);
 
-    event Deposit(address indexed account, uint256 amount, uint256 share);
+    event Deposit(address indexed account, uint256 amount, uint16 round);
 
     event Withdraw(
         address indexed account,
@@ -162,10 +162,11 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         isPut = _isPut;
 
         // hardcode the initial withdrawal fee
-        instantWithdrawalFee = 0.005 ether;
+        instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
 
         strikeSelection = _strikeSelection;
+        genesisTimestamp = uint32(block.timestamp);
     }
 
     /************************************************
@@ -248,18 +249,21 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
+        uint16 _round = round;
         uint256 totalWithDepositedAmount = totalBalance();
+
+        require(amount < MAX_UINT128, "Overflow");
         require(totalWithDepositedAmount < cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= minimumSupply,
             "Insufficient balance"
         );
 
-        require(amount < MAX_UINT128, "Overflow");
+        emit Deposit(msg.sender, amount, _round);
 
         pendingDeposits[msg.sender] = VaultDeposit.PendingDeposit({
             processed: false,
-            round: round,
+            round: _round,
             amount: uint128(amount)
         });
 

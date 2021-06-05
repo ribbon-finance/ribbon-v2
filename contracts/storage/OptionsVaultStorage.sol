@@ -67,6 +67,9 @@ contract OptionsVaultStorageV3 {
     /// @notice Current round number. `round` represents the number of `period`s elapsed.
     uint16 public round;
 
+    /// @notice The timestamp of the first round. Used only by consumers to count how many rounds have passed
+    uint32 public genesisTimestamp;
+
     /// @notice Asset used in Theta Vault
     address public asset;
 
