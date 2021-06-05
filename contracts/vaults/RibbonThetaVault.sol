@@ -307,7 +307,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         emit Deposit(msg.sender, amount, _round);
 
-        VaultDeposit.PendingDeposit memory pendingDeposit =
+        VaultDeposit.PendingDeposit storage pendingDeposit =
             pendingDeposits[msg.sender];
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
