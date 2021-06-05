@@ -6,13 +6,14 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {DSMath} from "../lib/DSMath.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import {VaultDeposit} from "../libraries/VaultDeposit.sol";
 
 contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     using SafeERC20 for IERC20;
@@ -31,6 +32,9 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     uint256 public constant delay = 1 hours;
 
     uint256 public constant period = 7 days;
+
+    uint256 private constant MAX_UINT128 =
+        340282366920938463463374607431768211455;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
@@ -251,23 +255,15 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             "Insufficient balance"
         );
 
-        // amount needs to be subtracted from totalBalance because it has already been
-        // added to it from either IWETH.deposit and IERC20.safeTransferFrom
-        uint256 total = totalWithDepositedAmount.sub(amount);
+        require(amount < MAX_UINT128, "Overflow");
 
-        uint256 shareSupply = totalSupply();
+        pendingDeposits[msg.sender] = VaultDeposit.PendingDeposit({
+            processed: false,
+            round: round,
+            amount: uint128(amount)
+        });
 
-        // Following the pool share calculation from Alpha Homora:
-        // solhint-disable-next-line
-        // https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
-        uint256 share =
-            shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
-
-        require(shareSupply.add(share) >= minimumSupply, "Insufficient supply");
-
-        emit Deposit(msg.sender, amount, share);
-
-        _mint(msg.sender, share);
+        totalPending += amount;
     }
 
     /**
