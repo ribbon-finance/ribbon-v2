@@ -329,7 +329,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             amount: uint128(amount)
         });
 
-        totalPending += amount;
+        totalPending = totalPending.add(amount);
     }
 
     /**
