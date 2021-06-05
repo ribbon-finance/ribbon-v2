@@ -215,8 +215,9 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         require(asset == WETH, "Not WETH");
         require(msg.value > 0, "No value");
 
-        IWETH(WETH).deposit{value: msg.value}();
         _deposit(msg.value);
+
+        IWETH(WETH).deposit{value: msg.value}();
     }
 
     /**
@@ -224,8 +225,9 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @param amount is the amount of `asset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount);
+
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -234,7 +236,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      */
     function _deposit(uint256 amount) private {
         uint16 _round = round;
-        uint256 totalWithDepositedAmount = totalBalance();
+        uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
         require(amount < MAX_UINT128, "Overflow");
         require(totalWithDepositedAmount < cap, "Exceed cap");
