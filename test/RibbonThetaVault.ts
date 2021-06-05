@@ -640,6 +640,14 @@ function behavesLikeRibbonOptionsVault(params: {
           await expect(tx)
             .to.emit(vault, "Deposit")
             .withArgs(user, depositAmount, 0);
+
+          assert.bnEqual(await vault.totalPending(), depositAmount);
+          const { round, amount, processed } = await vault.pendingDeposits(
+            user
+          );
+          assert.equal(round, 0);
+          assert.bnEqual(amount, depositAmount);
+          assert.equal(processed, false);
         });
 
         it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -652,9 +660,9 @@ function behavesLikeRibbonOptionsVault(params: {
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
           assert.isAtMost(receipt2.gasUsed.toNumber(), 90000);
-          // Uncomment to benchmark precise numbers
-          // console.log(receipt1.gasUsed.toNumber());
-          // console.log(receipt2.gasUsed.toNumber());
+          // Uncomment to measure precise gas numbers
+          console.log(receipt1.gasUsed.toNumber());
+          console.log(receipt2.gasUsed.toNumber());
         });
 
         it("reverts when no value passed", async function () {
