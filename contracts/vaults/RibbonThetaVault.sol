@@ -70,12 +70,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event Deposit(address indexed account, uint256 amount, uint16 round);
 
-    event Withdraw(
-        address indexed account,
-        uint256 amount,
-        uint256 share,
-        uint256 fee
-    );
+    event ScheduleWithdraw(address account, uint256 shares);
+
+    event Withdraw(address indexed account, uint256 amount, uint256 share);
 
     event OpenShort(
         address indexed options,
@@ -104,10 +101,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     );
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
-
-    event ScheduleWithdraw(address account, uint256 shares);
-
-    event ScheduledWithdrawCompleted(address account, uint256 amount);
 
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
@@ -227,15 +220,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         manager = newManager;
 
         emit ManagerChanged(oldManager, newManager);
-    }
-
-    /**
-     * @notice Sets the new fee recipient
-     * @param newFeeRecipient is the address of the new fee recipient
-     */
-    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
-        require(newFeeRecipient != address(0), "!newFeeRecipient");
-        feeRecipient = newFeeRecipient;
     }
 
     /**
@@ -363,44 +347,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     }
 
     /**
-     * @notice Withdraws ETH from vault using vault shares
-     * @param share is the number of vault shares to be burned
-     */
-    function withdrawETH(uint256 share) external nonReentrant {
-        require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share);
-
-        IWETH(WETH).withdraw(withdrawAmount);
-        (bool success, ) = msg.sender.call{value: withdrawAmount}("");
-        require(success, "Transfer failed");
-    }
-
-    /**
-     * @notice Withdraws WETH from vault using vault shares
-     * @param share is the number of vault shares to be burned
-     */
-    function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share);
-        IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
-    }
-
-    /**
-     * @notice Burns vault shares and checks if eligible for withdrawal
-     * @param share is the number of vault shares to be burned
-     */
-    function _withdraw(uint256 share) private returns (uint256) {
-        (uint256 amountAfterFee, uint256 feeAmount) =
-            withdrawAmountWithShares(share);
-
-        emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
-
-        _burn(msg.sender, share);
-        IERC20(asset).safeTransfer(feeRecipient, feeAmount);
-
-        return amountAfterFee;
-    }
-
-    /**
      * @notice Lock's users shares for future withdraw and ensures that the new short excludes the scheduled amount.
      * @param shares is the number of shares to be withdrawn in the future.
      */
@@ -424,21 +370,18 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
+        uint256 withdrawAmount = withdrawAmountWithShares(withdrawShares);
 
-        (uint256 amountAfterFee, uint256 feeAmount) =
-            withdrawAmountWithShares(withdrawShares);
-
-        emit Withdraw(msg.sender, amountAfterFee, withdrawShares, feeAmount);
-        emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawShares);
 
         _burn(address(this), withdrawShares);
-        IERC20(asset).safeTransfer(feeRecipient, feeAmount);
+
         if (asset == WETH) {
-            IWETH(WETH).withdraw(amountAfterFee);
-            (bool success, ) = msg.sender.call{value: amountAfterFee}("");
+            IWETH(WETH).withdraw(withdrawAmount);
+            (bool success, ) = msg.sender.call{value: withdrawAmount}("");
             require(success, "Transfer failed");
         } else {
-            IERC20(asset).safeTransfer(msg.sender, amountAfterFee);
+            IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
         }
     }
 
@@ -619,12 +562,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Returns the amount withdrawable (in `asset` tokens) using the `share` amount
      * @param share is the number of shares burned to withdraw asset from the vault
      * @return amountAfterFee is the amount of asset tokens withdrawable from the vault
-     * @return feeAmount is the fee amount (in asset tokens) sent to the feeRecipient
      */
     function withdrawAmountWithShares(uint256 share)
         public
         view
-        returns (uint256 amountAfterFee, uint256 feeAmount)
+        returns (uint256 amountAfterFee)
     {
         uint256 currentAssetBalance = assetBalance();
         (
@@ -637,12 +579,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             withdrawAmount <= currentAssetBalance,
             "Withdrawing more than available"
         );
-
         require(newShareSupply >= minimumSupply, "Insufficient supply");
         require(newAssetBalance >= minimumSupply, "Insufficient balance");
 
-        feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
-        amountAfterFee = withdrawAmount.sub(feeAmount);
+        return withdrawAmount;
     }
 
     /**
