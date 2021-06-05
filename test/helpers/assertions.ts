@@ -29,5 +29,7 @@ const assertBNNotEqual = (
   _assert.notStrictEqual(actualBN.toString(), expectedBN.toString(), context);
 };
 
-export const assert = { ..._assert, bnEqual: assertBNEqual,
-  bnNotEqual: assertBNNotEqual, };
+export const assert = Object.assign({}, _assert, {
+  bnEqual: assertBNEqual,
+  bnNotEqual: assertBNNotEqual,
+});
