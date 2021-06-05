@@ -267,7 +267,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             amount: uint128(amount)
         });
 
-        totalPending += amount;
+        totalPending = totalPending.add(amount);
     }
 
     /**
