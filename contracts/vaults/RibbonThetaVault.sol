@@ -267,8 +267,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
-        require(asset == WETH, "Not WETH");
-        require(msg.value > 0, "No value");
+        require(asset == WETH, "!WETH");
+        require(msg.value > 0, "!value");
 
         _deposit(msg.value);
 
