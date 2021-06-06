@@ -159,6 +159,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
+        totalPending = 1; // Hardcode to 1 so no cold writes for depositors
 
         strikeSelection = _strikeSelection;
         genesisTimestamp = uint32(block.timestamp);
@@ -447,7 +448,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     function _mintPendingShares() private {
         uint256 _totalPending = totalPending;
-        totalPending = 0;
+        totalPending = 1;
         roundPricePerShare[round] = pricePerShare();
 
         // Vault holds temporary custody of the newly minted vault shares
