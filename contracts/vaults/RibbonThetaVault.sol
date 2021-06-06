@@ -231,7 +231,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         uint16 currentRound = round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(amount < MAX_UINT128, "Overflow");
         require(totalWithDepositedAmount < cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= minimumSupply,
