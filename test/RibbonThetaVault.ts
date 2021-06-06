@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, BigNumberish, constants, Contract } from "ethers";
+import { BigNumber, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
@@ -10,7 +10,6 @@ import {
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
-  SWAP_CONTRACT,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WBTC_ADDRESS,
@@ -19,12 +18,12 @@ import {
 } from "./helpers/constants";
 import {
   deployProxy,
-  setupOracle,
-  setOpynOracleExpiryPrice,
+  // setupOracle,
+  // setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
 } from "./helpers/utils";
-import { wmul } from "./helpers/math";
+// import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -34,8 +33,6 @@ const { parseEther } = ethers.utils;
 moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 60 * 60; // 1 hour
-const LOCKED_RATIO = parseEther("0.9");
-const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
 
 describe("RibbonThetaVault", () => {
@@ -195,11 +192,7 @@ function behavesLikeRibbonOptionsVault(params: {
   };
 }) {
   // Addresses
-  let owner: string,
-    user: string,
-    manager: string,
-    counterparty: string,
-    feeRecipient: string;
+  let owner: string, user: string, manager: string, feeRecipient: string;
 
   // Signers
   let adminSigner: SignerWithAddress,
@@ -216,16 +209,16 @@ function behavesLikeRibbonOptionsVault(params: {
   let minimumSupply = params.minimumSupply;
   let asset = params.asset;
   let collateralAsset = params.collateralAsset;
-  let depositAmount = params.depositAmount;
-  let premium = params.premium;
-  let expectedMintAmount = params.expectedMintAmount;
+  // let depositAmount = params.depositAmount;
+  // let premium = params.premium;
+  // let expectedMintAmount = params.expectedMintAmount;
   let isPut = params.isPut;
 
   // Contracts
   let strikeSelection: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
-  let defaultOtoken: Contract;
+  // let defaultOtoken: Contract;
   let assetContract: Contract;
 
   // Variables
@@ -234,18 +227,18 @@ function behavesLikeRibbonOptionsVault(params: {
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
     let firstOption: Option;
-    let secondOption: Option;
+    // let secondOption: Option;
 
-    const rollToNextOption = async () => {
-      await strikeSelection.setStrikePrice(
-        parseUnits(params.firstOptionStrike.toString(), 8)
-      );
+    // const rollToNextOption = async () => {
+    //   await strikeSelection.setStrikePrice(
+    //     parseUnits(params.firstOptionStrike.toString(), 8)
+    //   );
 
-      await vault.connect(managerSigner).commitAndClose();
-      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+    //   await vault.connect(managerSigner).commitAndClose();
+    //   await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-      await vault.connect(managerSigner).rollToNextOption();
-    };
+    //   await vault.connect(managerSigner).rollToNextOption();
+    // };
 
     before(async function () {
       initSnapshotId = await time.takeSnapshot();
@@ -255,13 +248,11 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner,
         userSigner,
         managerSigner,
-        counterpartySigner,
         feeRecipientSigner,
       ] = await ethers.getSigners();
       owner = ownerSigner.address;
       user = userSigner.address;
       manager = managerSigner.address;
-      counterparty = counterpartySigner.address;
       feeRecipient = feeRecipientSigner.address;
 
       const MockStrikeSelection = await ethers.getContractFactory(
@@ -346,36 +337,36 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      const secondOptionExpiry = moment(latestTimestamp * 1000)
-        .startOf("isoWeek")
-        .add(2, "week")
-        .day("friday")
-        .hours(8)
-        .minutes(0)
-        .seconds(0)
-        .unix();
+      // const secondOptionExpiry = moment(latestTimestamp * 1000)
+      //   .startOf("isoWeek")
+      //   .add(2, "week")
+      //   .day("friday")
+      //   .hours(8)
+      //   .minutes(0)
+      //   .seconds(0)
+      //   .unix();
 
-      const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
-        params.asset,
-        params.strikeAsset,
-        params.collateralAsset,
-        parseUnits(params.secondOptionStrike.toString(), 8),
-        secondOptionExpiry,
-        params.isPut
-      );
+      // const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
+      //   params.asset,
+      //   params.strikeAsset,
+      //   params.collateralAsset,
+      //   parseUnits(params.secondOptionStrike.toString(), 8),
+      //   secondOptionExpiry,
+      //   params.isPut
+      // );
 
-      secondOption = {
-        address: secondOptionAddress,
-        strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
-        expiry: secondOptionExpiry,
-      };
+      // secondOption = {
+      //   address: secondOptionAddress,
+      //   strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
+      //   expiry: secondOptionExpiry,
+      // };
 
       await strikeSelection.setStrikePrice(
         parseUnits(params.firstOptionStrike.toString(), 8)
       );
 
       defaultOtokenAddress = firstOption.address;
-      defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
+      // defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
       assetContract = await getContractAt(
         params.assetContractName,
         collateralAsset
@@ -1715,14 +1706,14 @@ function behavesLikeRibbonOptionsVault(params: {
   });
 }
 
-async function depositIntoVault(
-  asset: string,
-  vault: Contract,
-  amount: BigNumberish
-) {
-  if (asset === WETH_ADDRESS) {
-    await vault.depositETH({ value: amount });
-  } else {
-    await vault.deposit(amount);
-  }
-}
+// async function depositIntoVault(
+//   asset: string,
+//   vault: Contract,
+//   amount: BigNumberish
+// ) {
+//   if (asset === WETH_ADDRESS) {
+//     await vault.depositETH({ value: amount });
+//   } else {
+//     await vault.deposit(amount);
+//   }
+// }
