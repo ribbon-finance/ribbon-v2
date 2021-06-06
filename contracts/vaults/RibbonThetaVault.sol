@@ -228,7 +228,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
-        uint16 _round = round;
+        uint16 currentRound = round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
         require(amount < MAX_UINT128, "Overflow");
@@ -238,7 +238,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             "Insufficient balance"
         );
 
-        emit Deposit(msg.sender, amount, _round);
+        emit Deposit(msg.sender, amount, currentRound);
 
         VaultDeposit.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
@@ -253,18 +253,23 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
-                round: _round,
+                round: currentRound,
                 amount: uint128(newAmount)
             });
         } else {
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
-                round: _round,
+                round: currentRound,
                 amount: uint128(amount)
             });
         }
 
         totalPending = totalPending.add(amount);
+
+        // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
+        if (pendingDeposit.round < currentRound && !pendingDeposit.processed) {
+            _redeemDeposit(currentRound, pendingDeposit);
+        }
     }
 
     // TODO: WIP
@@ -285,7 +290,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             pendingDeposits[msg.sender];
 
         require(!pendingDeposit.processed, "Processed");
-        require(pendingDeposit.round > round, "Round not closed");
+        require(pendingDeposit.round == round, "Invalid round");
 
         // Subtraction underflow checks already ensure it is smaller than uint128
         pendingDeposit.amount = uint128(
@@ -468,6 +473,20 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     function pricePerShare() public view returns (uint256) {
         return withdrawAmountWithShares(10**(decimals()));
+    }
+
+    function balanceWithPending(address account)
+        external
+        view
+        returns (uint256)
+    {
+        VaultDeposit.PendingDeposit memory pendingDeposit =
+            pendingDeposits[msg.sender];
+
+        uint256 pendingAmount =
+            pendingDeposit.processed ? 0 : pendingDeposit.amount;
+
+        return balanceOf(account).add(pendingAmount);
     }
 
     /**
