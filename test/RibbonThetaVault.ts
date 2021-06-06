@@ -420,6 +420,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.asset(), collateralAsset);
         assert.equal(await vault.WETH(), WETH_ADDRESS);
         assert.equal(await vault.USDC(), USDC_ADDRESS);
+        assert.bnEqual(await vault.totalPending(), BigNumber.from(1));
       });
 
       it("cannot be initialized twice", async function () {
@@ -752,8 +753,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Deposit")
           .withArgs(user, depositAmount, 0);
 
-        assert.bnEqual(await vault.totalPending(), depositAmount);
-        const { round, amount, processed } = await vault.depositReceipts(user);
+        assert.bnEqual(await vault.totalPending(), depositAmount.add(1));
+        const { round, amount, processed } = await vault.pendingDeposits(user);
         assert.equal(round, 0);
         assert.bnEqual(amount, depositAmount);
         assert.equal(processed, false);
@@ -813,6 +814,12 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when deposit amount exceeds uint128", async function () {
+        await vault
+          .connect(managerSigner)
+          .setCap(
+            "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          );
+
         const depositAmount = BigNumber.from(
           "340282366920938463463374607431768211455"
         );
