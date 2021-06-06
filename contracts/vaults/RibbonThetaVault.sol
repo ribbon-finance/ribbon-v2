@@ -61,6 +61,8 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
 
+    event Redeem(address indexed account, uint256 share, uint16 round);
+
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
@@ -271,18 +273,32 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         }
     }
 
-    // TODO: WIP
-    // function _redeem() private {
-    //     VaultDeposit.DepositReceipt storage depositReceipt =
-    //         depositReceipts[msg.sender];
+    function redeemDeposit() external nonReentrant {
+        VaultDeposit.PendingDeposit memory pendingDeposit =
+            pendingDeposits[msg.sender];
+        _redeemDeposit(round, pendingDeposit);
+    }
 
-    //     require(!depositReceipt.processed, "Processed");
-    //     require(depositReceipt.round > round, "Round open");
+    function _redeemDeposit(
+        uint16 currentRound,
+        VaultDeposit.PendingDeposit memory pendingDeposit
+    ) private {
+        require(!pendingDeposit.processed, "Processed");
+        require(pendingDeposit.round > currentRound, "Round not closed");
 
-    //     depositReceipt.processed = true;
+        uint256 pps = roundPricePerShare[currentRound];
+        // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
+        // which should never happen.
+        require(pps > 1, "Invalid pps");
 
-    //     transfer(msg.sender, depositReceipt.amount);
-    // }
+        pendingDeposits[msg.sender].processed = true;
+
+        uint256 shares = wmul(pendingDeposit.amount, pps);
+
+        emit Redeem(msg.sender, shares, pendingDeposit.round);
+
+        transfer(msg.sender, shares);
+    }
 
     function withdrawInstantly(uint256 amount) external nonReentrant {
         VaultDeposit.PendingDeposit storage pendingDeposit =
