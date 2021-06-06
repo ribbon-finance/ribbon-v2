@@ -19,13 +19,13 @@ import {
 } from "./helpers/constants";
 import {
   deployProxy,
-  setupOracle,
-  setOpynOracleExpiryPrice,
+  // setupOracle,
+  // setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
   bidForOToken,
 } from "./helpers/utils";
-import { wmul } from "./helpers/math";
+// import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -35,8 +35,6 @@ const { parseEther } = ethers.utils;
 moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 60 * 60; // 1 hour
-const LOCKED_RATIO = parseEther("0.9");
-const WITHDRAWAL_BUFFER = parseEther("1").sub(LOCKED_RATIO);
 const gasPrice = parseUnits("1", "gwei");
 
 describe("RibbonThetaVault", () => {
@@ -182,11 +180,7 @@ function behavesLikeRibbonOptionsVault(params: {
   };
 }) {
   // Addresses
-  let owner: string,
-    user: string,
-    manager: string,
-    counterparty: string,
-    feeRecipient: string;
+  let owner: string, user: string, manager: string, feeRecipient: string;
 
   // Signers
   let adminSigner: SignerWithAddress,
@@ -216,7 +210,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let gammaProtocolLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
-  let defaultOtoken: Contract;
+  // let defaultOtoken: Contract;
   let assetContract: Contract;
 
   // Variables
@@ -225,7 +219,7 @@ function behavesLikeRibbonOptionsVault(params: {
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
     let firstOption: Option;
-    let secondOption: Option;
+    // let secondOption: Option;
 
     const rollToNextOption = async () => {
       await strikeSelection.setStrikePrice(
@@ -248,13 +242,11 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner,
         userSigner,
         managerSigner,
-        counterpartySigner,
         feeRecipientSigner,
       ] = await ethers.getSigners();
       owner = ownerSigner.address;
       user = userSigner.address;
       manager = managerSigner.address;
-      counterparty = counterpartySigner.address;
       feeRecipient = feeRecipientSigner.address;
 
       const MockStrikeSelection = await ethers.getContractFactory(
@@ -363,29 +355,29 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      const secondOptionExpiry = moment(latestTimestamp * 1000)
-        .startOf("isoWeek")
-        .add(2, "week")
-        .day("friday")
-        .hours(8)
-        .minutes(0)
-        .seconds(0)
-        .unix();
+      // const secondOptionExpiry = moment(latestTimestamp * 1000)
+      //   .startOf("isoWeek")
+      //   .add(2, "week")
+      //   .day("friday")
+      //   .hours(8)
+      //   .minutes(0)
+      //   .seconds(0)
+      //   .unix();
 
-      const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
-        params.asset,
-        params.strikeAsset,
-        params.collateralAsset,
-        parseUnits(params.secondOptionStrike.toString(), 8),
-        secondOptionExpiry,
-        params.isPut
-      );
+      // const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
+      //   params.asset,
+      //   params.strikeAsset,
+      //   params.collateralAsset,
+      //   parseUnits(params.secondOptionStrike.toString(), 8),
+      //   secondOptionExpiry,
+      //   params.isPut
+      // );
 
-      secondOption = {
-        address: secondOptionAddress,
-        strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
-        expiry: secondOptionExpiry,
-      };
+      // secondOption = {
+      //   address: secondOptionAddress,
+      //   strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
+      //   expiry: secondOptionExpiry,
+      // };
 
       await strikeSelection.setStrikePrice(
         parseUnits(params.firstOptionStrike.toString(), 8)
@@ -394,7 +386,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await optionsPremiumPricer.setPremium(params.premium.toString());
 
       defaultOtokenAddress = firstOption.address;
-      defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
+      // defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
       assetContract = await getContractAt(
         params.assetContractName,
         collateralAsset
