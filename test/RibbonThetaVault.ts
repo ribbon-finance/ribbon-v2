@@ -673,8 +673,8 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.isAtMost(receipt2.gasUsed.toNumber(), 90000);
 
           // Uncomment to measure precise gas numbers
-          // console.log(receipt1.gasUsed.toNumber());
-          // console.log(receipt2.gasUsed.toNumber());
+          // console.log("Worst case", receipt1.gasUsed.toNumber());
+          // console.log("Best case", receipt2.gasUsed.toNumber());
         });
 
         it("reverts when no value passed", async function () {
@@ -809,8 +809,8 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // Uncomment to log gas used
-        // console.log(receipt1.gasUsed.toNumber());
-        // console.log(receipt2.gasUsed.toNumber());
+        // console.log("Worst case", receipt1.gasUsed.toNumber());
+        // console.log("Best case", receipt2.gasUsed.toNumber());
       });
 
       it("reverts when deposit amount exceeds uint128", async function () {
