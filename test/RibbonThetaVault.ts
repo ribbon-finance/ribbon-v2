@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, constants, Contract } from "ethers";
+import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
@@ -867,6 +867,11 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("sets the next option and closes existing short", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
         const res = await vault
           .connect(managerSigner)
           .commitAndClose({ from: manager });
@@ -884,6 +889,11 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("should set the next option twice", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
         await vault.connect(managerSigner).commitAndClose();
 
         await vault.connect(managerSigner).commitAndClose();
@@ -1711,14 +1721,14 @@ function behavesLikeRibbonOptionsVault(params: {
   });
 }
 
-// async function depositIntoVault(
-//   asset: string,
-//   vault: Contract,
-//   amount: BigNumberish
-// ) {
-//   if (asset === WETH_ADDRESS) {
-//     await vault.depositETH({ value: amount });
-//   } else {
-//     await vault.deposit(amount);
-//   }
-// }
+async function depositIntoVault(
+  asset: string,
+  vault: Contract,
+  amount: BigNumberish
+) {
+  if (asset === WETH_ADDRESS) {
+    await vault.depositETH({ value: amount });
+  } else {
+    await vault.deposit(amount);
+  }
+}
