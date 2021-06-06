@@ -719,7 +719,7 @@ function behavesLikeRibbonOptionsVault(params: {
         it("reverts when no value passed", async function () {
           await expect(
             vault.connect(userSigner).depositETH({ value: 0 })
-          ).to.be.revertedWith("No value");
+          ).to.be.revertedWith("!value");
         });
 
         it("does not inflate the share tokens on initialization", async function () {
@@ -743,6 +743,15 @@ function behavesLikeRibbonOptionsVault(params: {
               value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
             })
           ).to.be.revertedWith("Insufficient balance");
+        });
+      });
+    } else {
+      describe("#depositETH", () => {
+        it("reverts when asset is not WETH", async function () {
+          const depositAmount = parseEther("1");
+          await expect(
+            vault.depositETH({ value: depositAmount })
+          ).to.be.revertedWith("!WETH");
         });
       });
     }
