@@ -15,6 +15,7 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
+  PLACEHOLDER_ADDR,
 } from "./helpers/constants";
 import {
   deployProxy,
@@ -363,6 +364,8 @@ function behavesLikeRibbonOptionsVault(params: {
       await strikeSelection.setStrikePrice(
         parseUnits(params.firstOptionStrike.toString(), 8)
       );
+
+      await vault.initRounds(50);
 
       defaultOtokenAddress = firstOption.address;
       // defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
@@ -885,7 +888,7 @@ function behavesLikeRibbonOptionsVault(params: {
           block.timestamp + OPTION_DELAY
         );
         assert.isTrue((await vault.lockedAmount()).isZero());
-        assert.equal(await vault.currentOption(), constants.AddressZero);
+        assert.equal(await vault.currentOption(), PLACEHOLDER_ADDR);
       });
 
       it("should set the next option twice", async function () {
@@ -897,6 +900,20 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(managerSigner).commitAndClose();
 
         await vault.connect(managerSigner).commitAndClose();
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        const res = await vault
+          .connect(managerSigner)
+          .commitAndClose({ from: manager });
+
+        const receipt = await res.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 650000);
       });
     });
 

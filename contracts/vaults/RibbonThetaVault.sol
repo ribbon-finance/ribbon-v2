@@ -27,16 +27,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     address public immutable WETH;
     address public immutable USDC;
 
-    // 90% locked in options protocol, 10% of the pool reserved for withdrawals
-    uint256 public constant lockedRatio = 0.9 ether;
-
-    uint256 public constant delay = 1 hours;
-
-    uint256 public constant period = 7 days;
-
-    uint256 private constant MAX_UINT128 =
-        340282366920938463463374607431768211455;
-
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -49,6 +39,19 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     // Needed to approve collateral.safeTransferFrom for minting otokens.
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
+
+    // 90% locked in options protocol, 10% of the pool reserved for withdrawals
+    uint256 public constant lockedRatio = 0.9 ether;
+
+    uint256 public constant delay = 1 hours;
+
+    uint256 public constant period = 7 days;
+
+    uint256 private constant MAX_UINT128 =
+        340282366920938463463374607431768211455;
+
+    uint256 private constant PLACEHOLDER_UINT = 1;
+    address private constant PLACEHOLDER_ADDR = address(1);
 
     /************************************************
      *  EVENTS
@@ -160,7 +163,8 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
-        _totalPending = 1; // Hardcode to 1 so no cold writes for depositors
+        _totalPending = PLACEHOLDER_UINT; // Hardcode to 1 so no cold writes for depositors
+        nextOption = PLACEHOLDER_ADDR; // Hardcode to 1 so no cold write for keeper
 
         strikeSelection = _strikeSelection;
         genesisTimestamp = uint32(block.timestamp);
@@ -370,7 +374,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         uint256 expiry;
 
         // uninitialized state
-        if (oldOption == address(0)) {
+        if (oldOption <= PLACEHOLDER_ADDR) {
             expiry = getNextFriday(block.timestamp);
         } else {
             expiry = getNextFriday(IOtoken(oldOption).expiryTimestamp());
@@ -432,15 +436,10 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
-        currentOption = address(0);
+        currentOption = PLACEHOLDER_ADDR;
         lockedAmount = 0;
 
-        if (oldOption != address(0)) {
-            IOtoken otoken = IOtoken(oldOption);
-            require(
-                block.timestamp > otoken.expiryTimestamp(),
-                "Before expiry"
-            );
+        if (oldOption > PLACEHOLDER_ADDR) {
             uint256 withdrawAmount =
                 GammaProtocol.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
@@ -450,8 +449,8 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     function _mintPendingShares() private {
         // We leave 1 as the residual value so that subsequent depositors
         // do not have to pay the cost of a cold write
-        uint256 pending = _totalPending.sub(1);
-        _totalPending = 1;
+        uint256 pending = _totalPending.sub(PLACEHOLDER_UINT);
+        _totalPending = PLACEHOLDER_UINT;
 
         // Vault holds temporary custody of the newly minted vault shares
         _mint(address(this), pending);
@@ -466,10 +465,10 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         require(block.timestamp >= nextOptionReadyAt, "Not ready");
 
         address newOption = nextOption;
-        require(newOption != address(0), "!nextOption");
+        require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
         currentOption = newOption;
-        nextOption = address(0);
+        nextOption = PLACEHOLDER_ADDR;
         round += 1;
 
         uint256 currentBalance = assetBalance();
@@ -495,7 +494,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
      * @param numRounds is the number of rounds to initialize in the map
      */
-    function initRoundPricePerShares(uint256 numRounds) external nonReentrant {
+    function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
         uint16 _round = round;
@@ -503,7 +502,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             uint16 index = _round + i;
             require(index >= _round, "SafeMath: addition overflow");
             require(roundPricePerShare[index] == 0, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = 1;
+            roundPricePerShare[index] = PLACEHOLDER_UINT;
         }
     }
 
@@ -522,7 +521,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @notice The price of a unit of share denominated in the `collateral`
      */
     function pricePerShare() public view returns (uint256) {
-        console.log(totalBalance(), totalSupply());
         return (10**uint256(decimals())).mul(totalBalance()).div(totalSupply());
     }
 
