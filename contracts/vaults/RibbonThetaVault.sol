@@ -447,7 +447,9 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     }
 
     function _mintPendingShares() private {
-        uint256 _totalPending = totalPending;
+        // We leave 1 as the residual value so that subsequent depositors
+        // do not have to pay the cost of a cold write
+        uint256 _totalPending = totalPending.sub(1);
         totalPending = 1;
         roundPricePerShare[round] = pricePerShare();
 
