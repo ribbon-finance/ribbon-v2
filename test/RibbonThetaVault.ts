@@ -187,7 +187,6 @@ function behavesLikeRibbonOptionsVault(params: {
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
     managerSigner: SignerWithAddress,
-    counterpartySigner: SignerWithAddress,
     feeRecipientSigner: SignerWithAddress;
 
   // Parameters
@@ -394,12 +393,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       // If mintable token, then mine the token
       if (params.mintConfig) {
-        const addressToDeposit = [
-          userSigner,
-          managerSigner,
-          counterpartySigner,
-          adminSigner,
-        ];
+        const addressToDeposit = [userSigner, managerSigner, adminSigner];
 
         for (let i = 0; i < addressToDeposit.length; i++) {
           await mintToken(
@@ -759,12 +753,7 @@ function behavesLikeRibbonOptionsVault(params: {
       beforeEach(async function () {
         // Deposit only if asset is WETH
         if (params.collateralAsset === WETH_ADDRESS) {
-          const addressToDeposit = [
-            userSigner,
-            managerSigner,
-            counterpartySigner,
-            adminSigner,
-          ];
+          const addressToDeposit = [userSigner, managerSigner, adminSigner];
 
           for (let i = 0; i < addressToDeposit.length; i++) {
             const weth = assetContract.connect(addressToDeposit[i]);
