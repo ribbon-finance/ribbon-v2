@@ -280,6 +280,21 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     //     transfer(msg.sender, depositReceipt.amount);
     // }
 
+    function withdrawInstantly(uint256 amount) external nonReentrant {
+        VaultDeposit.PendingDeposit storage pendingDeposit =
+            pendingDeposits[msg.sender];
+
+        require(!pendingDeposit.processed, "Processed");
+        require(pendingDeposit.round > round, "Round not closed");
+
+        // Subtraction underflow checks already ensure it is smaller than uint128
+        pendingDeposit.amount = uint128(
+            uint256(pendingDeposit.amount).sub(amount)
+        );
+
+        IERC20(asset).safeTransfer(msg.sender, amount);
+    }
+
     /**
      * @notice Lock's users shares for future withdraw and ensures that the new short excludes the scheduled amount.
      * @param shares is the number of shares to be withdrawn in the future.
@@ -356,11 +371,11 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         _setNextOption(otokenAddress);
         _closeShort(oldOption);
-    }
 
-    function closeShort() external nonReentrant {
-        address oldOption = currentOption;
-        _closeShort(oldOption);
+        // After closing the short, if the options expire in-the-money
+        // vault pricePerShare would go down because vault's asset balance decreased.
+        // This ensures that the newly-minted shares do not take on the loss.
+        _mintPendingShares();
     }
 
     /**
@@ -409,6 +424,15 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         }
     }
 
+    function _mintPendingShares() private {
+        uint256 _totalPending = totalPending;
+        totalPending = 0;
+        roundPricePerShare[round] = pricePerShare();
+
+        // Vault holds temporary custody of the newly minted vault shares
+        _mint(address(this), _totalPending);
+    }
+
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
@@ -442,6 +466,10 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      *  GETTERS
      ***********************************************/
 
+    function pricePerShare() public view returns (uint256) {
+        return withdrawAmountWithShares(10**(decimals()));
+    }
+
     /**
      * @notice Returns the expiry of the current option the vault is shorting
      */
@@ -451,7 +479,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             return 0;
         }
 
-        IOtoken oToken = IOtoken(currentOption);
+        IOtoken oToken = IOtoken(_currentOption);
         return oToken.expiryTimestamp();
     }
 
