@@ -466,6 +466,21 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
 
+    /**
+     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
+     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
+     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
+     * @param numRounds is the number of rounds to initialize in the map
+     */
+    function initRoundPricePerShares(uint256 numRounds) external nonReentrant {
+        uint16 _round = round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint16 index = _round + uint16(i);
+            require(roundPricePerShare[index] < 1, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            roundPricePerShare[index] = 1;
+        }
+    }
+
     /************************************************
      *  GETTERS
      ***********************************************/
