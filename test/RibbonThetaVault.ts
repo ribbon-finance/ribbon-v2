@@ -827,15 +827,15 @@ function behavesLikeRibbonOptionsVault(params: {
         const depositAmount = BigNumber.from(
           "340282366920938463463374607431768211455"
         );
-        // const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
+        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
 
-        // await assetContract
-        //   .connect(userSigner)
-        //   .approve(vault.address, totalDepositAmount);
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, totalDepositAmount);
 
-        // await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-        //   "Overflow"
-        // );
+        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
+          "Overflow"
+        );
       });
 
       it("does not inflate the share tokens on initialization", async function () {
