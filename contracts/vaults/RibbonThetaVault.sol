@@ -498,7 +498,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             // There is a possibility for an overflow here
             // But we're not concerned because we have a require guard to ensure we don't overwrite values
             uint16 index = _round + i;
-            require(roundPricePerShare[index] < 1, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            require(roundPricePerShare[index] == 0, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = 1;
         }
     }
