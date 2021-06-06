@@ -491,9 +491,13 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @param numRounds is the number of rounds to initialize in the map
      */
     function initRoundPricePerShares(uint256 numRounds) external nonReentrant {
+        require(numRounds < 52, "numRounds >= 52");
+
         uint16 _round = round;
-        for (uint256 i = 0; i < numRounds; i++) {
-            uint16 index = _round + uint16(i);
+        for (uint16 i = 0; i < numRounds; i++) {
+            // There is a possibility for an overflow here
+            // But we're not concerned because we have a require guard to ensure we don't overwrite values
+            uint16 index = _round + i;
             require(roundPricePerShare[index] < 1, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = 1;
         }
