@@ -289,6 +289,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         uint256 pps = roundPricePerShare[currentRound];
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
+        // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > 1, "Invalid pps");
 
         pendingDeposits[msg.sender].processed = true;
