@@ -159,7 +159,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
-        _totalPending = 0; // Hardcode to 1 so no cold writes for depositors
+        _totalPending = 1; // Hardcode to 1 so no cold writes for depositors
 
         strikeSelection = _strikeSelection;
         genesisTimestamp = uint32(block.timestamp);
