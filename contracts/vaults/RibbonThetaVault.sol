@@ -448,6 +448,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         currentOption = newOption;
         nextOption = address(0);
+        round += 1;
 
         uint256 currentBalance = assetBalance();
         (uint256 queuedWithdrawAmount, , ) =
