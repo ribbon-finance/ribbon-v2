@@ -474,8 +474,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         uint256 currentBalance = assetBalance();
         (uint256 queuedWithdrawAmount, , ) =
             _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
-        uint256 freeBalance = currentBalance.sub(queuedWithdrawAmount);
-        uint256 shortAmount = wmul(freeBalance, lockedRatio);
+        uint256 shortAmount = currentBalance.sub(queuedWithdrawAmount);
         lockedAmount = shortAmount;
 
         GammaProtocol.createShort(
