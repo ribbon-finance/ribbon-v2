@@ -37,7 +37,8 @@
     "lint:ts:fix": "yarn lint:ts --fix",
     "lint:ts:prettier": "prettier --write 'scripts/**/*.ts'",
     "lint:sol": "solhint -f table contracts/**/*.sol",
-    "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\""
+    "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\"",
+    "clean-logs": "yarn run hardhat remove-logs"
   },
   "husky": {
     "hooks": {
