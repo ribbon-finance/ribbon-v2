@@ -20,8 +20,8 @@ import {
 } from "./helpers/constants";
 import {
   deployProxy,
-  setupOracle,
-  setOpynOracleExpiryPrice,
+  // setupOracle,
+  // setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
   bidForOToken,
@@ -231,7 +231,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let gammaProtocolLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
-  let defaultOtoken: Contract;
+  // let defaultOtoken: Contract;
   let assetContract: Contract;
 
   // Variables
@@ -240,7 +240,7 @@ function behavesLikeRibbonOptionsVault(params: {
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
     let firstOption: Option;
-    let secondOption: Option;
+    // let secondOption: Option;
 
     const rollToNextOption = async () => {
       await strikeSelection.setStrikePrice(
@@ -379,29 +379,29 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      const secondOptionExpiry = moment(latestTimestamp * 1000)
-        .startOf("isoWeek")
-        .add(2, "week")
-        .day("friday")
-        .hours(8)
-        .minutes(0)
-        .seconds(0)
-        .unix();
+      // const secondOptionExpiry = moment(latestTimestamp * 1000)
+      //   .startOf("isoWeek")
+      //   .add(2, "week")
+      //   .day("friday")
+      //   .hours(8)
+      //   .minutes(0)
+      //   .seconds(0)
+      //   .unix();
 
-      const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
-        params.asset,
-        params.strikeAsset,
-        params.collateralAsset,
-        parseUnits(params.secondOptionStrike.toString(), 8),
-        secondOptionExpiry,
-        params.isPut
-      );
+      // const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
+      //   params.asset,
+      //   params.strikeAsset,
+      //   params.collateralAsset,
+      //   parseUnits(params.secondOptionStrike.toString(), 8),
+      //   secondOptionExpiry,
+      //   params.isPut
+      // );
 
-      secondOption = {
-        address: secondOptionAddress,
-        strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
-        expiry: secondOptionExpiry,
-      };
+      // secondOption = {
+      //   address: secondOptionAddress,
+      //   strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
+      //   expiry: secondOptionExpiry,
+      // };
 
       await strikeSelection.setStrikePrice(
         parseUnits(params.firstOptionStrike.toString(), 8)
@@ -412,7 +412,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await optionsPremiumPricer.setPremium(params.premium.toString());
 
       defaultOtokenAddress = firstOption.address;
-      defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
+      // defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
       assetContract = await getContractAt(
         params.assetContractName,
         collateralAsset
