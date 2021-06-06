@@ -14,6 +14,7 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {VaultDeposit} from "../libraries/VaultDeposit.sol";
+import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     using SafeERC20 for IERC20;
@@ -451,10 +452,11 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // do not have to pay the cost of a cold write
         uint256 pending = _totalPending.sub(1);
         _totalPending = 1;
-        roundPricePerShare[round] = pricePerShare();
 
         // Vault holds temporary custody of the newly minted vault shares
         _mint(address(this), pending);
+
+        roundPricePerShare[round] = pricePerShare();
     }
 
     /**
@@ -520,7 +522,8 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @notice The price of a unit of share denominated in the `collateral`
      */
     function pricePerShare() public view returns (uint256) {
-        return withdrawAmountWithShares(10**(decimals()));
+        console.log(totalBalance(), totalSupply());
+        return (10**uint256(decimals())).mul(totalBalance()).div(totalSupply());
     }
 
     /**
@@ -589,8 +592,11 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             withdrawAmount <= currentAssetBalance,
             "Withdrawing more than available"
         );
-        require(newShareSupply >= minimumSupply, "Insufficient supply");
-        require(newAssetBalance >= minimumSupply, "Insufficient balance");
+
+        uint256 _minimumSupply = minimumSupply;
+
+        require(newShareSupply >= _minimumSupply, "Insufficient supply");
+        require(newAssetBalance >= _minimumSupply, "Insufficient balance");
 
         return withdrawAmount;
     }
