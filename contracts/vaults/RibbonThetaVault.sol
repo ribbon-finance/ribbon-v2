@@ -329,17 +329,18 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         totalPending = totalPending.add(amount);
     }
 
-    function _redeem() private {
-        VaultDeposit.PendingDeposit storage pendingDeposit =
-            pendingDeposits[msg.sender];
+    // TODO: WIP
+    // function _redeem() private {
+    //     VaultDeposit.PendingDeposit storage pendingDeposit =
+    //         pendingDeposits[msg.sender];
 
-        require(!pendingDeposit.processed, "Processed");
-        require(pendingDeposit.round > round, "Round open");
+    //     require(!pendingDeposit.processed, "Processed");
+    //     require(pendingDeposit.round > round, "Round open");
 
-        pendingDeposit.processed = true;
+    //     pendingDeposit.processed = true;
 
-        transfer(msg.sender, pendingDeposit.amount);
-    }
+    //     transfer(msg.sender, pendingDeposit.amount);
+    // }
 
     /**
      * @notice Lock's users shares for future withdraw and ensures that the new short excludes the scheduled amount.
