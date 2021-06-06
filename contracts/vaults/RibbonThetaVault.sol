@@ -471,22 +471,43 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      *  GETTERS
      ***********************************************/
 
+    /**
+     * @notice The price of a unit of share denominated in the `collateral`
+     */
     function pricePerShare() public view returns (uint256) {
         return withdrawAmountWithShares(10**(decimals()));
     }
 
-    function balanceWithPending(address account)
+    /**
+     * @notice This is the user's share balance, including the shares that are not redeemed from processed deposits.
+     * @param account is the address to lookup the balance for.
+     */
+    function balancePlusUnredeemed(address account)
         external
         view
         returns (uint256)
     {
-        VaultDeposit.PendingDeposit memory pendingDeposit =
-            pendingDeposits[msg.sender];
+        return balanceOf(account).add(unredeemedBalance(account));
+    }
 
-        uint256 pendingAmount =
-            pendingDeposit.processed ? 0 : pendingDeposit.amount;
+    /**
+     * @notice Returns the user's unredeemed share amount
+     * @param account is the address to lookup the unredeemed share amount
+     */
+    function unredeemedBalance(address account)
+        public
+        view
+        returns (uint256 unredeemedShares)
+    {
+        VaultDeposit.PendingDeposit storage pendingDeposit =
+            pendingDeposits[account];
 
-        return balanceOf(account).add(pendingAmount);
+        if (!pendingDeposit.processed) {
+            unredeemedShares = wmul(
+                pendingDeposit.amount,
+                roundPricePerShare[pendingDeposit.round]
+            );
+        }
     }
 
     /**
