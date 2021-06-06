@@ -230,7 +230,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let gammaProtocolLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
-  let defaultOtoken: Contract;
+  // let defaultOtoken: Contract;
   let assetContract: Contract;
 
   // Variables
@@ -409,7 +409,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await optionsPremiumPricer.setPremium(params.premium.toString());
 
       defaultOtokenAddress = firstOption.address;
-      defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
+      // defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
       assetContract = await getContractAt(
         params.assetContractName,
         collateralAsset
