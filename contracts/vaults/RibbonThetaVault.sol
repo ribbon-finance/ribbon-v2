@@ -159,7 +159,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
-        totalPending = 1; // Hardcode to 1 so no cold writes for depositors
+        _totalPending = 0; // Hardcode to 1 so no cold writes for depositors
 
         strikeSelection = _strikeSelection;
         genesisTimestamp = uint32(block.timestamp);
@@ -266,7 +266,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             });
         }
 
-        totalPending = totalPending.add(amount);
+        _totalPending = _totalPending.add(amount);
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
         if (pendingDeposit.round < currentRound && !pendingDeposit.processed) {
@@ -449,12 +449,12 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     function _mintPendingShares() private {
         // We leave 1 as the residual value so that subsequent depositors
         // do not have to pay the cost of a cold write
-        uint256 _totalPending = totalPending.sub(1);
-        totalPending = 1;
+        uint256 pending = _totalPending.sub(1);
+        _totalPending = 1;
         roundPricePerShare[round] = pricePerShare();
 
         // Vault holds temporary custody of the newly minted vault shares
-        _mint(address(this), _totalPending);
+        _mint(address(this), pending);
     }
 
     /**
@@ -508,6 +508,13 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     /************************************************
      *  GETTERS
      ***********************************************/
+
+    /**
+     * @notice Getter to get the total pending amount, ex the `1` used as a placeholder
+     */
+    function totalPending() external view returns (uint256) {
+        return _totalPending - 1;
+    }
 
     /**
      * @notice The price of a unit of share denominated in the `collateral`
