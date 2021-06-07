@@ -8,7 +8,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
-import "hardhat/console.sol";
 
 library GnosisAuction {
     using SafeMath for uint256;
@@ -64,11 +63,6 @@ library GnosisAuction {
                 auctionDetails.manager, // manager of auction
                 bytes("") // bytes for storing info like a whitelist for who can bid
             );
-
-        console.log(auctionDetails.oTokenAddress);
-        console.log(auctionDetails.asset);
-        console.log(oTokenSellAmount);
-        console.log(optionPremium);
 
         emit InitiateGnosisAuction(
             auctionDetails.oTokenAddress,
