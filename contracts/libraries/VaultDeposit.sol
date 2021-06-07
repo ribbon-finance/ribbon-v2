@@ -2,7 +2,7 @@
 pragma solidity ^0.7.3;
 
 library VaultDeposit {
-    struct PendingDeposit {
+    struct DepositReceipt {
         bool processed;
         uint16 round;
         uint128 amount;
