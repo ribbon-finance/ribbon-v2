@@ -1191,10 +1191,12 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#assetBalance", () => {
-      const depositAmount = BigNumber.from("100000000000");
-
       time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          params.depositAmount
+        );
 
         await rollToNextOption();
       });
@@ -1207,7 +1209,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const newDepositAmount = BigNumber.from("1000000000000");
         await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
 
-        assert.bnEqual(await vault.assetBalance(), depositAmount);
+        assert.bnEqual(await vault.assetBalance(), newDepositAmount);
       });
     });
 
