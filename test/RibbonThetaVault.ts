@@ -699,6 +699,14 @@ function behavesLikeRibbonOptionsVault(params: {
           await expect(tx)
             .to.emit(vault, "Deposit")
             .withArgs(user, depositAmount, 0);
+
+          assert.bnEqual(await vault.totalPending(), depositAmount);
+          const { round, amount, processed } = await vault.depositReceipts(
+            user
+          );
+          assert.equal(round, 0);
+          assert.bnEqual(amount, depositAmount);
+          assert.equal(processed, false);
         });
 
         it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -794,9 +802,11 @@ function behavesLikeRibbonOptionsVault(params: {
         const depositAmount = BigNumber.from("100000000000");
         await vault.connect(managerSigner).deposit(depositAmount);
 
-        const res = await vault.deposit(depositAmount);
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 120000);
+        assert.bnEqual(await vault.totalPending(), depositAmount);
+        const { round, amount, processed } = await vault.depositReceipts(user);
+        assert.equal(round, 0);
+        assert.bnEqual(amount, depositAmount);
+        assert.equal(processed, false);
       });
 
       it("returns the correct number of shares back", async function () {
@@ -827,7 +837,13 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         await expect(res)
           .to.emit(vault, "Deposit")
-          .withArgs(counterparty, depositAmount, BigNumber.from("50000000000"));
+          .withArgs(user, depositAmount, 0);
+
+        assert.bnEqual(await vault.totalPending(), totalDepositAmount);
+        const { round, amount, processed } = await vault.depositReceipts(user);
+        assert.equal(round, 0);
+        assert.bnEqual(amount, totalDepositAmount);
+        assert.equal(processed, false);
       });
 
       it("accounts for the amounts that are locked", async function () {
