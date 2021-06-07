@@ -94,11 +94,11 @@ contract OptionsVaultStorageV3 {
     uint256 public totalPending;
 
     /// @notice Stores the user's pending deposit for the round
-    mapping(address => VaultDeposit.PendingDeposit) public pendingDeposits;
+    mapping(address => VaultDeposit.DepositReceipt) public depositReceipts;
 
     /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
     /// This is used to determine the number of shares to be returned
-    /// to a user with their PendingDeposit.depositAmount
+    /// to a user with their DepositReceipt.depositAmount
     mapping(uint16 => uint256) public roundPricePerShare;
 }
 
