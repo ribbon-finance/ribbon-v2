@@ -240,24 +240,24 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         emit Deposit(msg.sender, amount, _round);
 
-        VaultDeposit.PendingDeposit storage pendingDeposit =
-            pendingDeposits[msg.sender];
+        VaultDeposit.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
-        if (_round == pendingDeposit.round) {
+        if (_round == depositReceipt.round) {
             // No deposits allowed until the next round
-            require(!pendingDeposit.processed, "Processed");
+            require(!depositReceipt.processed, "Processed");
 
-            uint256 newAmount = uint256(pendingDeposit.amount).add(amount);
+            uint256 newAmount = uint256(depositReceipt.amount).add(amount);
             require(newAmount < MAX_UINT128, "Overflow");
 
-            pendingDeposits[msg.sender] = VaultDeposit.PendingDeposit({
+            depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
                 round: _round,
                 amount: uint128(newAmount)
             });
         } else {
-            pendingDeposits[msg.sender] = VaultDeposit.PendingDeposit({
+            depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
                 round: _round,
                 amount: uint128(amount)
@@ -269,15 +269,15 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     // TODO: WIP
     // function _redeem() private {
-    //     VaultDeposit.PendingDeposit storage pendingDeposit =
-    //         pendingDeposits[msg.sender];
+    //     VaultDeposit.DepositReceipt storage depositReceipt =
+    //         depositReceipts[msg.sender];
 
-    //     require(!pendingDeposit.processed, "Processed");
-    //     require(pendingDeposit.round > round, "Round open");
+    //     require(!depositReceipt.processed, "Processed");
+    //     require(depositReceipt.round > round, "Round open");
 
-    //     pendingDeposit.processed = true;
+    //     depositReceipt.processed = true;
 
-    //     transfer(msg.sender, pendingDeposit.amount);
+    //     transfer(msg.sender, depositReceipt.amount);
     // }
 
     /**
