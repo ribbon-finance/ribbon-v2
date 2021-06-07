@@ -251,7 +251,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             depositReceipts[msg.sender];
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
-        if (_round == depositReceipt.round) {
+        if (currentRound == depositReceipt.round) {
             // No deposits allowed until the next round
             require(!depositReceipt.processed, "Processed");
 
@@ -274,23 +274,23 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         _totalPending = _totalPending.add(amount);
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
-        if (pendingDeposit.round < currentRound && !pendingDeposit.processed) {
-            _redeemDeposit(currentRound, pendingDeposit);
+        if (depositReceipt.round < currentRound && !depositReceipt.processed) {
+            _redeemDeposit(currentRound, depositReceipt);
         }
     }
 
     function redeemDeposit() external nonReentrant {
-        VaultDeposit.PendingDeposit memory pendingDeposit =
-            pendingDeposits[msg.sender];
-        _redeemDeposit(round, pendingDeposit);
+        VaultDeposit.DepositReceipt memory depositReceipt =
+            depositReceipts[msg.sender];
+        _redeemDeposit(round, depositReceipt);
     }
 
     function _redeemDeposit(
         uint16 currentRound,
-        VaultDeposit.PendingDeposit memory pendingDeposit
+        VaultDeposit.DepositReceipt memory depositReceipt
     ) private {
-        require(!pendingDeposit.processed, "Processed");
-        require(pendingDeposit.round > currentRound, "Round not closed");
+        require(!depositReceipt.processed, "Processed");
+        require(depositReceipt.round > currentRound, "Round not closed");
 
         uint256 pps = roundPricePerShare[currentRound];
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
@@ -298,25 +298,25 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > 1, "Invalid pps");
 
-        pendingDeposits[msg.sender].processed = true;
+        depositReceipts[msg.sender].processed = true;
 
-        uint256 shares = wmul(pendingDeposit.amount, pps);
+        uint256 shares = wmul(depositReceipt.amount, pps);
 
-        emit Redeem(msg.sender, shares, pendingDeposit.round);
+        emit Redeem(msg.sender, shares, depositReceipt.round);
 
         transfer(msg.sender, shares);
     }
 
     function withdrawInstantly(uint256 amount) external nonReentrant {
-        VaultDeposit.PendingDeposit storage pendingDeposit =
-            pendingDeposits[msg.sender];
+        VaultDeposit.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
 
-        require(!pendingDeposit.processed, "Processed");
-        require(pendingDeposit.round == round, "Invalid round");
+        require(!depositReceipt.processed, "Processed");
+        require(depositReceipt.round == round, "Invalid round");
 
         // Subtraction underflow checks already ensure it is smaller than uint128
-        pendingDeposit.amount = uint128(
-            uint256(pendingDeposit.amount).sub(amount)
+        depositReceipt.amount = uint128(
+            uint256(depositReceipt.amount).sub(amount)
         );
 
         IERC20(asset).safeTransfer(msg.sender, amount);
@@ -544,13 +544,13 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         view
         returns (uint256 unredeemedShares)
     {
-        VaultDeposit.PendingDeposit storage pendingDeposit =
-            pendingDeposits[account];
+        VaultDeposit.DepositReceipt storage depositReceipt =
+            depositReceipts[account];
 
-        if (!pendingDeposit.processed) {
+        if (!depositReceipt.processed) {
             unredeemedShares = wmul(
-                pendingDeposit.amount,
-                roundPricePerShare[pendingDeposit.round]
+                depositReceipt.amount,
+                roundPricePerShare[depositReceipt.round]
             );
         }
     }

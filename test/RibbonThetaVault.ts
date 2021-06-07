@@ -757,7 +757,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, depositAmount, 0);
 
         assert.bnEqual(await vault.totalPending(), depositAmount.add(1));
-        const { round, amount, processed } = await vault.pendingDeposits(user);
+        const { round, amount, processed } = await vault.depositReceipts(user);
         assert.equal(round, 0);
         assert.bnEqual(amount, depositAmount);
         assert.equal(processed, false);
