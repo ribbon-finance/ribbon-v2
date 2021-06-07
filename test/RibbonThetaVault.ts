@@ -1027,7 +1027,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmount, manager);
 
-        await depositIntoVault(params.collateralAsset, vault, premium);
+        await assetContract
+          .connect(userSigner)
+          .transfer(vault.address, premium);
 
         // only the premium should be left over because the funds are locked into Opyn
         assert.equal(
@@ -1091,9 +1093,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, mintAmount, manager);
 
-        assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
-          currBalance.toString()
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
         );
       });
 
@@ -1110,13 +1112,12 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmount, manager);
 
-        await depositIntoVault(params.collateralAsset, vault, premium);
+        await assetContract
+          .connect(userSigner)
+          .transfer(vault.address, premium);
 
         // only the premium should be left over because the funds are locked into Opyn
-        assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
-          depositAmount.add(premium)
-        );
+        assert.bnEqual(await assetContract.balanceOf(vault.address), premium);
 
         const settlementPriceOTM = isPut
           ? parseEther(params.firstOptionStrike.toString())
