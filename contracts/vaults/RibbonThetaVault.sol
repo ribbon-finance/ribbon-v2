@@ -334,15 +334,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     // TODO: WIP
     // function _redeem() private {
-    //     VaultDeposit.PendingDeposit storage pendingDeposit =
-    //         pendingDeposits[msg.sender];
+    //     VaultDeposit.DepositReceipt storage depositReceipt =
+    //         depositReceipts[msg.sender];
 
-    //     require(!pendingDeposit.processed, "Processed");
-    //     require(pendingDeposit.round > round, "Round open");
+    //     require(!depositReceipt.processed, "Processed");
+    //     require(depositReceipt.round > round, "Round open");
 
-    //     pendingDeposit.processed = true;
+    //     depositReceipt.processed = true;
 
-    //     transfer(msg.sender, pendingDeposit.amount);
+    //     transfer(msg.sender, depositReceipt.amount);
     // }
 
     /**
