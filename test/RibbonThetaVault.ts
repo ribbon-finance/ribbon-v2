@@ -24,7 +24,7 @@ import {
   whitelistProduct,
   mintToken,
 } from "./helpers/utils";
-import { wmul } from "./helpers/math";
+// import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 

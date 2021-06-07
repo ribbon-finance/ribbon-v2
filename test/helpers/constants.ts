@@ -1,7 +1,6 @@
-/***
- * Vault constants
- */
-
+// *
+// Vault constants
+//
 export const PLACEHOLDER_ADDR = "0x0000000000000000000000000000000000000001";
 
 /**
