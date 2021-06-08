@@ -22,7 +22,6 @@ library GammaProtocol {
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     function createShort(
-        address protocol,
         address gammaController,
         address marginPool,
         address oTokenAddress,
@@ -123,10 +122,7 @@ library GammaProtocol {
      * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
      * this assumption should hold.
      */
-    function settleShort(address protocol, address gammaController)
-        external
-        returns (uint256)
-    {
+    function settleShort(address gammaController) external returns (uint256) {
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -170,11 +166,10 @@ library GammaProtocol {
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
      */
-    function burnOtokens(
-        address protocol,
-        address gammaController,
-        uint256 amount
-    ) external returns (uint256) {
+    function burnOtokens(address gammaController, uint256 amount)
+        external
+        returns (uint256)
+    {
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -225,7 +220,6 @@ library GammaProtocol {
     }
 
     function getOrDeployOtoken(
-        address protocol,
         address otokenFactory,
         address underlying,
         address strikeAsset,

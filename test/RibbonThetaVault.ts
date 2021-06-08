@@ -306,7 +306,6 @@ function behavesLikeRibbonOptionsVault(params: {
         OTOKEN_FACTORY,
         GAMMA_CONTROLLER,
         MARGIN_POOL,
-        gammaProtocolLib.address,
         GNOSIS_EASY_AUCTION,
       ];
 
@@ -450,7 +449,6 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
           MARGIN_POOL,
-          gammaProtocolLib.address,
           GNOSIS_EASY_AUCTION
         );
       });

@@ -19,7 +19,6 @@ import {
 } from "../interfaces/IRibbon.sol";
 
 contract RibbonThetaVault is DSMath, OptionsVaultStorage {
-    using GammaProtocol for address;
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -55,9 +54,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     // Needed to approve collateral.safeTransferFrom for minting otokens.
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
-
-    // Our library for all Opyn related logic
-    address public immutable GAMMA_PROTOCOL;
 
     // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
@@ -128,7 +124,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
-        address _gammaProtocol,
         address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
@@ -137,7 +132,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
-        require(_gammaProtocol != address(0), "!_gammaProtocol");
 
         WETH = _weth;
         USDC = _usdc;
@@ -145,7 +139,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
-        GAMMA_PROTOCOL = _gammaProtocol;
     }
 
     /**
@@ -265,7 +258,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         external
         onlyManager
     {
-        require(newPremiumDiscount > 0, "newPremiumDiscount != 0");
+        require(
+            newPremiumDiscount > 0 && newPremiumDiscount < 300,
+            "newPremiumDiscount is not between 0% - 30%!"
+        );
 
         emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
 
@@ -440,7 +436,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             IStrikeSelection(strikeSelection).getStrikePrice();
 
         address otokenAddress =
-            GAMMA_PROTOCOL.getOrDeployOtoken(
+            GammaProtocol.getOrDeployOtoken(
                 OTOKEN_FACTORY,
                 underlying,
                 USDC,
@@ -502,7 +498,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 "Before expiry"
             );
             uint256 withdrawAmount =
-                GAMMA_PROTOCOL.settleShort(GAMMA_CONTROLLER);
+                GammaProtocol.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -526,7 +522,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 shortAmount = wmul(freeBalance, lockedRatio);
         lockedAmount = shortAmount;
 
-        GAMMA_PROTOCOL.createShort(
+        GammaProtocol.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -566,7 +562,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             IERC20(currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "No OTokens to burn!");
         uint256 assetBalanceBeforeBurn = assetBalance();
-        GAMMA_PROTOCOL.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+        GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
         uint256 assetBalanceAfterBurn = assetBalance();
         lockedAmount = lockedAmount.sub(
             assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)

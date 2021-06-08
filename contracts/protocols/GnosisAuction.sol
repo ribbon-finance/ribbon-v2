@@ -34,7 +34,7 @@ library GnosisAuction {
         address optionsPremiumPricer,
         AuctionDetails memory auctionDetails
     ) internal {
-        (uint96 optionPremium, uint96 oTokenSellAmount) =
+        (uint256 optionPremium, uint256 oTokenSellAmount) =
             setupAuctionParameters(
                 auctionDetails.oTokenAddress,
                 gnosisEasyAuction,
@@ -43,7 +43,18 @@ library GnosisAuction {
                 auctionDetails.premiumDiscount
             );
 
-        IERC20(auctionDetails.oTokenAddress).safeApprove(gnosisEasyAuction, 0);
+        if (
+            IERC20(auctionDetails.oTokenAddress).allowance(
+                address(this),
+                gnosisEasyAuction
+            ) > 0
+        ) {
+            IERC20(auctionDetails.oTokenAddress).safeApprove(
+                gnosisEasyAuction,
+                0
+            );
+        }
+
         IERC20(auctionDetails.oTokenAddress).safeApprove(
             gnosisEasyAuction,
             IERC20(auctionDetails.oTokenAddress).balanceOf(address(this))
@@ -55,8 +66,8 @@ library GnosisAuction {
                 auctionDetails.asset, // address of asset we want in exchange for oTokens. Should match vault collateral
                 block.timestamp.add(auctionDetails.duration.div(2)), // orders can be cancelled before the auction's halfway point
                 block.timestamp.add(auctionDetails.duration), // order will last for `duration`
-                oTokenSellAmount, // we are selling all of the otokens minus a fee taken by gnosis
-                optionPremium, // the minimum we are willing to sell the oTokens for. A discount is applied on black-scholes price
+                uint96(oTokenSellAmount), // we are selling all of the otokens minus a fee taken by gnosis
+                uint96(optionPremium), // the minimum we are willing to sell the oTokens for. A discount is applied on black-scholes price
                 1, // the minimum bidding amount must be 1 * 10 ** -assetDecimals
                 0, // the min funding threshold
                 false, // no atomic closure
@@ -78,31 +89,37 @@ library GnosisAuction {
         address underlying,
         address optionsPremiumPricer,
         uint256 premiumDiscount
-    ) internal returns (uint96 optionPremium, uint96 oTokenSellAmount) {
+    ) internal returns (uint256 optionPremium, uint256 oTokenSellAmount) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IGnosisAuction auction = IGnosisAuction(gnosisEasyAuction);
         // We take our current oToken balance and we subtract an
         // amount that is the fee gnosis takes. That will be our sell amount
         // but gnosis will transfer all the otokens
-        oTokenSellAmount = uint96(
-            IERC20(oTokenAddress)
-                .balanceOf(address(this))
-                .mul(auction.FEE_DENOMINATOR())
-                .div(auction.FEE_DENOMINATOR().add(auction.feeNumerator()))
+        oTokenSellAmount = IERC20(oTokenAddress)
+            .balanceOf(address(this))
+            .mul(auction.FEE_DENOMINATOR())
+            .div(auction.FEE_DENOMINATOR().add(auction.feeNumerator()));
+
+        require(
+            oTokenSellAmount <= type(uint96).max,
+            "oTokenSellAmount > type(uint96) max value!"
         );
 
         // Apply black-scholes formula (from rvol library) to option given its features
         // and afterwards apply a discount to incentivize arbitraguers
-        optionPremium = uint96(
-            IOptionsPremiumPricer(optionsPremiumPricer)
-                .getPremium(
-                underlying,
-                newOToken.strikePrice(),
-                newOToken.expiryTimestamp(),
-                newOToken.isPut()
-            )
-                .mul(premiumDiscount)
-                .div(1000)
+        optionPremium = IOptionsPremiumPricer(optionsPremiumPricer)
+            .getPremium(
+            underlying,
+            newOToken.strikePrice(),
+            newOToken.expiryTimestamp(),
+            newOToken.isPut()
+        )
+            .mul(premiumDiscount)
+            .div(1000);
+
+        require(
+            optionPremium <= type(uint96).max,
+            "optionPremium > type(uint96) max value!"
         );
     }
 }
