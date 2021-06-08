@@ -47,9 +47,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     uint256 public constant period = 7 days;
 
-    uint256 private constant MAX_UINT128 =
-        340282366920938463463374607431768211455;
-
     uint256 private constant PLACEHOLDER_UINT = 1;
     address private constant PLACEHOLDER_ADDR = address(1);
 
@@ -256,7 +253,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             require(!depositReceipt.processed, "Processed");
 
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            require(newAmount < MAX_UINT128, "Overflow");
+            require(newAmount < type(uint128).max, "Overflow");
 
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
@@ -264,6 +261,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
                 amount: uint128(newAmount)
             });
         } else {
+            require(amount < type(uint128).max, "Overflow");
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
                 round: currentRound,
