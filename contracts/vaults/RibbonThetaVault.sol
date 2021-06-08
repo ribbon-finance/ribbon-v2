@@ -598,6 +598,19 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         return withdrawAmount;
     }
 
+    // function maxInstantWithdrawAmount(address account)
+    //     external
+    //     view
+    //     returns (uint256)
+    // {
+    //     VaultDeposit.DepositReceipt storage depositReceipt =
+    //         depositReceipts[account];
+    //     if (depositReceipt.round == round && !depositReceipt.processed) {
+    //         return depositReceipt.amount;
+    //     }
+    //     return 0;
+    // }
+
     /**
      * @notice Helper function to return the `asset` amount returned using the `share` amount
      * @param share is the number of shares used to withdraw
@@ -638,41 +651,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
                 .div(total)
                 .sub(minimumSupply)
                 .sub(queuedWithdrawShares);
-    }
-
-    /**
-     * @notice Returns the max amount withdrawable by an account using the account's vault share balance
-     * @param account is the address of the vault share holder
-     * @return amount of `asset` withdrawable from vault, with fees accounted
-     */
-    function maxWithdrawAmount(address account)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 maxShares = maxWithdrawableShares();
-        uint256 share = balanceOf(account);
-        uint256 numShares = min(maxShares, share);
-
-        (uint256 withdrawAmount, , ) =
-            _withdrawAmountWithShares(numShares, assetBalance());
-
-        return withdrawAmount;
-    }
-
-    /**
-     * @notice Returns the number of shares for a given `assetAmount`.
-     *         Used by the frontend to calculate withdraw amounts.
-     * @param assetAmount is the asset amount to be withdrawn
-     * @return share amount
-     */
-    function assetAmountToShares(uint256 assetAmount)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 total = lockedAmount.add(assetBalance());
-        return assetAmount.mul(totalSupply()).div(total);
     }
 
     /**
