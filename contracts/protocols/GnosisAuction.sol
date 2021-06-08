@@ -67,7 +67,7 @@ library GnosisAuction {
                 block.timestamp.add(auctionDetails.duration.div(2)), // orders can be cancelled before the auction's halfway point
                 block.timestamp.add(auctionDetails.duration), // order will last for `duration`
                 uint96(oTokenSellAmount), // we are selling all of the otokens minus a fee taken by gnosis
-                uint96(optionPremium), // the minimum we are willing to sell the oTokens for. A discount is applied on black-scholes price
+                uint96(optionPremium.mul(oTokenSellAmount)), // the minimum we are willing to sell all the oTokens for. A discount is applied on black-scholes price
                 1, // the minimum bidding amount must be 1 * 10 ** -assetDecimals
                 0, // the min funding threshold
                 false, // no atomic closure
@@ -120,6 +120,11 @@ library GnosisAuction {
         require(
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
+        );
+
+        require(
+            optionPremium.mul(oTokenSellAmount) <= type(uint96).max,
+            "optionPremium * oTokenSellAmount > type(uint96) max value!"
         );
     }
 }
