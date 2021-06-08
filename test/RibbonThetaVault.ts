@@ -1213,6 +1213,78 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#redeemDeposit", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("is able to redeem deposit at new price per share", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        await vault.redeemDeposit();
+
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+      });
+
+      // it("is able to redeem deposit", async function () {
+      //   const firstOptionAddress = firstOption.address;
+      //   const secondOptionAddress = secondOption.address;
+
+      //   await vault.connect(managerSigner).commitAndClose();
+      //   await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      //   const firstTx = await vault.connect(managerSigner).rollToNextOption();
+
+      //   assert.equal(await vault.currentOption(), firstOptionAddress);
+      //   assert.equal(await vault.currentOptionExpiry(), firstOption.expiry);
+
+      //   await expect(firstTx)
+      //     .to.emit(vault, "OpenShort")
+      //     .withArgs(firstOptionAddress, depositAmount, manager);
+
+      //   await assetContract
+      //     .connect(userSigner)
+      //     .transfer(vault.address, premium);
+
+      //   // only the premium should be left over because the funds are locked into Opyn
+      //   assert.equal(
+      //     (await assetContract.balanceOf(vault.address)).toString(),
+      //     premium
+      //   );
+
+      //   const settlementPriceITM = isPut
+      //     ? parseEther(params.firstOptionStrike.toString())
+      //         .div(BigNumber.from("10").pow(BigNumber.from("10")))
+      //         .sub(1)
+      //     : parseEther(params.firstOptionStrike.toString())
+      //         .div(BigNumber.from("10").pow(BigNumber.from("10")))
+      //         .add(1);
+
+      //   // withdraw 100% because it's OTM
+      //   await setOpynOracleExpiryPrice(
+      //     params.asset,
+      //     oracle,
+      //     await vault.currentOptionExpiry(),
+      //     settlementPriceITM
+      //   );
+
+      //   const beforeBalance = await assetContract.balanceOf(vault.address);
+
+      //   await strikeSelection.setStrikePrice(
+      //     parseUnits(params.secondOptionStrike.toString(), 8)
+      //   );
+
+      //   const firstCloseTx = await vault
+      //     .connect(managerSigner)
+      //     .commitAndClose();
+      // });
+    });
+
     // describe("#withdrawLater", () => {
     //   time.revertToSnapshotAfterEach();
 
