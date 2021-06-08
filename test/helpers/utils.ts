@@ -236,7 +236,7 @@ export async function bidForOToken(
   await optionsPremiumPricer.connect(userSigner).setPremium(premium);
 
   const bid = (
-    await optionsPremiumPricer.getPremium(WETH_ADDRESS, 100, 100, true)
+    await optionsPremiumPricer.getPremium(100, 100, true)
   )
     .mul(totalOptionsAvailableToBuy)
     .toString();
