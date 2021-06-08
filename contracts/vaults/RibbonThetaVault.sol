@@ -247,7 +247,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         emit Deposit(msg.sender, amount, currentRound);
 
-        VaultDeposit.DepositReceipt storage depositReceipt =
+        VaultDeposit.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
