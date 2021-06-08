@@ -1225,12 +1225,42 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        // console.log(params.depositAmount.toString());
+        const tx = await vault.redeemDeposit();
 
-        await vault.redeemDeposit();
-
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
         assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 0);
+      });
+
+      it("is able to redeem implicitly when the user deposits in a following round", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.deposit(params.depositAmount);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          params.depositAmount
+        );
+        // Should redeem the first deposit
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 0);
       });
 
       // it("is able to redeem deposit", async function () {
