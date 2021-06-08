@@ -55,6 +55,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
     gasLimits: {
+      depositWithRedemption: 102000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -81,6 +82,7 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
+      depositWithRedemption: 100000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -104,6 +106,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("158730"),
     isPut: true,
     gasLimits: {
+      depositWithRedemption: 115000,
       depositWorstCase: 110000,
       depositBestCase: 95000,
     },
@@ -130,6 +133,7 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
+      depositWithRedemption: 115000,
       depositWorstCase: 110000,
       depositBestCase: 95000,
     },
@@ -185,6 +189,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premium: BigNumber;
   isPut: boolean;
   gasLimits: {
+    depositWithRedemption: number;
     depositWorstCase: number;
     depositBestCase: number;
   };
@@ -797,7 +802,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(processed, false);
       });
 
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
+      it("fits gas budget for deposits [ @skip-on-coverage ]", async function () {
         const depositAmount = params.depositAmount;
         await vault.connect(managerSigner).deposit(depositAmount);
 
@@ -861,6 +866,47 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(userSigner)
             .deposit(BigNumber.from(minimumSupply).sub(BigNumber.from("1")))
         ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("is able to redeem implicitly when the user deposits in a following round [ @skip-on-coverage ]", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.deposit(params.depositAmount);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          params.depositAmount
+        );
+        // Should redeem the first deposit
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 0);
+      });
+
+      it("fits gas budget for implicit redemption", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.deposit(params.depositAmount);
+        const receipt = await tx.wait();
+        assert.isAtMost(
+          receipt.gasUsed.toNumber(),
+          params.gasLimits.depositWithRedemption
+        );
       });
     });
 
@@ -1231,30 +1277,6 @@ function behavesLikeRibbonOptionsVault(params: {
           await assetContract.balanceOf(vault.address),
           BigNumber.from(0)
         );
-        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
-        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
-
-        await expect(tx)
-          .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 0);
-      });
-
-      it("is able to redeem implicitly when the user deposits in a following round", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
-
-        await vault.deposit(params.depositAmount);
-
-        await rollToNextOption();
-
-        const tx = await vault.deposit(params.depositAmount);
-
-        assert.bnEqual(
-          await assetContract.balanceOf(vault.address),
-          params.depositAmount
-        );
-        // Should redeem the first deposit
         assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
 
