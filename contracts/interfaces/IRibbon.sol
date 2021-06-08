@@ -7,7 +7,6 @@ interface IStrikeSelection {
 
 interface IOptionsPremiumPricer {
     function getPremium(
-        address underlying,
         uint256 strikePrice,
         uint256 expiryTimestamp,
         bool isPut

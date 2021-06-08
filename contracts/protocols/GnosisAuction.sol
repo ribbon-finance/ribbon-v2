@@ -109,7 +109,6 @@ library GnosisAuction {
         // and afterwards apply a discount to incentivize arbitraguers
         optionPremium = IOptionsPremiumPricer(optionsPremiumPricer)
             .getPremium(
-            underlying,
             newOToken.strikePrice(),
             newOToken.expiryTimestamp(),
             newOToken.isPut()

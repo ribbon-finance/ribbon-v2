@@ -5,7 +5,6 @@ contract MockOptionsPremiumPricer {
     uint256 private _optionPremiumPrice;
 
     function getPremium(
-        address underlying,
         uint256 strikePrice,
         uint256 expiryTimestamp,
         bool isPut
