@@ -1148,12 +1148,6 @@ function behavesLikeRibbonOptionsVault(params: {
         }
       });
 
-      it("reverts when not called with manager", async function () {
-        await expect(
-          vault.connect(userSigner).rollToNextOption()
-        ).to.be.revertedWith("Only manager");
-      });
-
       it("reverts when delay not passed", async function () {
         await vault.connect(managerSigner).commitAndClose();
 

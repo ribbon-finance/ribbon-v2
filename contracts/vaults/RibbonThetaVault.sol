@@ -506,7 +506,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external onlyManager nonReentrant {
+    function rollToNextOption() external nonReentrant {
         require(block.timestamp >= nextOptionReadyAt, "Not ready");
 
         address newOption = nextOption;
