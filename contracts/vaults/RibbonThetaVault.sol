@@ -14,7 +14,6 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {VaultDeposit} from "../libraries/VaultDeposit.sol";
-import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     using SafeERC20 for IERC20;
