@@ -14,6 +14,7 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {VaultDeposit} from "../libraries/VaultDeposit.sol";
+import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     using SafeERC20 for IERC20;
@@ -289,13 +290,13 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         VaultDeposit.DepositReceipt memory depositReceipt
     ) private {
         require(!depositReceipt.processed, "Processed");
-        require(depositReceipt.round > currentRound, "Round not closed");
+        require(depositReceipt.round < currentRound, "Round not closed");
 
-        uint256 pps = roundPricePerShare[currentRound];
+        uint256 pps = roundPricePerShare[depositReceipt.round];
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(pps > 1, "Invalid pps");
+        require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
         depositReceipts[msg.sender].processed = true;
 
@@ -303,7 +304,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         emit Redeem(msg.sender, shares, depositReceipt.round);
 
-        transfer(msg.sender, shares);
+        _transfer(address(this), msg.sender, shares);
     }
 
     function withdrawInstantly(uint256 amount) external nonReentrant {
@@ -466,24 +467,29 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         address newOption = nextOption;
         require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
+        uint256 currentBalance = assetBalance();
+        uint16 currentRound = round;
+
+        (, uint256 newAssetBalance, uint256 newShareSupply) =
+            _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
+
+        uint256 newPricePerShare =
+            (10**uint256(decimals())).mul(newAssetBalance).div(newShareSupply);
+
         currentOption = newOption;
         nextOption = PLACEHOLDER_ADDR;
-        round += 1;
-
-        uint256 currentBalance = assetBalance();
-        (uint256 queuedWithdrawAmount, , ) =
-            _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
-        uint256 shortAmount = currentBalance.sub(queuedWithdrawAmount);
-        lockedAmount = shortAmount;
+        round = currentRound + 1;
+        lockedAmount = newAssetBalance;
+        roundPricePerShare[currentRound] = newPricePerShare;
 
         GammaProtocol.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            shortAmount
+            newAssetBalance
         );
 
-        emit OpenShort(newOption, shortAmount, msg.sender);
+        emit OpenShort(newOption, newAssetBalance, msg.sender);
     }
 
     /**
