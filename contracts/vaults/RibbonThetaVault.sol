@@ -523,37 +523,37 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         return (10**uint256(decimals())).mul(totalBalance()).div(totalSupply());
     }
 
-    /**
-     * @notice This is the user's share balance, including the shares that are not redeemed from processed deposits.
-     * @param account is the address to lookup the balance for.
-     */
-    function balancePlusUnredeemed(address account)
-        external
-        view
-        returns (uint256)
-    {
-        return balanceOf(account).add(unredeemedBalance(account));
-    }
+    // /**
+    //  * @notice This is the user's share balance, including the shares that are not redeemed from processed deposits.
+    //  * @param account is the address to lookup the balance for.
+    //  */
+    // function balancePlusUnredeemed(address account)
+    //     external
+    //     view
+    //     returns (uint256)
+    // {
+    //     return balanceOf(account).add(unredeemedBalance(account));
+    // }
 
-    /**
-     * @notice Returns the user's unredeemed share amount
-     * @param account is the address to lookup the unredeemed share amount
-     */
-    function unredeemedBalance(address account)
-        public
-        view
-        returns (uint256 unredeemedShares)
-    {
-        VaultDeposit.DepositReceipt storage depositReceipt =
-            depositReceipts[account];
+    // /**
+    //  * @notice Returns the user's unredeemed share amount
+    //  * @param account is the address to lookup the unredeemed share amount
+    //  */
+    // function unredeemedBalance(address account)
+    //     public
+    //     view
+    //     returns (uint256 unredeemedShares)
+    // {
+    //     VaultDeposit.DepositReceipt storage depositReceipt =
+    //         depositReceipts[account];
 
-        if (!depositReceipt.processed) {
-            unredeemedShares = wmul(
-                depositReceipt.amount,
-                roundPricePerShare[depositReceipt.round]
-            );
-        }
-    }
+    //     if (!depositReceipt.processed) {
+    //         unredeemedShares = wmul(
+    //             depositReceipt.amount,
+    //             roundPricePerShare[depositReceipt.round]
+    //         );
+    //     }
+    // }
 
     /**
      * @notice Returns the expiry of the current option the vault is shorting
