@@ -48,7 +48,7 @@ describe("RibbonThetaVault", () => {
     firstOptionStrike: 2400,
     secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
+    tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
@@ -78,7 +78,7 @@ describe("RibbonThetaVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premium: parseEther("0.1"),
-    tokenDecimals: 8,
+    tokenDecimals: 18,
     isPut: false,
     gasLimits: {
       depositWorstCase: 100000,
@@ -97,7 +97,7 @@ describe("RibbonThetaVault", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
+    tokenDecimals: 6,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
@@ -127,7 +127,7 @@ describe("RibbonThetaVault", () => {
     premium: BigNumber.from("10000000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("4166666666"),
-    tokenDecimals: 8,
+    tokenDecimals: 6,
     isPut: true,
     gasLimits: {
       depositWorstCase: 110000,
@@ -1225,10 +1225,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
+        // console.log(params.depositAmount.toString());
+
         await vault.redeemDeposit();
 
-        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
         assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
       });
 
       // it("is able to redeem deposit", async function () {

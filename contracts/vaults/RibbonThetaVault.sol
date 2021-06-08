@@ -300,7 +300,8 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         depositReceipts[msg.sender].processed = true;
 
-        uint256 shares = wmul(depositReceipt.amount, pps);
+        uint256 shares =
+            uint256(depositReceipt.amount).mul(pps).div(10**uint256(_decimals));
 
         emit Redeem(msg.sender, shares, depositReceipt.round);
 
@@ -398,11 +399,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         _setNextOption(otokenAddress);
         _closeShort(oldOption);
-
-        // After closing the short, if the options expire in-the-money
-        // vault pricePerShare would go down because vault's asset balance decreased.
-        // This ensures that the newly-minted shares do not take on the loss.
-        _mintPendingShares();
     }
 
     /**
@@ -446,18 +442,6 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         }
     }
 
-    function _mintPendingShares() private {
-        // We leave 1 as the residual value so that subsequent depositors
-        // do not have to pay the cost of a cold write
-        uint256 pending = _totalPending.sub(PLACEHOLDER_UINT);
-        _totalPending = PLACEHOLDER_UINT;
-
-        // Vault holds temporary custody of the newly minted vault shares
-        _mint(address(this), pending);
-
-        roundPricePerShare[round] = pricePerShare();
-    }
-
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
@@ -469,6 +453,11 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         uint256 currentBalance = assetBalance();
         uint16 currentRound = round;
+
+        // After closing the short, if the options expire in-the-money
+        // vault pricePerShare would go down because vault's asset balance decreased.
+        // This ensures that the newly-minted shares do not take on the loss.
+        _mintPendingShares();
 
         (, uint256 newAssetBalance, uint256 newShareSupply) =
             _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
@@ -482,14 +471,24 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         lockedAmount = newAssetBalance;
         roundPricePerShare[currentRound] = newPricePerShare;
 
+        emit OpenShort(newOption, newAssetBalance, msg.sender);
+
         GammaProtocol.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
             newAssetBalance
         );
+    }
 
-        emit OpenShort(newOption, newAssetBalance, msg.sender);
+    function _mintPendingShares() private {
+        // We leave 1 as the residual value so that subsequent depositors
+        // do not have to pay the cost of a cold write
+        uint256 pending = _totalPending.sub(PLACEHOLDER_UINT);
+        _totalPending = PLACEHOLDER_UINT;
+
+        // Vault holds temporary custody of the newly minted vault shares
+        _mint(address(this), pending);
     }
 
     /**
