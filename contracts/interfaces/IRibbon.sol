@@ -2,5 +2,20 @@
 pragma solidity ^0.7.3;
 
 interface IStrikeSelection {
-    function getStrikePrice() external view returns (uint256);
+    function getStrikePrice() external returns (uint256);
+}
+
+interface IOptionsPremiumPricer {
+    function getPremium(
+        uint256 strikePrice,
+        uint256 timeToExpiry,
+        bool isPut
+    ) external returns (uint256);
+
+    function getOptionDelta(uint256 st, uint256 t)
+        external
+        view
+        returns (uint256 delta);
+
+    function getUnderlyingPrice() external view returns (uint256 price);
 }
