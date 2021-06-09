@@ -433,7 +433,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         }
 
         uint256 strikePrice =
-            IStrikeSelection(strikeSelection).getStrikePrice();
+            IStrikeSelection(strikeSelection).getStrikePrice(expiry, isPut);
 
         address otokenAddress =
             GammaProtocol.getOrDeployOtoken(
