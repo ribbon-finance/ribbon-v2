@@ -200,11 +200,7 @@ function behavesLikeRibbonOptionsVault(params: {
   };
 }) {
   // Addresses
-  let owner: string,
-    user: string,
-    manager: string,
-    feeRecipient: string,
-    counterparty: string;
+  let owner: string, user: string, manager: string, feeRecipient: string;
 
   // Signers
   let adminSigner: SignerWithAddress,
@@ -224,7 +220,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let depositAmount = params.depositAmount;
   let premium = params.premium;
   let premiumDiscount = params.premiumDiscount;
-  let expectedMintAmount = params.expectedMintAmount;
+  // let expectedMintAmount = params.expectedMintAmount;
   let isPut = params.isPut;
 
   // Contracts
@@ -245,18 +241,18 @@ function behavesLikeRibbonOptionsVault(params: {
     let firstOption: Option;
     // let secondOption: Option;
 
-    const rollToNextOption = async () => {
-      await strikeSelection.setStrikePrice(
-        parseUnits(params.firstOptionStrike.toString(), 8)
-      );
+    // const rollToNextOption = async () => {
+    //   await strikeSelection.setStrikePrice(
+    //     parseUnits(params.firstOptionStrike.toString(), 8)
+    //   );
 
-      await optionsPremiumPricer.setPremium(params.premium.toString());
+    //   await optionsPremiumPricer.setPremium(params.premium.toString());
 
-      await vault.connect(managerSigner).commitAndClose();
-      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+    //   await vault.connect(managerSigner).commitAndClose();
+    //   await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-      await vault.connect(managerSigner).rollToNextOption();
-    };
+    //   await vault.connect(managerSigner).rollToNextOption();
+    // };
 
     before(async function () {
       initSnapshotId = await time.takeSnapshot();
@@ -273,7 +269,6 @@ function behavesLikeRibbonOptionsVault(params: {
       user = userSigner.address;
       manager = managerSigner.address;
       feeRecipient = feeRecipientSigner.address;
-      counterparty = counterpartySigner.address;
 
       const MockStrikeSelection = await ethers.getContractFactory(
         "MockStrikeSelection"
