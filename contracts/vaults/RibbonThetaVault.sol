@@ -329,19 +329,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         totalPending = totalPending.add(amount);
     }
 
-    // TODO: WIP
-    // function _redeem() private {
-    //     VaultDeposit.DepositReceipt storage depositReceipt =
-    //         depositReceipts[msg.sender];
-
-    //     require(!depositReceipt.processed, "Processed");
-    //     require(depositReceipt.round > round, "Round open");
-
-    //     depositReceipt.processed = true;
-
-    //     transfer(msg.sender, depositReceipt.amount);
-    // }
-
     /**
      * @notice Lock's users shares for future withdraw and ensures that the new short excludes the scheduled amount.
      * @param shares is the number of shares to be withdrawn in the future.
