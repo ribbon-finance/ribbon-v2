@@ -200,11 +200,7 @@ function behavesLikeRibbonOptionsVault(params: {
   };
 }) {
   // Addresses
-  let owner: string,
-    user: string,
-    manager: string,
-    feeRecipient: string,
-    counterparty: string;
+  let owner: string, user: string, manager: string, feeRecipient: string;
 
   // Signers
   let adminSigner: SignerWithAddress,
@@ -273,7 +269,6 @@ function behavesLikeRibbonOptionsVault(params: {
       user = userSigner.address;
       manager = managerSigner.address;
       feeRecipient = feeRecipientSigner.address;
-      counterparty = counterpartySigner.address;
 
       const MockStrikeSelection = await ethers.getContractFactory(
         "MockStrikeSelection"
