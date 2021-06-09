@@ -26,7 +26,7 @@ library GammaProtocol {
         address marginPool,
         address oTokenAddress,
         uint256 depositAmount
-    ) internal returns (uint256) {
+    ) external returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
@@ -122,7 +122,7 @@ library GammaProtocol {
      * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
      * this assumption should hold.
      */
-    function settleShort(address gammaController) internal returns (uint256) {
+    function settleShort(address gammaController) external returns (uint256) {
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -161,6 +161,64 @@ library GammaProtocol {
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
+    /**
+     * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
+     * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
+     * only have a single vault open at any given time.
+     */
+    function burnOtokens(address gammaController, uint256 amount)
+        external
+        returns (uint256)
+    {
+        IController controller = IController(gammaController);
+
+        // gets the currently active vault ID
+        uint256 vaultID = controller.getAccountVaultCounter(address(this));
+
+        GammaTypes.Vault memory vault =
+            controller.getVault(address(this), vaultID);
+
+        require(vault.shortOtokens.length > 0, "No short");
+
+        IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
+
+        uint256 startCollateralBalance =
+            collateralToken.balanceOf(address(this));
+
+        // Burning all otokens that are left from the gnosis auction,
+        // then withdrawing the corresponding collateral amount from the vault
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](2);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.BurnShortOption,
+            address(this), // owner
+            address(this), // address to transfer to
+            address(vault.shortOtokens[0]), // otoken address
+            vaultID, // vaultId
+            amount, // amount
+            0, //index
+            "" //data
+        );
+
+        actions[1] = IController.ActionArgs(
+            IController.ActionType.WithdrawCollateral,
+            address(this), // owner
+            address(this), // address to transfer to
+            address(collateralToken), // withdrawn asset
+            vaultID, // vaultId
+            vault.collateralAmounts[0].mul(amount).div(vault.shortAmounts[0]), // amount
+            0, //index
+            "" //data
+        );
+
+        controller.operate(actions);
+
+        uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
+
+        return endCollateralBalance.sub(startCollateralBalance);
+    }
+
     function getOrDeployOtoken(
         address otokenFactory,
         address underlying,
@@ -169,7 +227,7 @@ library GammaProtocol {
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
-    ) internal returns (address) {
+    ) external returns (address) {
         IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
         address otokenFromFactory =
@@ -204,16 +262,16 @@ library GammaProtocol {
 
     uint256 constant DSWAD = 10**18;
 
-    function dsadd(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
         require((z = x + y) >= x, "ds-math-add-overflow");
     }
 
-    function dsmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
     }
 
     //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
+    function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
         z = dsadd(dsmul(x, DSWAD), y / 2) / y;
     }
 }
