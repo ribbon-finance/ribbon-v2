@@ -10,6 +10,7 @@ import {DSMath} from "../vendor/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {VaultDeposit} from "../libraries/VaultDeposit.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
