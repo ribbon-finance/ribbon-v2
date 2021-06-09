@@ -10,8 +10,6 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
-  WETH_ADDRESS,
-  GNOSIS_EASY_AUCTION,
 } from "../helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -235,9 +233,7 @@ export async function bidForOToken(
 
   await optionsPremiumPricer.connect(userSigner).setPremium(premium);
 
-  const bid = (
-    await optionsPremiumPricer.getPremium(100, 100, true)
-  )
+  const bid = (await optionsPremiumPricer.getPremium(100, 100, true))
     .mul(totalOptionsAvailableToBuy)
     .toString();
 
