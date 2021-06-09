@@ -875,7 +875,27 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(params.depositAmount);
 
+        const {
+          processed: processed1,
+          round: round1,
+          amount: amount1,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed1);
+        assert.equal(round1, 0);
+        assert.bnEqual(amount1, params.depositAmount);
+
         await rollToNextOption();
+
+        const {
+          processed: processed2,
+          round: round2,
+          amount: amount2,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed2);
+        assert.equal(round2, 0);
+        assert.bnEqual(amount2, params.depositAmount);
 
         const tx = await vault.deposit(params.depositAmount);
 
@@ -886,6 +906,16 @@ function behavesLikeRibbonOptionsVault(params: {
         // Should redeem the first deposit
         assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        const {
+          processed: processed3,
+          round: round3,
+          amount: amount3,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed3);
+        assert.equal(round3, 1);
+        assert.bnEqual(amount3, params.depositAmount);
 
         await expect(tx)
           .to.emit(vault, "Redeem")
@@ -903,6 +933,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.deposit(params.depositAmount);
         const receipt = await tx.wait();
+        console.log(receipt.gasUsed.toNumber());
         assert.isAtMost(
           receipt.gasUsed.toNumber(),
           params.gasLimits.depositWithRedemption
@@ -1283,6 +1314,12 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(tx)
           .to.emit(vault, "Redeem")
           .withArgs(user, params.depositAmount, 0);
+
+        const { processed, round, amount } = await vault.depositReceipts(user);
+
+        assert.isTrue(processed);
+        assert.equal(round, 0);
+        assert.bnEqual(amount, params.depositAmount);
       });
 
       // it("is able to redeem deposit", async function () {
