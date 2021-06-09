@@ -41,12 +41,10 @@ contract StrikeSelection is DSMath, Ownable {
      * @param isPut is whether option is put or call
      */
 
-    function getStrikePrice(uint256 expiryTimestamp, uint256 isPut)
+    function getStrikePrice(uint256 expiryTimestamp, bool isPut)
         external
         returns (uint256 strikePrice)
     {
-        volatilityOracle.commit();
-
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
 
@@ -59,7 +57,7 @@ contract StrikeSelection is DSMath, Ownable {
 
         bool pastDelta = false;
         uint256 currStrike = assetPrice;
-        uint256 newDelta = isPut ? 10.sub(delta) : delta;
+        uint256 newDelta = isPut ? uint256(10).sub(delta) : delta;
 
         while (!pastDelta) {
             uint256 currDelta =
