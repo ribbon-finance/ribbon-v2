@@ -273,19 +273,20 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
         if (depositReceipt.round < currentRound && !depositReceipt.processed) {
-            _redeemDeposit(currentRound, depositReceipt);
+            _redeemDeposit(currentRound, depositReceipt, false);
         }
     }
 
     function redeemDeposit() external nonReentrant {
         VaultDeposit.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
-        _redeemDeposit(round, depositReceipt);
+        _redeemDeposit(round, depositReceipt, true);
     }
 
     function _redeemDeposit(
         uint16 currentRound,
-        VaultDeposit.DepositReceipt memory depositReceipt
+        VaultDeposit.DepositReceipt memory depositReceipt,
+        bool updatesDepositReceipt
     ) private {
         require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round < currentRound, "Round not closed");
@@ -296,7 +297,12 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        depositReceipts[msg.sender].processed = true;
+        // This flag avoid overwriting the processed flag when we are creating
+        // a new deposit receipt
+        // saves 300 gas
+        if (updatesDepositReceipt) {
+            depositReceipts[msg.sender].processed = true;
+        }
 
         uint256 shares =
             uint256(depositReceipt.amount).mul(pps).div(10**uint256(_decimals));
