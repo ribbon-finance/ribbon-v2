@@ -146,11 +146,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param _owner is the owner of the contract who can set the manager
      * @param _feeRecipient is the recipient address for withdrawal fees.
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary.
-     * @param _receiptTokenDetails is a struct including the receipt token details such as the token name, symbol, and decimals
+     * @param _receiptTokenDetails is a struct including the token name, symbol, and decimals
      * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
      * @param _asset is the asset used for collateral and premiums
      * @param _isPut is the option type
-     * @param _premiumDiscount is the premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
+     * @param _premiumDiscount is the premium discount of the sold options (thousandths place: 000 - 999)
      * @param _strikeSelection is the address of the contract handling weekly option strike selection
      * @param _optionsPremiumPricer is the address of the contract handling pricing option premiums using Black-Scholes
      */

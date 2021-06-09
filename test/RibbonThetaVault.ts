@@ -61,7 +61,7 @@ describe("RibbonThetaVault", () => {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
     },
   });
-  /*
+
   behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Theta Vault (Call)`,
     tokenName: "Ribbon ETH Theta Vault",
@@ -127,7 +127,6 @@ describe("RibbonThetaVault", () => {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
     },
   });
-  */
 });
 
 type Option = {
@@ -1051,7 +1050,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#burnRemainingOTokens", () => {
+    describe.skip("#burnRemainingOTokens", () => {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
@@ -1133,7 +1132,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#rollToNextOption", () => {
+    describe.skip("#rollToNextOption", () => {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
