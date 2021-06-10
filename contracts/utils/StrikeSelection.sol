@@ -30,8 +30,8 @@ contract StrikeSelection is DSMath, Ownable {
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
         // set delta to 0.1
         delta = 1;
-        // set step to 5%
-        step = 50;
+        // set step to 1%
+        step = 10;
     }
 
     /**
@@ -42,14 +42,11 @@ contract StrikeSelection is DSMath, Ownable {
      */
 
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
-        external
+        external view
         returns (uint256 strikePrice)
     {
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
-
-        // time to expiration in number of days
-        uint256 t = expiryTimestamp.sub(block.timestamp).div(1 days);
 
         // For each asset prices with step of 'margin' (down if put, up if call)
         //   if that assets getOptionDelta(currStrikePrice, t) == (isPut ? 1 - delta : delta) with certain margin of error
@@ -61,7 +58,7 @@ contract StrikeSelection is DSMath, Ownable {
 
         while (!pastDelta) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(currStrike, t);
+                optionsPremiumPricer.getOptionDelta(currStrike, expiryTimestamp);
             if (
                 newDelta.sub(step.div(2).mul(newDelta)) <= currDelta &&
                 currDelta <= newDelta.add(step.div(2).mul(newDelta))

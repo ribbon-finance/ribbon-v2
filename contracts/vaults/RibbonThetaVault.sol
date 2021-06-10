@@ -12,15 +12,25 @@ import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
+import {
+    IStrikeSelection,
+    IOptionsPremiumPricer
+} from "../interfaces/IRibbon.sol";
 
-contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
+contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
+
+    struct ReceiptTokenDetails {
+        string tokenName;
+        string tokenSymbol;
+        uint8 tokenDecimals;
+    }
 
     address public immutable WETH;
     address public immutable USDC;
@@ -44,6 +54,10 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     // Needed to approve collateral.safeTransferFrom for minting otokens.
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
     address public immutable MARGIN_POOL;
+
+    // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions
+    // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
+    address public immutable GNOSIS_EASY_AUCTION;
 
     /************************************************
      *  EVENTS
@@ -74,6 +88,18 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
 
     event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
+    event PremiumDiscountSet(
+        uint256 premiumDiscount,
+        uint256 newPremiumDiscount
+    );
+
+    event InitiateGnosisAuction(
+        address auctioningToken,
+        address biddingToken,
+        uint256 auctionCounter,
+        address manager
+    );
+
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     event ScheduleWithdraw(address account, uint256 shares);
@@ -97,11 +123,13 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         address _usdc,
         address _oTokenFactory,
         address _gammaController,
-        address _marginPool
+        address _marginPool,
+        address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_oTokenFactory != address(0), "!_oTokenFactory");
+        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
 
@@ -110,6 +138,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         OTOKEN_FACTORY = _oTokenFactory;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
+        GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
     }
 
     /**
@@ -117,40 +146,53 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
      * @param _owner is the owner of the contract who can set the manager
      * @param _feeRecipient is the recipient address for withdrawal fees.
      * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary.
-     * @param _tokenName is the name of the vault share token
-     * @param _tokenSymbol is the symbol of the vault share token
-     * @param _tokenDecimals is the decimals for the vault shares. Must match the decimals for _asset.
+     * @param _receiptTokenDetails is a struct including the token name, symbol, and decimals
      * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
      * @param _asset is the asset used for collateral and premiums
      * @param _isPut is the option type
+     * @param _premiumDiscount is the premium discount of the sold options (thousandths place: 000 - 999)
+     * @param _strikeSelection is the address of the contract handling weekly option strike selection
+     * @param _optionsPremiumPricer is the address of the contract handling pricing option premiums using Black-Scholes
      */
     function initialize(
         address _owner,
         address _feeRecipient,
         uint256 _initCap,
-        string calldata _tokenName,
-        string calldata _tokenSymbol,
-        uint8 _tokenDecimals,
+        ReceiptTokenDetails calldata _receiptTokenDetails,
         uint256 _minimumSupply,
         address _asset,
         bool _isPut,
-        address _strikeSelection
+        uint256 _premiumDiscount,
+        address _strikeSelection,
+        address _optionsPremiumPricer
     ) external initializer {
         require(_asset != address(0), "!_asset");
         require(_owner != address(0), "!_owner");
         require(_feeRecipient != address(0), "!_feeRecipient");
         require(_initCap > 0, "!_initCap");
-        require(bytes(_tokenName).length > 0, "!_tokenName");
-        require(bytes(_tokenSymbol).length > 0, "!_tokenSymbol");
-        require(_tokenDecimals > 0, "!_tokenDecimals");
+        require(
+            bytes(_receiptTokenDetails.tokenName).length > 0,
+            "!_tokenName"
+        );
+        require(
+            bytes(_receiptTokenDetails.tokenSymbol).length > 0,
+            "!_tokenSymbol"
+        );
+        require(_receiptTokenDetails.tokenDecimals > 0, "!_tokenDecimals");
         require(_minimumSupply > 0, "!_minimumSupply");
+        require(_premiumDiscount > 0, "!_premiumDiscount");
+        require(_strikeSelection != address(0), "!_strikeSelection");
+        require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
 
         __ReentrancyGuard_init();
-        __ERC20_init(_tokenName, _tokenSymbol);
+        __ERC20_init(
+            _receiptTokenDetails.tokenName,
+            _receiptTokenDetails.tokenSymbol
+        );
         __Ownable_init();
         transferOwnership(_owner);
 
-        _decimals = _tokenDecimals;
+        _decimals = _receiptTokenDetails.tokenDecimals;
         cap = _initCap;
         asset = _isPut ? USDC : _asset;
         underlying = _asset;
@@ -160,6 +202,9 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         // hardcode the initial withdrawal fee
         instantWithdrawalFee = 0.005 ether;
         feeRecipient = _feeRecipient;
+
+        premiumDiscount = _premiumDiscount;
+        optionsPremiumPricer = _optionsPremiumPricer;
 
         strikeSelection = _strikeSelection;
     }
@@ -203,6 +248,24 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         emit WithdrawalFeeSet(oldFee, newWithdrawalFee);
 
         instantWithdrawalFee = newWithdrawalFee;
+    }
+
+    /**
+     * @notice Sets the new discount on premiums for options we are selling
+     * @param newPremiumDiscount is the premium discount
+     */
+    function setPremiumDiscount(uint256 newPremiumDiscount)
+        external
+        onlyManager
+    {
+        require(
+            newPremiumDiscount > 0 && newPremiumDiscount < 300,
+            "newPremiumDiscount is not between 0% - 30%!"
+        );
+
+        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
+
+        premiumDiscount = newPremiumDiscount;
     }
 
     /**
@@ -370,7 +433,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
         }
 
         uint256 strikePrice =
-            IStrikeSelection(strikeSelection).getStrikePrice();
+            IStrikeSelection(strikeSelection).getStrikePrice(expiry, isPut);
 
         address otokenAddress =
             GammaProtocol.getOrDeployOtoken(
@@ -443,7 +506,7 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external onlyManager nonReentrant {
+    function rollToNextOption() external nonReentrant {
         require(block.timestamp >= nextOptionReadyAt, "Not ready");
 
         address newOption = nextOption;
@@ -466,7 +529,44 @@ contract RibbonThetaVault is DSMath, GnosisAuction, OptionsVaultStorage {
             shortAmount
         );
 
+        startAuction();
+
         emit OpenShort(newOption, shortAmount, msg.sender);
+    }
+
+    /**
+     * @notice Initiate the gnosis auction.
+     */
+    function startAuction() public onlyManager {
+        GnosisAuction.AuctionDetails memory auctionDetails;
+
+        auctionDetails.oTokenAddress = currentOption;
+        auctionDetails.asset = asset;
+        auctionDetails.underlying = underlying;
+        auctionDetails.manager = manager;
+        auctionDetails.premiumDiscount = premiumDiscount;
+        auctionDetails.duration = 6 hours;
+
+        GnosisAuction.startAuction(
+            GNOSIS_EASY_AUCTION,
+            optionsPremiumPricer,
+            auctionDetails
+        );
+    }
+
+    /**
+     * @notice Burn the remaining oTokens left over from gnosis auction.
+     */
+    function burnRemainingOTokens() external onlyManager nonReentrant {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+        require(numOTokensToBurn > 0, "No OTokens to burn!");
+        uint256 assetBalanceBeforeBurn = assetBalance();
+        GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+        uint256 assetBalanceAfterBurn = assetBalance();
+        lockedAmount = lockedAmount.sub(
+            assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
+        );
     }
 
     /************************************************

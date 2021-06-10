@@ -72,6 +72,12 @@ contract OptionsVaultStorageV3 {
     // Minimum supply of the vault shares issued
     uint256 public minimumSupply;
 
+    // Premium discount on options we are selling (thousandths place: 000 - 999)
+    uint256 public premiumDiscount;
+
+    // Logic contract used to price options
+    address public optionsPremiumPricer;
+
     // Logic contract used to select strike prices
     address public strikeSelection;
 }
