@@ -42,8 +42,9 @@ contract StrikeSelection is DSMath, Ownable {
      */
 
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
-        external view
-        returns (uint256 strikePrice)
+        external
+        view
+        returns (uint256 strikePrice, uint256 delta)
     {
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
@@ -58,12 +59,17 @@ contract StrikeSelection is DSMath, Ownable {
 
         while (!pastDelta) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(currStrike, expiryTimestamp);
+                optionsPremiumPricer.getOptionDelta(
+                    currStrike,
+                    expiryTimestamp
+                );
             if (
                 newDelta.sub(step.div(2).mul(newDelta)) <= currDelta &&
                 currDelta <= newDelta.add(step.div(2).mul(newDelta))
             ) {
                 strikePrice = currStrike;
+                delta = currDelta;
+                return;
             }
             currStrike = isPut
                 ? currStrike.sub(currStrike.mul(step).div(1000))
