@@ -1705,6 +1705,36 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount, params.depositAmount);
       });
 
+      it("reverts when redeeming twice", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        await vault.redeemDeposit();
+
+        await expect(vault.redeemDeposit()).to.be.revertedWith("Processed");
+      });
+
+      it("reverts when redeeming after implicit redemption", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        await vault.deposit(params.depositAmount);
+
+        await expect(vault.redeemDeposit()).to.be.revertedWith(
+          "Round not closed"
+        );
+      });
+
       // it("is able to redeem deposit", async function () {
       //   const firstOptionAddress = firstOption.address;
       //   const secondOptionAddress = secondOption.address;
