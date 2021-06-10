@@ -1016,11 +1016,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.deposit(params.depositAmount);
         const receipt = await tx.wait();
-        console.log(receipt.gasUsed.toNumber());
         assert.isAtMost(
           receipt.gasUsed.toNumber(),
           params.gasLimits.depositWithRedemption
         );
+        // Uncomment to see exact gas use
+        // console.log(receipt.gasUsed.toNumber());
       });
     });
 
