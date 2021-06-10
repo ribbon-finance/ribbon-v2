@@ -25,13 +25,15 @@ contract StrikeSelection is DSMath, Ownable {
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
 
-    constructor(address _optionsPremiumPricer) {
+    constructor(address _optionsPremiumPricer, uint256 _delta, uint256 _step) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
+        require(_delta > 0, "!_delta");
+        require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
-        // set delta to 0.1
-        delta = 1;
-        // set step to 1%
-        step = 10;
+        // ex: delta = 1
+        delta = _delta;
+        // ex: step = 10 (1%)
+        step = _step;
     }
 
     /**
