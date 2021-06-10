@@ -50,7 +50,7 @@ describe("RibbonThetaVault", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
+    tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -58,6 +58,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
     gasLimits: {
+      depositWithRedemption: 102000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -82,9 +83,10 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     premium: parseEther("0.1"),
     premiumDiscount: BigNumber.from("997"),
-    tokenDecimals: 8,
+    tokenDecimals: 18,
     isPut: false,
     gasLimits: {
+      depositWithRedemption: 100000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -101,7 +103,7 @@ describe("RibbonThetaVault", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
+    tokenDecimals: 6,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -109,6 +111,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("158730"),
     isPut: true,
     gasLimits: {
+      depositWithRedemption: 115000,
       depositWorstCase: 110000,
       depositBestCase: 95000,
     },
@@ -133,9 +136,10 @@ describe("RibbonThetaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("4166666666"),
-    tokenDecimals: 8,
+    tokenDecimals: 6,
     isPut: true,
     gasLimits: {
+      depositWithRedemption: 115000,
       depositWorstCase: 110000,
       depositBestCase: 95000,
     },
@@ -193,6 +197,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDiscount: BigNumber;
   isPut: boolean;
   gasLimits: {
+    depositWithRedemption: number;
     depositWorstCase: number;
     depositBestCase: number;
   };
@@ -873,7 +878,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(processed, false);
       });
 
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
+      it("fits gas budget for deposits [ @skip-on-coverage ]", async function () {
         await vault.connect(managerSigner).deposit(depositAmount);
 
         const tx1 = await vault.deposit(depositAmount);
@@ -944,6 +949,78 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(userSigner)
             .deposit(BigNumber.from(minimumSupply).sub(BigNumber.from("1")))
         ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("is able to redeem implicitly when the user deposits in a following round [ @skip-on-coverage ]", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        const {
+          processed: processed1,
+          round: round1,
+          amount: amount1,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed1);
+        assert.equal(round1, 0);
+        assert.bnEqual(amount1, params.depositAmount);
+
+        await rollToNextOption();
+
+        const {
+          processed: processed2,
+          round: round2,
+          amount: amount2,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed2);
+        assert.equal(round2, 0);
+        assert.bnEqual(amount2, params.depositAmount);
+
+        const tx = await vault.deposit(params.depositAmount);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          params.depositAmount
+        );
+        // Should redeem the first deposit
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        const {
+          processed: processed3,
+          round: round3,
+          amount: amount3,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed3);
+        assert.equal(round3, 1);
+        assert.bnEqual(amount3, params.depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 0);
+      });
+
+      it("fits gas budget for implicit redemption", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.deposit(params.depositAmount);
+        const receipt = await tx.wait();
+        console.log(receipt.gasUsed.toNumber());
+        assert.isAtMost(
+          receipt.gasUsed.toNumber(),
+          params.gasLimits.depositWithRedemption
+        );
       });
     });
 
@@ -1594,6 +1671,92 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(await vault.assetBalance(), newDepositAmount);
       });
+    });
+
+    describe("#redeemDeposit", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("is able to redeem deposit at new price per share", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.redeemDeposit();
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 0);
+
+        const { processed, round, amount } = await vault.depositReceipts(user);
+
+        assert.isTrue(processed);
+        assert.equal(round, 0);
+        assert.bnEqual(amount, params.depositAmount);
+      });
+
+      // it("is able to redeem deposit", async function () {
+      //   const firstOptionAddress = firstOption.address;
+      //   const secondOptionAddress = secondOption.address;
+
+      //   await vault.connect(managerSigner).commitAndClose();
+      //   await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      //   const firstTx = await vault.connect(managerSigner).rollToNextOption();
+
+      //   assert.equal(await vault.currentOption(), firstOptionAddress);
+      //   assert.equal(await vault.currentOptionExpiry(), firstOption.expiry);
+
+      //   await expect(firstTx)
+      //     .to.emit(vault, "OpenShort")
+      //     .withArgs(firstOptionAddress, depositAmount, manager);
+
+      //   await assetContract
+      //     .connect(userSigner)
+      //     .transfer(vault.address, premium);
+
+      //   // only the premium should be left over because the funds are locked into Opyn
+      //   assert.equal(
+      //     (await assetContract.balanceOf(vault.address)).toString(),
+      //     premium
+      //   );
+
+      //   const settlementPriceITM = isPut
+      //     ? parseEther(params.firstOptionStrike.toString())
+      //         .div(BigNumber.from("10").pow(BigNumber.from("10")))
+      //         .sub(1)
+      //     : parseEther(params.firstOptionStrike.toString())
+      //         .div(BigNumber.from("10").pow(BigNumber.from("10")))
+      //         .add(1);
+
+      //   // withdraw 100% because it's OTM
+      //   await setOpynOracleExpiryPrice(
+      //     params.asset,
+      //     oracle,
+      //     await vault.currentOptionExpiry(),
+      //     settlementPriceITM
+      //   );
+
+      //   const beforeBalance = await assetContract.balanceOf(vault.address);
+
+      //   await strikeSelection.setStrikePrice(
+      //     parseUnits(params.secondOptionStrike.toString(), 8)
+      //   );
+
+      //   const firstCloseTx = await vault
+      //     .connect(managerSigner)
+      //     .commitAndClose();
+      // });
     });
 
     // describe("#withdrawLater", () => {
