@@ -5,7 +5,7 @@ interface IStrikeSelection {
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
         external
         view
-        returns (uint256);
+        returns (uint256, uint256);
 }
 
 interface IOptionsPremiumPricer {
