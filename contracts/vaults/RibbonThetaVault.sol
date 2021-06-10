@@ -553,8 +553,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             shortAmount
         );
 
-        startAuction();
-
         emit OpenShort(newOption, shortAmount, msg.sender);
     }
 
