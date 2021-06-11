@@ -1675,7 +1675,11 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#redeemDeposit", () => {
-      time.revertToSnapshotAfterEach();
+      let oracle: Contract;
+
+      time.revertToSnapshotAfterEach(async function () {
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      });
 
       it("is able to redeem deposit at new price per share", async function () {
         await assetContract
@@ -1736,58 +1740,47 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
-      // it("is able to redeem deposit", async function () {
-      //   const firstOptionAddress = firstOption.address;
-      //   const secondOptionAddress = secondOption.address;
+      it("is able to redeem deposit at pricePerShare after closing short in the money", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
 
-      //   await vault.connect(managerSigner).commitAndClose();
-      //   await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.deposit(params.depositAmount);
 
-      //   const firstTx = await vault.connect(managerSigner).rollToNextOption();
+        await vault.connect(managerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(managerSigner).rollToNextOption();
 
-      //   assert.equal(await vault.currentOption(), firstOptionAddress);
-      //   assert.equal(await vault.currentOptionExpiry(), firstOption.expiry);
+        const settlementPriceITM = isPut
+          ? parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .sub(1000)
+          : parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .add(1000);
 
-      //   await expect(firstTx)
-      //     .to.emit(vault, "OpenShort")
-      //     .withArgs(firstOptionAddress, depositAmount, manager);
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await vault.currentOptionExpiry(),
+          settlementPriceITM
+        );
 
-      //   await assetContract
-      //     .connect(userSigner)
-      //     .transfer(vault.address, premium);
+        const beforeBalance = await assetContract.balanceOf(vault.address);
+        const beforePps = await vault.pricePerShare();
 
-      //   // only the premium should be left over because the funds are locked into Opyn
-      //   assert.equal(
-      //     (await assetContract.balanceOf(vault.address)).toString(),
-      //     premium
-      //   );
+        await strikeSelection.setStrikePrice(
+          parseUnits(params.secondOptionStrike.toString(), 8)
+        );
 
-      //   const settlementPriceITM = isPut
-      //     ? parseEther(params.firstOptionStrike.toString())
-      //         .div(BigNumber.from("10").pow(BigNumber.from("10")))
-      //         .sub(1)
-      //     : parseEther(params.firstOptionStrike.toString())
-      //         .div(BigNumber.from("10").pow(BigNumber.from("10")))
-      //         .add(1);
+        await vault.connect(managerSigner).commitAndClose();
+        const afterBalance = await assetContract.balanceOf(vault.address);
+        const afterPps = await vault.pricePerShare();
 
-      //   // withdraw 100% because it's OTM
-      //   await setOpynOracleExpiryPrice(
-      //     params.asset,
-      //     oracle,
-      //     await vault.currentOptionExpiry(),
-      //     settlementPriceITM
-      //   );
-
-      //   const beforeBalance = await assetContract.balanceOf(vault.address);
-
-      //   await strikeSelection.setStrikePrice(
-      //     parseUnits(params.secondOptionStrike.toString(), 8)
-      //   );
-
-      //   const firstCloseTx = await vault
-      //     .connect(managerSigner)
-      //     .commitAndClose();
-      // });
+        assert.bnGt(beforeBalance, afterBalance);
+        assert.bnGt(beforePps, afterPps);
+      });
     });
 
     // describe("#withdrawLater", () => {
