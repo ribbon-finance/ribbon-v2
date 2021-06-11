@@ -914,7 +914,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.deposit(depositAmount)).to.be.revertedWith(
           "Overflow"
         );
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
 
         await assetContract
           .connect(userSigner)
