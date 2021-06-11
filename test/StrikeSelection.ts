@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const { provider, getContractFactory } = ethers;
 
-describe("OptionsPremiumPricer", () => {
+describe("StrikeSelection", () => {
   let strikeSelection: Contract;
   let mockOptionsPremiumPricer: Contract;
   let signer: SignerWithAddress;
@@ -90,8 +90,29 @@ describe("OptionsPremiumPricer", () => {
       ).to.be.revertedWith("Expiry must be in the future!");
     });
 
+    it("gets the correct strike price given uneven underlying strike price", async function () {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = false;
+      const targetDelta = await strikeSelection.delta();
+
+      await mockOptionsPremiumPricer.setOptionUnderlyingPrice(2578);
+
+      const [strikePrice, delta] = await strikeSelection.getStrikePrice(
+        expiryTimestamp,
+        isPut
+      );
+
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+          .toString()
+      );
+      assert.equal(delta.toString(), targetDelta.toString());
+    });
+
     it("gets the correct strike price given delta for calls", async function () {
-      const expiryTimestamp = await time.now();
+      const expiryTimestamp = (await time.now()).add(100);
       const isPut = false;
       const targetDelta = await strikeSelection.delta();
       const [strikePrice, delta] = await strikeSelection.getStrikePrice(
@@ -99,14 +120,16 @@ describe("OptionsPremiumPricer", () => {
         isPut
       );
       assert.equal(
-        strikePrice,
-        underlyingPrice.add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+        strikePrice.toString(),
+        underlyingPrice
+          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+          .toString()
       );
-      assert.equal(delta, targetDelta);
+      assert.equal(delta.toString(), targetDelta.toString());
     });
 
     it("gets the correct strike price given delta for puts", async function () {
-      const expiryTimestamp = await time.now();
+      const expiryTimestamp = (await time.now()).add(100);
       const isPut = true;
       const targetDelta = await strikeSelection.delta();
       const [strikePrice, delta] = await strikeSelection.getStrikePrice(
@@ -114,10 +137,15 @@ describe("OptionsPremiumPricer", () => {
         isPut
       );
       assert.equal(
-        strikePrice,
-        underlyingPrice.sub(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+        strikePrice.toString(),
+        underlyingPrice
+          .sub(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+          .toString()
       );
-      assert.equal(BigNumber.from(100).sub(delta), targetDelta);
+      assert.equal(
+        BigNumber.from(100).sub(delta).toString(),
+        targetDelta.toString()
+      );
     });
   });
 });

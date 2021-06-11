@@ -8,8 +8,6 @@ import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "hardhat/console.sol";
-
 contract StrikeSelection is DSMath, Ownable {
     using SafeMath for uint256;
 
@@ -68,7 +66,7 @@ contract StrikeSelection is DSMath, Ownable {
         //        return strike price
 
         bool pastDelta = false;
-        uint256 strike = assetPrice;
+        uint256 strike = assetPrice.sub(assetPrice % step);
         uint256 targetDelta = isPut ? uint256(100).sub(delta) : delta;
         uint256 prevDelta = 100;
 
@@ -97,8 +95,8 @@ contract StrikeSelection is DSMath, Ownable {
                 return (
                     strike,
                     min(lowerBoundDiff, upperBoundDiff) == lowerBoundDiff
-                        ? currDelta
-                        : prevDelta
+                        ? (isPut ? prevDelta : currDelta)
+                        : (isPut ? currDelta : prevDelta)
                 );
             }
 
