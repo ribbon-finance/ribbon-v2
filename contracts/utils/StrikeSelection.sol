@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
-import {DSMath} from "../lib/DSMath.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 
 contract StrikeSelection is DSMath {
     using SafeMath for uint256;

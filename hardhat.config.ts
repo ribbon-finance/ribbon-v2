@@ -1,4 +1,3 @@
-import { task } from "hardhat/config";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-contract-sizer";
 

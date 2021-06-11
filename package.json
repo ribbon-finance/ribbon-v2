@@ -65,5 +65,8 @@
     "@openzeppelin/contracts-upgradeable": "^3.4.1",
     "dotenv": "^10.0.0",
     "moment-timezone": "^0.5.33"
+  },
+  "mocha": {
+    "timeout": 20000
   }
 }

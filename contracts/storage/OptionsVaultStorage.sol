@@ -10,6 +10,7 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {VaultDeposit} from "../libraries/VaultDeposit.sol";
 
 contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,
@@ -57,20 +58,20 @@ contract OptionsVaultStorageV2 {
 }
 
 contract OptionsVaultStorageV3 {
-    // Asset used in Theta Vault
-    address public asset;
-
-    // Underlying asset of the options sold by vault
-    address public underlying;
-
-    // Option type the vault is selling
+    /// @notice Option type the vault is selling
     bool public isPut;
 
     // Token decimals for vault shares
     uint8 internal _decimals;
 
-    // Minimum supply of the vault shares issued
-    uint256 public minimumSupply;
+    /// @notice Current round number. `round` represents the number of `period`s elapsed.
+    uint16 public round;
+
+    /// @notice The timestamp of the first round. Used only by consumers to count how many rounds have passed
+    uint32 public genesisTimestamp;
+
+    /// @notice Asset used in Theta Vault
+    address public asset;
 
     // Premium discount on options we are selling (thousandths place: 000 - 999)
     uint256 public premiumDiscount;
@@ -79,7 +80,26 @@ contract OptionsVaultStorageV3 {
     address public optionsPremiumPricer;
 
     // Logic contract used to select strike prices
+    /// @notice Underlying asset of the options sold by vault
+    address public underlying;
+
+    /// @notice Logic contract used to select strike prices
     address public strikeSelection;
+
+    /// @notice Minimum supply of the vault shares issued
+    uint256 public minimumSupply;
+
+    /// @notice Stores the total tally of how much of collateral there is
+    /// to be used to mint rTHETA tokens
+    uint256 public totalPending;
+
+    /// @notice Stores the user's pending deposit for the round
+    mapping(address => VaultDeposit.DepositReceipt) public depositReceipts;
+
+    /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
+    /// This is used to determine the number of shares to be returned
+    /// to a user with their DepositReceipt.depositAmount
+    mapping(uint16 => uint256) public roundPricePerShare;
 }
 
 // We are following Compound's method of upgrading new contract implementations

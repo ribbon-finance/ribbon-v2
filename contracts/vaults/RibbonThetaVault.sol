@@ -6,10 +6,11 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {DSMath} from "../lib/DSMath.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {VaultDeposit} from "../libraries/VaultDeposit.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
@@ -42,6 +43,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     uint256 public constant period = 7 days;
 
+    uint256 private constant MAX_UINT128 =
+        340282366920938463463374607431768211455;
+
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -65,14 +69,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event ManagerChanged(address oldManager, address newManager);
 
-    event Deposit(address indexed account, uint256 amount, uint256 share);
+    event Deposit(address indexed account, uint256 amount, uint16 round);
 
-    event Withdraw(
-        address indexed account,
-        uint256 amount,
-        uint256 share,
-        uint256 fee
-    );
+    event ScheduleWithdraw(address account, uint256 shares);
+
+    event Withdraw(address indexed account, uint256 amount, uint256 share);
 
     event OpenShort(
         address indexed options,
@@ -101,10 +102,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     );
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
-
-    event ScheduleWithdraw(address account, uint256 shares);
-
-    event ScheduledWithdrawCompleted(address account, uint256 amount);
 
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
@@ -200,13 +197,14 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         isPut = _isPut;
 
         // hardcode the initial withdrawal fee
-        instantWithdrawalFee = 0.005 ether;
+        instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
 
         premiumDiscount = _premiumDiscount;
         optionsPremiumPricer = _optionsPremiumPricer;
 
         strikeSelection = _strikeSelection;
+        genesisTimestamp = uint32(block.timestamp);
     }
 
     /************************************************
@@ -232,22 +230,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
         require(newFeeRecipient != address(0), "!newFeeRecipient");
         feeRecipient = newFeeRecipient;
-    }
-
-    /**
-     * @notice Sets the new withdrawal fee
-     * @param newWithdrawalFee is the fee paid in tokens when withdrawing
-     */
-    function setWithdrawalFee(uint256 newWithdrawalFee) external onlyManager {
-        require(newWithdrawalFee > 0, "withdrawalFee != 0");
-
-        // cap max withdrawal fees to 30% of the withdrawal amount
-        require(newWithdrawalFee < 0.3 ether, "withdrawalFee >= 30%");
-
-        uint256 oldFee = instantWithdrawalFee;
-        emit WithdrawalFeeSet(oldFee, newWithdrawalFee);
-
-        instantWithdrawalFee = newWithdrawalFee;
     }
 
     /**
@@ -286,11 +268,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
-        require(asset == WETH, "Not WETH");
-        require(msg.value > 0, "No value");
+        require(asset == WETH, "!WETH");
+        require(msg.value > 0, "!value");
+
+        _deposit(msg.value);
 
         IWETH(WETH).deposit{value: msg.value}();
-        _deposit(msg.value);
     }
 
     /**
@@ -298,8 +281,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param amount is the amount of `asset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         _deposit(amount);
+
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -307,68 +291,43 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
-        uint256 totalWithDepositedAmount = totalBalance();
+        uint16 _round = round;
+        uint256 totalWithDepositedAmount = totalBalance().add(amount);
+
+        require(amount < MAX_UINT128, "Overflow");
         require(totalWithDepositedAmount < cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= minimumSupply,
             "Insufficient balance"
         );
 
-        // amount needs to be subtracted from totalBalance because it has already been
-        // added to it from either IWETH.deposit and IERC20.safeTransferFrom
-        uint256 total = totalWithDepositedAmount.sub(amount);
+        emit Deposit(msg.sender, amount, _round);
 
-        uint256 shareSupply = totalSupply();
+        VaultDeposit.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
 
-        // Following the pool share calculation from Alpha Homora:
-        // solhint-disable-next-line
-        // https://github.com/AlphaFinanceLab/alphahomora/blob/340653c8ac1e9b4f23d5b81e61307bf7d02a26e8/contracts/5/Bank.sol#L104
-        uint256 share =
-            shareSupply == 0 ? amount : amount.mul(shareSupply).div(total);
+        // If we have a pending deposit in the current round, we add on to the pending deposit
+        if (_round == depositReceipt.round) {
+            // No deposits allowed until the next round
+            require(!depositReceipt.processed, "Processed");
 
-        require(shareSupply.add(share) >= minimumSupply, "Insufficient supply");
+            uint256 newAmount = uint256(depositReceipt.amount).add(amount);
+            require(newAmount < MAX_UINT128, "Overflow");
 
-        emit Deposit(msg.sender, amount, share);
+            depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
+                processed: false,
+                round: _round,
+                amount: uint128(newAmount)
+            });
+        } else {
+            depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
+                processed: false,
+                round: _round,
+                amount: uint128(amount)
+            });
+        }
 
-        _mint(msg.sender, share);
-    }
-
-    /**
-     * @notice Withdraws ETH from vault using vault shares
-     * @param share is the number of vault shares to be burned
-     */
-    function withdrawETH(uint256 share) external nonReentrant {
-        require(asset == WETH, "!WETH");
-        uint256 withdrawAmount = _withdraw(share);
-
-        IWETH(WETH).withdraw(withdrawAmount);
-        (bool success, ) = msg.sender.call{value: withdrawAmount}("");
-        require(success, "Transfer failed");
-    }
-
-    /**
-     * @notice Withdraws WETH from vault using vault shares
-     * @param share is the number of vault shares to be burned
-     */
-    function withdraw(uint256 share) external nonReentrant {
-        uint256 withdrawAmount = _withdraw(share);
-        IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
-    }
-
-    /**
-     * @notice Burns vault shares and checks if eligible for withdrawal
-     * @param share is the number of vault shares to be burned
-     */
-    function _withdraw(uint256 share) private returns (uint256) {
-        (uint256 amountAfterFee, uint256 feeAmount) =
-            withdrawAmountWithShares(share);
-
-        emit Withdraw(msg.sender, amountAfterFee, share, feeAmount);
-
-        _burn(msg.sender, share);
-        IERC20(asset).safeTransfer(feeRecipient, feeAmount);
-
-        return amountAfterFee;
+        totalPending = totalPending.add(amount);
     }
 
     /**
@@ -395,21 +354,18 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         scheduledWithdrawals[msg.sender] = 0;
         queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
+        uint256 withdrawAmount = withdrawAmountWithShares(withdrawShares);
 
-        (uint256 amountAfterFee, uint256 feeAmount) =
-            withdrawAmountWithShares(withdrawShares);
-
-        emit Withdraw(msg.sender, amountAfterFee, withdrawShares, feeAmount);
-        emit ScheduledWithdrawCompleted(msg.sender, amountAfterFee);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawShares);
 
         _burn(address(this), withdrawShares);
-        IERC20(asset).safeTransfer(feeRecipient, feeAmount);
+
         if (asset == WETH) {
-            IWETH(WETH).withdraw(amountAfterFee);
-            (bool success, ) = msg.sender.call{value: amountAfterFee}("");
+            IWETH(WETH).withdraw(withdrawAmount);
+            (bool success, ) = msg.sender.call{value: withdrawAmount}("");
             require(success, "Transfer failed");
         } else {
-            IERC20(asset).safeTransfer(msg.sender, amountAfterFee);
+            IERC20(asset).safeTransfer(msg.sender, withdrawAmount);
         }
     }
 
@@ -590,12 +546,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Returns the amount withdrawable (in `asset` tokens) using the `share` amount
      * @param share is the number of shares burned to withdraw asset from the vault
      * @return amountAfterFee is the amount of asset tokens withdrawable from the vault
-     * @return feeAmount is the fee amount (in asset tokens) sent to the feeRecipient
      */
     function withdrawAmountWithShares(uint256 share)
         public
         view
-        returns (uint256 amountAfterFee, uint256 feeAmount)
+        returns (uint256 amountAfterFee)
     {
         uint256 currentAssetBalance = assetBalance();
         (
@@ -608,12 +563,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             withdrawAmount <= currentAssetBalance,
             "Withdrawing more than available"
         );
-
         require(newShareSupply >= minimumSupply, "Insufficient supply");
         require(newAssetBalance >= minimumSupply, "Insufficient balance");
 
-        feeAmount = wmul(withdrawAmount, instantWithdrawalFee);
-        amountAfterFee = withdrawAmount.sub(feeAmount);
+        return withdrawAmount;
     }
 
     /**
