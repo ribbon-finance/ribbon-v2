@@ -8,6 +8,8 @@ import {DSMath} from "../lib/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
+import "hardhat/console.sol";
+
 contract StrikeSelection is DSMath, Ownable {
     using SafeMath for uint256;
 
@@ -16,10 +18,10 @@ contract StrikeSelection is DSMath, Ownable {
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
 
-    // delta for options strike price selection (ex: 0.1 is 1)
+    // delta for options strike price selection (ex: 0.1 is 10)
     uint256 public delta;
     // step pct at which we will iterate over
-    // (ex: 500 = 50% means we will move in leaps of 50% of spot price)
+    // (ex: 5000 = 50% means we will move in leaps of 50% of spot price)
     uint256 public step;
 
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
@@ -30,7 +32,7 @@ contract StrikeSelection is DSMath, Ownable {
         require(_delta > 0, "!_delta");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
-        // ex: delta = 1
+        // ex: delta = 10
         delta = _delta;
         // ex: step = 10 (1%)
         step = _step;
@@ -73,8 +75,8 @@ contract StrikeSelection is DSMath, Ownable {
                 return (currStrike, currDelta);
             }
             currStrike = isPut
-                ? currStrike.sub(currStrike.mul(step).div(1000))
-                : currStrike.add(currStrike.mul(step).div(1000));
+                ? currStrike.sub(currStrike.mul(step).div(10000))
+                : currStrike.add(currStrike.mul(step).div(10000));
             if (isPut ? currDelta > newDelta : currDelta < newDelta) {
                 pastDelta = true;
             }
