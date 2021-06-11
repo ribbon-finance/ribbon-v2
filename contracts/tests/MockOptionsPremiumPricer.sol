@@ -14,7 +14,7 @@ contract MockOptionsPremiumPricer {
         return _optionPremiumPrice;
     }
 
-    function getOptionDelta(uint256 strikePrice)
+    function getOptionDelta(uint256 strikePrice, uint256 expiryTimestamp)
         external
         view
         returns (uint256)
@@ -22,7 +22,7 @@ contract MockOptionsPremiumPricer {
         return _deltas[strikePrice];
     }
 
-    function getOptionUnderlyingPrice() external view returns (uint256) {
+    function getUnderlyingPrice() external view returns (uint256) {
         return _optionUnderlyingPrice;
     }
 

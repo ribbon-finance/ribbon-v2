@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 import { assert, expect } from "chai";
 import { Contract } from "@ethersproject/contracts";
 import moment from "moment-timezone";
-import * as time from "../helpers/time";
+import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
@@ -14,37 +14,37 @@ describe("OptionsPremiumPricer", () => {
   let signer: SignerWithAddress;
   let signer2: SignerWithAddress;
 
-  const mockWethUnderlyingPrice = 2500;
-
   before(async function () {
     [signer, signer2] = await ethers.getSigners();
-    const MockOptionsPremiumPricer = await getContractFactory("MockOptionsPremiumPricer", signer);
-    const StrikeSelection = await getContractFactory(
-      "StrikeSelection",
+    const MockOptionsPremiumPricer = await getContractFactory(
+      "MockOptionsPremiumPricer",
       signer
     );
+    const StrikeSelection = await getContractFactory("StrikeSelection", signer);
 
     mockOptionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
 
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
       10,
-      10
+      100
     );
+
+    await mockOptionsPremiumPricer.setOptionUnderlyingPrice(2500);
   });
 
   describe("setDelta", () => {
     time.revertToSnapshotAfterEach();
 
     it("reverts when not owner call", async function () {
-      await expect(strikeSelection.connect(signer2).setDelta(1)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        strikeSelection.connect(signer2).setDelta(50)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("sets the delta", async function () {
-      strikeSelection.connect(signer2).setDelta(50)
-      assert.equal(await strikeSelection.delta(), "50");
+      await strikeSelection.connect(signer).setDelta(50);
+      assert.equal((await strikeSelection.delta()).toString(), "50");
     });
   });
 
@@ -52,34 +52,72 @@ describe("OptionsPremiumPricer", () => {
     time.revertToSnapshotAfterEach();
 
     it("reverts when not owner call", async function () {
-      await expect(strikeSelection.connect(signer2).setStep(1)).to.be.revertedWith(
-        "Ownable: caller is not the owner"
-      );
+      await expect(
+        strikeSelection.connect(signer2).setStep(50)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("sets the delta", async function () {
-      strikeSelection.connect(signer2).setStep(50)
-      assert.equal(await strikeSelection.step(), "50");
+    it("sets the step", async function () {
+      await strikeSelection.connect(signer).setStep(50);
+      assert.equal((await strikeSelection.step()).toString(), "50");
     });
   });
 
   describe("getStrikePrice", () => {
     time.revertToSnapshotAfterEach();
 
+    let underlyingPrice: BigNumber;
+    let deltaAtUnderlying = BigNumber.from(50);
+
     beforeEach(async () => {
-      let delta = 0.3
-      for(let i = -300; i < 400; i += 100){
-        await mockOptionsPremiumPricer.setOptionDelta(mockWethUnderlyingPrice + i, delta);
-        delta -= 0.05
+      underlyingPrice = await mockOptionsPremiumPricer.getUnderlyingPrice();
+
+      let delta = 100;
+      for (let i = -1000; i < 1100; i += 100) {
+        await mockOptionsPremiumPricer.setOptionDelta(
+          underlyingPrice.add(BigNumber.from(i)),
+          delta
+        );
+        delta -= 5;
       }
-
-      // set up proper cap
-      // set up proper delta
     });
 
-    it("gets the correct strike price given delta", async function () {
-      //TODO
+    it("reverts on timestamp being in the past", async function () {
+      const expiryTimestamp = (await time.now()).sub(100);
+      const isPut = false;
+      await expect(
+        strikeSelection.getStrikePrice(expiryTimestamp, isPut)
+      ).to.be.revertedWith("Expiry must be in the future!");
     });
 
+    it("gets the correct strike price given delta for calls", async function () {
+      const expiryTimestamp = await time.now();
+      const isPut = false;
+      const targetDelta = await strikeSelection.delta();
+      const [strikePrice, delta] = await strikeSelection.getStrikePrice(
+        expiryTimestamp,
+        isPut
+      );
+      assert.equal(
+        strikePrice,
+        underlyingPrice.add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+      );
+      assert.equal(delta, targetDelta);
+    });
+
+    it("gets the correct strike price given delta for puts", async function () {
+      const expiryTimestamp = await time.now();
+      const isPut = true;
+      const targetDelta = await strikeSelection.delta();
+      const [strikePrice, delta] = await strikeSelection.getStrikePrice(
+        expiryTimestamp,
+        isPut
+      );
+      assert.equal(
+        strikePrice,
+        underlyingPrice.sub(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+      );
+      assert.equal(BigNumber.from(100).sub(delta), targetDelta);
+    });
   });
 });

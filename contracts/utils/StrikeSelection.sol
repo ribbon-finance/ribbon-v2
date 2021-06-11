@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
-import {DSMath} from "../lib/DSMath.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -18,23 +18,27 @@ contract StrikeSelection is DSMath, Ownable {
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
 
-    // delta for options strike price selection (ex: 0.1 is 10)
+    // delta for options strike price selection (ex: 1 is 100)
     uint256 public delta;
-    // step pct at which we will iterate over
-    // (ex: 5000 = 50% means we will move in leaps of 50% of spot price)
+    // step in absolute terms at which we will increment
+    // (ex: 100 means we will move at increments of 100 points)
     uint256 public step;
 
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
 
-    constructor(address _optionsPremiumPricer, uint256 _delta, uint256 _step) {
+    constructor(
+        address _optionsPremiumPricer,
+        uint256 _delta,
+        uint256 _step
+    ) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(_delta > 0, "!_delta");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
         // ex: delta = 10
         delta = _delta;
-        // ex: step = 10 (1%)
+        // ex: step = 1000
         step = _step;
     }
 
@@ -50,6 +54,11 @@ contract StrikeSelection is DSMath, Ownable {
         view
         returns (uint256, uint256)
     {
+        require(
+            expiryTimestamp > block.timestamp,
+            "Expiry must be in the future!"
+        );
+
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
 
@@ -59,27 +68,43 @@ contract StrikeSelection is DSMath, Ownable {
         //        return strike price
 
         bool pastDelta = false;
-        uint256 currStrike = assetPrice;
-        uint256 newDelta = isPut ? uint256(10).sub(delta) : delta;
+        uint256 strike = assetPrice;
+        uint256 targetDelta = isPut ? uint256(100).sub(delta) : delta;
+        uint256 prevDelta = 100;
 
-        while (!pastDelta) {
+        while (true) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(
-                    currStrike,
-                    expiryTimestamp
+                optionsPremiumPricer.getOptionDelta(strike, expiryTimestamp);
+
+            //  If the current delta is between the previous
+            //  strike price delta and current strike price delta
+            //  then we are done
+            bool foundTargetStrikePrice =
+                isPut
+                    ? targetDelta >= prevDelta && targetDelta <= currDelta
+                    : targetDelta <= prevDelta && targetDelta >= currDelta;
+
+            if (foundTargetStrikePrice) {
+                uint256 upperBoundDiff =
+                    isPut
+                        ? sub(currDelta, targetDelta)
+                        : sub(prevDelta, targetDelta);
+                uint256 lowerBoundDiff =
+                    isPut
+                        ? sub(targetDelta, prevDelta)
+                        : sub(targetDelta, currDelta);
+                // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price for calls and lower strike price for puts
+                return (
+                    strike,
+                    min(lowerBoundDiff, upperBoundDiff) == lowerBoundDiff
+                        ? currDelta
+                        : prevDelta
                 );
-            if (
-                newDelta.sub(step.div(2).mul(newDelta)) <= currDelta &&
-                currDelta <= newDelta.add(step.div(2).mul(newDelta))
-            ) {
-                return (currStrike, currDelta);
             }
-            currStrike = isPut
-                ? currStrike.sub(currStrike.mul(step).div(10000))
-                : currStrike.add(currStrike.mul(step).div(10000));
-            if (isPut ? currDelta > newDelta : currDelta < newDelta) {
-                pastDelta = true;
-            }
+
+            strike = isPut ? strike.sub(step) : strike.add(step);
+
+            prevDelta = currDelta;
         }
 
         return (0, 0);
