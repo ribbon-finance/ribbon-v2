@@ -5,13 +5,20 @@ interface IStrikeSelection {
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
         external
         view
-        returns (uint256);
+        returns (uint256, uint256);
 }
 
 interface IOptionsPremiumPricer {
     function getPremium(
         uint256 strikePrice,
-        uint256 expiryTimestamp,
+        uint256 timeToExpiry,
         bool isPut
     ) external view returns (uint256);
+
+    function getOptionDelta(uint256 st, uint256 t)
+        external
+        view
+        returns (uint256 delta);
+
+    function getUnderlyingPrice() external view returns (uint256 price);
 }

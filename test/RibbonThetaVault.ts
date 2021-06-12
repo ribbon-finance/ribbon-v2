@@ -274,6 +274,8 @@ function behavesLikeRibbonOptionsVault(params: {
         "MockStrikeSelection"
       );
       strikeSelection = await MockStrikeSelection.deploy();
+      await strikeSelection.setStrikePrice(3000);
+      await strikeSelection.setDelta(10);
 
       const MockOptionsPremiumPricer = await ethers.getContractFactory(
         "MockOptionsPremiumPricer"

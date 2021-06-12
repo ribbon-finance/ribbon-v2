@@ -15,6 +15,11 @@ export async function increase(duration: number | BigNumber) {
   await ethers.provider.send("evm_mine", []);
 }
 
+// gets current time
+export async function now() {
+  return BigNumber.from((await ethers.provider.getBlock("latest")).timestamp);
+}
+
 /**
  * Beware that due to the need of calling two separate ganache methods and rpc calls overhead
  * it's hard to increase time precisely to a target point so design your test to tolerate
