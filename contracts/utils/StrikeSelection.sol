@@ -121,7 +121,8 @@ contract StrikeSelection is DSMath, Ownable {
         uint256 lowerBoundDiff =
             isPut ? sub(targetDelta, prevDelta) : sub(targetDelta, currDelta);
 
-        // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price for calls and lower strike price for puts for deltas
+        // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
+        // for calls and lower strike price for puts for deltas
         finalDelta = min(lowerBoundDiff, upperBoundDiff) == lowerBoundDiff
             ? (isPut ? prevDelta : currDelta)
             : (isPut ? currDelta : prevDelta);
