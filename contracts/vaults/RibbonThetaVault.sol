@@ -87,6 +87,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address manager
     );
 
+    event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
+
     event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
     event PremiumDiscountSet(
@@ -388,8 +390,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             expiry = getNextFriday(IOtoken(oldOption).expiryTimestamp());
         }
 
-        uint256 strikePrice =
+        (uint256 strikePrice, uint256 delta) =
             IStrikeSelection(strikeSelection).getStrikePrice(expiry, isPut);
+
+        require(strikePrice != 0, "Invalid strike selected!");
 
         address otokenAddress =
             GammaProtocol.getOrDeployOtoken(
@@ -403,6 +407,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             );
 
         require(otokenAddress != address(0), "!otokenAddress");
+
+        emit NewOptionStrikeSelected(strikePrice, delta);
 
         _setNextOption(otokenAddress);
         _closeShort(oldOption);
