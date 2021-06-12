@@ -83,21 +83,16 @@ contract StrikeSelection is DSMath, Ownable {
                     : targetDelta <= prevDelta && targetDelta >= currDelta;
 
             if (foundTargetStrikePrice) {
-                uint256 upperBoundDiff =
+                uint256 finalDelta =
+                    _getBestDelta(prevDelta, currDelta, targetDelta, isPut);
+                uint256 finalStrike =
+                    _getBestStrike(finalDelta, prevDelta, strike, isPut);
+                require(
                     isPut
-                        ? sub(currDelta, targetDelta)
-                        : sub(prevDelta, targetDelta);
-                uint256 lowerBoundDiff =
-                    isPut
-                        ? sub(targetDelta, prevDelta)
-                        : sub(targetDelta, currDelta);
-                // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price for calls and lower strike price for puts
-                return (
-                    strike,
-                    min(lowerBoundDiff, upperBoundDiff) == lowerBoundDiff
-                        ? (isPut ? prevDelta : currDelta)
-                        : (isPut ? currDelta : prevDelta)
+                        ? finalStrike <= assetPrice
+                        : finalStrike >= assetPrice
                 );
+                return (finalStrike, finalDelta);
             }
 
             strike = isPut ? strike.sub(step) : strike.add(step);
@@ -106,6 +101,58 @@ contract StrikeSelection is DSMath, Ownable {
         }
 
         return (0, 0);
+    }
+
+    /**
+     * @notice Rounds to best delta value
+     * @param prevDelta is the delta of the previous strike price
+     * @param currDelta is delta of the current strike price
+     * @param targetDelta is the delta we are targeting
+     * @param isPut is whether its a put
+     */
+    function _getBestDelta(
+        uint256 prevDelta,
+        uint256 currDelta,
+        uint256 targetDelta,
+        bool isPut
+    ) private view returns (uint256 finalDelta) {
+        uint256 upperBoundDiff =
+            isPut ? sub(currDelta, targetDelta) : sub(prevDelta, targetDelta);
+        uint256 lowerBoundDiff =
+            isPut ? sub(targetDelta, prevDelta) : sub(targetDelta, currDelta);
+
+        // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price for calls and lower strike price for puts for deltas
+        finalDelta = min(lowerBoundDiff, upperBoundDiff) == lowerBoundDiff
+            ? (isPut ? prevDelta : currDelta)
+            : (isPut ? currDelta : prevDelta);
+    }
+
+    /**
+     * @notice Rounds to best delta value
+     * @param finalDelta is the best delta value we found
+     * @param prevDelta is delta of the previous strike price
+     * @param strike is the strike of the previous iteration
+     * @param isPut is whether its a put
+     */
+    function _getBestStrike(
+        uint256 finalDelta,
+        uint256 prevDelta,
+        uint256 strike,
+        bool isPut
+    ) private view returns (uint256 finalStrike) {
+        if (isPut) {
+            if (finalDelta == prevDelta) {
+                finalStrike = strike.add(step);
+            } else {
+                finalStrike = strike;
+            }
+        } else {
+            if (finalDelta == prevDelta) {
+                finalStrike = strike.sub(step);
+            } else {
+                finalStrike = strike;
+            }
+        }
     }
 
     /**
