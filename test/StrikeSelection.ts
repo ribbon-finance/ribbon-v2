@@ -1,12 +1,11 @@
 import { ethers } from "hardhat";
 import { assert, expect } from "chai";
 import { Contract } from "@ethersproject/contracts";
-import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-const { provider, getContractFactory } = ethers;
+const { getContractFactory } = ethers;
 
 describe("StrikeSelection", () => {
   let strikeSelection: Contract;
