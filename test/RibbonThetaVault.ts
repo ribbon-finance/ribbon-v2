@@ -981,9 +981,7 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        const res = await vault
-          .connect(managerSigner)
-          .commitAndClose({ from: manager });
+        await vault.connect(managerSigner).commitAndClose({ from: manager });
 
         assert.equal(
           (
