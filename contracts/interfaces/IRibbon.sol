@@ -6,6 +6,8 @@ interface IStrikeSelection {
         external
         view
         returns (uint256, uint256);
+
+    function delta() external view returns (uint256);
 }
 
 interface IOptionsPremiumPricer {

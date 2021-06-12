@@ -932,12 +932,19 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts when not called with manager", async function () {
+        const newStrikePrice = parseEther("10");
+        await vault.connect(managerSigner).setStrikePrice(newStrikePrice);
+
         await expect(
           vault.connect(userSigner).commitAndClose({ from: user })
         ).to.be.revertedWith("Only manager");
       });
 
       it("sets the next option and closes existing short", async function () {
+        await vault
+          .connect(managerSigner)
+          .setStrikePrice(parseUnits(params.firstOptionStrike.toString(), 8));
+
         const res = await vault
           .connect(managerSigner)
           .commitAndClose({ from: manager });
@@ -955,9 +962,45 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("should set the next option twice", async function () {
+        await vault
+          .connect(managerSigner)
+          .setStrikePrice(parseUnits(params.firstOptionStrike.toString(), 8));
+
         await vault.connect(managerSigner).commitAndClose();
 
         await vault.connect(managerSigner).commitAndClose();
+      });
+
+      it("sets the correct strike when overriding strike price", async function () {
+        const newStrikePrice = parseEther("10");
+        await vault.connect(managerSigner).setStrikePrice(newStrikePrice);
+
+        assert.equal((await vault.lastStrikeOverride()).toString(), "0");
+        assert.equal(
+          (await vault.overridenStrikePrice()).toString(),
+          newStrikePrice.toString()
+        );
+
+        const res = await vault
+          .connect(managerSigner)
+          .commitAndClose({ from: manager });
+
+        assert.equal(
+          (
+            await (
+              await getContractAt("IOtoken", await vault.nextOption())
+            ).strikePrice()
+          ).toString(),
+          newStrikePrice.toString()
+        );
+
+        assert.equal(
+          (await vault.currentOtokenPremium()).toString(),
+          params.premium
+            .mul(await vault.premiumDiscount())
+            .div(1000)
+            .toString()
+        );
       });
     });
 
@@ -1842,6 +1885,24 @@ function behavesLikeRibbonOptionsVault(params: {
     //     );
     //   });
     // });
+
+    describe("#setStrikePrice", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not manager", async function () {
+        await expect(
+          vault.connect(userSigner).setStrikePrice(parseEther("10"))
+        ).to.be.revertedWith("Only manager");
+      });
+
+      it("should set the new strike price", async function () {
+        await vault.connect(managerSigner).setStrikePrice(parseEther("10"));
+        assert.equal(
+          (await vault.overridenStrikePrice()).toString(),
+          parseEther("10")
+        );
+      });
+    });
 
     describe("#setCap", () => {
       time.revertToSnapshotAfterEach();

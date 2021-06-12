@@ -390,8 +390,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             expiry = getNextFriday(IOtoken(oldOption).expiryTimestamp());
         }
 
+        IStrikeSelection strikeSelection = IStrikeSelection(strikeSelection);
+
         (uint256 strikePrice, uint256 delta) =
-            IStrikeSelection(strikeSelection).getStrikePrice(expiry, isPut);
+            lastStrikeOverride == round
+                ? (overridenStrikePrice, strikeSelection.delta())
+                : IStrikeSelection(strikeSelection).getStrikePrice(
+                    expiry,
+                    isPut
+                );
 
         require(strikePrice != 0, "Invalid strike selected!");
 
@@ -409,6 +416,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(otokenAddress != address(0), "!otokenAddress");
 
         emit NewOptionStrikeSelected(strikePrice, delta);
+
+        currentOtokenPremium = GnosisAuction.getOTokenPremium(
+            otokenAddress,
+            GNOSIS_EASY_AUCTION,
+            optionsPremiumPricer,
+            premiumDiscount
+        );
+
+        require(currentOtokenPremium > 0, "!currentOtokenPremium");
 
         _setNextOption(otokenAddress);
         _closeShort(oldOption);
@@ -502,18 +518,16 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     function startAuction() public onlyManager {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
+        require(currentOtokenPremium > 0, "!currentOtokenPremium");
+
         auctionDetails.oTokenAddress = currentOption;
+        auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = asset;
-        auctionDetails.underlying = underlying;
+        auctionDetails.oTokenPremium = currentOtokenPremium;
         auctionDetails.manager = manager;
-        auctionDetails.premiumDiscount = premiumDiscount;
         auctionDetails.duration = 6 hours;
 
-        GnosisAuction.startAuction(
-            GNOSIS_EASY_AUCTION,
-            optionsPremiumPricer,
-            auctionDetails
-        );
+        GnosisAuction.startAuction(auctionDetails);
     }
 
     /**
@@ -529,6 +543,20 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         lockedAmount = lockedAmount.sub(
             assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
         );
+    }
+
+    /**
+     * @notice Optionality to set strike price manually
+     * @param strikePrice is the strike price of the new oTokens
+     */
+    function setStrikePrice(uint256 strikePrice)
+        external
+        onlyManager
+        nonReentrant
+    {
+        require(strikePrice > 0, "!strikePrice");
+        overridenStrikePrice = strikePrice;
+        lastStrikeOverride = round;
     }
 
     /************************************************

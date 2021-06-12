@@ -86,6 +86,15 @@ contract OptionsVaultStorageV3 {
     /// @notice Logic contract used to select strike prices
     address public strikeSelection;
 
+    /// @notice Last `round` when strike overriden
+    uint256 public lastStrikeOverride;
+
+    /// @notice Current overriden strike price
+    uint256 public overridenStrikePrice;
+
+    /// @notice Current oToken premium
+    uint256 public currentOtokenPremium;
+
     /// @notice Minimum supply of the vault shares issued
     uint256 public minimumSupply;
 
