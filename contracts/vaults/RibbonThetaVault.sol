@@ -355,7 +355,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         VaultDeposit.DepositReceipt memory depositReceipt
     ) private {
         require(!depositReceipt.processed, "Processed");
-        require(depositReceipt.round > currentRound, "Round not closed");
+        require(depositReceipt.round < currentRound, "Round not closed");
 
         uint256 pps = roundPricePerShare[currentRound];
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
@@ -552,6 +552,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             newOption,
             shortAmount
         );
+
+        startAuction();
 
         emit OpenShort(newOption, shortAmount, msg.sender);
     }

@@ -1135,9 +1135,9 @@ function behavesLikeRibbonOptionsVault(params: {
           depositAmount.toString()
         );
 
-        assert.equal(
-          (await defaultOtoken.balanceOf(vault.address)).toString(),
-          params.expectedMintAmount.toString()
+        assert.bnEqual(
+          await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION),
+          params.expectedMintAmount
         );
 
         assert.equal(await vault.currentOption(), defaultOtokenAddress);
