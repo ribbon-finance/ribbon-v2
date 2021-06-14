@@ -234,13 +234,14 @@ function behavesLikeRibbonOptionsVault(params: {
   let defaultOtoken: Contract;
   let assetContract: Contract;
 
+  let firstOption: Option;
+  let secondOption: Option;
+
   // Variables
   let defaultOtokenAddress: string;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
-    let firstOption: Option;
-    let secondOption: Option;
 
     const rollToNextOption = async () => {
       await strikeSelection.setStrikePrice(
@@ -1044,675 +1045,662 @@ function behavesLikeRibbonOptionsVault(params: {
     //       return;
     //     }
 
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
-        await assetContract.approve(vault.address, depositAmount);
-        await depositIntoVault(collateralAsset, vault, depositAmount);
-        const res = await vault
-          .connect(managerSigner)
-          .commitAndClose({ from: manager });
+    it("fits gas budget [ @skip-on-coverage ]", async function () {
+      await assetContract.approve(vault.address, depositAmount);
+      await depositIntoVault(collateralAsset, vault, depositAmount);
+      const res = await vault
+        .connect(managerSigner)
+        .commitAndClose({ from: manager });
 
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 750000);
-      });
+      const receipt = await res.wait();
+      assert.isAtMost(receipt.gasUsed.toNumber(), 750000);
+    });
+  });
+
+  describe.skip("#burnRemainingOTokens", () => {
+    time.revertToSnapshotAfterEach(async function () {
+      await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+      if (params.collateralAsset === WETH_ADDRESS) {
+        const weth = assetContract.connect(counterpartySigner);
+        await weth.deposit({ value: premium });
+        return;
+      }
+
+      await vault.connect(managerSigner).commitAndClose();
+
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      await vault.connect(managerSigner).rollToNextOption();
     });
 
-    describe.skip("#burnRemainingOTokens", () => {
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-        if (params.collateralAsset === WETH_ADDRESS) {
-          const weth = assetContract.connect(counterpartySigner);
-          await weth.deposit({ value: premium });
-          return;
-        }
-
-        await vault.connect(managerSigner).commitAndClose();
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        await vault.connect(managerSigner).rollToNextOption();
-      });
-
-      it("reverts when not called with manager", async function () {
-        await expect(
-          vault.connect(userSigner).burnRemainingOTokens()
-        ).to.be.revertedWith("Only manager");
-      });
-
-      it("reverts when trying to burn 0 OTokens", async function () {
-        const auctionDetails = await bidForOToken(
-          gnosisAuction,
-          optionsPremiumPricer,
-          assetContract,
-          userSigner.address,
-          defaultOtokenAddress,
-          params.premium,
-          "1"
-        );
-
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
-
-        await expect(
-          vault.connect(managerSigner).burnRemainingOTokens()
-        ).to.be.revertedWith("No OTokens to burn!");
-      });
-
-      it("burns all remaining oTokens", async function () {
-        const auctionDetails = await bidForOToken(
-          gnosisAuction,
-          optionsPremiumPricer,
-          assetContract,
-          userSigner.address,
-          defaultOtokenAddress,
-          params.premium,
-          "2"
-        );
-
-        const vaultOTokenBalanceBefore = (
-          await defaultOtoken.balanceOf(vault.address)
-        ).toString();
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
-        const vaultOTokenBalanceAfter = (
-          await defaultOtoken.balanceOf(vault.address)
-        ).toString();
-
-        assert.isAbove(
-          parseInt(vaultOTokenBalanceAfter),
-          parseInt(vaultOTokenBalanceBefore)
-        );
-
-        const collateralBalanceBefore = (
-          await assetContract.balanceOf(vault.address)
-        ).toString();
-        vault.connect(managerSigner).burnRemainingOTokens();
-        const collateralBalanceAfter = (
-          await assetContract.balanceOf(vault.address)
-        ).toString();
-
-        assert.isAbove(
-          parseInt(collateralBalanceAfter),
-          parseInt(collateralBalanceBefore)
-        );
-      });
+    it("reverts when not called with manager", async function () {
+      await expect(
+        vault.connect(userSigner).burnRemainingOTokens()
+      ).to.be.revertedWith("Only manager");
     });
 
-    describe("#rollToNextOption", () => {
-      let oracle: Contract;
-      const depositAmount = params.depositAmount;
-      const premium = params.premium;
-
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
-      });
-
-      it("reverts when delay not passed", async function () {
-        await vault.connect(managerSigner).commitAndClose();
-
-        // will revert when trying to roll immediately
-        await expect(
-          vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("Not ready");
-
-        time.increaseTo(
-          (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
-        );
-
-        await expect(
-          vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("Not ready");
-      });
-
-      it("mints oTokens and deposits collateral into vault", async function () {
-        const startMarginBalance = await assetContract.balanceOf(MARGIN_POOL);
-
-        await vault.connect(managerSigner).commitAndClose();
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        const res = vault.connect(managerSigner).rollToNextOption();
-
-        await expect(res).to.not.emit(vault, "CloseShort");
-
-        await expect(res)
-          .to.emit(vault, "OpenShort")
-          .withArgs(defaultOtokenAddress, depositAmount, manager);
-
-        assert.equal((await vault.lockedAmount()).toString(), depositAmount);
-
-        assert.bnEqual(await vault.assetBalance(), BigNumber.from(0));
-
-        assert.equal(
-          (await assetContract.balanceOf(MARGIN_POOL))
-            .sub(startMarginBalance)
-            .toString(),
-          depositAmount.toString()
-        );
-
-        assert.bnEqual(
-          await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION),
-          params.expectedMintAmount
-        );
-
-        assert.equal(await vault.currentOption(), defaultOtokenAddress);
-      });
-
-      it("reverts when calling before expiry", async function () {
-        const firstOptionAddress = firstOption.address;
-
-        await vault.connect(managerSigner).commitAndClose();
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        const firstTx = await vault.connect(managerSigner).rollToNextOption();
-
-        await expect(firstTx)
-          .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, manager);
-
-        // 100% of the vault's balance is allocated to short
-        assert.bnEqual(
-          await assetContract.balanceOf(vault.address),
-          BigNumber.from(0)
-        );
-
-        await expect(
-          vault.connect(managerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
-      });
-
-      it("withdraws and roll funds into next option, after expiry ITM", async function () {
-        const firstOptionAddress = firstOption.address;
-        const secondOptionAddress = secondOption.address;
-
-        await vault.connect(managerSigner).commitAndClose();
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        const firstTx = await vault.connect(managerSigner).rollToNextOption();
-
-        assert.equal(await vault.currentOption(), firstOptionAddress);
-        assert.equal(await vault.currentOptionExpiry(), firstOption.expiry);
-
-        await expect(firstTx)
-          .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, manager);
-
-        await assetContract
-          .connect(userSigner)
-          .transfer(vault.address, premium);
-
-        // only the premium should be left over because the funds are locked into Opyn
-        assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
-          premium
-        );
-
-        const settlementPriceITM = isPut
-          ? parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(1)
-          : parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(1);
-
-        // withdraw 100% because it's OTM
-        await setOpynOracleExpiryPrice(
-          params.asset,
-          oracle,
-          await vault.currentOptionExpiry(),
-          settlementPriceITM
-        );
-
-        const beforeBalance = await assetContract.balanceOf(vault.address);
-
-        await strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
-        );
-
-        const firstCloseTx = await vault
-          .connect(managerSigner)
-          .commitAndClose();
-
-        const afterBalance = await assetContract.balanceOf(vault.address);
-
-        // test that the vault's balance decreased after closing short when ITM
-        assert.isAbove(
-          parseInt(depositAmount.toString()),
-          parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
-        );
-
-        await expect(firstCloseTx)
-          .to.emit(vault, "CloseShort")
-          .withArgs(
-            firstOptionAddress,
-            BigNumber.from(afterBalance).sub(beforeBalance),
-            manager
-          );
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        const currBalance = await assetContract.balanceOf(vault.address);
-        const mintAmount = currBalance.toString();
-
-        const secondTx = await vault.connect(managerSigner).rollToNextOption();
-
-        assert.equal(await vault.currentOption(), secondOptionAddress);
-        assert.equal(await vault.currentOptionExpiry(), secondOption.expiry);
-
-        await expect(secondTx)
-          .to.emit(vault, "OpenShort")
-          .withArgs(secondOptionAddress, mintAmount, manager);
-
-        assert.bnEqual(
-          await assetContract.balanceOf(vault.address),
-          BigNumber.from(0)
-        );
-      });
-
-      it("withdraws and roll funds into next option, after expiry OTM", async function () {
-        const firstOptionAddress = firstOption.address;
-        const secondOptionAddress = secondOption.address;
-
-        await vault.connect(managerSigner).commitAndClose();
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        const firstTx = await vault.connect(managerSigner).rollToNextOption();
-
-        await expect(firstTx)
-          .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, manager);
-
-        await assetContract
-          .connect(userSigner)
-          .transfer(vault.address, premium);
-
-        // only the premium should be left over because the funds are locked into Opyn
-        assert.bnEqual(await assetContract.balanceOf(vault.address), premium);
-
-        const settlementPriceOTM = isPut
-          ? parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(1)
-          : parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(1);
-
-        // withdraw 100% because it's OTM
-        await setOpynOracleExpiryPrice(
-          params.asset,
-          oracle,
-          await vault.currentOptionExpiry(),
-          settlementPriceOTM
-        );
-
-        const beforeBalance = await assetContract.balanceOf(vault.address);
-
-        await strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
-        );
-
-        const firstCloseTx = await vault
-          .connect(managerSigner)
-          .commitAndClose();
-
-        const afterBalance = await assetContract.balanceOf(vault.address);
-        // test that the vault's balance decreased after closing short when ITM
-        assert.equal(
-          parseInt(depositAmount.toString()),
-          parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
-        );
-
-        await expect(firstCloseTx)
-          .to.emit(vault, "CloseShort")
-          .withArgs(
-            firstOptionAddress,
-            BigNumber.from(afterBalance).sub(beforeBalance),
-            manager
-          );
-
-        // Time increase to after next option available
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        const secondTx = await vault.connect(managerSigner).rollToNextOption();
-
-        assert.equal(await vault.currentOption(), secondOptionAddress);
-        assert.equal(await vault.currentOptionExpiry(), secondOption.expiry);
-
-        await expect(secondTx)
-          .to.emit(vault, "OpenShort")
-          .withArgs(secondOptionAddress, depositAmount.add(premium), manager);
-
-        assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
-          BigNumber.from(0)
-        );
-      });
-
-      it("is not able to roll to new option consecutively without setNextOption", async function () {
-        await vault.connect(managerSigner).commitAndClose();
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        await vault.connect(managerSigner).rollToNextOption();
-
-        await expect(
-          vault.connect(managerSigner).rollToNextOption()
-        ).to.be.revertedWith("!nextOption");
-      });
+    it("reverts when trying to burn 0 OTokens", async function () {
+      const auctionDetails = await bidForOToken(
+        gnosisAuction,
+        optionsPremiumPricer,
+        assetContract,
+        userSigner.address,
+        defaultOtokenAddress,
+        params.premium,
+        "1"
+      );
+
+      await gnosisAuction.connect(userSigner).settleAuction(auctionDetails[0]);
+
+      await expect(
+        vault.connect(managerSigner).burnRemainingOTokens()
+      ).to.be.revertedWith("No OTokens to burn!");
     });
 
-    describe("#assetBalance", () => {
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(
-          params.collateralAsset,
-          vault,
-          params.depositAmount
-        );
+    it("burns all remaining oTokens", async function () {
+      const auctionDetails = await bidForOToken(
+        gnosisAuction,
+        optionsPremiumPricer,
+        assetContract,
+        userSigner.address,
+        defaultOtokenAddress,
+        params.premium,
+        "2"
+      );
 
-        await rollToNextOption();
-      });
+      const vaultOTokenBalanceBefore = (
+        await defaultOtoken.balanceOf(vault.address)
+      ).toString();
+      await gnosisAuction.connect(userSigner).settleAuction(auctionDetails[0]);
+      const vaultOTokenBalanceAfter = (
+        await defaultOtoken.balanceOf(vault.address)
+      ).toString();
 
-      it("returns the free balance, after locking", async function () {
-        assert.equal((await vault.assetBalance()).toString(), "0");
-      });
+      assert.isAbove(
+        parseInt(vaultOTokenBalanceAfter),
+        parseInt(vaultOTokenBalanceBefore)
+      );
 
-      it("returns the free balance - locked, if free > locked", async function () {
-        const newDepositAmount = BigNumber.from("1000000000000");
-        await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
+      const collateralBalanceBefore = (
+        await assetContract.balanceOf(vault.address)
+      ).toString();
+      vault.connect(managerSigner).burnRemainingOTokens();
+      const collateralBalanceAfter = (
+        await assetContract.balanceOf(vault.address)
+      ).toString();
 
-        assert.bnEqual(await vault.assetBalance(), newDepositAmount);
-      });
+      assert.isAbove(
+        parseInt(collateralBalanceAfter),
+        parseInt(collateralBalanceBefore)
+      );
+    });
+  });
+
+  describe("#rollToNextOption", () => {
+    let oracle: Contract;
+    const depositAmount = params.depositAmount;
+    const premium = params.premium;
+
+    time.revertToSnapshotAfterEach(async function () {
+      await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+      oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
     });
 
-    // describe("#withdrawLater", () => {
-    //   time.revertToSnapshotAfterEach();
+    it("reverts when delay not passed", async function () {
+      await vault.connect(managerSigner).commitAndClose();
 
-    //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
-    //     const depositAmount = BigNumber.from("100000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+      // will revert when trying to roll immediately
+      await expect(
+        vault.connect(managerSigner).rollToNextOption()
+      ).to.be.revertedWith("Not ready");
 
-    //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
-    //     const receipt = await res.wait();
-    //     assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
-    //   });
+      time.increaseTo(
+        (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
+      );
 
-    //   it("rejects a withdrawLater of 0 shares", async function () {
-    //     await expect(
-    //       vault.withdrawLater(BigNumber.from("0"))
-    //     ).to.be.revertedWith("!shares");
-    //   });
-
-    //   it("rejects a scheduled withdrawal when greater than balance", async function () {
-    //     const depositAmount = BigNumber.from("100000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     await expect(
-    //       vault.withdrawLater(BigNumber.from("100000000001"))
-    //     ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
-    //   });
-
-    //   it("accepts a withdrawLater if less than or equal to balance", async function () {
-    //     const depositAmount = BigNumber.from("100000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
-
-    //     await expect(res)
-    //       .to.emit(vault, "ScheduleWithdraw")
-    //       .withArgs(user, BigNumber.from("100000000000"));
-
-    //     assert.equal(
-    //       (await vault.queuedWithdrawShares()).toString(),
-    //       BigNumber.from("100000000000").toString()
-    //     );
-
-    //     assert.equal(
-    //       (await vault.scheduledWithdrawals(user)).toString(),
-    //       BigNumber.from("100000000000").toString()
-    //     );
-
-    //     // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
-    //     assert.equal(
-    //       (await vault.balanceOf(vault.address)).toString(),
-    //       BigNumber.from("100000000000").toString()
-    //     );
-
-    //     assert.equal(
-    //       (await vault.balanceOf(user)).toString(),
-    //       BigNumber.from("0").toString()
-    //     );
-    //   });
-
-    //   it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
-    //     const depositAmount = BigNumber.from("200000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     await vault.withdrawLater(BigNumber.from("100000000000"));
-
-    //     await expect(
-    //       vault.withdrawLater(BigNumber.from("100000000000"))
-    //     ).to.be.revertedWith("Existing withdrawal");
-    //   });
-
-    //   it("assets reserved by withdrawLater are not used to short", async function () {
-    //     const depositAmount = BigNumber.from("200000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
-
-    //     await expect(res)
-    //       .to.emit(vault, "ScheduleWithdraw")
-    //       .withArgs(user, BigNumber.from("100000000000"));
-
-    //     await rollToNextOption();
-
-    //     const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
-    //       vault.address
-    //     );
-
-    //     // Queued withdrawals + 10% of available assets set aside
-    //     assert.equal(
-    //       vaultBalanceBeforeWithdraw.toString(),
-    //       BigNumber.from("110000000000").toString()
-    //     );
-    //   });
-    // });
-
-    // describe("completeScheduledWithdrawal", () => {
-    //   time.revertToSnapshotAfterEach();
-
-    //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
-    //     const depositAmount = BigNumber.from("100000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     await vault.withdrawLater(BigNumber.from("1000"));
-
-    //     const res = await vault.completeScheduledWithdrawal();
-
-    //     const receipt = await res.wait();
-    //     assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
-    //   });
-
-    //   it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
-    //     const depositAmount = BigNumber.from("100000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
-    //       "No withdrawal"
-    //     );
-    //   });
-
-    //   it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
-    //     let balanceBeforeWithdraw;
-    //     const depositAmount = BigNumber.from("200000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     await vault.withdrawLater(BigNumber.from("100000000000"));
-
-    //     await rollToNextOption();
-
-    //     if (params.collateralAsset === WETH_ADDRESS) {
-    //       balanceBeforeWithdraw = await provider.getBalance(user);
-    //     } else {
-    //       balanceBeforeWithdraw = await assetContract.balanceOf(user);
-    //     }
-    //     const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
-    //       vault.address
-    //     );
-
-    //     // Queued withdrawals + 10% of available assets set aside
-    //     assert.equal(
-    //       vaultBalanceBeforeWithdraw.toString(),
-    //       BigNumber.from("110000000000").toString()
-    //     );
-
-    //     const tx = await vault.completeScheduledWithdrawal({
-    //       gasPrice,
-    //     });
-    //     const receipt = await tx.wait();
-    //     const gasFee = gasPrice.mul(receipt.gasUsed);
-
-    //     await expect(tx)
-    //       .to.emit(vault, "Withdraw")
-    //       .withArgs(
-    //         user,
-    //         BigNumber.from("99500000000"),
-    //         BigNumber.from("100000000000"),
-    //         BigNumber.from("500000000")
-    //       );
-
-    //     await expect(tx)
-    //       .to.emit(vault, "ScheduledWithdrawCompleted")
-    //       .withArgs(user, BigNumber.from("99500000000"));
-
-    //     // Should set the scheduledWithdrawals entry back to 0
-    //     assert.equal(
-    //       (await vault.scheduledWithdrawals(user)).toString(),
-    //       BigNumber.from("0").toString()
-    //     );
-
-    //     assert.equal(
-    //       (await assetContract.balanceOf(vault.address)).toString(),
-    //       vaultBalanceBeforeWithdraw
-    //         .sub(BigNumber.from("100000000000"))
-    //         .toString()
-    //     );
-
-    //     // Assert vault shares were burned
-    //     assert.equal(
-    //       (await vault.balanceOf(vault.address)).toString(),
-    //       BigNumber.from("0").toString()
-    //     );
-
-    //     if (params.collateralAsset === WETH_ADDRESS) {
-    //       assert.equal(
-    //         (await provider.getBalance(user)).toString(),
-    //         balanceBeforeWithdraw
-    //           .sub(gasFee)
-    //           .add(BigNumber.from("99500000000"))
-    //           .toString()
-    //       );
-    //       assert.equal(
-    //         (await assetContract.balanceOf(feeRecipient)).toString(),
-    //         BigNumber.from("500000000").toString()
-    //       );
-    //     } else {
-    //       assert.equal(
-    //         (await assetContract.balanceOf(user)).toString(),
-    //         balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
-    //       );
-    //       assert.equal(
-    //         (await assetContract.balanceOf(feeRecipient)).toString(),
-    //         BigNumber.from("500000000").toString()
-    //       );
-    //     }
-    //   });
-
-    //   it("rejects second attempted completeScheduledWithdraw", async function () {
-    //     const depositAmount = BigNumber.from("200000000000");
-    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-    //     await vault.withdrawLater(BigNumber.from("100000000000"));
-
-    //     await rollToNextOption();
-
-    //     await vault.completeScheduledWithdrawal();
-
-    //     await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
-    //       "No withdrawal"
-    //     );
-    //   });
-    // });
-
-    describe("#setStrikePrice", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("should revert if not manager", async function () {
-        await expect(
-          vault.connect(userSigner).setStrikePrice(parseEther("10"))
-        ).to.be.revertedWith("Only manager");
-      });
-
-      it("should set the new strike price", async function () {
-        await vault.connect(managerSigner).setStrikePrice(parseEther("10"));
-        assert.equal(
-          (await vault.strikeOverride()).overriddenStrikePrice.toString(),
-          parseEther("10")
-        );
-      });
+      await expect(
+        vault.connect(managerSigner).rollToNextOption()
+      ).to.be.revertedWith("Not ready");
     });
 
-    describe("#setCap", () => {
-      time.revertToSnapshotAfterEach();
+    it("mints oTokens and deposits collateral into vault", async function () {
+      const startMarginBalance = await assetContract.balanceOf(MARGIN_POOL);
 
-      it("should revert if not manager", async function () {
-        await expect(
-          vault.connect(userSigner).setCap(parseEther("10"))
-        ).to.be.revertedWith("Only manager");
-      });
+      await vault.connect(managerSigner).commitAndClose();
 
-      it("should set the new cap", async function () {
-        await vault.connect(managerSigner).setCap(parseEther("10"));
-        assert.equal((await vault.cap()).toString(), parseEther("10"));
-      });
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-      it("should revert when depositing over the cap", async function () {
-        const capAmount = BigNumber.from("100000000");
-        const depositAmount = BigNumber.from("10000000000");
-        await vault.connect(managerSigner).setCap(capAmount);
+      const res = vault.connect(managerSigner).rollToNextOption();
 
-        // Provide some WETH to the account
-        if (params.collateralAsset === WETH_ADDRESS) {
-          const weth = assetContract.connect(userSigner);
-          await weth.deposit({ value: depositAmount });
-          await weth.approve(vault.address, depositAmount);
-        }
+      await expect(res).to.not.emit(vault, "CloseShort");
 
-        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-          "Exceed cap"
-        );
-      });
+      await expect(res)
+        .to.emit(vault, "OpenShort")
+        .withArgs(defaultOtokenAddress, depositAmount, manager);
+
+      assert.equal((await vault.lockedAmount()).toString(), depositAmount);
+
+      assert.bnEqual(await vault.assetBalance(), BigNumber.from(0));
+
+      assert.equal(
+        (await assetContract.balanceOf(MARGIN_POOL))
+          .sub(startMarginBalance)
+          .toString(),
+        depositAmount.toString()
+      );
+
+      assert.bnEqual(
+        await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION),
+        params.expectedMintAmount
+      );
+
+      assert.equal(await vault.currentOption(), defaultOtokenAddress);
     });
 
-    describe("#currentOptionExpiry", () => {
-      it("should return 0 when currentOption not set", async function () {
-        assert.equal((await vault.currentOptionExpiry()).toString(), "0");
-      });
+    it("reverts when calling before expiry", async function () {
+      const firstOptionAddress = firstOption.address;
+
+      await vault.connect(managerSigner).commitAndClose();
+
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      const firstTx = await vault.connect(managerSigner).rollToNextOption();
+
+      await expect(firstTx)
+        .to.emit(vault, "OpenShort")
+        .withArgs(firstOptionAddress, depositAmount, manager);
+
+      // 100% of the vault's balance is allocated to short
+      assert.bnEqual(
+        await assetContract.balanceOf(vault.address),
+        BigNumber.from(0)
+      );
+
+      await expect(
+        vault.connect(managerSigner).commitAndClose()
+      ).to.be.revertedWith(
+        "Controller: can not settle vault with un-expired otoken"
+      );
     });
 
-    describe("#decimals", () => {
-      it("should return 18 for decimals", async function () {
-        assert.equal(
-          (await vault.decimals()).toString(),
-          tokenDecimals.toString()
+    it("withdraws and roll funds into next option, after expiry ITM", async function () {
+      const firstOptionAddress = firstOption.address;
+      const secondOptionAddress = secondOption.address;
+
+      await vault.connect(managerSigner).commitAndClose();
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      const firstTx = await vault.connect(managerSigner).rollToNextOption();
+
+      assert.equal(await vault.currentOption(), firstOptionAddress);
+      assert.equal(await vault.currentOptionExpiry(), firstOption.expiry);
+
+      await expect(firstTx)
+        .to.emit(vault, "OpenShort")
+        .withArgs(firstOptionAddress, depositAmount, manager);
+
+      await assetContract.connect(userSigner).transfer(vault.address, premium);
+
+      // only the premium should be left over because the funds are locked into Opyn
+      assert.equal(
+        (await assetContract.balanceOf(vault.address)).toString(),
+        premium
+      );
+
+      const settlementPriceITM = isPut
+        ? parseEther(params.firstOptionStrike.toString())
+            .div(BigNumber.from("10").pow(BigNumber.from("10")))
+            .sub(1)
+        : parseEther(params.firstOptionStrike.toString())
+            .div(BigNumber.from("10").pow(BigNumber.from("10")))
+            .add(1);
+
+      // withdraw 100% because it's OTM
+      await setOpynOracleExpiryPrice(
+        params.asset,
+        oracle,
+        await vault.currentOptionExpiry(),
+        settlementPriceITM
+      );
+
+      const beforeBalance = await assetContract.balanceOf(vault.address);
+
+      await strikeSelection.setStrikePrice(
+        parseUnits(params.secondOptionStrike.toString(), 8)
+      );
+
+      const firstCloseTx = await vault.connect(managerSigner).commitAndClose();
+
+      const afterBalance = await assetContract.balanceOf(vault.address);
+
+      // test that the vault's balance decreased after closing short when ITM
+      assert.isAbove(
+        parseInt(depositAmount.toString()),
+        parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
+      );
+
+      await expect(firstCloseTx)
+        .to.emit(vault, "CloseShort")
+        .withArgs(
+          firstOptionAddress,
+          BigNumber.from(afterBalance).sub(beforeBalance),
+          manager
         );
-      });
+
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      const currBalance = await assetContract.balanceOf(vault.address);
+      const mintAmount = currBalance.toString();
+
+      const secondTx = await vault.connect(managerSigner).rollToNextOption();
+
+      assert.equal(await vault.currentOption(), secondOptionAddress);
+      assert.equal(await vault.currentOptionExpiry(), secondOption.expiry);
+
+      await expect(secondTx)
+        .to.emit(vault, "OpenShort")
+        .withArgs(secondOptionAddress, mintAmount, manager);
+
+      assert.bnEqual(
+        await assetContract.balanceOf(vault.address),
+        BigNumber.from(0)
+      );
+    });
+
+    it("withdraws and roll funds into next option, after expiry OTM", async function () {
+      const firstOptionAddress = firstOption.address;
+      const secondOptionAddress = secondOption.address;
+
+      await vault.connect(managerSigner).commitAndClose();
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      const firstTx = await vault.connect(managerSigner).rollToNextOption();
+
+      await expect(firstTx)
+        .to.emit(vault, "OpenShort")
+        .withArgs(firstOptionAddress, depositAmount, manager);
+
+      await assetContract.connect(userSigner).transfer(vault.address, premium);
+
+      // only the premium should be left over because the funds are locked into Opyn
+      assert.bnEqual(await assetContract.balanceOf(vault.address), premium);
+
+      const settlementPriceOTM = isPut
+        ? parseEther(params.firstOptionStrike.toString())
+            .div(BigNumber.from("10").pow(BigNumber.from("10")))
+            .add(1)
+        : parseEther(params.firstOptionStrike.toString())
+            .div(BigNumber.from("10").pow(BigNumber.from("10")))
+            .sub(1);
+
+      // withdraw 100% because it's OTM
+      await setOpynOracleExpiryPrice(
+        params.asset,
+        oracle,
+        await vault.currentOptionExpiry(),
+        settlementPriceOTM
+      );
+
+      const beforeBalance = await assetContract.balanceOf(vault.address);
+
+      await strikeSelection.setStrikePrice(
+        parseUnits(params.secondOptionStrike.toString(), 8)
+      );
+
+      const firstCloseTx = await vault.connect(managerSigner).commitAndClose();
+
+      const afterBalance = await assetContract.balanceOf(vault.address);
+      // test that the vault's balance decreased after closing short when ITM
+      assert.equal(
+        parseInt(depositAmount.toString()),
+        parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
+      );
+
+      await expect(firstCloseTx)
+        .to.emit(vault, "CloseShort")
+        .withArgs(
+          firstOptionAddress,
+          BigNumber.from(afterBalance).sub(beforeBalance),
+          manager
+        );
+
+      // Time increase to after next option available
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      const secondTx = await vault.connect(managerSigner).rollToNextOption();
+
+      assert.equal(await vault.currentOption(), secondOptionAddress);
+      assert.equal(await vault.currentOptionExpiry(), secondOption.expiry);
+
+      await expect(secondTx)
+        .to.emit(vault, "OpenShort")
+        .withArgs(secondOptionAddress, depositAmount.add(premium), manager);
+
+      assert.equal(
+        (await assetContract.balanceOf(vault.address)).toString(),
+        BigNumber.from(0)
+      );
+    });
+
+    it("is not able to roll to new option consecutively without setNextOption", async function () {
+      await vault.connect(managerSigner).commitAndClose();
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+      await vault.connect(managerSigner).rollToNextOption();
+
+      await expect(
+        vault.connect(managerSigner).rollToNextOption()
+      ).to.be.revertedWith("!nextOption");
+    });
+  });
+
+  describe("#assetBalance", () => {
+    time.revertToSnapshotAfterEach(async function () {
+      await depositIntoVault(
+        params.collateralAsset,
+        vault,
+        params.depositAmount
+      );
+
+      await vault.connect(managerSigner).rollToNextOption();
+    });
+
+    it("returns the free balance, after locking", async function () {
+      assert.equal((await vault.assetBalance()).toString(), "0");
+    });
+
+    it("returns the free balance - locked, if free > locked", async function () {
+      const newDepositAmount = BigNumber.from("1000000000000");
+      await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
+
+      assert.bnEqual(await vault.assetBalance(), newDepositAmount);
+    });
+  });
+
+  // describe("#withdrawLater", () => {
+  //   time.revertToSnapshotAfterEach();
+
+  //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
+  //     const depositAmount = BigNumber.from("100000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
+  //     const receipt = await res.wait();
+  //     assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
+  //   });
+
+  //   it("rejects a withdrawLater of 0 shares", async function () {
+  //     await expect(
+  //       vault.withdrawLater(BigNumber.from("0"))
+  //     ).to.be.revertedWith("!shares");
+  //   });
+
+  //   it("rejects a scheduled withdrawal when greater than balance", async function () {
+  //     const depositAmount = BigNumber.from("100000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     await expect(
+  //       vault.withdrawLater(BigNumber.from("100000000001"))
+  //     ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+  //   });
+
+  //   it("accepts a withdrawLater if less than or equal to balance", async function () {
+  //     const depositAmount = BigNumber.from("100000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
+
+  //     await expect(res)
+  //       .to.emit(vault, "ScheduleWithdraw")
+  //       .withArgs(user, BigNumber.from("100000000000"));
+
+  //     assert.equal(
+  //       (await vault.queuedWithdrawShares()).toString(),
+  //       BigNumber.from("100000000000").toString()
+  //     );
+
+  //     assert.equal(
+  //       (await vault.scheduledWithdrawals(user)).toString(),
+  //       BigNumber.from("100000000000").toString()
+  //     );
+
+  //     // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
+  //     assert.equal(
+  //       (await vault.balanceOf(vault.address)).toString(),
+  //       BigNumber.from("100000000000").toString()
+  //     );
+
+  //     assert.equal(
+  //       (await vault.balanceOf(user)).toString(),
+  //       BigNumber.from("0").toString()
+  //     );
+  //   });
+
+  //   it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
+  //     const depositAmount = BigNumber.from("200000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     await vault.withdrawLater(BigNumber.from("100000000000"));
+
+  //     await expect(
+  //       vault.withdrawLater(BigNumber.from("100000000000"))
+  //     ).to.be.revertedWith("Existing withdrawal");
+  //   });
+
+  //   it("assets reserved by withdrawLater are not used to short", async function () {
+  //     const depositAmount = BigNumber.from("200000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
+
+  //     await expect(res)
+  //       .to.emit(vault, "ScheduleWithdraw")
+  //       .withArgs(user, BigNumber.from("100000000000"));
+
+  //     await rollToNextOption();
+
+  //     const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
+  //       vault.address
+  //     );
+
+  //     // Queued withdrawals + 10% of available assets set aside
+  //     assert.equal(
+  //       vaultBalanceBeforeWithdraw.toString(),
+  //       BigNumber.from("110000000000").toString()
+  //     );
+  //   });
+  // });
+
+  // describe("completeScheduledWithdrawal", () => {
+  //   time.revertToSnapshotAfterEach();
+
+  //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
+  //     const depositAmount = BigNumber.from("100000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     await vault.withdrawLater(BigNumber.from("1000"));
+
+  //     const res = await vault.completeScheduledWithdrawal();
+
+  //     const receipt = await res.wait();
+  //     assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
+  //   });
+
+  //   it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
+  //     const depositAmount = BigNumber.from("100000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
+  //       "No withdrawal"
+  //     );
+  //   });
+
+  //   it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
+  //     let balanceBeforeWithdraw;
+  //     const depositAmount = BigNumber.from("200000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     await vault.withdrawLater(BigNumber.from("100000000000"));
+
+  //     await rollToNextOption();
+
+  //     if (params.collateralAsset === WETH_ADDRESS) {
+  //       balanceBeforeWithdraw = await provider.getBalance(user);
+  //     } else {
+  //       balanceBeforeWithdraw = await assetContract.balanceOf(user);
+  //     }
+  //     const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
+  //       vault.address
+  //     );
+
+  //     // Queued withdrawals + 10% of available assets set aside
+  //     assert.equal(
+  //       vaultBalanceBeforeWithdraw.toString(),
+  //       BigNumber.from("110000000000").toString()
+  //     );
+
+  //     const tx = await vault.completeScheduledWithdrawal({
+  //       gasPrice,
+  //     });
+  //     const receipt = await tx.wait();
+  //     const gasFee = gasPrice.mul(receipt.gasUsed);
+
+  //     await expect(tx)
+  //       .to.emit(vault, "Withdraw")
+  //       .withArgs(
+  //         user,
+  //         BigNumber.from("99500000000"),
+  //         BigNumber.from("100000000000"),
+  //         BigNumber.from("500000000")
+  //       );
+
+  //     await expect(tx)
+  //       .to.emit(vault, "ScheduledWithdrawCompleted")
+  //       .withArgs(user, BigNumber.from("99500000000"));
+
+  //     // Should set the scheduledWithdrawals entry back to 0
+  //     assert.equal(
+  //       (await vault.scheduledWithdrawals(user)).toString(),
+  //       BigNumber.from("0").toString()
+  //     );
+
+  //     assert.equal(
+  //       (await assetContract.balanceOf(vault.address)).toString(),
+  //       vaultBalanceBeforeWithdraw
+  //         .sub(BigNumber.from("100000000000"))
+  //         .toString()
+  //     );
+
+  //     // Assert vault shares were burned
+  //     assert.equal(
+  //       (await vault.balanceOf(vault.address)).toString(),
+  //       BigNumber.from("0").toString()
+  //     );
+
+  //     if (params.collateralAsset === WETH_ADDRESS) {
+  //       assert.equal(
+  //         (await provider.getBalance(user)).toString(),
+  //         balanceBeforeWithdraw
+  //           .sub(gasFee)
+  //           .add(BigNumber.from("99500000000"))
+  //           .toString()
+  //       );
+  //       assert.equal(
+  //         (await assetContract.balanceOf(feeRecipient)).toString(),
+  //         BigNumber.from("500000000").toString()
+  //       );
+  //     } else {
+  //       assert.equal(
+  //         (await assetContract.balanceOf(user)).toString(),
+  //         balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
+  //       );
+  //       assert.equal(
+  //         (await assetContract.balanceOf(feeRecipient)).toString(),
+  //         BigNumber.from("500000000").toString()
+  //       );
+  //     }
+  //   });
+
+  //   it("rejects second attempted completeScheduledWithdraw", async function () {
+  //     const depositAmount = BigNumber.from("200000000000");
+  //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+  //     await vault.withdrawLater(BigNumber.from("100000000000"));
+
+  //     await rollToNextOption();
+
+  //     await vault.completeScheduledWithdrawal();
+
+  //     await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
+  //       "No withdrawal"
+  //     );
+  //   });
+  // });
+
+  describe("#setStrikePrice", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should revert if not manager", async function () {
+      await expect(
+        vault.connect(userSigner).setStrikePrice(parseEther("10"))
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("should set the new strike price", async function () {
+      await vault.connect(managerSigner).setStrikePrice(parseEther("10"));
+      assert.equal(
+        (await vault.strikeOverride()).overriddenStrikePrice.toString(),
+        parseEther("10")
+      );
+    });
+  });
+
+  describe("#setCap", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("should revert if not manager", async function () {
+      await expect(
+        vault.connect(userSigner).setCap(parseEther("10"))
+      ).to.be.revertedWith("Only manager");
+    });
+
+    it("should set the new cap", async function () {
+      await vault.connect(managerSigner).setCap(parseEther("10"));
+      assert.equal((await vault.cap()).toString(), parseEther("10"));
+    });
+
+    it("should revert when depositing over the cap", async function () {
+      const capAmount = BigNumber.from("100000000");
+      const depositAmount = BigNumber.from("10000000000");
+      await vault.connect(managerSigner).setCap(capAmount);
+
+      // Provide some WETH to the account
+      if (params.collateralAsset === WETH_ADDRESS) {
+        const weth = assetContract.connect(userSigner);
+        await weth.deposit({ value: depositAmount });
+        await weth.approve(vault.address, depositAmount);
+      }
+
+      await expect(vault.deposit(depositAmount)).to.be.revertedWith(
+        "Exceed cap"
+      );
+    });
+  });
+
+  describe("#currentOptionExpiry", () => {
+    it("should return 0 when currentOption not set", async function () {
+      assert.equal((await vault.currentOptionExpiry()).toString(), "0");
+    });
+  });
+
+  describe("#decimals", () => {
+    it("should return 18 for decimals", async function () {
+      assert.equal(
+        (await vault.decimals()).toString(),
+        tokenDecimals.toString()
+      );
     });
   });
 }
