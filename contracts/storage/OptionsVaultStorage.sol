@@ -89,9 +89,9 @@ contract OptionsVaultStorageV3 {
     /// @notice Minimum supply of the vault shares issued
     uint256 public minimumSupply;
 
-    /// @notice Stores the total tally of how much of collateral there is
-    /// to be used to mint rTHETA tokens
-    uint256 public totalPending;
+    // Stores the total tally of how much of collateral there is
+    // to be used to mint rTHETA tokens
+    uint256 internal _totalPending;
 
     /// @notice Stores the user's pending deposit for the round
     mapping(address => VaultDeposit.DepositReceipt) public depositReceipts;

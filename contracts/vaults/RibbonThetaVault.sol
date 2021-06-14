@@ -46,6 +46,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     uint256 private constant MAX_UINT128 =
         340282366920938463463374607431768211455;
 
+    uint256 private constant PLACEHOLDER_UINT = 1;
+
+    address private constant PLACEHOLDER_ADDR = address(1);
+
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -74,6 +78,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     event ScheduleWithdraw(address account, uint256 shares);
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
+
+    event Redeem(address indexed account, uint256 share, uint16 round);
 
     event OpenShort(
         address indexed options,
@@ -204,6 +210,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         premiumDiscount = _premiumDiscount;
         optionsPremiumPricer = _optionsPremiumPricer;
+        _totalPending = PLACEHOLDER_UINT; // Hardcode to 1 so no cold writes for depositors
+        nextOption = PLACEHOLDER_ADDR; // Hardcode to 1 so no cold write for keeper
 
         strikeSelection = _strikeSelection;
         genesisTimestamp = uint32(block.timestamp);
@@ -293,23 +301,22 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
-        uint16 _round = round;
+        uint16 currentRound = round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(amount < MAX_UINT128, "Overflow");
         require(totalWithDepositedAmount < cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= minimumSupply,
             "Insufficient balance"
         );
 
-        emit Deposit(msg.sender, amount, _round);
+        emit Deposit(msg.sender, amount, currentRound);
 
         VaultDeposit.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
-        if (_round == depositReceipt.round) {
+        if (currentRound == depositReceipt.round) {
             // No deposits allowed until the next round
             require(!depositReceipt.processed, "Processed");
 
@@ -318,18 +325,66 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
-                round: _round,
+                round: currentRound,
                 amount: uint128(newAmount)
             });
         } else {
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
-                round: _round,
+                round: currentRound,
                 amount: uint128(amount)
             });
         }
 
-        totalPending = totalPending.add(amount);
+        _totalPending = _totalPending.add(amount);
+
+        // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
+        if (depositReceipt.round < currentRound && !depositReceipt.processed) {
+            _redeemDeposit(currentRound, depositReceipt);
+        }
+    }
+
+    function redeemDeposit() external nonReentrant {
+        VaultDeposit.DepositReceipt memory depositReceipt =
+            depositReceipts[msg.sender];
+        _redeemDeposit(round, depositReceipt);
+    }
+
+    function _redeemDeposit(
+        uint16 currentRound,
+        VaultDeposit.DepositReceipt memory depositReceipt
+    ) private {
+        require(!depositReceipt.processed, "Processed");
+        require(depositReceipt.round < currentRound, "Round not closed");
+
+        uint256 pps = roundPricePerShare[currentRound];
+        // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
+        // which should never happen.
+        // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
+        require(pps > 1, "Invalid pps");
+
+        depositReceipts[msg.sender].processed = true;
+
+        uint256 shares = wmul(depositReceipt.amount, pps);
+
+        emit Redeem(msg.sender, shares, depositReceipt.round);
+
+        transfer(msg.sender, shares);
+    }
+
+    function withdrawInstantly(uint256 amount) external nonReentrant {
+        VaultDeposit.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
+
+        require(!depositReceipt.processed, "Processed");
+        require(depositReceipt.round == round, "Invalid round");
+
+        // Subtraction underflow checks already ensure it is smaller than uint128
+        depositReceipt.amount = uint128(
+            uint256(depositReceipt.amount).sub(amount)
+        );
+
+        IERC20(asset).safeTransfer(msg.sender, amount);
     }
 
     /**
@@ -384,7 +439,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 expiry;
 
         // uninitialized state
-        if (oldOption == address(0)) {
+        if (oldOption <= PLACEHOLDER_ADDR) {
             expiry = getNextFriday(block.timestamp);
         } else {
             expiry = getNextFriday(IOtoken(oldOption).expiryTimestamp());
@@ -412,11 +467,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         _setNextOption(otokenAddress);
         _closeShort(oldOption);
-    }
 
-    function closeShort() external nonReentrant {
-        address oldOption = currentOption;
-        _closeShort(oldOption);
+        // After closing the short, if the options expire in-the-money
+        // vault pricePerShare would go down because vault's asset balance decreased.
+        // This ensures that the newly-minted shares do not take on the loss.
+        _mintPendingShares();
     }
 
     /**
@@ -450,19 +505,26 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
-        currentOption = address(0);
+        currentOption = PLACEHOLDER_ADDR;
         lockedAmount = 0;
 
-        if (oldOption != address(0)) {
-            IOtoken otoken = IOtoken(oldOption);
-            require(
-                block.timestamp > otoken.expiryTimestamp(),
-                "Before expiry"
-            );
+        if (oldOption > PLACEHOLDER_ADDR) {
             uint256 withdrawAmount =
                 GammaProtocol.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
+    }
+
+    function _mintPendingShares() private {
+        // We leave 1 as the residual value so that subsequent depositors
+        // do not have to pay the cost of a cold write
+        uint256 pending = _totalPending.sub(PLACEHOLDER_UINT);
+        _totalPending = PLACEHOLDER_UINT;
+
+        // Vault holds temporary custody of the newly minted vault shares
+        _mint(address(this), pending);
+
+        roundPricePerShare[round] = pricePerShare();
     }
 
     /**
@@ -472,16 +534,16 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(block.timestamp >= nextOptionReadyAt, "Not ready");
 
         address newOption = nextOption;
-        require(newOption != address(0), "!nextOption");
+        require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
         currentOption = newOption;
-        nextOption = address(0);
+        nextOption = PLACEHOLDER_ADDR;
+        round += 1;
 
         uint256 currentBalance = assetBalance();
         (uint256 queuedWithdrawAmount, , ) =
             _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
-        uint256 freeBalance = currentBalance.sub(queuedWithdrawAmount);
-        uint256 shortAmount = wmul(freeBalance, lockedRatio);
+        uint256 shortAmount = currentBalance.sub(queuedWithdrawAmount);
         lockedAmount = shortAmount;
 
         GammaProtocol.createShort(
@@ -531,9 +593,73 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         );
     }
 
+    /**
+     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
+     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
+     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
+     * @param numRounds is the number of rounds to initialize in the map
+     */
+    function initRounds(uint256 numRounds) external nonReentrant {
+        require(numRounds < 52, "numRounds >= 52");
+
+        uint16 _round = round;
+        for (uint16 i = 0; i < numRounds; i++) {
+            uint16 index = _round + i;
+            require(index >= _round, "SafeMath: addition overflow");
+            require(roundPricePerShare[index] == 0, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            roundPricePerShare[index] = PLACEHOLDER_UINT;
+        }
+    }
+
     /************************************************
      *  GETTERS
      ***********************************************/
+
+    /**
+     * @notice Getter to get the total pending amount, ex the `1` used as a placeholder
+     */
+    function totalPending() external view returns (uint256) {
+        return _totalPending - 1;
+    }
+
+    /**
+     * @notice The price of a unit of share denominated in the `collateral`
+     */
+    function pricePerShare() public view returns (uint256) {
+        return (10**uint256(decimals())).mul(totalBalance()).div(totalSupply());
+    }
+
+    // /**
+    //  * @notice This is the user's share balance, including the shares that are not redeemed from processed deposits.
+    //  * @param account is the address to lookup the balance for.
+    //  */
+    // function balancePlusUnredeemed(address account)
+    //     external
+    //     view
+    //     returns (uint256)
+    // {
+    //     return balanceOf(account).add(unredeemedBalance(account));
+    // }
+
+    // /**
+    //  * @notice Returns the user's unredeemed share amount
+    //  * @param account is the address to lookup the unredeemed share amount
+    //  */
+    // function unredeemedBalance(address account)
+    //     public
+    //     view
+    //     returns (uint256 unredeemedShares)
+    // {
+    //     VaultDeposit.DepositReceipt storage depositReceipt =
+    //         depositReceipts[account];
+
+    //     if (!depositReceipt.processed) {
+    //         unredeemedShares = wmul(
+    //             depositReceipt.amount,
+    //             roundPricePerShare[depositReceipt.round]
+    //         );
+    //     }
+    // }
 
     /**
      * @notice Returns the expiry of the current option the vault is shorting
@@ -544,7 +670,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             return 0;
         }
 
-        IOtoken oToken = IOtoken(currentOption);
+        IOtoken oToken = IOtoken(_currentOption);
         return oToken.expiryTimestamp();
     }
 
@@ -569,11 +695,27 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             withdrawAmount <= currentAssetBalance,
             "Withdrawing more than available"
         );
-        require(newShareSupply >= minimumSupply, "Insufficient supply");
-        require(newAssetBalance >= minimumSupply, "Insufficient balance");
+
+        uint256 _minimumSupply = minimumSupply;
+
+        require(newShareSupply >= _minimumSupply, "Insufficient supply");
+        require(newAssetBalance >= _minimumSupply, "Insufficient balance");
 
         return withdrawAmount;
     }
+
+    // function maxInstantWithdrawAmount(address account)
+    //     external
+    //     view
+    //     returns (uint256)
+    // {
+    //     VaultDeposit.DepositReceipt storage depositReceipt =
+    //         depositReceipts[account];
+    //     if (depositReceipt.round == round && !depositReceipt.processed) {
+    //         return depositReceipt.amount;
+    //     }
+    //     return 0;
+    // }
 
     /**
      * @notice Helper function to return the `asset` amount returned using the `share` amount
@@ -615,41 +757,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 .div(total)
                 .sub(minimumSupply)
                 .sub(queuedWithdrawShares);
-    }
-
-    /**
-     * @notice Returns the max amount withdrawable by an account using the account's vault share balance
-     * @param account is the address of the vault share holder
-     * @return amount of `asset` withdrawable from vault, with fees accounted
-     */
-    function maxWithdrawAmount(address account)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 maxShares = maxWithdrawableShares();
-        uint256 share = balanceOf(account);
-        uint256 numShares = min(maxShares, share);
-
-        (uint256 withdrawAmount, , ) =
-            _withdrawAmountWithShares(numShares, assetBalance());
-
-        return withdrawAmount;
-    }
-
-    /**
-     * @notice Returns the number of shares for a given `assetAmount`.
-     *         Used by the frontend to calculate withdraw amounts.
-     * @param assetAmount is the asset amount to be withdrawn
-     * @return share amount
-     */
-    function assetAmountToShares(uint256 assetAmount)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 total = lockedAmount.add(assetBalance());
-        return assetAmount.mul(totalSupply()).div(total);
     }
 
     /**
