@@ -11,6 +11,7 @@ import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {VaultDeposit} from "../libraries/VaultDeposit.sol";
+import {StrikeOverride} from "../libraries/StrikeOverride.sol";
 
 contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,
@@ -86,11 +87,8 @@ contract OptionsVaultStorageV3 {
     /// @notice Logic contract used to select strike prices
     address public strikeSelection;
 
-    /// @notice Last `round` when strike overriden
-    uint256 public lastStrikeOverride;
-
-    /// @notice Current overriden strike price
-    uint256 public overridenStrikePrice;
+    /// @notice Details on latest round when strike overriden and strike price
+    StrikeOverride.StrikeOverrideDetails public strikeOverride;
 
     /// @notice Current oToken premium
     uint256 public currentOtokenPremium;

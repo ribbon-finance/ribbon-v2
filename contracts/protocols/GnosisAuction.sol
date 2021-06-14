@@ -53,9 +53,11 @@ library GnosisAuction {
             IERC20(auctionDetails.oTokenAddress).balanceOf(address(this))
         );
 
+        uint256 minBidAmount =
+            auctionDetails.oTokenPremium.mul(oTokenSellAmount);
+
         require(
-            auctionDetails.oTokenPremium.mul(oTokenSellAmount) <=
-                type(uint96).max,
+            minBidAmount <= type(uint96).max,
             "optionPremium * oTokenSellAmount > type(uint96) max value!"
         );
 
@@ -72,7 +74,7 @@ library GnosisAuction {
                 // we are selling all of the otokens minus a fee taken by gnosis
                 uint96(oTokenSellAmount),
                 // the minimum we are willing to sell all the oTokens for. A discount is applied on black-scholes price
-                uint96(auctionDetails.oTokenPremium.mul(oTokenSellAmount)),
+                uint96(minBidAmount),
                 // the minimum bidding amount must be 1 * 10 ** -assetDecimals
                 1,
                 // the min funding threshold

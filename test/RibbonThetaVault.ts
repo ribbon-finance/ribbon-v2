@@ -975,9 +975,12 @@ function behavesLikeRibbonOptionsVault(params: {
         const newStrikePrice = parseEther("10");
         await vault.connect(managerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverride()).toString(), "0");
         assert.equal(
-          (await vault.overridenStrikePrice()).toString(),
+          (await vault.strikeOverride()).lastStrikeOverride.toString(),
+          "0"
+        );
+        assert.equal(
+          (await vault.strikeOverride()).overriddenStrikePrice.toString(),
           newStrikePrice.toString()
         );
 
@@ -1896,7 +1899,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("should set the new strike price", async function () {
         await vault.connect(managerSigner).setStrikePrice(parseEther("10"));
         assert.equal(
-          (await vault.overridenStrikePrice()).toString(),
+          (await vault.strikeOverride()).overriddenStrikePrice.toString(),
           parseEther("10")
         );
       });

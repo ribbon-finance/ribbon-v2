@@ -393,8 +393,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         IStrikeSelection strikeSelection = IStrikeSelection(strikeSelection);
 
         (uint256 strikePrice, uint256 delta) =
-            lastStrikeOverride == round
-                ? (overridenStrikePrice, strikeSelection.delta())
+            strikeOverride.lastStrikeOverride == round
+                ? (
+                    strikeOverride.overriddenStrikePrice,
+                    strikeSelection.delta()
+                )
                 : IStrikeSelection(strikeSelection).getStrikePrice(
                     expiry,
                     isPut
@@ -549,14 +552,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens
      */
-    function setStrikePrice(uint256 strikePrice)
+    function setStrikePrice(uint128 strikePrice)
         external
         onlyManager
         nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
-        overridenStrikePrice = strikePrice;
-        lastStrikeOverride = round;
+        require(strikePrice < type(uint128).max, "strike price too large!");
+        strikeOverride.overriddenStrikePrice = strikePrice;
+        strikeOverride.lastStrikeOverride = round;
     }
 
     /************************************************
