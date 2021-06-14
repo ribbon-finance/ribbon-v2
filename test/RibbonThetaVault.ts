@@ -240,21 +240,21 @@ function behavesLikeRibbonOptionsVault(params: {
   // Variables
   let defaultOtokenAddress: string;
 
+  const rollToNextOption = async () => {
+    await strikeSelection.setStrikePrice(
+      parseUnits(params.firstOptionStrike.toString(), 8)
+    );
+
+    await optionsPremiumPricer.setPremium(params.premium.toString());
+
+    await vault.connect(managerSigner).commitAndClose();
+    await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+    await vault.connect(managerSigner).rollToNextOption();
+  };
+
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
-
-    const rollToNextOption = async () => {
-      await strikeSelection.setStrikePrice(
-        parseUnits(params.firstOptionStrike.toString(), 8)
-      );
-
-      await optionsPremiumPricer.setPremium(params.premium.toString());
-
-      await vault.connect(managerSigner).commitAndClose();
-      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-      await vault.connect(managerSigner).rollToNextOption();
-    };
 
     before(async function () {
       initSnapshotId = await time.takeSnapshot();
@@ -1404,7 +1404,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.depositAmount
       );
 
-      await vault.connect(managerSigner).rollToNextOption();
+      await rollToNextOption();
     });
 
     it("returns the free balance, after locking", async function () {
