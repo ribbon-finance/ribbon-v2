@@ -1,5 +1,6 @@
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-contract-sizer";
+import "hardhat-log-remover";
 
 require("dotenv").config();
 
