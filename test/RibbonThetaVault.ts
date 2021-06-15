@@ -740,13 +740,13 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
           await expect(tx)
             .to.emit(vault, "Deposit")
-            .withArgs(user, depositAmount, 0);
+            .withArgs(user, depositAmount, 1);
 
           assert.bnEqual(await vault.totalPending(), depositAmount);
           const { round, amount, processed } = await vault.depositReceipts(
             user
           );
-          assert.equal(round, 0);
+          assert.equal(round, 1);
           assert.bnEqual(amount, depositAmount);
           assert.equal(processed, false);
         });
@@ -840,11 +840,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue((await vault.balanceOf(user)).isZero());
         await expect(res)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
+          .withArgs(user, depositAmount, 1);
 
         assert.bnEqual(await vault.totalPending(), depositAmount);
         const { round, amount, processed } = await vault.depositReceipts(user);
-        assert.equal(round, 0);
+        assert.equal(round, 1);
         assert.bnEqual(amount, depositAmount);
         assert.equal(processed, false);
       });
@@ -869,11 +869,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue((await vault.balanceOf(user)).isZero());
         await expect(tx)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
+          .withArgs(user, depositAmount, 1);
 
         assert.bnEqual(await vault.totalPending(), totalDepositAmount);
         const { round, amount, processed } = await vault.depositReceipts(user);
-        assert.equal(round, 0);
+        assert.equal(round, 1);
         assert.bnEqual(amount, totalDepositAmount);
         assert.equal(processed, false);
       });
@@ -965,7 +965,7 @@ function behavesLikeRibbonOptionsVault(params: {
         } = await vault.depositReceipts(user);
 
         assert.isFalse(processed1);
-        assert.equal(round1, 0);
+        assert.equal(round1, 1);
         assert.bnEqual(amount1, params.depositAmount);
 
         await rollToNextOption();
@@ -977,7 +977,7 @@ function behavesLikeRibbonOptionsVault(params: {
         } = await vault.depositReceipts(user);
 
         assert.isFalse(processed2);
-        assert.equal(round2, 0);
+        assert.equal(round2, 1);
         assert.bnEqual(amount2, params.depositAmount);
 
         const tx = await vault.deposit(params.depositAmount);
@@ -997,12 +997,12 @@ function behavesLikeRibbonOptionsVault(params: {
         } = await vault.depositReceipts(user);
 
         assert.isFalse(processed3);
-        assert.equal(round3, 1);
+        assert.equal(round3, 2);
         assert.bnEqual(amount3, params.depositAmount);
 
         await expect(tx)
           .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 0);
+          .withArgs(user, params.depositAmount, 1);
       });
 
       it("fits gas budget for implicit redemption", async function () {

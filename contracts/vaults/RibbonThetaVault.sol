@@ -18,6 +18,7 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     using SafeERC20 for IERC20;
@@ -212,6 +213,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         strikeSelection = _strikeSelection;
         genesisTimestamp = uint32(block.timestamp);
+        round = 1;
     }
 
     /************************************************
@@ -288,6 +290,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @param amount is the amount of `asset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
+        require(amount > 0, "!amount");
+
         _deposit(amount);
 
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
@@ -337,7 +341,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         _totalPending = _totalPending.add(amount);
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
-        if (depositReceipt.round < currentRound && !depositReceipt.processed) {
+        if (
+            depositReceipt.round > 0 &&
+            depositReceipt.round < currentRound &&
+            !depositReceipt.processed
+        ) {
             _redeemDeposit(currentRound, depositReceipt, false);
         }
     }
@@ -355,6 +363,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     ) private {
         require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round < currentRound, "Round not closed");
+        require(depositReceipt.amount > 0, "!amount");
 
         uint256 pps = roundPricePerShare[depositReceipt.round];
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
