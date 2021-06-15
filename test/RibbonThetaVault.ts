@@ -1519,12 +1519,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx)
           .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 0);
+          .withArgs(user, params.depositAmount, 1);
 
         const { processed, round, amount } = await vault.depositReceipts(user);
 
         assert.isTrue(processed);
-        assert.equal(round, 0);
+        assert.equal(round, 1);
         assert.bnEqual(amount, params.depositAmount);
       });
 
@@ -1558,17 +1558,30 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
-      it("is able to redeem deposit at pricePerShare after closing short in the money", async function () {
+      it("is able to redeem deposit at correct pricePerShare after closing short in the money", async function () {
         await assetContract
           .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
+          .approve(vault.address, params.depositAmount);
 
-        await vault.deposit(params.depositAmount);
-        const beforeBalance = await assetContract.balanceOf(vault.address);
+        await assetContract
+          .connect(managerSigner)
+          .approve(vault.address, params.depositAmount);
+
+        // Mid-week deposit in round 1
+        await assetContract
+          .connect(userSigner)
+          .transfer(manager, params.depositAmount);
+        await vault.connect(managerSigner).deposit(params.depositAmount);
 
         await vault.connect(managerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(managerSigner).rollToNextOption();
+
+        // Mid-week deposit in round 2
+        await vault.connect(userSigner).deposit(params.depositAmount);
+        const beforeBalance = (
+          await assetContract.balanceOf(vault.address)
+        ).add(await vault.lockedAmount());
 
         const beforePps = await vault.pricePerShare();
 
@@ -1596,8 +1609,45 @@ function behavesLikeRibbonOptionsVault(params: {
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
 
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(managerSigner).rollToNextOption();
+
         assert.bnGt(beforeBalance, afterBalance);
         assert.bnGt(beforePps, afterPps);
+
+        // Manager should lose money
+        // User should not lose money
+        // Manager redeems the deposit from round 1 so there is a loss from ITM options
+        const tx1 = await vault.connect(managerSigner).redeemDeposit();
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(manager, params.depositAmount, 1);
+
+        const {
+          processed: processed1,
+          round: round1,
+          amount: amount1,
+        } = await vault.depositReceipts(manager);
+        assert.isTrue(processed1);
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, params.depositAmount);
+
+        // User deposit in round 2 so no loss
+        // we should use the pricePerShares prior to the loss
+        // which is the original amount
+        const tx2 = await vault.connect(userSigner).redeemDeposit();
+        await expect(tx2)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 1);
+
+        const {
+          processed: processed2,
+          round: round2,
+          amount: amount2,
+        } = await vault.depositReceipts(user);
+        assert.isTrue(processed2);
+        assert.equal(round2, 2);
+        assert.bnEqual(amount2, params.depositAmount);
       });
     });
 
