@@ -537,7 +537,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 currentSupply = totalSupply();
         uint256 currentBalance = assetBalance();
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
-        uint16 currentRound = round;
 
         uint256 singleShare = 10**uint256(_decimals);
 
@@ -551,7 +550,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 mintShares =
             currentSupply > 0
-                ? pendingAmount.mul(currentSupply).div(roundStartBalance)
+                ? pendingAmount.div(currentPricePerShare).mul(singleShare)
                 : pendingAmount;
 
         // Vault holds temporary custody of the newly minted vault shares
@@ -559,7 +558,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         uint256 newSupply = currentSupply.add(mintShares);
 
-        // We assume that users cannot queued withdrawals in the first round
+        // TODO: We need to use the pps of the round they scheduled the withdrawal
+        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
         uint256 queuedWithdrawAmount =
             newSupply > 0
                 ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
@@ -570,9 +570,9 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         _totalPending = PLACEHOLDER_UINT;
         currentOption = newOption;
         nextOption = PLACEHOLDER_ADDR;
-        round = currentRound + 1;
         lockedAmount = balanceSansQueued;
-        roundPricePerShare[currentRound] = currentPricePerShare;
+        round += 1;
+        roundPricePerShare[round] = currentPricePerShare;
 
         emit OpenShort(newOption, balanceSansQueued, msg.sender);
 
