@@ -550,7 +550,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 mintShares =
             currentSupply > 0
-                ? pendingAmount.div(currentPricePerShare).mul(singleShare)
+                ? pendingAmount.mul(singleShare).div(currentPricePerShare)
                 : pendingAmount;
 
         // Vault holds temporary custody of the newly minted vault shares
@@ -571,8 +571,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         currentOption = newOption;
         nextOption = PLACEHOLDER_ADDR;
         lockedAmount = balanceSansQueued;
-        round += 1;
-        roundPricePerShare[round] = currentPricePerShare;
+
+        // Finalize the pricePerShare at the end of the round
+        uint16 currentRound = round;
+        roundPricePerShare[currentRound] = currentPricePerShare;
+        round = currentRound + 1;
 
         emit OpenShort(newOption, balanceSansQueued, msg.sender);
 
