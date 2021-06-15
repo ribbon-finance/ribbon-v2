@@ -18,7 +18,6 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
-import "hardhat/console.sol";
 
 contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     using SafeERC20 for IERC20;
