@@ -533,46 +533,62 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address newOption = nextOption;
         require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
+        uint256 currentSupply = totalSupply();
         uint256 currentBalance = assetBalance();
         uint16 currentRound = round;
+
+        uint256 singleShare = 10**uint256(_decimals);
+
+        bool hasSupply = currentSupply > 0;
+
+        uint256 currentPricePerShare =
+            hasSupply
+                ? singleShare.mul(currentBalance).div(currentSupply)
+                : singleShare;
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
-        _mintPendingShares();
+        _mintPendingShares(currentPricePerShare, singleShare);
 
-        (, uint256 newAssetBalance, uint256 newShareSupply) =
-            _withdrawAmountWithShares(queuedWithdrawShares, currentBalance);
+        // We assume that users cannot queued withdrawals in the first round
+        uint256 queuedWithdrawAmount =
+            hasSupply
+                ? queuedWithdrawShares.mul(currentBalance).div(currentSupply)
+                : 0;
 
-        uint256 newPricePerShare =
-            (10**uint256(decimals())).mul(newAssetBalance).div(newShareSupply);
+        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
         currentOption = newOption;
         nextOption = PLACEHOLDER_ADDR;
         round = currentRound + 1;
-        lockedAmount = newAssetBalance;
-        roundPricePerShare[currentRound] = newPricePerShare;
+        lockedAmount = balanceSansQueued;
+        roundPricePerShare[currentRound] = currentPricePerShare;
 
-        emit OpenShort(newOption, newAssetBalance, msg.sender);
+        emit OpenShort(newOption, balanceSansQueued, msg.sender);
 
         GammaProtocol.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            newAssetBalance
+            balanceSansQueued
         );
 
         startAuction();
     }
 
-    function _mintPendingShares() private {
+    function _mintPendingShares(uint256 pricePerShare, uint256 singleShare)
+        private
+    {
         // We leave 1 as the residual value so that subsequent depositors
         // do not have to pay the cost of a cold write
         uint256 pending = _totalPending.sub(PLACEHOLDER_UINT);
         _totalPending = PLACEHOLDER_UINT;
 
+        uint256 mintAmount = pending.mul(pricePerShare).div(singleShare);
+
         // Vault holds temporary custody of the newly minted vault shares
-        _mint(address(this), pending);
+        _mint(address(this), mintAmount);
     }
 
     /**
