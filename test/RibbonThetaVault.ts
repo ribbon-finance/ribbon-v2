@@ -1601,225 +1601,225 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe.skip("#withdrawLater", () => {
-      time.revertToSnapshotAfterEach();
+    // describe("#withdrawLater", () => {
+    //   time.revertToSnapshotAfterEach();
 
-      it("is within the gas budget [ @skip-on-coverage ]", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
+    //     const depositAmount = BigNumber.from("100000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        const res = await vault.withdrawLater(BigNumber.from("100000000000"));
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
-      });
+    //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
+    //     const receipt = await res.wait();
+    //     assert.isAtMost(receipt.gasUsed.toNumber(), 100000);
+    //   });
 
-      it("rejects a withdrawLater of 0 shares", async function () {
-        await expect(
-          vault.withdrawLater(BigNumber.from("0"))
-        ).to.be.revertedWith("!shares");
-      });
+    //   it("rejects a withdrawLater of 0 shares", async function () {
+    //     await expect(
+    //       vault.withdrawLater(BigNumber.from("0"))
+    //     ).to.be.revertedWith("!shares");
+    //   });
 
-      it("rejects a scheduled withdrawal when greater than balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("rejects a scheduled withdrawal when greater than balance", async function () {
+    //     const depositAmount = BigNumber.from("100000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        await expect(
-          vault.withdrawLater(BigNumber.from("100000000001"))
-        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
-      });
+    //     await expect(
+    //       vault.withdrawLater(BigNumber.from("100000000001"))
+    //     ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+    //   });
 
-      it("accepts a withdrawLater if less than or equal to balance", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("accepts a withdrawLater if less than or equal to balance", async function () {
+    //     const depositAmount = BigNumber.from("100000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        const res = await vault.withdrawLater(BigNumber.from("100000000000"));
+    //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
 
-        await expect(res)
-          .to.emit(vault, "ScheduleWithdraw")
-          .withArgs(user, BigNumber.from("100000000000"));
+    //     await expect(res)
+    //       .to.emit(vault, "ScheduleWithdraw")
+    //       .withArgs(user, BigNumber.from("100000000000"));
 
-        assert.equal(
-          (await vault.queuedWithdrawShares()).toString(),
-          BigNumber.from("100000000000").toString()
-        );
+    //     assert.equal(
+    //       (await vault.queuedWithdrawShares()).toString(),
+    //       BigNumber.from("100000000000").toString()
+    //     );
 
-        assert.equal(
-          (await vault.scheduledWithdrawals(user)).toString(),
-          BigNumber.from("100000000000").toString()
-        );
+    //     assert.equal(
+    //       (await vault.scheduledWithdrawals(user)).toString(),
+    //       BigNumber.from("100000000000").toString()
+    //     );
 
-        // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
-        assert.equal(
-          (await vault.balanceOf(vault.address)).toString(),
-          BigNumber.from("100000000000").toString()
-        );
+    //     // Verify that vault shares were transfer to vault for duration of scheduledWithdraw
+    //     assert.equal(
+    //       (await vault.balanceOf(vault.address)).toString(),
+    //       BigNumber.from("100000000000").toString()
+    //     );
 
-        assert.equal(
-          (await vault.balanceOf(user)).toString(),
-          BigNumber.from("0").toString()
-        );
-      });
+    //     assert.equal(
+    //       (await vault.balanceOf(user)).toString(),
+    //       BigNumber.from("0").toString()
+    //     );
+    //   });
 
-      it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("rejects a withdrawLater if a withdrawal is already scheduled", async function () {
+    //     const depositAmount = BigNumber.from("200000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        await vault.withdrawLater(BigNumber.from("100000000000"));
+    //     await vault.withdrawLater(BigNumber.from("100000000000"));
 
-        await expect(
-          vault.withdrawLater(BigNumber.from("100000000000"))
-        ).to.be.revertedWith("Existing withdrawal");
-      });
+    //     await expect(
+    //       vault.withdrawLater(BigNumber.from("100000000000"))
+    //     ).to.be.revertedWith("Existing withdrawal");
+    //   });
 
-      it("assets reserved by withdrawLater are not used to short", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("assets reserved by withdrawLater are not used to short", async function () {
+    //     const depositAmount = BigNumber.from("200000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        const res = await vault.withdrawLater(BigNumber.from("100000000000"));
+    //     const res = await vault.withdrawLater(BigNumber.from("100000000000"));
 
-        await expect(res)
-          .to.emit(vault, "ScheduleWithdraw")
-          .withArgs(user, BigNumber.from("100000000000"));
+    //     await expect(res)
+    //       .to.emit(vault, "ScheduleWithdraw")
+    //       .withArgs(user, BigNumber.from("100000000000"));
 
-        await rollToNextOption();
+    //     await rollToNextOption();
 
-        const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
-          vault.address
-        );
+    //     const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
+    //       vault.address
+    //     );
 
-        // Queued withdrawals + 10% of available assets set aside
-        assert.equal(
-          vaultBalanceBeforeWithdraw.toString(),
-          BigNumber.from("110000000000").toString()
-        );
-      });
-    });
+    //     // Queued withdrawals + 10% of available assets set aside
+    //     assert.equal(
+    //       vaultBalanceBeforeWithdraw.toString(),
+    //       BigNumber.from("110000000000").toString()
+    //     );
+    //   });
+    // });
 
-    describe.skip("#completeScheduledWithdrawal", () => {
-      time.revertToSnapshotAfterEach();
+    // describe("#completeScheduledWithdrawal", () => {
+    //   time.revertToSnapshotAfterEach();
 
-      it("is within the gas budget [ @skip-on-coverage ]", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
+    //     const depositAmount = BigNumber.from("100000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        await vault.withdrawLater(BigNumber.from("1000"));
+    //     await vault.withdrawLater(BigNumber.from("1000"));
 
-        const res = await vault.completeScheduledWithdrawal();
+    //     const res = await vault.completeScheduledWithdrawal();
 
-        const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
-      });
+    //     const receipt = await res.wait();
+    //     assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
+    //   });
 
-      it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
-        const depositAmount = BigNumber.from("100000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("rejects a completeScheduledWithdrawal if nothing scheduled", async function () {
+    //     const depositAmount = BigNumber.from("100000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
-          "No withdrawal"
-        );
-      });
+    //     await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
+    //       "No withdrawal"
+    //     );
+    //   });
 
-      it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
-        let balanceBeforeWithdraw;
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("completeScheduledWithdraw behaves as expected for valid scheduled withdraw", async function () {
+    //     let balanceBeforeWithdraw;
+    //     const depositAmount = BigNumber.from("200000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        await vault.withdrawLater(BigNumber.from("100000000000"));
+    //     await vault.withdrawLater(BigNumber.from("100000000000"));
 
-        await rollToNextOption();
+    //     await rollToNextOption();
 
-        if (params.collateralAsset === WETH_ADDRESS) {
-          balanceBeforeWithdraw = await provider.getBalance(user);
-        } else {
-          balanceBeforeWithdraw = await assetContract.balanceOf(user);
-        }
-        const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
-          vault.address
-        );
+    //     if (params.collateralAsset === WETH_ADDRESS) {
+    //       balanceBeforeWithdraw = await provider.getBalance(user);
+    //     } else {
+    //       balanceBeforeWithdraw = await assetContract.balanceOf(user);
+    //     }
+    //     const vaultBalanceBeforeWithdraw = await assetContract.balanceOf(
+    //       vault.address
+    //     );
 
-        // Queued withdrawals + 10% of available assets set aside
-        assert.equal(
-          vaultBalanceBeforeWithdraw.toString(),
-          BigNumber.from("110000000000").toString()
-        );
+    //     // Queued withdrawals + 10% of available assets set aside
+    //     assert.equal(
+    //       vaultBalanceBeforeWithdraw.toString(),
+    //       BigNumber.from("110000000000").toString()
+    //     );
 
-        const tx = await vault.completeScheduledWithdrawal({
-          gasPrice,
-        });
-        const receipt = await tx.wait();
-        const gasFee = gasPrice.mul(receipt.gasUsed);
+    //     const tx = await vault.completeScheduledWithdrawal({
+    //       gasPrice,
+    //     });
+    //     const receipt = await tx.wait();
+    //     const gasFee = gasPrice.mul(receipt.gasUsed);
 
-        await expect(tx)
-          .to.emit(vault, "Withdraw")
-          .withArgs(
-            user,
-            BigNumber.from("99500000000"),
-            BigNumber.from("100000000000"),
-            BigNumber.from("500000000")
-          );
+    //     await expect(tx)
+    //       .to.emit(vault, "Withdraw")
+    //       .withArgs(
+    //         user,
+    //         BigNumber.from("99500000000"),
+    //         BigNumber.from("100000000000"),
+    //         BigNumber.from("500000000")
+    //       );
 
-        await expect(tx)
-          .to.emit(vault, "ScheduledWithdrawCompleted")
-          .withArgs(user, BigNumber.from("99500000000"));
+    //     await expect(tx)
+    //       .to.emit(vault, "ScheduledWithdrawCompleted")
+    //       .withArgs(user, BigNumber.from("99500000000"));
 
-        // Should set the scheduledWithdrawals entry back to 0
-        assert.equal(
-          (await vault.scheduledWithdrawals(user)).toString(),
-          BigNumber.from("0").toString()
-        );
+    //     // Should set the scheduledWithdrawals entry back to 0
+    //     assert.equal(
+    //       (await vault.scheduledWithdrawals(user)).toString(),
+    //       BigNumber.from("0").toString()
+    //     );
 
-        assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
-          vaultBalanceBeforeWithdraw
-            .sub(BigNumber.from("100000000000"))
-            .toString()
-        );
+    //     assert.equal(
+    //       (await assetContract.balanceOf(vault.address)).toString(),
+    //       vaultBalanceBeforeWithdraw
+    //         .sub(BigNumber.from("100000000000"))
+    //         .toString()
+    //     );
 
-        // Assert vault shares were burned
-        assert.equal(
-          (await vault.balanceOf(vault.address)).toString(),
-          BigNumber.from("0").toString()
-        );
+    //     // Assert vault shares were burned
+    //     assert.equal(
+    //       (await vault.balanceOf(vault.address)).toString(),
+    //       BigNumber.from("0").toString()
+    //     );
 
-        if (params.collateralAsset === WETH_ADDRESS) {
-          assert.equal(
-            (await provider.getBalance(user)).toString(),
-            balanceBeforeWithdraw
-              .sub(gasFee)
-              .add(BigNumber.from("99500000000"))
-              .toString()
-          );
-          assert.equal(
-            (await assetContract.balanceOf(feeRecipient)).toString(),
-            BigNumber.from("500000000").toString()
-          );
-        } else {
-          assert.equal(
-            (await assetContract.balanceOf(user)).toString(),
-            balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
-          );
-          assert.equal(
-            (await assetContract.balanceOf(feeRecipient)).toString(),
-            BigNumber.from("500000000").toString()
-          );
-        }
-      });
+    //     if (params.collateralAsset === WETH_ADDRESS) {
+    //       assert.equal(
+    //         (await provider.getBalance(user)).toString(),
+    //         balanceBeforeWithdraw
+    //           .sub(gasFee)
+    //           .add(BigNumber.from("99500000000"))
+    //           .toString()
+    //       );
+    //       assert.equal(
+    //         (await assetContract.balanceOf(feeRecipient)).toString(),
+    //         BigNumber.from("500000000").toString()
+    //       );
+    //     } else {
+    //       assert.equal(
+    //         (await assetContract.balanceOf(user)).toString(),
+    //         balanceBeforeWithdraw.add(BigNumber.from("99500000000")).toString()
+    //       );
+    //       assert.equal(
+    //         (await assetContract.balanceOf(feeRecipient)).toString(),
+    //         BigNumber.from("500000000").toString()
+    //       );
+    //     }
+    //   });
 
-      it("rejects second attempted completeScheduledWithdraw", async function () {
-        const depositAmount = BigNumber.from("200000000000");
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+    //   it("rejects second attempted completeScheduledWithdraw", async function () {
+    //     const depositAmount = BigNumber.from("200000000000");
+    //     await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        await vault.withdrawLater(BigNumber.from("100000000000"));
+    //     await vault.withdrawLater(BigNumber.from("100000000000"));
 
-        await rollToNextOption();
+    //     await rollToNextOption();
 
-        await vault.completeScheduledWithdrawal();
+    //     await vault.completeScheduledWithdrawal();
 
-        await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
-          "No withdrawal"
-        );
-      });
-    });
+    //     await expect(vault.completeScheduledWithdrawal()).to.be.revertedWith(
+    //       "No withdrawal"
+    //     );
+    //   });
+    // });
 
     describe("#setCap", () => {
       time.revertToSnapshotAfterEach();
