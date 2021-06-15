@@ -1469,29 +1469,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#assetBalance", () => {
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(
-          params.collateralAsset,
-          vault,
-          params.depositAmount
-        );
-
-        await rollToNextOption();
-      });
-
-      it("returns the free balance, after locking", async function () {
-        assert.equal((await vault.assetBalance()).toString(), "0");
-      });
-
-      it("returns the free balance - locked, if free > locked", async function () {
-        const newDepositAmount = BigNumber.from("1000000000000");
-        await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
-
-        assert.bnEqual(await vault.assetBalance(), newDepositAmount);
-      });
-    });
-
     describe("#redeemDeposit", () => {
       let oracle: Contract;
 
