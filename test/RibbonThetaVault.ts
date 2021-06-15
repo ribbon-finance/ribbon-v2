@@ -1695,7 +1695,7 @@ function behavesLikeRibbonOptionsVault(params: {
     //   });
     // });
 
-    // describe("#completeScheduledWithdrawal", () => {
+    // describe("completeScheduledWithdrawal", () => {
     //   time.revertToSnapshotAfterEach();
 
     //   it("is within the gas budget [ @skip-on-coverage ]", async function () {
