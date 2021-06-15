@@ -548,9 +548,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 mintShares =
-            currentSupply > 0
-                ? pendingAmount.mul(singleShare).div(currentPricePerShare)
-                : pendingAmount;
+            pendingAmount.mul(singleShare).div(currentPricePerShare);
 
         // Vault holds temporary custody of the newly minted vault shares
         _mint(address(this), mintShares);
