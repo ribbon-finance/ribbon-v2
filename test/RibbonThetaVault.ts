@@ -1564,10 +1564,13 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, params.depositAmount.mul(2));
 
         await vault.deposit(params.depositAmount);
+        const beforeBalance = await assetContract.balanceOf(vault.address);
 
         await vault.connect(managerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(managerSigner).rollToNextOption();
+
+        const beforePps = await vault.pricePerShare();
 
         const settlementPriceITM = isPut
           ? parseEther(params.firstOptionStrike.toString())
@@ -1584,9 +1587,6 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.currentOptionExpiry(),
           settlementPriceITM
         );
-
-        const beforeBalance = await assetContract.balanceOf(vault.address);
-        const beforePps = await vault.pricePerShare();
 
         await strikeSelection.setStrikePrice(
           parseUnits(params.secondOptionStrike.toString(), 8)
