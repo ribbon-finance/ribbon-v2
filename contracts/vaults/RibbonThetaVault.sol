@@ -552,6 +552,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             newOption,
             newAssetBalance
         );
+
+        startAuction();
     }
 
     function _mintPendingShares() private {
