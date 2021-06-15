@@ -1608,6 +1608,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(managerSigner).commitAndClose();
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
+        const expectedMintAmountAfterLoss = params.depositAmount
+          .mul(BigNumber.from(10).pow(params.tokenDecimals))
+          .div(afterPps);
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(managerSigner).rollToNextOption();
@@ -1633,12 +1636,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount1, params.depositAmount);
 
         // User deposit in round 2 so no loss
-        // we should use the pricePerShares prior to the loss
-        // which is the original amount
+        // we should use the pps after the loss which is the lower pps
         const tx2 = await vault.connect(userSigner).redeemDeposit();
         await expect(tx2)
           .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 1);
+          .withArgs(user, expectedMintAmountAfterLoss, 2);
 
         const {
           processed: processed2,
