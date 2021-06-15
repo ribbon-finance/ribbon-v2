@@ -29,5 +29,60 @@ const assertBNNotEqual = (
   _assert.notStrictEqual(actualBN.toString(), expectedBN.toString(), context);
 };
 
-export const assert = { ..._assert, bnEqual: assertBNEqual,
-  bnNotEqual: assertBNNotEqual, };
+/**
+ *  Convenience method to assert that the value of left operand is greater than then value of the right operand
+ *  @param aBN The left operand BN.js instance
+ *  @param bBN The right operand BN.js instance
+ */
+const assertBNGreaterThan = (aBN, bBN) => {
+  assert.ok(
+    aBN.gt(bBN),
+    `${aBN.toString()} is not greater than ${bBN.toString()}`
+  );
+};
+
+/**
+ *  Convenience method to assert that the value of left operand is greater than or equal then value of the right operand
+ *  @param aBN The left operand BN.js instance
+ *  @param bBN The right operand BN.js instance
+ */
+const assertBNGreaterEqualThan = (aBN, bBN) => {
+  assert.ok(
+    aBN.gte(bBN),
+    `${aBN.toString()} is not greater than or equal to ${bBN.toString()}`
+  );
+};
+
+/**
+ *  Convenience method to assert that the value of left operand is less than then value of the right operand
+ *  @param aBN The left operand BN.js instance
+ *  @param bBN The right operand BN.js instance
+ */
+const assertBNLessThan = (aBN, bBN) => {
+  assert.ok(
+    aBN.lt(bBN),
+    `${aBN.toString()} is not less than ${bBN.toString()}`
+  );
+};
+
+/**
+ *  Convenience method to assert that the value of left operand is less than then value of the right operand
+ *  @param aBN The left operand BN.js instance
+ *  @param bBN The right operand BN.js instance
+ */
+const assertBNLessEqualThan = (aBN, bBN) => {
+  assert.ok(
+    aBN.lte(bBN),
+    `${aBN.toString()} is not less than or equal to ${bBN.toString()}`
+  );
+};
+
+export const assert = {
+  ..._assert,
+  bnEqual: assertBNEqual,
+  bnNotEqual: assertBNNotEqual,
+  bnLte: assertBNLessEqualThan,
+  bnLt: assertBNLessThan,
+  bnGt: assertBNGreaterThan,
+  bnGte: assertBNGreaterEqualThan,
+};

@@ -50,7 +50,7 @@ describe("RibbonThetaVault", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
+    tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -58,6 +58,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
     gasLimits: {
+      depositWithRedemption: 102000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -82,9 +83,10 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     premium: parseEther("0.1"),
     premiumDiscount: BigNumber.from("997"),
-    tokenDecimals: 8,
+    tokenDecimals: 18,
     isPut: false,
     gasLimits: {
+      depositWithRedemption: 100000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -101,7 +103,7 @@ describe("RibbonThetaVault", () => {
     firstOptionStrike: 63000,
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 18,
+    tokenDecimals: 6,
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -109,6 +111,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("158730"),
     isPut: true,
     gasLimits: {
+      depositWithRedemption: 115000,
       depositWorstCase: 110000,
       depositBestCase: 95000,
     },
@@ -133,9 +136,10 @@ describe("RibbonThetaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("4166666666"),
-    tokenDecimals: 8,
+    tokenDecimals: 6,
     isPut: true,
     gasLimits: {
+      depositWithRedemption: 115000,
       depositWorstCase: 110000,
       depositBestCase: 95000,
     },
@@ -193,6 +197,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDiscount: BigNumber;
   isPut: boolean;
   gasLimits: {
+    depositWithRedemption: number;
     depositWorstCase: number;
     depositBestCase: number;
   };
@@ -735,13 +740,13 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
           await expect(tx)
             .to.emit(vault, "Deposit")
-            .withArgs(user, depositAmount, 0);
+            .withArgs(user, depositAmount, 1);
 
           assert.bnEqual(await vault.totalPending(), depositAmount);
           const { round, amount, processed } = await vault.depositReceipts(
             user
           );
-          assert.equal(round, 0);
+          assert.equal(round, 1);
           assert.bnEqual(amount, depositAmount);
           assert.equal(processed, false);
         });
@@ -835,11 +840,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue((await vault.balanceOf(user)).isZero());
         await expect(res)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
+          .withArgs(user, depositAmount, 1);
 
         assert.bnEqual(await vault.totalPending(), depositAmount);
         const { round, amount, processed } = await vault.depositReceipts(user);
-        assert.equal(round, 0);
+        assert.equal(round, 1);
         assert.bnEqual(amount, depositAmount);
         assert.equal(processed, false);
       });
@@ -864,16 +869,16 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue((await vault.balanceOf(user)).isZero());
         await expect(tx)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 0);
+          .withArgs(user, depositAmount, 1);
 
         assert.bnEqual(await vault.totalPending(), totalDepositAmount);
         const { round, amount, processed } = await vault.depositReceipts(user);
-        assert.equal(round, 0);
+        assert.equal(round, 1);
         assert.bnEqual(amount, totalDepositAmount);
         assert.equal(processed, false);
       });
 
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
+      it("fits gas budget for deposits [ @skip-on-coverage ]", async function () {
         await vault.connect(managerSigner).deposit(depositAmount);
 
         const tx1 = await vault.deposit(depositAmount);
@@ -944,6 +949,79 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(userSigner)
             .deposit(BigNumber.from(minimumSupply).sub(BigNumber.from("1")))
         ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("is able to redeem implicitly when the user deposits in a following round [ @skip-on-coverage ]", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        const {
+          processed: processed1,
+          round: round1,
+          amount: amount1,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed1);
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, params.depositAmount);
+
+        await rollToNextOption();
+
+        const {
+          processed: processed2,
+          round: round2,
+          amount: amount2,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed2);
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, params.depositAmount);
+
+        const tx = await vault.deposit(params.depositAmount);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          params.depositAmount
+        );
+        // Should redeem the first deposit
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        const {
+          processed: processed3,
+          round: round3,
+          amount: amount3,
+        } = await vault.depositReceipts(user);
+
+        assert.isFalse(processed3);
+        assert.equal(round3, 2);
+        assert.bnEqual(amount3, params.depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 1);
+      });
+
+      it("fits gas budget for implicit redemption", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.deposit(params.depositAmount);
+        const receipt = await tx.wait();
+        assert.isAtMost(
+          receipt.gasUsed.toNumber(),
+          params.gasLimits.depositWithRedemption
+        );
+        // Uncomment to see exact gas use
+        // console.log(receipt.gasUsed.toNumber());
       });
     });
 
@@ -1257,6 +1335,49 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
+      it("reverts when delay not passed", async function () {
+        await vault.connect(managerSigner).commitAndClose();
+
+        // will revert when trying to roll immediately
+        await expect(
+          vault.connect(managerSigner).rollToNextOption()
+        ).to.be.revertedWith("Not ready");
+
+        time.increaseTo(
+          (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
+        );
+
+        await expect(
+          vault.connect(managerSigner).rollToNextOption()
+        ).to.be.revertedWith("Not ready");
+      });
+
+      it("reverts when calling before expiry", async function () {
+        const firstOptionAddress = firstOption.address;
+
+        await vault.connect(managerSigner).commitAndClose();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const firstTx = await vault.connect(managerSigner).rollToNextOption();
+
+        await expect(firstTx)
+          .to.emit(vault, "OpenShort")
+          .withArgs(firstOptionAddress, depositAmount, manager);
+
+        // 100% of the vault's balance is allocated to short
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+
+        await expect(
+          vault.connect(managerSigner).commitAndClose()
+        ).to.be.revertedWith(
+          "Controller: can not settle vault with un-expired otoken"
+        );
+      });
+
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
@@ -1368,6 +1489,167 @@ function behavesLikeRibbonOptionsVault(params: {
         await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
 
         assert.bnEqual(await vault.assetBalance(), newDepositAmount);
+      });
+    });
+
+    describe("#redeemDeposit", () => {
+      let oracle: Contract;
+
+      time.revertToSnapshotAfterEach(async function () {
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      });
+
+      it("is able to redeem deposit at new price per share", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.redeemDeposit();
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 1);
+
+        const { processed, round, amount } = await vault.depositReceipts(user);
+
+        assert.isTrue(processed);
+        assert.equal(round, 1);
+        assert.bnEqual(amount, params.depositAmount);
+      });
+
+      it("reverts when redeeming twice", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        await vault.redeemDeposit();
+
+        await expect(vault.redeemDeposit()).to.be.revertedWith("Processed");
+      });
+
+      it("reverts when redeeming after implicit redemption", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        await rollToNextOption();
+
+        await vault.deposit(params.depositAmount);
+
+        await expect(vault.redeemDeposit()).to.be.revertedWith(
+          "Round not closed"
+        );
+      });
+
+      it("is able to redeem deposit at correct pricePerShare after closing short in the money", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await assetContract
+          .connect(managerSigner)
+          .approve(vault.address, params.depositAmount);
+
+        // Mid-week deposit in round 1
+        await assetContract
+          .connect(userSigner)
+          .transfer(manager, params.depositAmount);
+        await vault.connect(managerSigner).deposit(params.depositAmount);
+
+        await vault.connect(managerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(managerSigner).rollToNextOption();
+
+        // Mid-week deposit in round 2
+        await vault.connect(userSigner).deposit(params.depositAmount);
+        const beforeBalance = (
+          await assetContract.balanceOf(vault.address)
+        ).add(await vault.lockedAmount());
+
+        const beforePps = await vault.pricePerShare();
+
+        const settlementPriceITM = isPut
+          ? parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .sub(1000)
+          : parseEther(params.firstOptionStrike.toString())
+              .div(BigNumber.from("10").pow(BigNumber.from("10")))
+              .add(1000);
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await vault.currentOptionExpiry(),
+          settlementPriceITM
+        );
+
+        await strikeSelection.setStrikePrice(
+          parseUnits(params.secondOptionStrike.toString(), 8)
+        );
+
+        await vault.connect(managerSigner).commitAndClose();
+        const afterBalance = await assetContract.balanceOf(vault.address);
+        const afterPps = await vault.pricePerShare();
+        const expectedMintAmountAfterLoss = params.depositAmount
+          .mul(BigNumber.from(10).pow(params.tokenDecimals))
+          .div(afterPps);
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(managerSigner).rollToNextOption();
+
+        assert.bnGt(beforeBalance, afterBalance);
+        assert.bnGt(beforePps, afterPps);
+
+        // Manager should lose money
+        // User should not lose money
+        // Manager redeems the deposit from round 1 so there is a loss from ITM options
+        const tx1 = await vault.connect(managerSigner).redeemDeposit();
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(manager, params.depositAmount, 1);
+
+        const {
+          processed: processed1,
+          round: round1,
+          amount: amount1,
+        } = await vault.depositReceipts(manager);
+        assert.isTrue(processed1);
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, params.depositAmount);
+
+        // User deposit in round 2 so no loss
+        // we should use the pps after the loss which is the lower pps
+        const tx2 = await vault.connect(userSigner).redeemDeposit();
+        await expect(tx2)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, expectedMintAmountAfterLoss, 2);
+
+        const {
+          processed: processed2,
+          round: round2,
+          amount: amount2,
+        } = await vault.depositReceipts(user);
+        assert.isTrue(processed2);
+        assert.equal(round2, 2);
+        assert.bnEqual(amount2, params.depositAmount);
       });
     });
 
