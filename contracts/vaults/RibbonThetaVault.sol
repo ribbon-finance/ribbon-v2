@@ -379,7 +379,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         }
 
         uint256 shares =
-            uint256(depositReceipt.amount).mul(pps).div(10**uint256(_decimals));
+            uint256(depositReceipt.amount).mul(10**uint256(_decimals)).div(pps);
 
         emit Redeem(msg.sender, shares, depositReceipt.round);
 
@@ -533,32 +533,41 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         address newOption = nextOption;
         require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
+        uint256 pendingAmount = totalPending();
         uint256 currentSupply = totalSupply();
         uint256 currentBalance = assetBalance();
+        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
         uint16 currentRound = round;
 
         uint256 singleShare = 10**uint256(_decimals);
 
-        bool hasSupply = currentSupply > 0;
-
         uint256 currentPricePerShare =
-            hasSupply
-                ? singleShare.mul(currentBalance).div(currentSupply)
+            currentSupply > 0
+                ? singleShare.mul(roundStartBalance).div(currentSupply)
                 : singleShare;
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
-        _mintPendingShares(currentPricePerShare, singleShare);
+        uint256 mintShares =
+            currentSupply > 0
+                ? pendingAmount.mul(currentSupply).div(roundStartBalance)
+                : pendingAmount;
+
+        // Vault holds temporary custody of the newly minted vault shares
+        _mint(address(this), mintShares);
+
+        uint256 newSupply = currentSupply.add(mintShares);
 
         // We assume that users cannot queued withdrawals in the first round
         uint256 queuedWithdrawAmount =
-            hasSupply
-                ? queuedWithdrawShares.mul(currentBalance).div(currentSupply)
+            newSupply > 0
+                ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
                 : 0;
 
         uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
+        _totalPending = PLACEHOLDER_UINT;
         currentOption = newOption;
         nextOption = PLACEHOLDER_ADDR;
         round = currentRound + 1;
@@ -575,20 +584,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         );
 
         startAuction();
-    }
-
-    function _mintPendingShares(uint256 pricePerShare, uint256 singleShare)
-        private
-    {
-        // We leave 1 as the residual value so that subsequent depositors
-        // do not have to pay the cost of a cold write
-        uint256 pending = _totalPending.sub(PLACEHOLDER_UINT);
-        _totalPending = PLACEHOLDER_UINT;
-
-        uint256 mintAmount = pending.mul(pricePerShare).div(singleShare);
-
-        // Vault holds temporary custody of the newly minted vault shares
-        _mint(address(this), mintAmount);
     }
 
     /**
@@ -651,15 +646,16 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Getter to get the total pending amount, ex the `1` used as a placeholder
      */
-    function totalPending() external view returns (uint256) {
-        return _totalPending - 1;
+    function totalPending() public view returns (uint256) {
+        return _totalPending.sub(PLACEHOLDER_UINT);
     }
 
     /**
      * @notice The price of a unit of share denominated in the `collateral`
      */
-    function pricePerShare() public view returns (uint256) {
-        return (10**uint256(decimals())).mul(totalBalance()).div(totalSupply());
+    function pricePerShare() external view returns (uint256) {
+        uint256 balance = totalBalance().sub(totalPending());
+        return (10**uint256(_decimals)).mul(balance).div(totalSupply());
     }
 
     // /**
