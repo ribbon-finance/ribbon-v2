@@ -639,7 +639,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     /**
      * @notice Optionality to set strike price manually
-     * @param strikePrice is the strike price of the new oTokens
+     * @param strikePrice is the strike price of the new oTokens (decimals = 18)
      */
     function setStrikePrice(uint128 strikePrice)
         external
