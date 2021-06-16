@@ -1745,7 +1745,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let startBalance: BigNumber;
         let withdrawAmount: BigNumber;
-        if (asset === WETH_ADDRESS) {
+        if (collateralAsset === WETH_ADDRESS) {
           startBalance = await provider.getBalance(user);
         } else {
           startBalance = await assetContract.balanceOf(user);
@@ -1754,14 +1754,14 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.withdrawInstantly(depositAmount, { gasPrice });
         const receipt = await tx.wait();
 
-        if (asset === WETH_ADDRESS) {
+        if (collateralAsset === WETH_ADDRESS) {
           const endBalance = await provider.getBalance(user);
           withdrawAmount = endBalance
             .sub(startBalance)
             .add(receipt.gasUsed.mul(gasPrice));
         } else {
           const endBalance = await assetContract.balanceOf(user);
-          withdrawAmount = startBalance.sub(endBalance);
+          withdrawAmount = endBalance.sub(startBalance);
         }
         assert.bnEqual(withdrawAmount, depositAmount);
 
