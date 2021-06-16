@@ -490,7 +490,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
         currentOtokenPremium = GnosisAuction.getOTokenPremium(
             otokenAddress,
-            GNOSIS_EASY_AUCTION,
             optionsPremiumPricer,
             premiumDiscount
         );
