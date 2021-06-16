@@ -5,3 +5,5 @@ cache
 artifacts
 .vscode
 .env
+coverage.json
+coverage/
