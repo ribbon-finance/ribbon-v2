@@ -98,7 +98,7 @@ library GnosisAuction {
     function getOTokenSellAmount(
         address oTokenAddress,
         address gnosisEasyAuction
-    ) internal returns (uint256 oTokenSellAmount) {
+    ) internal view returns (uint256 oTokenSellAmount) {
         IGnosisAuction auction = IGnosisAuction(gnosisEasyAuction);
         // We take our current oToken balance and we subtract an
         // amount that is the fee gnosis takes. That will be our sell amount
@@ -116,10 +116,9 @@ library GnosisAuction {
 
     function getOTokenPremium(
         address oTokenAddress,
-        address gnosisEasyAuction,
         address optionsPremiumPricer,
         uint256 premiumDiscount
-    ) internal returns (uint256 optionPremium) {
+    ) internal view returns (uint256 optionPremium) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         // Apply black-scholes formula (from rvol library) to option given its features
         // and afterwards apply a discount to incentivize arbitraguers
