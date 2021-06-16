@@ -65,7 +65,6 @@ contract StrikeSelection is DSMath, Ownable {
         //   with certain margin of error
         //        return strike price
 
-        bool pastDelta = false;
         uint256 strike = assetPrice.sub(assetPrice % step);
         uint256 targetDelta = isPut ? uint256(100).sub(delta) : delta;
         uint256 prevDelta = 100;

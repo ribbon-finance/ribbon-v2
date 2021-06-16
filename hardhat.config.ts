@@ -1,6 +1,7 @@
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-contract-sizer";
 import "hardhat-log-remover";
+import "solidity-coverage";
 
 require("dotenv").config();
 

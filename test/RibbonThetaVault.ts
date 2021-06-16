@@ -1006,7 +1006,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, params.depositAmount, 1);
       });
 
-      it("fits gas budget for implicit redemption", async function () {
+      it("fits gas budget for implicit redemption [ @skip-on-coverage ]", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount.mul(2));
