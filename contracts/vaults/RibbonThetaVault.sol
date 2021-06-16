@@ -76,6 +76,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
 
+    event InstantWithdraw(
+        address indexed account,
+        uint256 amount,
+        uint16 round
+    );
+
     event Redeem(address indexed account, uint256 share, uint16 round);
 
     event OpenShort(
@@ -389,15 +395,19 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         VaultDeposit.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
+        uint16 currentRound = round;
+        require(amount > 0, "!amount");
         require(!depositReceipt.processed, "Processed");
-        require(depositReceipt.round == round, "Invalid round");
+        require(depositReceipt.round == currentRound, "Invalid round");
+        uint128 receiptAmount = depositReceipt.amount;
+        require(receiptAmount >= amount, "Exceed withdraw amount");
 
         // Subtraction underflow checks already ensure it is smaller than uint128
-        depositReceipt.amount = uint128(
-            uint256(depositReceipt.amount).sub(amount)
-        );
+        depositReceipt.amount = uint128(uint256(receiptAmount).sub(amount));
 
-        IERC20(asset).safeTransfer(msg.sender, amount);
+        emit InstantWithdraw(msg.sender, amount, currentRound);
+
+        transferAsset(msg.sender, amount);
     }
 
     /**
@@ -668,6 +678,21 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             require(roundPricePerShare[index] == 0, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
         }
+    }
+
+    /**
+     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @param recipient is the receiving address
+     * @param amount is the transfer amount
+     */
+    function transferAsset(address payable recipient, uint256 amount) private {
+        if (asset == WETH) {
+            IWETH(WETH).withdraw(amount);
+            (bool success, ) = recipient.call{value: amount}("");
+            require(success, "Transfer failed");
+            return;
+        }
+        IERC20(asset).safeTransfer(recipient, amount);
     }
 
     /************************************************

@@ -1,4 +1,3 @@
-
 import { ethers } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
@@ -1684,6 +1683,96 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue(processed2);
         assert.equal(round2, 2);
         assert.bnEqual(amount2, params.depositAmount);
+      });
+    });
+
+    describe("#withdrawInstantly", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("reverts with 0 amount", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
+      });
+
+      it("reverts when withdrawing more than available", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await expect(
+          vault.withdrawInstantly(depositAmount.add(1))
+        ).to.be.revertedWith("Exceed withdraw amount");
+      });
+
+      it("reverts when deposit receipt is processed", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.redeemDeposit();
+
+        await expect(
+          vault.withdrawInstantly(depositAmount.add(1))
+        ).to.be.revertedWith("Processed");
+      });
+
+      it("reverts when withdrawing next round", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await expect(
+          vault.withdrawInstantly(depositAmount.add(1))
+        ).to.be.revertedWith("Invalid round");
+      });
+
+      it("withdraws the amount in deposit receipt", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        let startBalance: BigNumber;
+        let withdrawAmount: BigNumber;
+        if (collateralAsset === WETH_ADDRESS) {
+          startBalance = await provider.getBalance(user);
+        } else {
+          startBalance = await assetContract.balanceOf(user);
+        }
+
+        const tx = await vault.withdrawInstantly(depositAmount, { gasPrice });
+        const receipt = await tx.wait();
+
+        if (collateralAsset === WETH_ADDRESS) {
+          const endBalance = await provider.getBalance(user);
+          withdrawAmount = endBalance
+            .sub(startBalance)
+            .add(receipt.gasUsed.mul(gasPrice));
+        } else {
+          const endBalance = await assetContract.balanceOf(user);
+          withdrawAmount = endBalance.sub(startBalance);
+        }
+        assert.bnEqual(withdrawAmount, depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "InstantWithdraw")
+          .withArgs(user, depositAmount, 1);
+
+        const { processed, round, amount } = await vault.depositReceipts(user);
+        assert.isFalse(processed);
+        assert.equal(round, 1);
+        assert.bnEqual(amount, BigNumber.from(0));
       });
     });
 
