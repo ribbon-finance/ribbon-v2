@@ -22,46 +22,47 @@ library GnosisAuction {
 
     struct AuctionDetails {
         address oTokenAddress;
+        address gnosisEasyAuction;
         address asset;
-        address underlying;
+        uint256 oTokenPremium;
         address manager;
-        uint256 premiumDiscount;
         uint256 duration;
     }
 
-    function startAuction(
-        address gnosisEasyAuction,
-        address optionsPremiumPricer,
-        AuctionDetails memory auctionDetails
-    ) internal {
-        (uint256 optionPremium, uint256 oTokenSellAmount) =
-            setupAuctionParameters(
+    function startAuction(AuctionDetails memory auctionDetails) internal {
+        uint256 oTokenSellAmount =
+            getOTokenSellAmount(
                 auctionDetails.oTokenAddress,
-                gnosisEasyAuction,
-                auctionDetails.underlying,
-                optionsPremiumPricer,
-                auctionDetails.premiumDiscount
+                auctionDetails.gnosisEasyAuction
             );
 
         if (
             IERC20(auctionDetails.oTokenAddress).allowance(
                 address(this),
-                gnosisEasyAuction
+                auctionDetails.gnosisEasyAuction
             ) > 0
         ) {
             IERC20(auctionDetails.oTokenAddress).safeApprove(
-                gnosisEasyAuction,
+                auctionDetails.gnosisEasyAuction,
                 0
             );
         }
 
         IERC20(auctionDetails.oTokenAddress).safeApprove(
-            gnosisEasyAuction,
+            auctionDetails.gnosisEasyAuction,
             IERC20(auctionDetails.oTokenAddress).balanceOf(address(this))
         );
 
+        uint256 minBidAmount =
+            auctionDetails.oTokenPremium.mul(oTokenSellAmount);
+
+        require(
+            minBidAmount <= type(uint96).max,
+            "optionPremium * oTokenSellAmount > type(uint96) max value!"
+        );
+
         uint256 auctionCounter =
-            IGnosisAuction(gnosisEasyAuction).initiateAuction(
+            IGnosisAuction(auctionDetails.gnosisEasyAuction).initiateAuction(
                 // address of oToken we minted and are selling
                 auctionDetails.oTokenAddress,
                 // address of asset we want in exchange for oTokens. Should match vault collateral
@@ -73,7 +74,7 @@ library GnosisAuction {
                 // we are selling all of the otokens minus a fee taken by gnosis
                 uint96(oTokenSellAmount),
                 // the minimum we are willing to sell all the oTokens for. A discount is applied on black-scholes price
-                uint96(optionPremium.mul(oTokenSellAmount)),
+                uint96(minBidAmount),
                 // the minimum bidding amount must be 1 * 10 ** -assetDecimals
                 1,
                 // the min funding threshold
@@ -94,14 +95,10 @@ library GnosisAuction {
         );
     }
 
-    function setupAuctionParameters(
+    function getOTokenSellAmount(
         address oTokenAddress,
-        address gnosisEasyAuction,
-        address underlying,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) internal returns (uint256 optionPremium, uint256 oTokenSellAmount) {
-        IOtoken newOToken = IOtoken(oTokenAddress);
+        address gnosisEasyAuction
+    ) internal returns (uint256 oTokenSellAmount) {
         IGnosisAuction auction = IGnosisAuction(gnosisEasyAuction);
         // We take our current oToken balance and we subtract an
         // amount that is the fee gnosis takes. That will be our sell amount
@@ -113,9 +110,17 @@ library GnosisAuction {
 
         require(
             oTokenSellAmount <= type(uint96).max,
-            "oTokenSellAmount > type(uint96) max value!"
+            "oTokenSelAmount > type(uint96) max value!"
         );
+    }
 
+    function getOTokenPremium(
+        address oTokenAddress,
+        address gnosisEasyAuction,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount
+    ) internal returns (uint256 optionPremium) {
+        IOtoken newOToken = IOtoken(oTokenAddress);
         // Apply black-scholes formula (from rvol library) to option given its features
         // and afterwards apply a discount to incentivize arbitraguers
         optionPremium = IOptionsPremiumPricer(optionsPremiumPricer)
@@ -130,11 +135,6 @@ library GnosisAuction {
         require(
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
-        );
-
-        require(
-            optionPremium.mul(oTokenSellAmount) <= type(uint96).max,
-            "optionPremium * oTokenSellAmount > type(uint96) max value!"
         );
     }
 }

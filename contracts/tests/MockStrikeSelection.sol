@@ -20,4 +20,8 @@ contract MockStrikeSelection {
     function setDelta(uint256 delta) external {
         _delta = delta;
     }
+
+    function delta() external view returns (uint256) {
+        return _delta;
+    }
 }
