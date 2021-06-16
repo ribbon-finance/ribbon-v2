@@ -91,7 +91,7 @@ contract StrikeSelection is DSMath, Ownable {
                         ? finalStrike <= assetPrice
                         : finalStrike >= assetPrice
                 );
-                return (finalStrike, finalDelta);
+                return (finalStrike.mul(10**8), finalDelta);
             }
 
             strike = isPut ? strike.sub(step) : strike.add(step);

@@ -104,7 +104,7 @@ describe("StrikeSelection", () => {
       assert.equal(
         strikePrice.toString(),
         underlyingPrice
-          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100)).mul(BigNumber.from(10).pow(8))
           .toString()
       );
       assert.equal(delta.toString(), targetDelta.toString());
@@ -121,7 +121,7 @@ describe("StrikeSelection", () => {
       assert.equal(
         strikePrice.toString(),
         underlyingPrice
-          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100)).mul(BigNumber.from(10).pow(8))
           .toString()
       );
       assert.equal(delta.toString(), targetDelta.toString());
@@ -138,7 +138,7 @@ describe("StrikeSelection", () => {
       assert.equal(
         strikePrice.toString(),
         underlyingPrice
-          .sub(deltaAtUnderlying.sub(targetDelta).div(5).mul(100))
+          .sub(deltaAtUnderlying.sub(targetDelta).div(5).mul(100)).mul(BigNumber.from(10).pow(8))
           .toString()
       );
       assert.equal(

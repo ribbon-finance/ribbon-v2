@@ -1096,6 +1096,33 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
+      it("sets the correct strike when setting the strike selection contract strike price", async function () {
+        const strikePrice = parseEther("200");
+        const delta = parseEther("0.1");
+
+        await strikeSelection.connect(adminSigner).setStrikePrice(strikePrice);
+        await strikeSelection.connect(adminSigner).setDelta(delta);
+
+        await vault.connect(managerSigner).commitAndClose({ from: manager });
+
+        assert.equal(
+          (
+            await (
+              await getContractAt("IOtoken", await vault.nextOption())
+            ).strikePrice()
+          ).toString(),
+          strikePrice.toString()
+        );
+
+        assert.equal(
+          (await vault.currentOtokenPremium()).toString(),
+          params.premium
+            .mul(await vault.premiumDiscount())
+            .div(1000)
+            .toString()
+        );
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
