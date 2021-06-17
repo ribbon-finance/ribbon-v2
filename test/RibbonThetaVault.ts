@@ -1595,7 +1595,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.maxRedeem();
 
-        await expect(vault.maxRedeem()).to.be.revertedWith("Processed");
+        await expect(vault.maxRedeem()).to.be.revertedWith("!shares");
       });
 
       it("reverts when redeeming after implicit redemption", async function () {
@@ -1744,19 +1744,41 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         const redeemAmount = BigNumber.from(1);
-        const tx = await vault.redeem(redeemAmount);
+        const tx1 = await vault.redeem(redeemAmount);
 
-        await expect(tx)
+        await expect(tx1)
           .to.emit(vault, "Redeem")
           .withArgs(user, redeemAmount, 1);
 
-        const { processed, round, amount, unredeemedShares } =
-          await vault.depositReceipts(user);
+        const {
+          processed: processed1,
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
 
-        assert.isTrue(processed);
-        assert.equal(round, 1);
-        assert.bnEqual(amount, depositAmount);
-        assert.bnEqual(unredeemedShares, depositAmount.sub(redeemAmount));
+        assert.isTrue(processed1);
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, depositAmount);
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(redeemAmount));
+
+        const tx2 = await vault.redeem(depositAmount.sub(redeemAmount));
+
+        await expect(tx2)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, depositAmount.sub(redeemAmount), 1);
+
+        const {
+          processed: processed2,
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.isTrue(processed2);
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, depositAmount);
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
     });
 
