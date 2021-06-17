@@ -979,7 +979,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount2, params.depositAmount);
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
 
-        const tx = await vault.deposit(params.depositAmount);
+        await vault.deposit(params.depositAmount);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
