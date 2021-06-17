@@ -435,23 +435,37 @@ contract RibbonThetaVault is OptionsVaultStorage {
         transferAsset(msg.sender, amount);
     }
 
-    // function initiateWithdraw(uint256 shares) external nonReentrant {
-    //     // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
+    function initiateWithdraw(uint128 shares) external nonReentrant {
+        require(shares > 0, "!shares");
 
-    //     require(shares > 0, "!shares");
-    //     require(scheduledWithdrawals[msg.sender] == 0, "Existing withdrawal");
+        // This caches the `round` variable used in shareBalances
+        uint16 currentRound = round;
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
-    //     emit ScheduleWithdraw(msg.sender, shares);
+        require(withdrawal.initialized, "Existing withdraw");
 
-    //     Vault.DepositReceipt memory depositReceipt =
-    //         depositReceipts[msg.sender];
+        (uint256 heldByAccount, uint256 heldByVault) =
+            shareBalances(msg.sender);
 
-    //     uint128 unredeemedShares = _getSharesFromReceipt(round, depositReceipt);
+        uint256 totalShares = heldByAccount.add(heldByVault);
 
-    //     scheduledWithdrawals[msg.sender] = shares;
-    //     queuedWithdrawShares = queuedWithdrawShares.add(shares);
-    //     _transfer(msg.sender, address(this), shares);
-    // }
+        require(shares <= totalShares, "Insufficient balance");
+
+        emit ScheduleWithdraw(msg.sender, shares);
+
+        withdrawals[msg.sender] = Vault.Withdrawal({
+            initialized: true,
+            round: currentRound,
+            shares: shares
+        });
+
+        queuedWithdrawShares = queuedWithdrawShares.add(shares);
+
+        if (shares > heldByVault) {
+            uint256 debitShares = uint256(shares).sub(heldByVault);
+            _transfer(msg.sender, address(this), debitShares);
+        }
+    }
 
     /************************************************
      *  VAULT OPERATIONS
