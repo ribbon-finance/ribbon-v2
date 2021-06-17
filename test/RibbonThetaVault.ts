@@ -1858,13 +1858,94 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#initiateWithdraw", () => {
+      it("reverts when user initiates withdraws without any deposit", async function () {
+        await expect(vault.initiateWithdraw(depositAmount)).to.be.revertedWith(
+          "Insufficient balance"
+        );
+      });
+
       it("reverts when passed 0 shares", async function () {
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("!shares");
+      });
+
+      it("reverts when withdrawing more than unredeemed balance", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.add(1))
+        ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("reverts when withdrawing more than vault + account balance", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        // Move 1 share into account
+        await vault.redeem(1);
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.add(1))
+        ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("creates withdrawal from unredeemed shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.initiateWithdraw(depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "InitiateWithdraw")
+          .withArgs(user, depositAmount, 2);
+
+        await expect(tx).to.not.emit(vault, "Transfer");
+
+        const { initiated, round, shares } = await vault.withdrawals(user);
+        assert.isTrue(initiated);
+        assert.equal(round, 2);
+        assert.bnEqual(shares, depositAmount);
+      });
+
+      it("creates withdrawal by debiting user shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.redeem(depositAmount.div(2));
+
+        const tx = await vault.initiateWithdraw(depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "InitiateWithdraw")
+          .withArgs(user, depositAmount, 2);
+
+        await expect(tx)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(2));
+
+        assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
+        assert.bnEqual(await vault.balanceOf(vault.address), depositAmount);
+
+        const { initiated, round, shares } = await vault.withdrawals(user);
+        assert.isTrue(initiated);
+        assert.equal(round, 2);
+        assert.bnEqual(shares, depositAmount);
       });
     });
 
