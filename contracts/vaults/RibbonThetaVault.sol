@@ -36,9 +36,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     address public immutable WETH;
     address public immutable USDC;
 
-    // 90% locked in options protocol, 10% of the pool reserved for withdrawals
-    uint256 public constant lockedRatio = 0.9 ether;
-
     uint256 public constant delay = 1 hours;
 
     uint256 public constant period = 7 days;
@@ -720,6 +717,19 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     function pricePerShare() external view returns (uint256) {
         uint256 balance = totalBalance().sub(totalPending());
         return (10**uint256(_decimals)).mul(balance).div(totalSupply());
+    }
+
+    /**
+     * @notice Returns the expiry of the current option the vault is shorting
+     */
+    function currentOptionExpiry() external view returns (uint256) {
+        address _currentOption = currentOption;
+        if (_currentOption == address(0)) {
+            return 0;
+        }
+
+        IOtoken oToken = IOtoken(_currentOption);
+        return oToken.expiryTimestamp();
     }
 
     /**
