@@ -442,7 +442,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint16 currentRound = round;
         Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
-        require(withdrawal.initialized, "Existing withdraw");
+        require(withdrawal.initiated, "Existing withdraw");
 
         (uint256 heldByAccount, uint256 heldByVault) =
             shareBalances(msg.sender);
@@ -454,7 +454,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         emit ScheduleWithdraw(msg.sender, shares);
 
         withdrawals[msg.sender] = Vault.Withdrawal({
-            initialized: true,
+            initiated: true,
             round: currentRound,
             shares: shares
         });
