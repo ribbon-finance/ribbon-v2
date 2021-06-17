@@ -327,45 +327,67 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             require(!depositReceipt.processed, "Processed");
 
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            require(newAmount < type(uint128).max, "Overflow");
+            require(newAmount < type(uint104).max, "Overflow");
 
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
                 round: currentRound,
-                amount: uint128(newAmount)
+                amount: uint104(newAmount),
+                unredeemedShares: depositReceipt.unredeemedShares
             });
         } else {
-            require(amount < type(uint128).max, "Overflow");
+            require(amount < type(uint104).max, "Overflow");
             depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
                 processed: false,
                 round: currentRound,
-                amount: uint128(amount)
+                amount: uint104(amount),
+                unredeemedShares: depositReceipt.unredeemedShares
             });
         }
 
         _totalPending = _totalPending.add(amount);
 
-        // If we have an unprocessed pending deposit from the previous rounds, we have to redeem it.
+        // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         if (
             depositReceipt.round > 0 &&
             depositReceipt.round < currentRound &&
             !depositReceipt.processed
         ) {
-            _redeemDeposit(currentRound, depositReceipt, false);
+            (uint128 unredeemedShares, uint104 sharesFromRound) =
+                _getSharesFromReceipt(round, depositReceipt);
         }
     }
 
-    function redeemDeposit() external nonReentrant {
-        VaultDeposit.DepositReceipt memory depositReceipt =
-            depositReceipts[msg.sender];
-        _redeemDeposit(round, depositReceipt, true);
+    function redeem(uint256 shares) external nonReentrant {
+        require(shares > 0, "!shares");
+        _redeem(shares, false);
     }
 
-    function _redeemDeposit(
+    function maxRedeem() external nonReentrant {
+        _redeem(0, true);
+    }
+
+    function _redeem(uint256 shares, bool isMax) internal {
+        VaultDeposit.DepositReceipt memory depositReceipt =
+            depositReceipts[msg.sender];
+
+        (uint128 unredeemedShares, uint104 sharesFromRound) =
+            _getSharesFromReceipt(round, depositReceipt);
+
+        shares = isMax ? unredeemedShares : shares;
+        require(shares <= unredeemedShares, "Exceeds available");
+
+        depositReceipts[msg.sender].processed = true;
+
+        emit Redeem(msg.sender, shares, depositReceipt.round);
+
+        _transfer(address(this), msg.sender, shares);
+    }
+
+    function _getSharesFromReceipt(
         uint16 currentRound,
-        VaultDeposit.DepositReceipt memory depositReceipt,
-        bool updatesDepositReceipt
-    ) private {
+        VaultDeposit.DepositReceipt memory depositReceipt
+    ) private returns (uint128 unredeemedShares, uint104 sharesFromRound) {
         require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round < currentRound, "Round not closed");
         require(depositReceipt.amount > 0, "!amount");
@@ -376,19 +398,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        // This flag avoid overwriting the processed flag when we are creating
-        // a new deposit receipt
-        // saves 300 gas
-        if (updatesDepositReceipt) {
-            depositReceipts[msg.sender].processed = true;
-        }
+        sharesFromRound = uint256(depositReceipt.amount)
+            .mul(10**uint256(_decimals))
+            .div(pps);
 
-        uint256 shares =
-            uint256(depositReceipt.amount).mul(10**uint256(_decimals)).div(pps);
-
-        emit Redeem(msg.sender, shares, depositReceipt.round);
-
-        _transfer(address(this), msg.sender, shares);
+        unredeemedShares = depositReceipt.unredeemedShares.add(sharesFromRound);
+        require(unredeemedShares < type(uint128).max, "Overflow");
     }
 
     function withdrawInstantly(uint256 amount) external nonReentrant {
@@ -399,11 +414,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(amount > 0, "!amount");
         require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
-        uint128 receiptAmount = depositReceipt.amount;
+        uint104 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed withdraw amount");
 
-        // Subtraction underflow checks already ensure it is smaller than uint128
-        depositReceipt.amount = uint128(uint256(receiptAmount).sub(amount));
+        // Subtraction underflow checks already ensure it is smaller than uint104
+        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
