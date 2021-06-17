@@ -374,6 +374,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             depositReceipts[msg.sender];
 
         require(!depositReceipt.processed, "Processed");
+        // This handles the null case when depositReceipt.round = 0
+        // Because we start with round = 1 at `initialize`
         require(depositReceipt.round < round, "Round not closed");
         require(depositReceipt.amount > 0, "!amount");
 
