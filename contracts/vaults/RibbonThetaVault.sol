@@ -355,15 +355,27 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         _totalPending = _totalPending.add(amount);
     }
 
+    /**
+     * @notice Redeems shares that are owed to the account
+     * @param shares is the number of shares to redeem
+     */
     function redeem(uint256 shares) external nonReentrant {
         require(shares > 0, "!shares");
         _redeem(shares, false);
     }
 
+    /**
+     * @notice Redeems the entire unredeemedShares balance that is owed to the account
+     */
     function maxRedeem() external nonReentrant {
         _redeem(0, true);
     }
 
+    /**
+     * @notice Redeems shares that are owed to the account
+     * @param shares is the number of shares to redeem, could be 0 when isMax=true
+     * @param isMax is flag for when callers do a max redemption
+     */
     function _redeem(uint256 shares, bool isMax) internal {
         require(shares < type(uint104).max, "Overflow");
 
@@ -424,6 +436,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         }
     }
 
+    /**
+     * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
+     * @param amount is the amount to withdraw
+     */
     function withdrawInstantly(uint256 amount) external nonReentrant {
         VaultDeposit.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
@@ -692,6 +708,22 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /************************************************
      *  GETTERS
      ***********************************************/
+
+    /**
+     * @notice Getter for returning the account's share balance including unredeemed shares
+     * @param account is the account to lookup share balance for
+     * @return the share balance
+     */
+    function shares(address account) external view returns (uint256) {
+        VaultDeposit.DepositReceipt memory depositReceipt =
+            depositReceipts[account];
+
+        if (depositReceipt.round < PLACEHOLDER_UINT) {
+            return balanceOf(account);
+        }
+        uint256 unredeemedShares = _getSharesFromReceipt(depositReceipt);
+        return balanceOf(account).add(unredeemedShares);
+    }
 
     /**
      * @notice Getter to get the total pending amount, ex the `1` used as a placeholder

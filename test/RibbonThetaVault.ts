@@ -2151,6 +2151,32 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#shares", () => {
+      it("shows correct share balance after redemptions", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const redeemAmount = BigNumber.from(1);
+        await vault.redeem(redeemAmount);
+
+        // Share balance should remain the same because the 1 share
+        // is transferred to the user
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        await vault.transfer(manager, redeemAmount);
+
+        assert.bnEqual(
+          await vault.shares(user),
+          depositAmount.sub(redeemAmount)
+        );
+        assert.bnEqual(await vault.shares(manager), redeemAmount);
+      });
+    });
+
     describe("#currentOptionExpiry", () => {
       it("should return 0 when currentOption not set", async function () {
         assert.equal((await vault.currentOptionExpiry()).toString(), "0");
