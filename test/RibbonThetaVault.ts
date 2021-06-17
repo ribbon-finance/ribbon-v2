@@ -1552,7 +1552,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#redeemDeposit", () => {
+    describe("#redeem", () => {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
@@ -1568,7 +1568,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        const tx = await vault.redeemDeposit();
+        const tx = await vault.redeem(params.depositAmount);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1597,9 +1597,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        await vault.redeemDeposit();
+        await vault.redeem(params.depositAmount);
 
-        await expect(vault.redeemDeposit()).to.be.revertedWith("Processed");
+        await expect(vault.redeem(depositAmount)).to.be.revertedWith(
+          "Processed"
+        );
       });
 
       it("reverts when redeeming after implicit redemption", async function () {
@@ -1613,7 +1615,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(params.depositAmount);
 
-        await expect(vault.redeemDeposit()).to.be.revertedWith(
+        await expect(vault.redeem(depositAmount)).to.be.revertedWith(
           "Round not closed"
         );
       });
@@ -1681,7 +1683,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // Manager should lose money
         // User should not lose money
         // Manager redeems the deposit from round 1 so there is a loss from ITM options
-        const tx1 = await vault.connect(managerSigner).redeemDeposit();
+        const tx1 = await vault.connect(managerSigner).redeem(depositAmount);
         await expect(tx1)
           .to.emit(vault, "Redeem")
           .withArgs(manager, params.depositAmount, 1);
@@ -1697,19 +1699,19 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // User deposit in round 2 so no loss
         // we should use the pps after the loss which is the lower pps
-        const tx2 = await vault.connect(userSigner).redeemDeposit();
+        const tx2 = await vault.connect(userSigner).redeem(depositAmount);
         await expect(tx2)
           .to.emit(vault, "Redeem")
           .withArgs(user, expectedMintAmountAfterLoss, 2);
 
-        const {
-          processed: processed2,
-          round: round2,
-          amount: amount2,
-        } = await vault.depositReceipts(user);
-        assert.isTrue(processed2);
-        assert.equal(round2, 2);
-        assert.bnEqual(amount2, params.depositAmount);
+        // const {
+        //   processed: processed2,
+        //   round: round2,
+        //   amount: amount2,
+        // } = await vault.depositReceipts(user);
+        // assert.isTrue(processed2);
+        // assert.equal(round2, 2);
+        // assert.bnEqual(amount2, params.depositAmount);
       });
     });
 
