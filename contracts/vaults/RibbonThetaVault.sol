@@ -66,7 +66,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     event Deposit(address indexed account, uint256 amount, uint16 round);
 
-    event ScheduleWithdraw(address account, uint256 shares);
+    event InitiateWithdraw(address account, uint256 shares, uint16 round);
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
 
@@ -442,7 +442,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint16 currentRound = round;
         Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
-        require(withdrawal.initiated, "Existing withdraw");
+        require(!withdrawal.initiated, "Existing withdraw");
 
         (uint256 heldByAccount, uint256 heldByVault) =
             shareBalances(msg.sender);
@@ -451,7 +451,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         require(shares <= totalShares, "Insufficient balance");
 
-        emit ScheduleWithdraw(msg.sender, shares);
+        emit InitiateWithdraw(msg.sender, shares, currentRound);
 
         withdrawals[msg.sender] = Vault.Withdrawal({
             initiated: true,
