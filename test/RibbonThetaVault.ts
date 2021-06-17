@@ -1577,11 +1577,13 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, params.depositAmount, 1);
 
-        const { processed, round, amount } = await vault.depositReceipts(user);
+        const { processed, round, amount, unredeemedShares } =
+          await vault.depositReceipts(user);
 
         assert.isTrue(processed);
         assert.equal(round, 1);
-        assert.bnEqual(amount, params.depositAmount);
+        assert.bnEqual(amount, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares, BigNumber.from(0));
       });
 
       it("reverts when redeeming twice", async function () {
@@ -1684,10 +1686,13 @@ function behavesLikeRibbonOptionsVault(params: {
           processed: processed1,
           round: round1,
           amount: amount1,
+          unredeemedShares: unredeemedShares1,
         } = await vault.depositReceipts(manager);
         assert.isTrue(processed1);
         assert.equal(round1, 1);
-        assert.bnEqual(amount1, params.depositAmount);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, BigNumber.from(0));
+        assert.bnEqual(await vault.balanceOf(manager), params.depositAmount);
 
         // User deposit in round 2 so no loss
         // we should use the pps after the loss which is the lower pps
@@ -1700,10 +1705,16 @@ function behavesLikeRibbonOptionsVault(params: {
           processed: processed2,
           round: round2,
           amount: amount2,
+          unredeemedShares: unredeemedShares2,
         } = await vault.depositReceipts(user);
         assert.isTrue(processed2);
         assert.equal(round2, 2);
-        assert.bnEqual(amount2, params.depositAmount);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+        assert.bnEqual(
+          await vault.balanceOf(user),
+          expectedMintAmountAfterLoss
+        );
       });
     });
 
@@ -1768,7 +1779,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.isTrue(processed1);
         assert.equal(round1, 1);
-        assert.bnEqual(amount1, depositAmount);
+        assert.bnEqual(amount1, BigNumber.from(0));
         assert.bnEqual(unredeemedShares1, depositAmount.sub(redeemAmount));
 
         const tx2 = await vault.redeem(depositAmount.sub(redeemAmount));
@@ -1786,7 +1797,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.isTrue(processed2);
         assert.equal(round2, 1);
-        assert.bnEqual(amount2, depositAmount);
+        assert.bnEqual(amount2, BigNumber.from(0));
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
     });

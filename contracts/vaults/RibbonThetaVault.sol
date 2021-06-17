@@ -392,12 +392,12 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(shares > 0, "!shares");
         require(shares <= unredeemedShares, "Exceeds available");
 
-        depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
-            processed: true,
-            round: depositReceipt.round,
-            amount: depositReceipt.amount,
-            unredeemedShares: uint128(uint256(unredeemedShares).sub(shares))
-        });
+        // This zeroes out any pending amount from depositReceipt
+        depositReceipts[msg.sender].amount = 0;
+        depositReceipts[msg.sender].processed = true;
+        depositReceipts[msg.sender].unredeemedShares = uint128(
+            uint256(unredeemedShares).sub(shares)
+        );
 
         emit Redeem(msg.sender, shares, depositReceipt.round);
 
