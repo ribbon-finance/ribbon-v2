@@ -6,7 +6,6 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {DSMath} from "../vendor/DSMath.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
@@ -19,7 +18,7 @@ import {
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
 
-contract RibbonThetaVault is DSMath, OptionsVaultStorage {
+contract RibbonThetaVault is OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -64,8 +63,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /************************************************
      *  EVENTS
      ***********************************************/
-
-    event ManagerChanged(address oldManager, address newManager);
 
     event Deposit(address indexed account, uint256 amount, uint16 round);
 
@@ -204,10 +201,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         minimumSupply = _minimumSupply;
         isPut = _isPut;
 
-        // hardcode the initial withdrawal fee
-        instantWithdrawalFee = 0 ether;
         feeRecipient = _feeRecipient;
-
         premiumDiscount = _premiumDiscount;
         optionsPremiumPricer = _optionsPremiumPricer;
         _totalPending = PLACEHOLDER_UINT; // Hardcode to 1 so no cold writes for depositors
@@ -223,18 +217,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new manager of the vault.
-     * @param newManager is the new manager of the vault
-     */
-    function setManager(address newManager) external onlyOwner {
-        require(newManager != address(0), "!newManager");
-        address oldManager = manager;
-        manager = newManager;
-
-        emit ManagerChanged(oldManager, newManager);
-    }
-
-    /**
      * @notice Sets the new fee recipient
      * @param newFeeRecipient is the address of the new fee recipient
      */
@@ -247,13 +229,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint256 newPremiumDiscount)
-        external
-        onlyManager
-    {
+    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 && newPremiumDiscount < 300,
-            "newPremiumDiscount is not between 0% - 30%!"
+            "Invalid discount"
         );
 
         emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
@@ -265,7 +244,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    function setCap(uint256 newCap) external onlyManager {
+    function setCap(uint256 newCap) external onlyOwner {
         uint256 oldCap = cap;
         cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
@@ -328,6 +307,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             unredeemedShares = _getSharesFromReceipt(depositReceipt);
         }
 
+        uint104 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             // No deposits allowed until the next round
@@ -335,22 +315,17 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
 
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
             require(newAmount < type(uint104).max, "Overflow");
-
-            depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
-                processed: false,
-                round: currentRound,
-                amount: uint104(newAmount),
-                unredeemedShares: unredeemedShares
-            });
+            depositAmount = uint104(newAmount);
         } else {
             require(amount < type(uint104).max, "Overflow");
-            depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
-                processed: false,
-                round: currentRound,
-                amount: uint104(amount),
-                unredeemedShares: unredeemedShares
-            });
         }
+
+        depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
+            processed: false,
+            round: currentRound,
+            amount: depositAmount,
+            unredeemedShares: unredeemedShares
+        });
 
         _totalPending = _totalPending.add(amount);
     }
@@ -449,7 +424,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
         uint104 receiptAmount = depositReceipt.amount;
-        require(receiptAmount >= amount, "Exceed withdraw amount");
+        require(receiptAmount >= amount, "Exceed amount");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
@@ -467,7 +442,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyManager nonReentrant {
+    function commitAndClose() external onlyOwner nonReentrant {
         address oldOption = currentOption;
         uint256 expiry;
 
@@ -491,7 +466,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                     isPut
                 );
 
-        require(strikePrice != 0, "Invalid strike selected!");
+        require(strikePrice != 0, "!strikePrice");
 
         address otokenAddress =
             GammaProtocol.getOrDeployOtoken(
@@ -538,10 +513,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
 
         uint256 readyAt = block.timestamp.add(delay);
-        require(
-            otoken.expiryTimestamp() >= readyAt,
-            "Expiry cannot be before delay"
-        );
+        require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
 
         nextOption = oTokenAddress;
         nextOptionReadyAt = readyAt;
@@ -627,7 +599,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyManager {
+    function startAuction() public onlyOwner {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         require(currentOtokenPremium > 0, "!currentOtokenPremium");
@@ -636,7 +608,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = asset;
         auctionDetails.oTokenPremium = currentOtokenPremium;
-        auctionDetails.manager = manager;
+        auctionDetails.manager = owner();
         auctionDetails.duration = 6 hours;
 
         GnosisAuction.startAuction(auctionDetails);
@@ -645,10 +617,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
-    function burnRemainingOTokens() external onlyManager nonReentrant {
+    function burnRemainingOTokens() external onlyOwner nonReentrant {
         uint256 numOTokensToBurn =
             IERC20(currentOption).balanceOf(address(this));
-        require(numOTokensToBurn > 0, "No OTokens to burn!");
+        require(numOTokensToBurn > 0, "!otokens");
         uint256 assetBalanceBeforeBurn = assetBalance();
         GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
         uint256 assetBalanceAfterBurn = assetBalance();
@@ -663,11 +635,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      */
     function setStrikePrice(uint128 strikePrice)
         external
-        onlyManager
+        onlyOwner
         nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
-        require(strikePrice < type(uint128).max, "strike price too large!");
+        require(strikePrice < type(uint128).max, "Overflow");
         strikeOverride.overriddenStrikePrice = strikePrice;
         strikeOverride.lastStrikeOverride = round;
     }
@@ -684,8 +656,8 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint16 _round = round;
         for (uint16 i = 0; i < numRounds; i++) {
             uint16 index = _round + i;
-            require(index >= _round, "SafeMath: addition overflow");
-            require(roundPricePerShare[index] == 0, "Already initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            require(index >= _round, "Overflow");
+            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
         }
     }
@@ -699,7 +671,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         if (asset == WETH) {
             IWETH(WETH).withdraw(amount);
             (bool success, ) = recipient.call{value: amount}("");
-            require(success, "Transfer failed");
+            require(success, "!success");
             return;
         }
         IERC20(asset).safeTransfer(recipient, amount);
@@ -800,17 +772,5 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         uint256 friday8am =
             (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
-    }
-
-    /************************************************
-     *  MODIFIERS
-     ***********************************************/
-
-    /**
-     * @notice Only allows manager to execute a function
-     */
-    modifier onlyManager {
-        require(msg.sender == manager, "Only manager");
-        _;
     }
 }
