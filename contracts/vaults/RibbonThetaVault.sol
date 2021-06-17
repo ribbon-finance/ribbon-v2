@@ -9,7 +9,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
-import {VaultDeposit} from "../libraries/VaultDeposit.sol";
+import {Vault} from "../libraries/Vault.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
@@ -294,18 +294,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit Deposit(msg.sender, amount, currentRound);
 
-        VaultDeposit.DepositReceipt memory depositReceipt =
+        Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint128 unredeemedShares = depositReceipt.unredeemedShares;
-        if (
-            depositReceipt.round > 0 &&
-            depositReceipt.round < currentRound &&
-            !depositReceipt.processed
-        ) {
-            unredeemedShares = _getSharesFromReceipt(depositReceipt);
-        }
+        uint128 unredeemedShares =
+            _getSharesFromReceipt(currentRound, depositReceipt);
 
         uint104 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
@@ -320,7 +314,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
             require(amount < type(uint104).max, "Overflow");
         }
 
-        depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
+        depositReceipts[msg.sender] = Vault.DepositReceipt({
             processed: false,
             round: currentRound,
             amount: depositAmount,
@@ -354,14 +348,16 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function _redeem(uint256 shares, bool isMax) internal {
         require(shares < type(uint104).max, "Overflow");
 
-        VaultDeposit.DepositReceipt memory depositReceipt =
+        Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        require(depositReceipt.round < round, "Round not closed");
+        uint16 currentRound = round;
+        require(depositReceipt.round < currentRound, "Round not closed");
 
-        uint128 unredeemedShares = _getSharesFromReceipt(depositReceipt);
+        uint128 unredeemedShares =
+            _getSharesFromReceipt(currentRound, depositReceipt);
 
         shares = isMax ? unredeemedShares : shares;
         require(shares > 0, "!shares");
@@ -385,9 +381,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @return unredeemedShares is the user's virtual balance of shares that are owed
      */
     function _getSharesFromReceipt(
-        VaultDeposit.DepositReceipt memory depositReceipt
+        uint16 currentRound,
+        Vault.DepositReceipt memory depositReceipt
     ) private view returns (uint128 unredeemedShares) {
-        if (!depositReceipt.processed) {
+        if (
+            depositReceipt.round > 0 &&
+            depositReceipt.round < currentRound &&
+            !depositReceipt.processed
+        ) {
             uint256 pps = roundPricePerShare[depositReceipt.round];
 
             // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
@@ -416,7 +417,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param amount is the amount to withdraw
      */
     function withdrawInstantly(uint256 amount) external nonReentrant {
-        VaultDeposit.DepositReceipt storage depositReceipt =
+        Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         uint16 currentRound = round;
@@ -433,6 +434,24 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         transferAsset(msg.sender, amount);
     }
+
+    // function initiateWithdraw(uint256 shares) external nonReentrant {
+    //     // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
+
+    //     require(shares > 0, "!shares");
+    //     require(scheduledWithdrawals[msg.sender] == 0, "Existing withdrawal");
+
+    //     emit ScheduleWithdraw(msg.sender, shares);
+
+    //     Vault.DepositReceipt memory depositReceipt =
+    //         depositReceipts[msg.sender];
+
+    //     uint128 unredeemedShares = _getSharesFromReceipt(round, depositReceipt);
+
+    //     scheduledWithdrawals[msg.sender] = shares;
+    //     queuedWithdrawShares = queuedWithdrawShares.add(shares);
+    //     _transfer(msg.sender, address(this), shares);
+    // }
 
     /************************************************
      *  VAULT OPERATIONS
@@ -687,14 +706,28 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @return the share balance
      */
     function shares(address account) external view returns (uint256) {
-        VaultDeposit.DepositReceipt memory depositReceipt =
-            depositReceipts[account];
+        (uint256 heldByAccount, uint256 heldByVault) = shareBalances(account);
+        return heldByAccount.add(heldByVault);
+    }
+
+    /**
+     * @notice Getter for returning the account's share balance split between account and vault holdings
+     * @param account is the account to lookup share balance for
+     * @return heldByAccount is the shares held by account
+     * @return heldByVault is the shares held on the vault (unredeemedShares)
+     */
+    function shareBalances(address account)
+        public
+        view
+        returns (uint256 heldByAccount, uint256 heldByVault)
+    {
+        Vault.DepositReceipt memory depositReceipt = depositReceipts[account];
 
         if (depositReceipt.round < PLACEHOLDER_UINT) {
-            return balanceOf(account);
+            return (balanceOf(account), 0);
         }
-        uint256 unredeemedShares = _getSharesFromReceipt(depositReceipt);
-        return balanceOf(account).add(unredeemedShares);
+        uint256 unredeemedShares = _getSharesFromReceipt(round, depositReceipt);
+        return (balanceOf(account), unredeemedShares);
     }
 
     /**
