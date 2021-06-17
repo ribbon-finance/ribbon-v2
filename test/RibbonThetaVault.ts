@@ -1707,6 +1707,59 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#redeem", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("overflows when shares >uint104", async function () {
+        const redeemAmount = BigNumber.from(
+          "340282366920938463463374607431768211455"
+        );
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+        await rollToNextOption();
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith("Overflow");
+      });
+
+      it("reverts when redeeming more than available", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await expect(vault.redeem(depositAmount.add(1))).to.be.revertedWith(
+          "Exceeds available"
+        );
+      });
+
+      it("decreases unredeemed shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const redeemAmount = BigNumber.from(1);
+        const tx = await vault.redeem(redeemAmount);
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, redeemAmount, 1);
+
+        const { processed, round, amount, unredeemedShares } =
+          await vault.depositReceipts(user);
+
+        assert.isTrue(processed);
+        assert.equal(round, 1);
+        assert.bnEqual(amount, depositAmount);
+        assert.bnEqual(unredeemedShares, depositAmount.sub(redeemAmount));
+      });
+    });
+
     describe("#withdrawInstantly", () => {
       time.revertToSnapshotAfterEach();
 

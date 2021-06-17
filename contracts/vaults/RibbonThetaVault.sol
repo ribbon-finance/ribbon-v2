@@ -325,7 +325,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             depositReceipt.round < currentRound &&
             !depositReceipt.processed
         ) {
-            (unredeemedShares, ) = _getSharesFromReceipt(depositReceipt);
+            unredeemedShares = _getSharesFromReceipt(depositReceipt);
         }
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
@@ -376,23 +376,17 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         require(depositReceipt.round < round, "Round not closed");
         require(depositReceipt.amount > 0, "!amount");
 
-        (uint128 unredeemedShares, uint104 roundShares) =
-            _getSharesFromReceipt(depositReceipt);
+        uint128 unredeemedShares = _getSharesFromReceipt(depositReceipt);
 
         shares = isMax ? unredeemedShares : shares;
         require(shares <= unredeemedShares, "Exceeds available");
 
-        // When the depositReceipt is processed, we need subtract the shares being redeemed
-        // from the `unredeemedShares`.
-        // Alternatively, if we try to redeem more than the current round's shares
-        // We need to subtract the additional shares from `unredeemedShares`.
-        if (depositReceipt.processed || shares > roundShares) {
-            depositReceipts[msg.sender].unredeemedShares = uint128(
-                uint256(depositReceipt.unredeemedShares).sub(shares)
-            );
-        } else if (!depositReceipt.processed) {
-            depositReceipts[msg.sender].processed = true;
-        }
+        depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
+            processed: true,
+            round: depositReceipt.round,
+            amount: depositReceipt.amount,
+            unredeemedShares: uint128(uint256(unredeemedShares).sub(shares))
+        });
 
         emit Redeem(msg.sender, shares, depositReceipt.round);
 
@@ -403,11 +397,10 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
      * @notice Returns the shares unredeemed by the user given their DepositReceipt
      * @param depositReceipt is the user's deposit receipt
      * @return unredeemedShares is the user's virtual balance of shares that are owed
-     * @return sharesFromRound is the shares unredeemed from depositReceipt.round
      */
     function _getSharesFromReceipt(
         VaultDeposit.DepositReceipt memory depositReceipt
-    ) private view returns (uint128 unredeemedShares, uint104 sharesFromRound) {
+    ) private view returns (uint128 unredeemedShares) {
         if (!depositReceipt.processed) {
             uint256 pps = roundPricePerShare[depositReceipt.round];
 
@@ -416,22 +409,19 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
             // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
             require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-            uint256 sharesFromRound256 =
+            uint256 sharesFromRound =
                 uint256(depositReceipt.amount).mul(10**uint256(_decimals)).div(
                     pps
                 );
+            require(sharesFromRound < type(uint104).max, "Overflow");
 
             uint256 unredeemedShares256 =
-                uint256(depositReceipt.unredeemedShares).add(
-                    sharesFromRound256
-                );
+                uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
             require(unredeemedShares256 < type(uint128).max, "Overflow");
 
             unredeemedShares = uint128(unredeemedShares256);
-            sharesFromRound = uint104(sharesFromRound256);
         } else {
             unredeemedShares = depositReceipt.unredeemedShares;
-            sharesFromRound = 0;
         }
     }
 
