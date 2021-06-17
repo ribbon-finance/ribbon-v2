@@ -58,7 +58,6 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
     gasLimits: {
-      depositWithRedemption: 102000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -86,7 +85,6 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWithRedemption: 100000,
       depositWorstCase: 100000,
       depositBestCase: 90000,
     },
@@ -111,9 +109,8 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("158730"),
     isPut: true,
     gasLimits: {
-      depositWithRedemption: 115000,
       depositWorstCase: 110000,
-      depositBestCase: 95000,
+      depositBestCase: 98000,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -139,9 +136,8 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWithRedemption: 115000,
       depositWorstCase: 110000,
-      depositBestCase: 95000,
+      depositBestCase: 98000,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -197,7 +193,6 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDiscount: BigNumber;
   isPut: boolean;
   gasLimits: {
-    depositWithRedemption: number;
     depositWorstCase: number;
     depositBestCase: number;
   };
@@ -962,11 +957,13 @@ function behavesLikeRibbonOptionsVault(params: {
           processed: processed1,
           round: round1,
           amount: amount1,
+          unredeemedShares: unredeemedShares1,
         } = await vault.depositReceipts(user);
 
         assert.isFalse(processed1);
         assert.equal(round1, 1);
         assert.bnEqual(amount1, params.depositAmount);
+        assert.bnEqual(unredeemedShares1, BigNumber.from(0));
 
         await rollToNextOption();
 
@@ -974,11 +971,13 @@ function behavesLikeRibbonOptionsVault(params: {
           processed: processed2,
           round: round2,
           amount: amount2,
+          unredeemedShares: unredeemedShares2,
         } = await vault.depositReceipts(user);
 
         assert.isFalse(processed2);
         assert.equal(round2, 1);
         assert.bnEqual(amount2, params.depositAmount);
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
 
         const tx = await vault.deposit(params.depositAmount);
 
@@ -986,24 +985,23 @@ function behavesLikeRibbonOptionsVault(params: {
           await assetContract.balanceOf(vault.address),
           params.depositAmount
         );
-        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+        // vault will still hold the vault shares
+        assert.bnEqual(await vault.balanceOf(vault.address), depositAmount);
 
         const {
           processed: processed3,
           round: round3,
           amount: amount3,
+          unredeemedShares: unredeemedShares3,
         } = await vault.depositReceipts(user);
 
         assert.isFalse(processed3);
         assert.equal(round3, 2);
         assert.bnEqual(amount3, params.depositAmount);
-
-        await expect(tx)
-          .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 1);
+        assert.bnEqual(unredeemedShares3, depositAmount);
       });
 
-      it("fits gas budget for implicit redemption [ @skip-on-coverage ]", async function () {
+      it("fits gas budget for deposits refreshing deposit receipt [ @skip-on-coverage ]", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount.mul(2));
@@ -1016,7 +1014,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const receipt = await tx.wait();
         assert.isAtMost(
           receipt.gasUsed.toNumber(),
-          params.gasLimits.depositWithRedemption
+          params.gasLimits.depositBestCase
         );
         // Uncomment to see exact gas use
         // console.log(receipt.gasUsed.toNumber());

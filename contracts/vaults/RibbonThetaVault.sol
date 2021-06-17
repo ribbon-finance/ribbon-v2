@@ -321,6 +321,16 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         VaultDeposit.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
+        // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
+        uint128 unredeemedShares = depositReceipt.unredeemedShares;
+        if (
+            depositReceipt.round > 0 &&
+            depositReceipt.round < currentRound &&
+            !depositReceipt.processed
+        ) {
+            (unredeemedShares, ) = _getSharesFromReceipt(depositReceipt);
+        }
+
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             // No deposits allowed until the next round
@@ -333,7 +343,7 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 processed: false,
                 round: currentRound,
                 amount: uint104(newAmount),
-                unredeemedShares: depositReceipt.unredeemedShares
+                unredeemedShares: unredeemedShares
             });
         } else {
             require(amount < type(uint104).max, "Overflow");
@@ -341,21 +351,11 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
                 processed: false,
                 round: currentRound,
                 amount: uint104(amount),
-                unredeemedShares: depositReceipt.unredeemedShares
+                unredeemedShares: unredeemedShares
             });
         }
 
         _totalPending = _totalPending.add(amount);
-
-        // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        if (
-            depositReceipt.round > 0 &&
-            depositReceipt.round < currentRound &&
-            !depositReceipt.processed
-        ) {
-            (uint128 unredeemedShares, uint104 sharesFromRound) =
-                _getSharesFromReceipt(depositReceipt);
-        }
     }
 
     function redeem(uint256 shares) external nonReentrant {
