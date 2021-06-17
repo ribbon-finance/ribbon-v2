@@ -722,51 +722,6 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         return (10**uint256(_decimals)).mul(balance).div(totalSupply());
     }
 
-    // /**
-    //  * @notice This is the user's share balance, including the shares that are not redeemed from processed deposits.
-    //  * @param account is the address to lookup the balance for.
-    //  */
-    // function balancePlusUnredeemed(address account)
-    //     external
-    //     view
-    //     returns (uint256)
-    // {
-    //     return balanceOf(account).add(unredeemedBalance(account));
-    // }
-
-    // /**
-    //  * @notice Returns the user's unredeemed share amount
-    //  * @param account is the address to lookup the unredeemed share amount
-    //  */
-    // function unredeemedBalance(address account)
-    //     public
-    //     view
-    //     returns (uint256 unredeemedShares)
-    // {
-    //     VaultDeposit.DepositReceipt storage depositReceipt =
-    //         depositReceipts[account];
-
-    //     if (!depositReceipt.processed) {
-    //         unredeemedShares = wmul(
-    //             depositReceipt.amount,
-    //             roundPricePerShare[depositReceipt.round]
-    //         );
-    //     }
-    // }
-
-    /**
-     * @notice Returns the expiry of the current option the vault is shorting
-     */
-    function currentOptionExpiry() external view returns (uint256) {
-        address _currentOption = currentOption;
-        if (_currentOption == address(0)) {
-            return 0;
-        }
-
-        IOtoken oToken = IOtoken(_currentOption);
-        return oToken.expiryTimestamp();
-    }
-
     /**
      * @notice Returns the vault's total balance, including the amounts locked into a short position
      * @return total balance of the vault, including the amounts locked in third party protocols
