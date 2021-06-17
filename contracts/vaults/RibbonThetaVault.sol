@@ -370,15 +370,14 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         VaultDeposit.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
-        require(!depositReceipt.processed, "Processed");
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
         require(depositReceipt.round < round, "Round not closed");
-        require(depositReceipt.amount > 0, "!amount");
 
         uint128 unredeemedShares = _getSharesFromReceipt(depositReceipt);
 
         shares = isMax ? unredeemedShares : shares;
+        require(shares > 0, "!shares");
         require(shares <= unredeemedShares, "Exceeds available");
 
         depositReceipts[msg.sender] = VaultDeposit.DepositReceipt({
