@@ -25,7 +25,7 @@ contract OptionsVaultStorageV1 is
     address private _oldAsset;
 
     // Privileged role that is able to select the option terms (strike price, expiry) to short
-    address public manager;
+    address private _manager;
 
     // Option that the vault is shorting in the next cycle
     address public nextOption;
