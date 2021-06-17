@@ -1822,7 +1822,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.withdrawInstantly(depositAmount.add(1))
-        ).to.be.revertedWith("Exceed withdraw amount");
+        ).to.be.revertedWith("Exceed amount");
       });
 
       it("reverts when deposit receipt is processed", async function () {
