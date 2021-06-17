@@ -2152,6 +2152,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#shares", () => {
+      time.revertToSnapshotAfterEach();
+
       it("shows correct share balance after redemptions", async function () {
         await assetContract
           .connect(userSigner)
@@ -2159,6 +2161,8 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
 
         const redeemAmount = BigNumber.from(1);
         await vault.redeem(redeemAmount);
