@@ -951,7 +951,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("Insufficient balance");
       });
 
-      it("is able to redeem implicitly when the user deposits in a following round [ @skip-on-coverage ]", async function () {
+      it("updates the previous deposit receipt", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount.mul(2));
@@ -986,8 +986,6 @@ function behavesLikeRibbonOptionsVault(params: {
           await assetContract.balanceOf(vault.address),
           params.depositAmount
         );
-        // Should redeem the first deposit
-        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
 
         const {
@@ -1742,7 +1740,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        await vault.redeemDeposit();
+        await vault.maxRedeem();
 
         await expect(
           vault.withdrawInstantly(depositAmount.add(1))

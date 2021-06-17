@@ -385,17 +385,15 @@ contract RibbonThetaVault is DSMath, OptionsVaultStorage {
         shares = isMax ? unredeemedShares : shares;
         require(shares <= unredeemedShares, "Exceeds available");
 
-        if (depositReceipt.processed) {
+        // When the depositReceipt is processed, we need subtract the shares being redeemed
+        // from the `unredeemedShares`.
+        // Alternatively, if we try to redeem more than the current round's shares
+        // We need to subtract the additional shares from `unredeemedShares`.
+        if (depositReceipt.processed || shares > roundShares) {
             depositReceipts[msg.sender].unredeemedShares = uint128(
                 uint256(depositReceipt.unredeemedShares).sub(shares)
             );
-        } else {
-            if (shares > roundShares) {
-                depositReceipts[msg.sender].unredeemedShares = uint128(
-                    uint256(depositReceipt.unredeemedShares).sub(shares)
-                );
-            }
-
+        } else if (!depositReceipt.processed) {
             depositReceipts[msg.sender].processed = true;
         }
 
