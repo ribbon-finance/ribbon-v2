@@ -64,8 +64,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *  EVENTS
      ***********************************************/
 
-    event ManagerChanged(address oldManager, address newManager);
-
     event Deposit(address indexed account, uint256 amount, uint16 round);
 
     event ScheduleWithdraw(address account, uint256 shares);
@@ -219,18 +217,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new manager of the vault.
-     * @param newManager is the new manager of the vault
-     */
-    function setManager(address newManager) external onlyOwner {
-        require(newManager != address(0), "!newManager");
-        address oldManager = manager;
-        manager = newManager;
-
-        emit ManagerChanged(oldManager, newManager);
-    }
-
-    /**
      * @notice Sets the new fee recipient
      * @param newFeeRecipient is the address of the new fee recipient
      */
@@ -243,10 +229,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint256 newPremiumDiscount)
-        external
-        onlyManager
-    {
+    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 && newPremiumDiscount < 300,
             "Invalid discount"
@@ -261,7 +244,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    function setCap(uint256 newCap) external onlyManager {
+    function setCap(uint256 newCap) external onlyOwner {
         uint256 oldCap = cap;
         cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
@@ -459,7 +442,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyManager nonReentrant {
+    function commitAndClose() external onlyOwner nonReentrant {
         address oldOption = currentOption;
         uint256 expiry;
 
@@ -616,7 +599,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyManager {
+    function startAuction() public onlyOwner {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         require(currentOtokenPremium > 0, "!currentOtokenPremium");
@@ -625,7 +608,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = asset;
         auctionDetails.oTokenPremium = currentOtokenPremium;
-        auctionDetails.manager = manager;
+        auctionDetails.manager = owner();
         auctionDetails.duration = 6 hours;
 
         GnosisAuction.startAuction(auctionDetails);
@@ -634,7 +617,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
-    function burnRemainingOTokens() external onlyManager nonReentrant {
+    function burnRemainingOTokens() external onlyOwner nonReentrant {
         uint256 numOTokensToBurn =
             IERC20(currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
@@ -652,7 +635,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function setStrikePrice(uint128 strikePrice)
         external
-        onlyManager
+        onlyOwner
         nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
@@ -789,17 +772,5 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 friday8am =
             (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
-    }
-
-    /************************************************
-     *  MODIFIERS
-     ***********************************************/
-
-    /**
-     * @notice Only allows manager to execute a function
-     */
-    modifier onlyManager {
-        require(msg.sender == manager, "Only manager");
-        _;
     }
 }
