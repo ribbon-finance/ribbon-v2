@@ -630,17 +630,17 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
      * @param numRounds is the number of rounds to initialize in the map
      */
-    // function initRounds(uint256 numRounds) external nonReentrant {
-    //     require(numRounds < 52, "numRounds >= 52");
+    function initRounds(uint256 numRounds) external nonReentrant {
+        require(numRounds < 52, "numRounds >= 52");
 
-    //     uint16 _round = round;
-    //     for (uint16 i = 0; i < numRounds; i++) {
-    //         uint16 index = _round + i;
-    //         require(index >= _round, "Overflow");
-    //         require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-    //         roundPricePerShare[index] = PLACEHOLDER_UINT;
-    //     }
-    // }
+        uint16 _round = vaultState.round;
+        for (uint16 i = 0; i < numRounds; i++) {
+            uint16 index = _round + i;
+            require(index >= _round, "Overflow");
+            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            roundPricePerShare[index] = PLACEHOLDER_UINT;
+        }
+    }
 
     /**
      * @notice Helper function to make either an ETH transfer or ERC20 transfer
