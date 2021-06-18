@@ -31,7 +31,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
     struct ReceiptTokenDetails {
         string tokenName;
         string tokenSymbol;
-        uint8 tokenDecimals;
     }
 
     address public immutable WETH;
@@ -41,7 +40,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     uint256 public constant period = 7 days;
 
-    uint256 private constant PLACEHOLDER_UINT = 1;
+    uint128 private constant PLACEHOLDER_UINT = 1;
 
     address private constant PLACEHOLDER_ADDR = address(1);
 
@@ -147,47 +146,13 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
-     * @param _owner is the owner of the contract who can set the manager
-     * @param _feeRecipient is the recipient address for withdrawal fees.
-     * @param _initCap is the initial vault's cap on deposits, the manager can increase this as necessary.
-     * @param _receiptTokenDetails is a struct including the token name, symbol, and decimals
-     * @param _minimumSupply is the minimum supply for the asset balance and the share supply.
-     * @param _asset is the asset used for collateral and premiums
-     * @param _isPut is the option type
-     * @param _premiumDiscount is the premium discount of the sold options (thousandths place: 000 - 999)
-     * @param _strikeSelection is the address of the contract handling weekly option strike selection
-     * @param _optionsPremiumPricer is the address of the contract handling pricing option premiums using Black-Scholes
      */
     function initialize(
         address _owner,
-        address _feeRecipient,
-        uint256 _initCap,
-        ReceiptTokenDetails calldata _receiptTokenDetails,
-        uint256 _minimumSupply,
-        address _asset,
-        bool _isPut,
-        uint256 _premiumDiscount,
-        address _strikeSelection,
-        address _optionsPremiumPricer
+        Vault.VaultParams calldata _vaultParams,
+        Vault.ProtocolFee calldata _protocolFee,
+        ReceiptTokenDetails calldata _receiptTokenDetails
     ) external initializer {
-        require(_asset != address(0), "!_asset");
-        require(_owner != address(0), "!_owner");
-        require(_feeRecipient != address(0), "!_feeRecipient");
-        require(_initCap > 0, "!_initCap");
-        require(
-            bytes(_receiptTokenDetails.tokenName).length > 0,
-            "!_tokenName"
-        );
-        require(
-            bytes(_receiptTokenDetails.tokenSymbol).length > 0,
-            "!_tokenSymbol"
-        );
-        require(_receiptTokenDetails.tokenDecimals > 0, "!_tokenDecimals");
-        require(_minimumSupply > 0, "!_minimumSupply");
-        require(_premiumDiscount > 0, "!_premiumDiscount");
-        require(_strikeSelection != address(0), "!_strikeSelection");
-        require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
-
         __ReentrancyGuard_init();
         __ERC20_init(
             _receiptTokenDetails.tokenName,
@@ -196,22 +161,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
         __Ownable_init();
         transferOwnership(_owner);
 
-        _decimals = _receiptTokenDetails.tokenDecimals;
-        cap = _initCap;
-        asset = _isPut ? USDC : _asset;
-        underlying = _asset;
-        minimumSupply = _minimumSupply;
-        isPut = _isPut;
+        vaultParams = _vaultParams;
+        protocolFee = _protocolFee;
 
-        feeRecipient = _feeRecipient;
-        premiumDiscount = _premiumDiscount;
-        optionsPremiumPricer = _optionsPremiumPricer;
-        _totalPending = PLACEHOLDER_UINT; // Hardcode to 1 so no cold writes for depositors
-        nextOption = PLACEHOLDER_ADDR; // Hardcode to 1 so no cold write for keeper
-
-        strikeSelection = _strikeSelection;
-        genesisTimestamp = uint32(block.timestamp);
-        round = 1;
+        vaultState.round = 1;
+        vaultState.totalPending = PLACEHOLDER_UINT; // Hardcode to 1 so no cold writes for depositors
+        optionState.nextOption = PLACEHOLDER_ADDR; // Hardcode to 1 so no cold write for keeper
     }
 
     /************************************************
@@ -224,31 +179,31 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
         require(newFeeRecipient != address(0), "!newFeeRecipient");
-        feeRecipient = newFeeRecipient;
+        protocolFee.recipient = newFeeRecipient;
     }
 
     /**
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
+    function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 && newPremiumDiscount < 300,
             "Invalid discount"
         );
 
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
+        emit PremiumDiscountSet(vaultState.premiumDiscount, newPremiumDiscount);
 
-        premiumDiscount = newPremiumDiscount;
+        vaultState.premiumDiscount = newPremiumDiscount;
     }
 
     /**
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    function setCap(uint256 newCap) external onlyOwner {
-        uint256 oldCap = cap;
-        cap = newCap;
+    function setCap(uint128 newCap) external onlyOwner {
+        uint256 oldCap = vaultParams.cap;
+        vaultParams.cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
     }
 
@@ -260,7 +215,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
      */
     function depositETH() external payable nonReentrant {
-        require(asset == WETH, "!WETH");
+        require(vaultParams.asset == WETH, "!WETH");
         require(msg.value > 0, "!value");
 
         _deposit(msg.value);
@@ -277,7 +232,11 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         _deposit(amount);
 
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(vaultParams.asset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
     }
 
     /**
@@ -285,12 +244,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
-        uint16 currentRound = round;
+        uint16 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(totalWithDepositedAmount < cap, "Exceed cap");
+        require(totalWithDepositedAmount < vaultParams.cap, "Exceed cap");
         require(
-            totalWithDepositedAmount >= minimumSupply,
+            totalWithDepositedAmount >= vaultParams.minimumSupply,
             "Insufficient balance"
         );
 
@@ -304,7 +263,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                _decimals
+                vaultParams.decimals
             );
 
         uint104 depositAmount = uint104(amount);
@@ -327,7 +286,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
             unredeemedShares: unredeemedShares
         });
 
-        _totalPending = _totalPending.add(amount);
+        vaultState.totalPending = uint128(
+            uint256(vaultState.totalPending).add(amount)
+        );
     }
 
     /**
@@ -359,14 +320,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        uint16 currentRound = round;
+        uint16 currentRound = vaultState.round;
         require(depositReceipt.round < currentRound, "Round not closed");
 
         uint128 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                _decimals
+                vaultParams.decimals
             );
 
         shares = isMax ? unredeemedShares : shares;
@@ -393,7 +354,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint16 currentRound = round;
+        uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
         require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
@@ -416,7 +377,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         require(shares > 0, "!shares");
 
         // This caches the `round` variable used in shareBalances
-        uint16 currentRound = round;
+        uint16 currentRound = vaultState.round;
         Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
         bool topup = withdrawal.initiated && withdrawal.round == currentRound;
@@ -445,7 +406,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
             revert("Existing withdraw");
         }
 
-        queuedWithdrawShares = queuedWithdrawShares.add(shares);
+        vaultState.queuedWithdrawShares = uint128(
+            uint256(vaultState.queuedWithdrawShares).add(shares)
+        );
 
         // We need to debit the user's account when they are trying to withdraw
         // more than what's available in the vault, accounting for previous withdrawals
@@ -464,7 +427,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose() external onlyOwner nonReentrant {
-        address oldOption = currentOption;
+        address oldOption = optionState.currentOption;
         uint256 expiry;
 
         // uninitialized state
@@ -476,43 +439,40 @@ contract RibbonThetaVault is OptionsVaultStorage {
             );
         }
 
-        IStrikeSelection strikeSelection = IStrikeSelection(strikeSelection);
+        IStrikeSelection selection =
+            IStrikeSelection(vaultParams.strikeSelection);
 
         (uint256 strikePrice, uint256 delta) =
-            strikeOverride.lastStrikeOverride == round
-                ? (
-                    strikeOverride.overriddenStrikePrice,
-                    strikeSelection.delta()
-                )
-                : IStrikeSelection(strikeSelection).getStrikePrice(
-                    expiry,
-                    isPut
-                );
+            vaultState.lastStrikeOverride == vaultState.round
+                ? (overridenStrikePrice, selection.delta())
+                : selection.getStrikePrice(expiry, vaultParams.isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         address otokenAddress =
             GammaProtocol.getOrDeployOtoken(
                 OTOKEN_FACTORY,
-                underlying,
+                vaultParams.underlying,
                 USDC,
-                asset,
+                vaultParams.asset,
                 strikePrice,
                 expiry,
-                isPut
+                vaultParams.isPut
             );
 
         require(otokenAddress != address(0), "!otokenAddress");
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        currentOtokenPremium = GnosisAuction.getOTokenPremium(
-            otokenAddress,
-            optionsPremiumPricer,
-            premiumDiscount
+        vaultState.currentOtokenPremium = uint104(
+            GnosisAuction.getOTokenPremium(
+                otokenAddress,
+                vaultParams.optionsPremiumPricer,
+                vaultState.premiumDiscount
+            )
         );
 
-        require(currentOtokenPremium > 0, "!currentOtokenPremium");
+        require(vaultState.currentOtokenPremium > 0, "!currentOtokenPremium");
 
         _setNextOption(otokenAddress);
         _closeShort(oldOption);
@@ -525,12 +485,15 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function _setNextOption(address oTokenAddress) private {
         IOtoken otoken = IOtoken(oTokenAddress);
-        require(otoken.isPut() == isPut, "Type mismatch");
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
         require(
-            otoken.underlyingAsset() == underlying,
+            otoken.underlyingAsset() == vaultParams.underlying,
             "Wrong underlyingAsset"
         );
-        require(otoken.collateralAsset() == asset, "Wrong collateralAsset");
+        require(
+            otoken.collateralAsset() == vaultParams.asset,
+            "Wrong collateralAsset"
+        );
 
         // we just assume all options use USDC as the strike
         require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
@@ -538,16 +501,16 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
 
-        nextOption = oTokenAddress;
-        nextOptionReadyAt = readyAt;
+        optionState.nextOption = oTokenAddress;
+        optionState.nextOptionReadyAt = uint32(readyAt);
     }
 
     /**
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
-        currentOption = PLACEHOLDER_ADDR;
-        lockedAmount = 0;
+        optionState.currentOption = PLACEHOLDER_ADDR;
+        vaultState.lockedAmount = 0;
 
         if (oldOption > PLACEHOLDER_ADDR) {
             uint256 withdrawAmount =
@@ -560,17 +523,18 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external nonReentrant {
-        require(block.timestamp >= nextOptionReadyAt, "Not ready");
+        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
 
-        address newOption = nextOption;
+        address newOption = optionState.nextOption;
         require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
         uint256 pendingAmount = totalPending();
         uint256 currentSupply = totalSupply();
-        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
+        uint256 currentBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**uint256(_decimals);
+        uint256 singleShare = 10**uint256(vaultParams.decimals);
 
         uint256 currentPricePerShare =
             currentSupply > 0
@@ -592,20 +556,22 @@ contract RibbonThetaVault is OptionsVaultStorage {
         // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
+                ? uint256(vaultState.queuedWithdrawShares)
+                    .mul(currentBalance)
+                    .div(newSupply)
                 : 0;
 
         uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
-        _totalPending = PLACEHOLDER_UINT;
-        currentOption = newOption;
-        nextOption = PLACEHOLDER_ADDR;
-        lockedAmount = balanceSansQueued;
+        vaultState.totalPending = PLACEHOLDER_UINT;
+        optionState.currentOption = newOption;
+        optionState.nextOption = PLACEHOLDER_ADDR;
+        vaultState.lockedAmount = uint104(balanceSansQueued);
 
         // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = round;
+        uint16 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = currentPricePerShare;
-        round = currentRound + 1;
+        vaultState.round = currentRound + 1;
 
         emit OpenShort(newOption, balanceSansQueued, msg.sender);
 
@@ -625,12 +591,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function startAuction() public onlyOwner {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        require(currentOtokenPremium > 0, "!currentOtokenPremium");
+        require(vaultState.currentOtokenPremium > 0, "!currentOtokenPremium");
 
-        auctionDetails.oTokenAddress = currentOption;
+        auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = asset;
-        auctionDetails.oTokenPremium = currentOtokenPremium;
+        auctionDetails.asset = vaultParams.asset;
+        auctionDetails.oTokenPremium = vaultState.currentOtokenPremium;
         auctionDetails.manager = owner();
         auctionDetails.duration = 6 hours;
 
@@ -642,13 +608,17 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function burnRemainingOTokens() external onlyOwner nonReentrant {
         uint256 numOTokensToBurn =
-            IERC20(currentOption).balanceOf(address(this));
+            IERC20(optionState.currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
-        uint256 assetBalanceBeforeBurn = IERC20(asset).balanceOf(address(this));
+        uint256 assetBalanceBeforeBurn =
+            IERC20(vaultParams.asset).balanceOf(address(this));
         GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        uint256 assetBalanceAfterBurn = IERC20(asset).balanceOf(address(this));
-        lockedAmount = lockedAmount.sub(
-            assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
+        uint256 assetBalanceAfterBurn =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+        vaultState.lockedAmount = uint104(
+            uint256(vaultState.lockedAmount).sub(
+                assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
+            )
         );
     }
 
@@ -663,8 +633,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
     {
         require(strikePrice > 0, "!strikePrice");
         assertUint128(strikePrice);
-        strikeOverride.overriddenStrikePrice = strikePrice;
-        strikeOverride.lastStrikeOverride = round;
+        overridenStrikePrice = strikePrice;
+        vaultState.lastStrikeOverride = vaultState.round;
     }
 
     /*
@@ -691,6 +661,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param amount is the transfer amount
      */
     function transferAsset(address payable recipient, uint256 amount) private {
+        address asset = vaultParams.asset;
         if (asset == WETH) {
             IWETH(WETH).withdraw(amount);
             (bool success, ) = recipient.call{value: amount}("");
@@ -733,9 +704,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         uint128 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
-                round,
+                vaultState.round,
                 roundPricePerShare[depositReceipt.round],
-                _decimals
+                vaultParams.decimals
             );
 
         return (balanceOf(account), unredeemedShares);
@@ -745,7 +716,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Getter to get the total pending amount, ex the `1` used as a placeholder
      */
     function totalPending() public view returns (uint256) {
-        return _totalPending.sub(PLACEHOLDER_UINT);
+        return uint256(vaultState.totalPending).sub(PLACEHOLDER_UINT);
     }
 
     /**
@@ -753,7 +724,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function pricePerShare() external view returns (uint256) {
         uint256 balance = totalBalance().sub(totalPending());
-        return (10**uint256(_decimals)).mul(balance).div(totalSupply());
+        return
+            (10**uint256(vaultParams.decimals)).mul(balance).div(totalSupply());
     }
 
     /**
@@ -761,14 +733,17 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
+        return
+            uint256(vaultState.lockedAmount).add(
+                IERC20(vaultParams.asset).balanceOf(address(this))
+            );
     }
 
     /**
      * @notice Returns the token decimals
      */
     function decimals() public view override returns (uint8) {
-        return _decimals;
+        return vaultParams.decimals;
     }
 
     /************************************************
