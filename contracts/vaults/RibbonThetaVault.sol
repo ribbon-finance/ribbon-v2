@@ -465,58 +465,26 @@ contract RibbonThetaVault is OptionsVaultStorage {
         address newOption = optionState.nextOption;
         require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
-        uint256 pendingAmount = totalPending();
-        uint256 currentSupply = totalSupply();
-        uint256 currentBalance =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
-
-        uint256 singleShare = 10**uint256(vaultParams.decimals);
-
-        uint256 currentPricePerShare =
-            currentSupply > 0
-                ? singleShare.mul(roundStartBalance).div(currentSupply)
-                : singleShare;
-
-        // After closing the short, if the options expire in-the-money
-        // vault pricePerShare would go down because vault's asset balance decreased.
-        // This ensures that the newly-minted shares do not take on the loss.
-        uint256 mintShares =
-            pendingAmount.mul(singleShare).div(currentPricePerShare);
-
-        // Vault holds temporary custody of the newly minted vault shares
-        _mint(address(this), mintShares);
-
-        uint256 newSupply = currentSupply.add(mintShares);
-
-        // TODO: We need to use the pps of the round they scheduled the withdrawal
-        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
-        uint256 queuedWithdrawAmount =
-            newSupply > 0
-                ? uint256(vaultState.queuedWithdrawShares)
-                    .mul(currentBalance)
-                    .div(newSupply)
-                : 0;
-
-        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
+        (uint256 lockedBalance, uint256 newPricePerShare) =
+            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
 
         vaultState.totalPending = PLACEHOLDER_UINT;
         optionState.currentOption = newOption;
         optionState.nextOption = PLACEHOLDER_ADDR;
-        vaultState.lockedAmount = uint104(balanceSansQueued);
+        vaultState.lockedAmount = uint104(lockedBalance);
 
         // Finalize the pricePerShare at the end of the round
         uint16 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = currentPricePerShare;
+        roundPricePerShare[currentRound] = newPricePerShare;
         vaultState.round = currentRound + 1;
 
-        emit OpenShort(newOption, balanceSansQueued, msg.sender);
+        emit OpenShort(newOption, lockedBalance, msg.sender);
 
         GammaProtocol.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            balanceSansQueued
+            lockedBalance
         );
 
         startAuction();
