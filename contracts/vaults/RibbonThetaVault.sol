@@ -453,11 +453,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
-        withdrawals[msg.sender] = Vault.Withdrawal({
-            initiated: true,
-            round: currentRound,
-            shares: shares
-        });
+        withdrawals[msg.sender].initiated = true;
+        withdrawals[msg.sender].round = currentRound;
+        withdrawals[msg.sender].shares = shares;
 
         queuedWithdrawShares = queuedWithdrawShares.add(shares);
 
