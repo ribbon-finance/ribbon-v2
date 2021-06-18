@@ -496,9 +496,11 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // uninitialized state
         if (oldOption <= PLACEHOLDER_ADDR) {
-            expiry = getNextFriday(block.timestamp);
+            expiry = GammaProtocol.getNextFriday(block.timestamp);
         } else {
-            expiry = getNextFriday(IOtoken(oldOption).expiryTimestamp());
+            expiry = GammaProtocol.getNextFriday(
+                IOtoken(oldOption).expiryTimestamp()
+            );
         }
 
         IStrikeSelection strikeSelection = IStrikeSelection(strikeSelection);
@@ -592,7 +594,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         uint256 pendingAmount = totalPending();
         uint256 currentSupply = totalSupply();
-        uint256 currentBalance = assetBalance();
+        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
         uint256 singleShare = 10**uint256(_decimals);
@@ -669,9 +671,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 numOTokensToBurn =
             IERC20(currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
-        uint256 assetBalanceBeforeBurn = assetBalance();
+        uint256 assetBalanceBeforeBurn = IERC20(asset).balanceOf(address(this));
         GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        uint256 assetBalanceAfterBurn = assetBalance();
+        uint256 assetBalanceAfterBurn = IERC20(asset).balanceOf(address(this));
         lockedAmount = lockedAmount.sub(
             assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
         );
@@ -698,17 +700,17 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
      * @param numRounds is the number of rounds to initialize in the map
      */
-    function initRounds(uint256 numRounds) external nonReentrant {
-        require(numRounds < 52, "numRounds >= 52");
+    // function initRounds(uint256 numRounds) external nonReentrant {
+    //     require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
-            require(index >= _round, "Overflow");
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = PLACEHOLDER_UINT;
-        }
-    }
+    //     uint16 _round = round;
+    //     for (uint16 i = 0; i < numRounds; i++) {
+    //         uint16 index = _round + i;
+    //         require(index >= _round, "Overflow");
+    //         require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
+    //         roundPricePerShare[index] = PLACEHOLDER_UINT;
+    //     }
+    // }
 
     /**
      * @notice Helper function to make either an ETH transfer or ERC20 transfer
@@ -775,31 +777,11 @@ contract RibbonThetaVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Returns the expiry of the current option the vault is shorting
-     */
-    function currentOptionExpiry() external view returns (uint256) {
-        address _currentOption = currentOption;
-        if (_currentOption == address(0)) {
-            return 0;
-        }
-
-        IOtoken oToken = IOtoken(_currentOption);
-        return oToken.expiryTimestamp();
-    }
-
-    /**
      * @notice Returns the vault's total balance, including the amounts locked into a short position
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
         return lockedAmount.add(IERC20(asset).balanceOf(address(this)));
-    }
-
-    /**
-     * @notice Returns the asset balance on the vault. This balance is freely withdrawable by users.
-     */
-    function assetBalance() public view returns (uint256) {
-        return IERC20(asset).balanceOf(address(this));
     }
 
     /**
@@ -812,27 +794,4 @@ contract RibbonThetaVault is OptionsVaultStorage {
     /************************************************
      *  HELPERS
      ***********************************************/
-
-    /**
-     * @notice Gets the next options expiry timestamp
-     */
-    function getNextFriday(uint256 currentExpiry)
-        internal
-        pure
-        returns (uint256)
-    {
-        uint256 nextWeek = currentExpiry + 86400 * 7;
-        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
-
-        uint256 friday;
-        if (dayOfWeek > 5) {
-            friday = nextWeek - 86400 * (dayOfWeek - 5);
-        } else {
-            friday = nextWeek + 86400 * (5 - dayOfWeek);
-        }
-
-        uint256 friday8am =
-            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
-        return friday8am;
-    }
 }
