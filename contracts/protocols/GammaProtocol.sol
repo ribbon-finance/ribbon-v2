@@ -256,6 +256,29 @@ library GammaProtocol {
         return otoken;
     }
 
+    /**
+     * @notice Gets the next options expiry timestamp
+     */
+    function getNextFriday(uint256 currentExpiry)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 nextWeek = currentExpiry + 86400 * 7;
+        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
+
+        uint256 friday;
+        if (dayOfWeek > 5) {
+            friday = nextWeek - 86400 * (dayOfWeek - 5);
+        } else {
+            friday = nextWeek + 86400 * (5 - dayOfWeek);
+        }
+
+        uint256 friday8am =
+            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
+        return friday8am;
+    }
+
     /***
      * DSMath Copy paste
      */
