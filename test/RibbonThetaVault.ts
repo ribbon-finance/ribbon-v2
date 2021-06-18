@@ -1899,6 +1899,21 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("Insufficient balance");
       });
 
+      it("reverts when there is existing withdrawal", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount);
+
+        await expect(vault.initiateWithdraw(depositAmount)).to.be.revertedWith(
+          "Existing withdraw"
+        );
+      });
+
       it("creates withdrawal from unredeemed shares", async function () {
         await assetContract
           .connect(userSigner)
