@@ -2046,6 +2046,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#shareBalances", () => {
+      time.revertToSnapshotAfterEach();
+
       it("returns the share balances split", async function () {
         await assetContract
           .connect(userSigner)
