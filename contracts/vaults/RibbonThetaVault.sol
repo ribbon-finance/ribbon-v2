@@ -10,6 +10,7 @@ import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
+import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
@@ -415,81 +416,30 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function commitAndClose() external onlyOwner nonReentrant {
         address oldOption = optionState.currentOption;
-        uint256 expiry;
 
-        // uninitialized state
-        if (oldOption <= PLACEHOLDER_ADDR) {
-            expiry = GammaProtocol.getNextFriday(block.timestamp);
-        } else {
-            expiry = GammaProtocol.getNextFriday(
-                IOtoken(oldOption).expiryTimestamp()
-            );
-        }
+        VaultLifecycle.CloseParams memory closeParams =
+            VaultLifecycle.CloseParams({
+                OTOKEN_FACTORY: OTOKEN_FACTORY,
+                USDC: USDC,
+                currentOption: oldOption,
+                delay: delay,
+                overridenStrikePrice: overridenStrikePrice
+            });
 
-        IStrikeSelection selection =
-            IStrikeSelection(vaultParams.strikeSelection);
-
-        (uint256 strikePrice, uint256 delta) =
-            vaultState.lastStrikeOverride == vaultState.round
-                ? (overridenStrikePrice, selection.delta())
-                : selection.getStrikePrice(expiry, vaultParams.isPut);
-
-        require(strikePrice != 0, "!strikePrice");
-
-        address otokenAddress =
-            GammaProtocol.getOrDeployOtoken(
-                OTOKEN_FACTORY,
-                vaultParams.underlying,
-                USDC,
-                vaultParams.asset,
-                strikePrice,
-                expiry,
-                vaultParams.isPut
-            );
-
-        require(otokenAddress != address(0), "!otokenAddress");
+        (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        ) = VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        vaultState.currentOtokenPremium = uint104(
-            GnosisAuction.getOTokenPremium(
-                otokenAddress,
-                vaultParams.optionsPremiumPricer,
-                vaultState.premiumDiscount
-            )
-        );
+        vaultState.currentOtokenPremium = uint104(premium);
+        optionState.nextOption = otokenAddress;
+        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
-        require(vaultState.currentOtokenPremium > 0, "!currentOtokenPremium");
-
-        _setNextOption(otokenAddress);
         _closeShort(oldOption);
-    }
-
-    /**
-     * @notice Sets the next option address and the timestamp at which the
-     * admin can call `rollToNextOption` to open a short for the option.
-     * @param oTokenAddress is the oToken address
-     */
-    function _setNextOption(address oTokenAddress) private {
-        IOtoken otoken = IOtoken(oTokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
-        require(
-            otoken.underlyingAsset() == vaultParams.underlying,
-            "Wrong underlyingAsset"
-        );
-        require(
-            otoken.collateralAsset() == vaultParams.asset,
-            "Wrong collateralAsset"
-        );
-
-        // we just assume all options use USDC as the strike
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
-
-        uint256 readyAt = block.timestamp.add(delay);
-        require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
-
-        optionState.nextOption = oTokenAddress;
-        optionState.nextOptionReadyAt = uint32(readyAt);
     }
 
     /**
