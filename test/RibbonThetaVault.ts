@@ -1947,6 +1947,20 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.initiateWithdraw(depositAmount);
+        const receipt = await tx.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 90000);
+        // console.log(receipt.gasUsed.toNumber());
+      });
     });
 
     describe("#setStrikePrice", () => {
