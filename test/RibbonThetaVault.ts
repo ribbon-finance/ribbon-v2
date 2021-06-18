@@ -1858,6 +1858,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#initiateWithdraw", () => {
+      time.revertToSnapshotAfterEach();
+
       it("reverts when user initiates withdraws without any deposit", async function () {
         await expect(vault.initiateWithdraw(depositAmount)).to.be.revertedWith(
           "Insufficient balance"
