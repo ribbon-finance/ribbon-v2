@@ -451,7 +451,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
         (uint256 heldByAccount, uint256 heldByVault) =
             shareBalances(msg.sender);
 
-        uint256 totalShares = heldByAccount.add(heldByVault);
+        uint256 vaultRemainder = heldByVault.sub(withdrawal.shares);
+        uint256 totalShares = heldByAccount.add(vaultRemainder);
 
         require(shares <= totalShares, "Insufficient balance");
 
@@ -471,7 +472,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // We need to debit the user's account when they are trying to withdraw
         // more than what's available in the vault, accounting for previous withdrawals
-        uint256 vaultRemainder = heldByVault.sub(withdrawal.shares);
         if (shares > vaultRemainder) {
             uint256 debitShares = uint256(shares).sub(vaultRemainder);
             _transfer(msg.sender, address(this), debitShares);

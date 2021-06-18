@@ -1995,6 +1995,21 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(shares, depositAmount);
       });
 
+      it("reverts when there is insufficient balance over multiple calls", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount.div(2));
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.div(2).add(1))
+        ).to.be.revertedWith("Insufficient balance");
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract
           .connect(userSigner)
