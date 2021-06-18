@@ -6,15 +6,12 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {GammaProtocol} from "../protocols/GammaProtocol.sol";
-import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -439,21 +436,15 @@ contract RibbonThetaVault is OptionsVaultStorage {
         optionState.nextOption = otokenAddress;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
-        _closeShort(oldOption);
-    }
-
-    /**
-     * @notice Closes the existing short position for the vault.
-     */
-    function _closeShort(address oldOption) private {
         optionState.currentOption = PLACEHOLDER_ADDR;
         vaultState.lockedAmount = 0;
 
+        uint256 withdrawAmount;
         if (oldOption > PLACEHOLDER_ADDR) {
-            uint256 withdrawAmount =
-                GammaProtocol.settleShort(GAMMA_CONTROLLER);
-            emit CloseShort(oldOption, withdrawAmount, msg.sender);
+            withdrawAmount = VaultLifecycle.settleShort(GAMMA_CONTROLLER);
         }
+
+        emit CloseShort(oldOption, withdrawAmount, msg.sender);
     }
 
     /**
@@ -480,7 +471,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        GammaProtocol.createShort(
+        VaultLifecycle.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -494,39 +485,28 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Initiate the gnosis auction.
      */
     function startAuction() public onlyOwner {
-        GnosisAuction.AuctionDetails memory auctionDetails;
-
-        uint256 currentOtokenPremium = vaultState.currentOtokenPremium;
-
-        require(currentOtokenPremium > 0, "!currentOtokenPremium");
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
-        auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = vaultParams.asset;
-        auctionDetails.oTokenPremium = currentOtokenPremium;
-        auctionDetails.manager = owner();
-        auctionDetails.duration = 6 hours;
-
-        GnosisAuction.startAuction(auctionDetails);
+        VaultLifecycle.startAuction(
+            GNOSIS_EASY_AUCTION,
+            owner(),
+            optionState.currentOption,
+            vaultParams,
+            vaultState
+        );
     }
 
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyOwner nonReentrant {
-        uint256 numOTokensToBurn =
-            IERC20(optionState.currentOption).balanceOf(address(this));
-        require(numOTokensToBurn > 0, "!otokens");
-        uint256 assetBalanceBeforeBurn =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-        GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        uint256 assetBalanceAfterBurn =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-        vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(
-                assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
-            )
-        );
+        uint256 newLockedAmount =
+            VaultLifecycle.burnRemainingOTokens(
+                GAMMA_CONTROLLER,
+                optionState.currentOption,
+                vaultParams,
+                vaultState
+            );
+        assertUint104(newLockedAmount);
+        vaultState.lockedAmount = uint104(newLockedAmount);
     }
 
     /**

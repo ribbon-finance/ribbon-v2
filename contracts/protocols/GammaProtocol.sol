@@ -26,7 +26,7 @@ library GammaProtocol {
         address marginPool,
         address oTokenAddress,
         uint256 depositAmount
-    ) external returns (uint256) {
+    ) internal returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
@@ -122,7 +122,7 @@ library GammaProtocol {
      * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
      * this assumption should hold.
      */
-    function settleShort(address gammaController) external returns (uint256) {
+    function settleShort(address gammaController) internal returns (uint256) {
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -167,7 +167,7 @@ library GammaProtocol {
      * only have a single vault open at any given time.
      */
     function burnOtokens(address gammaController, uint256 amount)
-        external
+        internal
         returns (uint256)
     {
         IController controller = IController(gammaController);
@@ -227,7 +227,7 @@ library GammaProtocol {
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
-    ) external returns (address) {
+    ) internal returns (address) {
         IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
         address otokenFromFactory =
