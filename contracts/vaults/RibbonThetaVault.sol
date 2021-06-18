@@ -435,6 +435,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
         transferAsset(msg.sender, amount);
     }
 
+    /**
+     * @notice Initiates a withdrawal that can be processed once the round completes
+     * @param shares is the number of shares to withdraw
+     */
     function initiateWithdraw(uint128 shares) external nonReentrant {
         require(shares > 0, "!shares");
 
