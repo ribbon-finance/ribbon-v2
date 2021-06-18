@@ -591,12 +591,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function startAuction() public onlyOwner {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        require(vaultState.currentOtokenPremium > 0, "!currentOtokenPremium");
+        uint256 currentOtokenPremium = vaultState.currentOtokenPremium;
+
+        require(currentOtokenPremium > 0, "!currentOtokenPremium");
 
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
-        auctionDetails.oTokenPremium = vaultState.currentOtokenPremium;
+        auctionDetails.oTokenPremium = currentOtokenPremium;
         auctionDetails.manager = owner();
         auctionDetails.duration = 6 hours;
 
