@@ -10,6 +10,7 @@ import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
+import {ShareMath} from "../libraries/ShareMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
@@ -389,18 +390,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
             depositReceipt.round < currentRound &&
             !depositReceipt.processed
         ) {
-            uint256 pps = roundPricePerShare[depositReceipt.round];
-
-            // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
-            // which should never happen.
-            // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-            require(pps > PLACEHOLDER_UINT, "Invalid pps");
-
-            uint256 sharesFromRound =
-                uint256(depositReceipt.amount).mul(10**uint256(_decimals)).div(
-                    pps
+            uint104 sharesFromRound =
+                ShareMath.underlyingToShares(
+                    depositReceipt.amount,
+                    roundPricePerShare[depositReceipt.round],
+                    _decimals
                 );
-            require(sharesFromRound < type(uint104).max, "Overflow");
 
             uint256 unredeemedShares256 =
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
@@ -467,6 +462,42 @@ contract RibbonThetaVault is OptionsVaultStorage {
             uint256 debitShares = uint256(shares).sub(heldByVault);
             _transfer(msg.sender, address(this), debitShares);
         }
+    }
+
+    function completeWithdraw() external nonReentrant {
+        uint16 currentRound = round;
+
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
+
+        uint16 withdrawRound = withdrawal.round;
+
+        require(withdrawal.initiated, "No withdraw");
+        require(withdrawRound < currentRound, "Round not closed");
+
+        uint256 withdrawShares = withdrawal.shares;
+
+        // Withdraw with the pricePerShare finalized for the round
+        uint256 withdrawAmount =
+            ShareMath.sharesToUnderlying(
+                withdrawShares,
+                roundPricePerShare[withdrawRound],
+                _decimals
+            );
+
+        // Redundant sanity checks just in case
+        require(withdrawShares > 0, "!withdrawShares");
+        require(withdrawAmount > 0, "!withdrawAmount");
+
+        // We only zero out the `initiated` field, but not the rest of the Withdrawal struct
+        // so we can have warm writes in the future
+        withdrawal.initiated = false;
+        queuedWithdrawShares = queuedWithdrawShares.sub(withdrawShares);
+
+        emit Withdraw(msg.sender, withdrawAmount, withdrawShares);
+
+        _burn(address(this), withdrawShares);
+
+        transferAsset(msg.sender, withdrawAmount);
     }
 
     /************************************************
