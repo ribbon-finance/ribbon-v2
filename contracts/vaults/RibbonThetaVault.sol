@@ -10,6 +10,7 @@ import {GammaProtocol} from "../protocols/GammaProtocol.sol";
 import {GnosisAuction} from "../protocols/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
+import {ShareMath} from "../libraries/ShareMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
@@ -21,6 +22,7 @@ import {
 contract RibbonThetaVault is OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
+    using ShareMath for Vault.DepositReceipt;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
@@ -299,7 +301,11 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint128 unredeemedShares =
-            _getSharesFromReceipt(currentRound, depositReceipt);
+            depositReceipt.getSharesFromReceipt(
+                currentRound,
+                roundPricePerShare[depositReceipt.round],
+                _decimals
+            );
 
         uint104 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
@@ -308,10 +314,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
             require(!depositReceipt.processed, "Processed");
 
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            require(newAmount < type(uint104).max, "Overflow");
+            assertUint104(newAmount);
             depositAmount = uint104(newAmount);
         } else {
-            require(amount < type(uint104).max, "Overflow");
+            assertUint104(amount);
         }
 
         depositReceipts[msg.sender] = Vault.DepositReceipt({
@@ -346,7 +352,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        require(shares < type(uint104).max, "Overflow");
+        assertUint104(shares);
 
         Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
@@ -357,7 +363,11 @@ contract RibbonThetaVault is OptionsVaultStorage {
         require(depositReceipt.round < currentRound, "Round not closed");
 
         uint128 unredeemedShares =
-            _getSharesFromReceipt(currentRound, depositReceipt);
+            depositReceipt.getSharesFromReceipt(
+                currentRound,
+                roundPricePerShare[depositReceipt.round],
+                _decimals
+            );
 
         shares = isMax ? unredeemedShares : shares;
         require(shares > 0, "!shares");
@@ -373,43 +383,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
         emit Redeem(msg.sender, shares, depositReceipt.round);
 
         _transfer(address(this), msg.sender, shares);
-    }
-
-    /**
-     * @notice Returns the shares unredeemed by the user given their DepositReceipt
-     * @param depositReceipt is the user's deposit receipt
-     * @return unredeemedShares is the user's virtual balance of shares that are owed
-     */
-    function _getSharesFromReceipt(
-        uint16 currentRound,
-        Vault.DepositReceipt memory depositReceipt
-    ) private view returns (uint128 unredeemedShares) {
-        if (
-            depositReceipt.round > 0 &&
-            depositReceipt.round < currentRound &&
-            !depositReceipt.processed
-        ) {
-            uint256 pps = roundPricePerShare[depositReceipt.round];
-
-            // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
-            // which should never happen.
-            // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-            require(pps > PLACEHOLDER_UINT, "Invalid pps");
-
-            uint256 sharesFromRound =
-                uint256(depositReceipt.amount).mul(10**uint256(_decimals)).div(
-                    pps
-                );
-            require(sharesFromRound < type(uint104).max, "Overflow");
-
-            uint256 unredeemedShares256 =
-                uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
-            require(unredeemedShares256 < type(uint128).max, "Overflow");
-
-            unredeemedShares = uint128(unredeemedShares256);
-        } else {
-            unredeemedShares = depositReceipt.unredeemedShares;
-        }
     }
 
     /**
@@ -689,7 +662,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
-        require(strikePrice < type(uint128).max, "Overflow");
+        assertUint128(strikePrice);
         strikeOverride.overriddenStrikePrice = strikePrice;
         strikeOverride.lastStrikeOverride = round;
     }
@@ -757,7 +730,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
         if (depositReceipt.round < PLACEHOLDER_UINT) {
             return (balanceOf(account), 0);
         }
-        uint256 unredeemedShares = _getSharesFromReceipt(round, depositReceipt);
+
+        uint128 unredeemedShares =
+            depositReceipt.getSharesFromReceipt(
+                round,
+                roundPricePerShare[depositReceipt.round],
+                _decimals
+            );
+
         return (balanceOf(account), unredeemedShares);
     }
 
@@ -794,4 +774,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
     /************************************************
      *  HELPERS
      ***********************************************/
+
+    function assertUint104(uint256 num) internal pure {
+        require(num < type(uint104).max, ">U104");
+    }
+
+    function assertUint128(uint256 num) internal pure {
+        require(num < type(uint104).max, ">U128");
+    }
 }
