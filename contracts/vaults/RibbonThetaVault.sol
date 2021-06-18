@@ -446,7 +446,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint16 currentRound = round;
         Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
-        require(!withdrawal.initiated, "Existing withdraw");
+        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
 
         (uint256 heldByAccount, uint256 heldByVault) =
             shareBalances(msg.sender);
@@ -457,14 +457,23 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
-        withdrawals[msg.sender].initiated = true;
-        withdrawals[msg.sender].round = currentRound;
-        withdrawals[msg.sender].shares = shares;
+        if (topup) {
+            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
+            require(increasedShares < type(uint128).max, "Overflow");
+            withdrawals[msg.sender].shares = uint128(increasedShares);
+        } else {
+            withdrawals[msg.sender].initiated = true;
+            withdrawals[msg.sender].shares = shares;
+            withdrawals[msg.sender].round = currentRound;
+        }
 
         queuedWithdrawShares = queuedWithdrawShares.add(shares);
 
-        if (shares > heldByVault) {
-            uint256 debitShares = uint256(shares).sub(heldByVault);
+        // We need to debit the user's account when they are trying to withdraw
+        // more than what's available in the vault, accounting for previous withdrawals
+        uint256 vaultRemainder = heldByVault.sub(withdrawal.shares);
+        if (shares > vaultRemainder) {
+            uint256 debitShares = uint256(shares).sub(vaultRemainder);
             _transfer(msg.sender, address(this), debitShares);
         }
     }
