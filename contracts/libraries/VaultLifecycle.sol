@@ -86,6 +86,24 @@ library VaultLifecycle {
         require(premium > 0, "!premium");
     }
 
+    function createShort(
+        address gammaController,
+        address marginPool,
+        address oTokenAddress,
+        uint256 depositAmount
+    ) external returns (uint256) {
+        GammaProtocol.createShort(
+            gammaController,
+            marginPool,
+            oTokenAddress,
+            depositAmount
+        );
+    }
+
+    function settleShort(address GAMMA_CONTROLLER) public returns (uint256) {
+        return GammaProtocol.settleShort(GAMMA_CONTROLLER);
+    }
+
     function verifyOtoken(
         address otokenAddress,
         Vault.VaultParams calldata vaultParams,
@@ -153,5 +171,55 @@ library VaultLifecycle {
         uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
         return (balanceSansQueued, newPricePerShare);
+    }
+
+    function burnRemainingOTokens(
+        address GAMMA_CONTROLLER,
+        address currentOption,
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
+    ) external returns (uint256) {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+        require(numOTokensToBurn > 0, "!otokens");
+
+        uint256 assetBalanceBeforeBurn =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+
+        GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+
+        uint256 assetBalanceAfterBurn =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+
+        return
+            uint256(vaultState.lockedAmount).sub(
+                assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
+            );
+    }
+
+    /**
+     * @notice Initiate the gnosis auction.
+     */
+    function startAuction(
+        address GNOSIS_EASY_AUCTION,
+        address owner,
+        address currentOption,
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
+    ) external {
+        GnosisAuction.AuctionDetails memory auctionDetails;
+
+        uint256 currentOtokenPremium = vaultState.currentOtokenPremium;
+
+        require(currentOtokenPremium > 0, "!currentOtokenPremium");
+
+        auctionDetails.oTokenAddress = currentOption;
+        auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
+        auctionDetails.asset = vaultParams.asset;
+        auctionDetails.oTokenPremium = currentOtokenPremium;
+        auctionDetails.manager = owner;
+        auctionDetails.duration = 6 hours;
+
+        GnosisAuction.startAuction(auctionDetails);
     }
 }
