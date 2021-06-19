@@ -1858,7 +1858,11 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#initiateWithdraw", () => {
-      time.revertToSnapshotAfterEach();
+      let oracle: Contract;
+
+      time.revertToSnapshotAfterEach(async () => {
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
         await expect(vault.initiateWithdraw(depositAmount)).to.be.revertedWith(
@@ -1897,6 +1901,34 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.initiateWithdraw(depositAmount.add(1))
         ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("reverts when initiating with past existing withdrawal", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount.div(2));
+
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await vault.currentOptionExpiry(),
+          parseUnits(params.firstOptionStrike.toString(), 8)
+        );
+        await strikeSelection.setStrikePrice(
+          parseUnits(params.secondOptionStrike.toString(), 8)
+        );
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(ownerSigner).rollToNextOption();
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.div(2))
+        ).to.be.revertedWith("Existing withdraw");
       });
 
       it("creates withdrawal from unredeemed shares", async function () {

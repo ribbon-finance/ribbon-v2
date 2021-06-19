@@ -462,10 +462,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
             uint256 increasedShares = uint256(withdrawal.shares).add(shares);
             require(increasedShares < type(uint128).max, "Overflow");
             withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else {
+        } else if (!withdrawal.initiated) {
             withdrawals[msg.sender].initiated = true;
             withdrawals[msg.sender].shares = shares;
             withdrawals[msg.sender].round = currentRound;
+        } else {
+            // If we have an old withdrawal, we revert
+            // The user has to process the withdrawal
+            revert("Existing withdraw");
         }
 
         queuedWithdrawShares = queuedWithdrawShares.add(shares);
