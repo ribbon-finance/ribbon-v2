@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.3;
 
-library VaultDeposit {
+library Vault {
     struct DepositReceipt {
         // Flag to mark if processed or not
         bool processed;
@@ -11,5 +11,14 @@ library VaultDeposit {
         uint104 amount;
         // Unredeemed shares balance
         uint128 unredeemedShares;
+    }
+
+    struct Withdrawal {
+        // Flag for marking an initialized withdrawal
+        bool initiated;
+        // Maximum of 65535 rounds. Assuming 1 round is 7 days, maximum is 1256 years.
+        uint16 round;
+        // Number of shares withdrawn
+        uint128 shares;
     }
 }
