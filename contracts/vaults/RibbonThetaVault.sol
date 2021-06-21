@@ -6,8 +6,7 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {GammaProtocol} from "../protocols/GammaProtocol.sol";
-import {GnosisAuction} from "../protocols/GnosisAuction.sol";
+import {GnosisAuction} from "../libraries/GnosisAuction.sol";
 import {OptionsVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
@@ -464,7 +463,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         if (oldOption > PLACEHOLDER_ADDR) {
             uint256 withdrawAmount =
-                GammaProtocol.settleShort(GAMMA_CONTROLLER);
+                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -493,7 +492,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        GammaProtocol.createShort(
+        VaultLifecycle.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -520,7 +519,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         auctionDetails.manager = owner();
         auctionDetails.duration = 6 hours;
 
-        GnosisAuction.startAuction(auctionDetails);
+        VaultLifecycle.startAuction(auctionDetails);
     }
 
     /**
@@ -532,7 +531,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         require(numOTokensToBurn > 0, "!otokens");
         uint256 assetBalanceBeforeBurn =
             IERC20(vaultParams.asset).balanceOf(address(this));
-        GammaProtocol.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+        VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
         uint256 assetBalanceAfterBurn =
             IERC20(vaultParams.asset).balanceOf(address(this));
         vaultState.lockedAmount = uint104(
