@@ -16,7 +16,6 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
-  PLACEHOLDER_ADDR,
 } from "./helpers/constants";
 import {
   deployProxy,
