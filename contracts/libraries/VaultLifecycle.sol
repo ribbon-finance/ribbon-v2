@@ -23,9 +23,6 @@ library VaultLifecycle {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    uint128 private constant PLACEHOLDER_UINT = 1;
-    address private constant PLACEHOLDER_ADDR = address(1);
-
     struct CloseParams {
         address OTOKEN_FACTORY;
         address USDC;
@@ -134,8 +131,7 @@ library VaultLifecycle {
             uint256 mintShares
         )
     {
-        uint256 pendingAmount =
-            uint256(vaultState.totalPending).sub(PLACEHOLDER_UINT);
+        uint256 pendingAmount = uint256(vaultState.totalPending);
         uint256 currentBalance =
             IERC20(vaultParams.asset).balanceOf(address(this));
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
