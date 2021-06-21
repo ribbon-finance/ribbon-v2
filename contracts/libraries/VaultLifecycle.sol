@@ -5,7 +5,12 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-
+import {Vault} from "./Vault.sol";
+import {
+    IStrikeSelection,
+    IOptionsPremiumPricer
+} from "../interfaces/IRibbon.sol";
+import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
     IOtoken,
@@ -14,9 +19,150 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
-library GammaProtocol {
+library VaultLifecycle {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+
+    struct CloseParams {
+        address OTOKEN_FACTORY;
+        address USDC;
+        address currentOption;
+        uint256 delay;
+        uint16 lastStrikeOverride;
+        uint256 overriddenStrikePrice;
+    }
+
+    function commitAndClose(
+        CloseParams calldata closeParams,
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
+    )
+        external
+        returns (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        )
+    {
+        uint256 expiry;
+
+        // uninitialized state
+        if (closeParams.currentOption <= address(1)) {
+            expiry = getNextFriday(block.timestamp);
+        } else {
+            expiry = getNextFriday(
+                IOtoken(closeParams.currentOption).expiryTimestamp()
+            );
+        }
+
+        IStrikeSelection selection =
+            IStrikeSelection(vaultParams.strikeSelection);
+
+        (strikePrice, delta) = closeParams.lastStrikeOverride ==
+            vaultState.round
+            ? (closeParams.overriddenStrikePrice, selection.delta())
+            : selection.getStrikePrice(expiry, vaultParams.isPut);
+
+        require(strikePrice != 0, "!strikePrice");
+
+        otokenAddress = getOrDeployOtoken(
+            closeParams.OTOKEN_FACTORY,
+            vaultParams.underlying,
+            closeParams.USDC,
+            vaultParams.asset,
+            strikePrice,
+            expiry,
+            vaultParams.isPut
+        );
+
+        verifyOtoken(
+            otokenAddress,
+            vaultParams,
+            closeParams.USDC,
+            closeParams.delay
+        );
+
+        premium = GnosisAuction.getOTokenPremium(
+            otokenAddress,
+            vaultParams.optionsPremiumPricer,
+            vaultState.premiumDiscount
+        );
+
+        require(premium > 0, "!premium");
+    }
+
+    function verifyOtoken(
+        address otokenAddress,
+        Vault.VaultParams calldata vaultParams,
+        address USDC,
+        uint256 delay
+    ) private view {
+        require(otokenAddress != address(0), "!otokenAddress");
+
+        IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == vaultParams.asset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
+        uint256 readyAt = block.timestamp.add(delay);
+        require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
+    }
+
+    function rollover(
+        uint256 currentSupply,
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
+    )
+        external
+        view
+        returns (
+            uint256 newLockedAmount,
+            uint256 newPricePerShare,
+            uint256 mintShares
+        )
+    {
+        uint256 pendingAmount = uint256(vaultState.totalPending);
+        uint256 currentBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
+
+        uint256 singleShare = 10**uint256(vaultParams.decimals);
+
+        newPricePerShare = currentSupply > 0
+            ? singleShare.mul(roundStartBalance).div(currentSupply)
+            : singleShare;
+
+        // After closing the short, if the options expire in-the-money
+        // vault pricePerShare would go down because vault's asset balance decreased.
+        // This ensures that the newly-minted shares do not take on the loss.
+        uint256 _mintShares =
+            pendingAmount.mul(singleShare).div(newPricePerShare);
+
+        uint256 newSupply = currentSupply.add(_mintShares);
+
+        // TODO: We need to use the pps of the round they scheduled the withdrawal
+        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
+        uint256 queuedWithdrawAmount =
+            newSupply > 0
+                ? uint256(vaultState.queuedWithdrawShares)
+                    .mul(currentBalance)
+                    .div(newSupply)
+                : 0;
+
+        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
+
+        return (balanceSansQueued, newPricePerShare, _mintShares);
+    }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
     uint256 private constant OTOKEN_DECIMALS = 10**8;
@@ -227,7 +373,7 @@ library GammaProtocol {
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
-    ) external returns (address) {
+    ) internal returns (address) {
         IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
         address otokenFromFactory =
@@ -254,6 +400,63 @@ library GammaProtocol {
                 isPut
             );
         return otoken;
+    }
+
+    function startAuction(GnosisAuction.AuctionDetails memory auctionDetails)
+        external
+    {
+        GnosisAuction.startAuction(auctionDetails);
+    }
+
+    function verifyConstructorParams(
+        address owner,
+        address feeRecipient,
+        uint256 performanceFee,
+        uint256 managementFee,
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        Vault.VaultParams calldata _vaultParams
+    ) external pure {
+        require(owner != address(0), "!owner");
+        require(feeRecipient != address(0), "!feeRecipient");
+        require(performanceFee > 0, "!performanceFee");
+        require(managementFee > 0, "!managementFee");
+        require(bytes(tokenName).length > 0, "!tokenName");
+        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
+
+        require(_vaultParams.asset != address(0), "!asset");
+
+        require(_vaultParams.decimals > 0, "!tokenDecimals");
+        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
+        require(_vaultParams.strikeSelection != address(0), "!strikeSelection");
+        require(
+            _vaultParams.optionsPremiumPricer != address(0),
+            "!optionsPremiumPricer"
+        );
+        require(_vaultParams.cap > 0, "!cap");
+    }
+
+    /**
+     * @notice Gets the next options expiry timestamp
+     */
+    function getNextFriday(uint256 currentExpiry)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 nextWeek = currentExpiry + 86400 * 7;
+        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
+
+        uint256 friday;
+        if (dayOfWeek > 5) {
+            friday = nextWeek - 86400 * (dayOfWeek - 5);
+        } else {
+            friday = nextWeek + 86400 * (5 - dayOfWeek);
+        }
+
+        uint256 friday8am =
+            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
+        return friday8am;
     }
 
     /***

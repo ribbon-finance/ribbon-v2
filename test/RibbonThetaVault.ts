@@ -16,7 +16,6 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
-  PLACEHOLDER_ADDR,
 } from "./helpers/constants";
 import {
   deployProxy,
@@ -26,7 +25,6 @@ import {
   mintToken,
   bidForOToken,
 } from "./helpers/utils";
-// import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -109,7 +107,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("158730"),
     isPut: true,
     gasLimits: {
-      depositWorstCase: 110000,
+      depositWorstCase: 115000,
       depositBestCase: 98000,
     },
     mintConfig: {
@@ -136,7 +134,7 @@ describe("RibbonThetaVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 110000,
+      depositWorstCase: 115000,
       depositBestCase: 98000,
     },
     mintConfig: {
@@ -227,7 +225,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let gammaProtocolLib: Contract;
+  let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
@@ -249,9 +247,20 @@ function behavesLikeRibbonOptionsVault(params: {
       await optionsPremiumPricer.setPremium(params.premium.toString());
 
       await vault.connect(ownerSigner).commitAndClose();
-      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+      await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
       await vault.connect(ownerSigner).rollToNextOption();
+    };
+
+    const getNextOptionReadyAt = async () => {
+      const optionState = await vault.optionState();
+      return optionState.nextOptionReadyAt;
+    };
+
+    const getCurrentOptionExpiry = async () => {
+      const currentOption = await vault.currentOption();
+      const otoken = await getContractAt("IOtoken", currentOption);
+      return otoken.expiryTimestamp();
     };
 
     before(async function () {
@@ -281,37 +290,33 @@ function behavesLikeRibbonOptionsVault(params: {
       );
       optionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
 
-      const GammaProtocol = await ethers.getContractFactory("GammaProtocol");
-      gammaProtocolLib = await GammaProtocol.deploy();
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      vaultLifecycleLib = await VaultLifecycle.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
         GNOSIS_EASY_AUCTION
       );
 
-      const initializeTypes = [
-        "address",
-        "address",
-        "uint256",
-        "Tuple",
-        "uint256",
-        "address",
-        "bool",
-        "uint256",
-        "address",
-        "address",
-      ];
+      const initializeTypes = ["address", "string", "string", "Tuple", "Tuple"];
+
       const initializeArgs = [
         owner,
         feeRecipient,
-        parseEther("500"),
-        [tokenName, tokenSymbol, tokenDecimals],
-        minimumSupply,
-        asset,
-        isPut,
-        premiumDiscount,
-        strikeSelection.address,
-        optionsPremiumPricer.address,
+        parseEther("0.2"),
+        parseEther("0.02"),
+        tokenName,
+        tokenSymbol,
+        [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS : asset,
+          asset,
+          minimumSupply,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          parseEther("500"),
+        ],
       ];
 
       const deployArgs = [
@@ -332,7 +337,7 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              GammaProtocol: gammaProtocolLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
             },
           }
         )
@@ -405,6 +410,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await vault.initRounds(50);
 
+      await vault
+        .connect(ownerSigner)
+        .setPremiumDiscount(params.premiumDiscount);
+
       await optionsPremiumPricer.setPremium(params.premium.toString());
 
       defaultOtokenAddress = firstOption.address;
@@ -440,10 +449,6 @@ function behavesLikeRibbonOptionsVault(params: {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    describe("constructor", () => {
-      time.revertToSnapshotAfterEach();
-    });
-
     describe("#initialize", () => {
       let testVault: Contract;
 
@@ -452,7 +457,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaVault",
           {
             libraries: {
-              GammaProtocol: gammaProtocolLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
             },
           }
         );
@@ -470,21 +475,33 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("500"));
         assert.equal(await vault.owner(), owner);
         assert.equal(await vault.feeRecipient(), feeRecipient);
-        assert.equal(await vault.asset(), collateralAsset);
+
+        const [
+          isPut,
+          decimals,
+          assetFromContract,
+          underlying,
+          minimumSupply,
+          optionsPremiumPricerAddress,
+          strikeSelectionAddress,
+          cap,
+        ] = await vault.vaultParams();
+        assert.equal(await decimals, tokenDecimals);
+        assert.equal(decimals, tokenDecimals);
+        assert.equal(assetFromContract, collateralAsset);
+        assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS);
         assert.equal(await vault.USDC(), USDC_ADDRESS);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
-        assert.equal(await vault.minimumSupply(), params.minimumSupply);
-        assert.equal(await vault.isPut(), params.isPut);
+        assert.equal(minimumSupply, params.minimumSupply);
+        assert.equal(isPut, params.isPut);
         assert.equal(
-          (await vault.premiumDiscount()).toString(),
+          premiumDiscount.toString(),
           params.premiumDiscount.toString()
         );
-        assert.equal(
-          await vault.optionsPremiumPricer(),
-          optionsPremiumPricer.address
-        );
-        assert.equal(await vault.strikeSelection(), strikeSelection.address);
+        assert.bnEqual(cap, parseEther("500"));
+        assert.equal(optionsPremiumPricerAddress, optionsPremiumPricer.address);
+        assert.equal(strikeSelectionAddress, strikeSelection.address);
       });
 
       it("cannot be initialized twice", async function () {
@@ -492,14 +509,20 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.initialize(
             owner,
             feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
       });
@@ -509,16 +532,22 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             constants.AddressZero,
             feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
           )
-        ).to.be.revertedWith("!_owner");
+        ).to.be.revertedWith("!owner");
       });
 
       it("reverts when initializing with 0 feeRecipient", async function () {
@@ -526,16 +555,22 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             constants.AddressZero,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
           )
-        ).to.be.revertedWith("!_feeRecipient");
+        ).to.be.revertedWith("!feeRecipient");
       });
 
       it("reverts when initializing with 0 initCap", async function () {
@@ -543,16 +578,22 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            "0",
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              0,
+            ]
           )
-        ).to.be.revertedWith("!_initCap");
+        ).to.be.revertedWith("!cap");
       });
 
       it("reverts when asset is 0x", async function () {
@@ -560,16 +601,22 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            constants.AddressZero,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              constants.AddressZero,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
           )
-        ).to.be.revertedWith("!_asset");
+        ).to.be.revertedWith("!asset");
       });
 
       it("reverts when decimals is 0", async function () {
@@ -577,16 +624,22 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, 0],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              0,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
           )
-        ).to.be.revertedWith("!_tokenDecimals");
+        ).to.be.revertedWith("!tokenDecimals");
       });
 
       it("reverts when minimumSupply is 0", async function () {
@@ -594,33 +647,22 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            0,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            parseEther("0.2"),
+            parseEther("0.02"),
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              0,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
           )
-        ).to.be.revertedWith("!_minimumSupply");
-      });
-
-      it("reverts when premiumDiscount is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            0,
-            strikeSelection.address,
-            optionsPremiumPricer.address
-          )
-        ).to.be.revertedWith("!_premiumDiscount");
+        ).to.be.revertedWith("!minimumSupply");
       });
     });
 
@@ -636,21 +678,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#isPut", () => {
-      it("returns the correct option type", async function () {
-        assert.equal(await vault.isPut(), isPut);
-      });
-    });
-
     describe("#delay", () => {
       it("returns the delay", async function () {
         assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
-      });
-    });
-
-    describe("#asset", () => {
-      it("returns the asset", async function () {
-        assert.equal(await vault.asset(), collateralAsset);
       });
     });
 
@@ -724,11 +754,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 90000);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 90100);
 
           // Uncomment to measure precise gas numbers
-          // console.log("Worst case", receipt1.gasUsed.toNumber());
-          // console.log("Best case", receipt2.gasUsed.toNumber());
+          // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
+          // console.log("Best case depositETH", receipt2.gasUsed.toNumber());
         });
 
         it("reverts when no value passed", async function () {
@@ -860,37 +890,8 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // Uncomment to log gas used
-        // console.log("Worst case", receipt1.gasUsed.toNumber());
-        // console.log("Best case", receipt2.gasUsed.toNumber());
-      });
-
-      it("reverts when deposit amount exceeds uint128", async function () {
-        await vault
-          .connect(ownerSigner)
-          .setCap(
-            "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-          );
-
-        const depositAmount = BigNumber.from(
-          "340282366920938463463374607431768211455"
-        );
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
-
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
-
-        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-          "Overflow"
-        );
-
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
-
-        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-          "Overflow"
-        );
+        // console.log("Worst case deposit", receipt1.gasUsed.toNumber());
+        // console.log("Best case deposit", receipt2.gasUsed.toNumber());
       });
 
       it("does not inflate the share tokens on initialization", async function () {
@@ -969,25 +970,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount3, params.depositAmount);
         assert.bnEqual(unredeemedShares3, depositAmount);
       });
-
-      it("fits gas budget for deposits refreshing deposit receipt [ @skip-on-coverage ]", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
-
-        await vault.deposit(params.depositAmount);
-
-        await rollToNextOption();
-
-        const tx = await vault.deposit(params.depositAmount);
-        const receipt = await tx.wait();
-        assert.isAtMost(
-          receipt.gasUsed.toNumber(),
-          params.gasLimits.depositBestCase
-        );
-        // Uncomment to see exact gas use
-        // console.log(receipt.gasUsed.toNumber());
-      });
     });
 
     describe("#commitAndClose", () => {
@@ -1010,13 +992,16 @@ function behavesLikeRibbonOptionsVault(params: {
         const receipt = await res.wait();
         const block = await provider.getBlock(receipt.blockNumber);
 
-        assert.equal(await vault.nextOption(), defaultOtokenAddress);
+        const optionState = await vault.optionState();
+        const vaultState = await vault.vaultState();
+
+        assert.equal(optionState.nextOption, defaultOtokenAddress);
         assert.equal(
-          (await vault.nextOptionReadyAt()).toNumber(),
+          optionState.nextOptionReadyAt,
           block.timestamp + OPTION_DELAY
         );
-        assert.isTrue((await vault.lockedAmount()).isZero());
-        assert.equal(await vault.currentOption(), PLACEHOLDER_ADDR);
+        assert.isTrue(vaultState.lockedAmount.isZero());
+        assert.equal(optionState.currentOption, constants.AddressZero);
       });
 
       it("should set the next option twice", async function () {
@@ -1032,12 +1017,11 @@ function behavesLikeRibbonOptionsVault(params: {
         const newStrikePrice = parseEther("10");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
+        const optionState = await vault.optionState();
+
+        assert.equal(optionState.lastStrikeOverride.toString(), "1");
         assert.equal(
-          (await vault.strikeOverride()).lastStrikeOverride.toString(),
-          "1"
-        );
-        assert.equal(
-          (await vault.strikeOverride()).overriddenStrikePrice.toString(),
+          optionState.overriddenStrikePrice.toString(),
           newStrikePrice.toString()
         );
 
@@ -1052,12 +1036,11 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        assert.equal(
-          (await vault.currentOtokenPremium()).toString(),
-          params.premium
-            .mul(await vault.premiumDiscount())
-            .div(1000)
-            .toString()
+        const vaultState = await vault.vaultState();
+
+        assert.bnEqual(
+          vaultState.currentOtokenPremium,
+          params.premium.mul(vaultState.premiumDiscount).div(1000)
         );
       });
 
@@ -1079,12 +1062,11 @@ function behavesLikeRibbonOptionsVault(params: {
           strikePrice.toString()
         );
 
+        const vaultState = await vault.vaultState();
+
         assert.equal(
-          (await vault.currentOtokenPremium()).toString(),
-          params.premium
-            .mul(await vault.premiumDiscount())
-            .div(1000)
-            .toString()
+          vaultState.currentOtokenPremium.toString(),
+          params.premium.mul(vaultState.premiumDiscount).div(1000).toString()
         );
       });
 
@@ -1096,7 +1078,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 750000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 685000);
+        // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
 
@@ -1112,7 +1095,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).commitAndClose();
 
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         await vault.connect(ownerSigner).rollToNextOption();
       });
@@ -1227,9 +1210,14 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(defaultOtokenAddress, depositAmount, owner);
 
-        assert.equal((await vault.lockedAmount()).toString(), depositAmount);
+        const vaultState = await vault.vaultState();
 
-        assert.bnEqual(await vault.assetBalance(), BigNumber.from(0));
+        assert.equal(vaultState.lockedAmount.toString(), depositAmount);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
 
         assert.equal(
           (await assetContract.balanceOf(MARGIN_POOL))
@@ -1282,7 +1270,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const firstTx = await vault.connect(ownerSigner).rollToNextOption();
 
         assert.equal(await vault.currentOption(), firstOptionAddress);
-        assert.equal(await vault.currentOptionExpiry(), firstOption.expiry);
+        assert.equal(await getCurrentOptionExpiry(), firstOption.expiry);
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
@@ -1310,7 +1298,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
-          await vault.currentOptionExpiry(),
+          await getCurrentOptionExpiry(),
           settlementPriceITM
         );
 
@@ -1346,7 +1334,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const secondTx = await vault.connect(ownerSigner).rollToNextOption();
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
-        assert.equal(await vault.currentOptionExpiry(), secondOption.expiry);
+        assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
@@ -1433,7 +1421,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
-          await vault.currentOptionExpiry(),
+          await getCurrentOptionExpiry(),
           settlementPriceOTM
         );
 
@@ -1466,7 +1454,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const secondTx = await vault.connect(ownerSigner).rollToNextOption();
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
-        assert.equal(await vault.currentOptionExpiry(), secondOption.expiry);
+        assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
@@ -1488,6 +1476,16 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.connect(ownerSigner).rollToNextOption()
         ).to.be.revertedWith("!nextOption");
       });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const tx = await vault.connect(ownerSigner).rollToNextOption();
+        const receipt = await tx.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 900000);
+        // console.log("rollToNextOption", receipt.gasUsed.toNumber());
+      });
     });
 
     describe("#assetBalance", () => {
@@ -1501,15 +1499,14 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
       });
 
-      it("returns the free balance, after locking", async function () {
-        assert.equal((await vault.assetBalance()).toString(), "0");
-      });
-
       it("returns the free balance - locked, if free > locked", async function () {
         const newDepositAmount = BigNumber.from("1000000000000");
         await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
 
-        assert.bnEqual(await vault.assetBalance(), newDepositAmount);
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          newDepositAmount
+        );
       });
     });
 
@@ -1600,9 +1597,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // Mid-week deposit in round 2
         await vault.connect(userSigner).deposit(params.depositAmount);
+
+        const vaultState = await vault.vaultState();
+
         const beforeBalance = (
           await assetContract.balanceOf(vault.address)
-        ).add(await vault.lockedAmount());
+        ).add(vaultState.lockedAmount);
 
         const beforePps = await vault.pricePerShare();
 
@@ -1618,7 +1618,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
-          await vault.currentOptionExpiry(),
+          await getCurrentOptionExpiry(),
           settlementPriceITM
         );
 
@@ -1704,7 +1704,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith("Overflow");
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U104");
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -1916,7 +1916,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
-          await vault.currentOptionExpiry(),
+          await getCurrentOptionExpiry(),
           parseUnits(params.firstOptionStrike.toString(), 8)
         );
         await strikeSelection.setStrikePrice(
@@ -2052,8 +2052,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 92000);
-        // console.log(receipt.gasUsed.toNumber());
+        assert.isAtMost(receipt.gasUsed.toNumber(), 91000);
+        // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
 
@@ -2068,8 +2068,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("should set the new strike price", async function () {
         await vault.connect(ownerSigner).setStrikePrice(parseEther("10"));
-        assert.equal(
-          (await vault.strikeOverride()).overriddenStrikePrice.toString(),
+        const optionState = await vault.optionState();
+        assert.bnEqual(
+          BigNumber.from(optionState.overriddenStrikePrice),
           parseEther("10")
         );
       });
@@ -2156,12 +2157,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const [heldByAccount2, heldByVault2] = await vault.shareBalances(user);
         assert.bnEqual(heldByAccount2, BigNumber.from(1));
         assert.bnEqual(heldByVault2, depositAmount.sub(1));
-      });
-    });
-
-    describe("#currentOptionExpiry", () => {
-      it("should return 0 when currentOption not set", async function () {
-        assert.equal((await vault.currentOptionExpiry()).toString(), "0");
       });
     });
 
