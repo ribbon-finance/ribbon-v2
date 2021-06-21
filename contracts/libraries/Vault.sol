@@ -23,7 +23,7 @@ library Vault {
     }
 
     struct OptionState {
-        uint16 __gap;
+        uint16 lastStrikeOverride;
         // Option that the vault is shorting in the next cycle
         address nextOption;
         // Option that the vault is currently shorting
@@ -37,9 +37,8 @@ library Vault {
         // 32 byte slot 1
         //  Current round number. `round` represents the number of `period`s elapsed.
         uint16 round;
-        uint16 lastStrikeOverride;
         // Premium discount on options we are selling (thousandths place: 000 - 999)
-        uint16 premiumDiscount;
+        uint32 premiumDiscount;
         // Current oToken premium
         uint104 currentOtokenPremium;
         // Amount that is currently locked for selling options

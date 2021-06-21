@@ -436,7 +436,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
                 USDC: USDC,
                 currentOption: oldOption,
                 delay: delay,
-                overridenStrikePrice: overridenStrikePrice
+                lastStrikeOverride: optionState.lastStrikeOverride,
+                overriddenStrikePrice: optionState.overriddenStrikePrice
             });
 
         (
@@ -448,6 +449,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
+        ShareMath.assertUint104(premium);
         vaultState.currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
@@ -478,7 +480,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         address newOption = optionState.nextOption;
         require(newOption > PLACEHOLDER_ADDR, "!nextOption");
 
-        (uint256 lockedBalance, uint256 newPricePerShare) =
+        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
             VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
 
         vaultState.totalPending = PLACEHOLDER_UINT;
@@ -499,6 +501,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
             newOption,
             lockedBalance
         );
+
+        _mint(address(this), mintShares);
 
         startAuction();
     }
@@ -552,9 +556,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
         nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
-        ShareMath.assertUint128(strikePrice);
-        overridenStrikePrice = strikePrice;
-        vaultState.lastStrikeOverride = vaultState.round;
+        optionState.overriddenStrikePrice = strikePrice;
+        optionState.lastStrikeOverride = vaultState.round;
     }
 
     /*
@@ -672,6 +675,18 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     function feeRecipient() external view returns (address) {
         return protocolFee.recipient;
+    }
+
+    function nextOptionReadyAt() external view returns (uint256) {
+        return optionState.nextOptionReadyAt;
+    }
+
+    function currentOption() external view returns (address) {
+        return optionState.currentOption;
+    }
+
+    function nextOption() external view returns (address) {
+        return optionState.nextOption;
     }
 
     /************************************************

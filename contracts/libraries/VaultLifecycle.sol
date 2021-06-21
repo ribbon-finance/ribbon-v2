@@ -31,7 +31,8 @@ library VaultLifecycle {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint256 overridenStrikePrice;
+        uint16 lastStrikeOverride;
+        uint256 overriddenStrikePrice;
     }
 
     function commitAndClose(
@@ -61,8 +62,9 @@ library VaultLifecycle {
         IStrikeSelection selection =
             IStrikeSelection(vaultParams.strikeSelection);
 
-        (strikePrice, delta) = vaultState.lastStrikeOverride == vaultState.round
-            ? (closeParams.overridenStrikePrice, selection.delta())
+        (strikePrice, delta) = closeParams.lastStrikeOverride ==
+            vaultState.round
+            ? (closeParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, vaultParams.isPut);
 
         require(strikePrice != 0, "!strikePrice");
@@ -126,7 +128,11 @@ library VaultLifecycle {
     )
         external
         view
-        returns (uint256 newLockedAmount, uint256 newPricePerShare)
+        returns (
+            uint256 newLockedAmount,
+            uint256 newPricePerShare,
+            uint256 mintShares
+        )
     {
         uint256 pendingAmount =
             uint256(vaultState.totalPending).sub(PLACEHOLDER_UINT);
@@ -143,10 +149,10 @@ library VaultLifecycle {
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
-        uint256 mintShares =
+        uint256 _mintShares =
             pendingAmount.mul(singleShare).div(newPricePerShare);
 
-        uint256 newSupply = currentSupply.add(mintShares);
+        uint256 newSupply = currentSupply.add(_mintShares);
 
         // TODO: We need to use the pps of the round they scheduled the withdrawal
         // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
@@ -159,7 +165,7 @@ library VaultLifecycle {
 
         uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
-        return (balanceSansQueued, newPricePerShare);
+        return (balanceSansQueued, newPricePerShare, _mintShares);
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
