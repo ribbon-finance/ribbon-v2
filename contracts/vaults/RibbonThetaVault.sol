@@ -37,8 +37,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     uint128 private constant PLACEHOLDER_UINT = 1;
 
-    address private constant PLACEHOLDER_ADDR = address(1);
-
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -166,8 +164,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
         protocolFee = _protocolFee;
 
         vaultState.round = 1;
-        vaultState.totalPending = PLACEHOLDER_UINT; // Hardcode to 1 so no cold writes for depositors
-        optionState.nextOption = PLACEHOLDER_ADDR; // Hardcode to 1 so no cold write for keeper
     }
 
     /************************************************
@@ -461,10 +457,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
-        optionState.currentOption = PLACEHOLDER_ADDR;
+        optionState.currentOption = address(0);
         vaultState.lockedAmount = 0;
 
-        if (oldOption > PLACEHOLDER_ADDR) {
+        if (oldOption != address(0)) {
             uint256 withdrawAmount =
                 VaultLifecycle.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
@@ -478,22 +474,25 @@ contract RibbonThetaVault is OptionsVaultStorage {
         require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
 
         address newOption = optionState.nextOption;
-        require(newOption > PLACEHOLDER_ADDR, "!nextOption");
+        require(newOption != address(0), "!nextOption");
 
         (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
             VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
 
-        vaultState.totalPending = PLACEHOLDER_UINT;
         optionState.currentOption = newOption;
-        optionState.nextOption = PLACEHOLDER_ADDR;
-        vaultState.lockedAmount = uint104(lockedBalance);
+        optionState.nextOption = address(0);
 
         // Finalize the pricePerShare at the end of the round
         uint16 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
+
+        vaultState.lockedAmount = uint104(lockedBalance);
+        vaultState.totalPending = 0;
         vaultState.round = currentRound + 1;
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
+
+        _mint(address(this), mintShares);
 
         VaultLifecycle.createShort(
             GAMMA_CONTROLLER,
@@ -501,8 +500,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
             newOption,
             lockedBalance
         );
-
-        _mint(address(this), mintShares);
 
         startAuction();
     }
@@ -636,17 +633,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Getter to get the total pending amount, ex the `1` used as a placeholder
-     */
-    function totalPending() public view returns (uint256) {
-        return uint256(vaultState.totalPending).sub(PLACEHOLDER_UINT);
-    }
-
-    /**
      * @notice The price of a unit of share denominated in the `collateral`
      */
     function pricePerShare() external view returns (uint256) {
-        uint256 balance = totalBalance().sub(totalPending());
+        uint256 balance = totalBalance().sub(vaultState.totalPending);
         return
             (10**uint256(vaultParams.decimals)).mul(balance).div(totalSupply());
     }
@@ -687,6 +677,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     function nextOption() external view returns (address) {
         return optionState.nextOption;
+    }
+
+    function totalPending() external view returns (uint256) {
+        return vaultState.totalPending;
     }
 
     /************************************************

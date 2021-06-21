@@ -955,25 +955,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount3, params.depositAmount);
         assert.bnEqual(unredeemedShares3, depositAmount);
       });
-
-      it("fits gas budget for deposits refreshing deposit receipt [ @skip-on-coverage ]", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
-
-        await vault.deposit(params.depositAmount);
-
-        await rollToNextOption();
-
-        const tx = await vault.deposit(params.depositAmount);
-        const receipt = await tx.wait();
-        assert.isAtMost(
-          receipt.gasUsed.toNumber(),
-          params.gasLimits.depositBestCase
-        );
-        // Uncomment to see exact gas use
-        // console.log("deposit with refresh", receipt.gasUsed.toNumber());
-      });
     });
 
     describe("#commitAndClose", () => {
@@ -1005,7 +986,7 @@ function behavesLikeRibbonOptionsVault(params: {
           block.timestamp + OPTION_DELAY
         );
         assert.isTrue(vaultState.lockedAmount.isZero());
-        assert.equal(optionState.currentOption, PLACEHOLDER_ADDR);
+        assert.equal(optionState.currentOption, constants.AddressZero);
       });
 
       it("should set the next option twice", async function () {
@@ -1082,7 +1063,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 670000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 685000);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -1479,6 +1460,16 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.connect(ownerSigner).rollToNextOption()
         ).to.be.revertedWith("!nextOption");
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const tx = await vault.connect(ownerSigner).rollToNextOption();
+        const receipt = await tx.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 900000);
+        // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
 
@@ -2046,7 +2037,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 75000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 91000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
