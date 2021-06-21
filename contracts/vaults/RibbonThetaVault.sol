@@ -274,10 +274,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
             require(!depositReceipt.processed, "Processed");
 
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            assertUint104(newAmount);
+            ShareMath.assertUint104(newAmount);
             depositAmount = uint104(newAmount);
         } else {
-            assertUint104(amount);
+            ShareMath.assertUint104(amount);
         }
 
         depositReceipts[msg.sender] = Vault.DepositReceipt({
@@ -314,7 +314,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        assertUint104(shares);
+        ShareMath.assertUint104(shares);
 
         Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
@@ -552,7 +552,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
-        assertUint128(strikePrice);
+        ShareMath.assertUint128(strikePrice);
         overridenStrikePrice = strikePrice;
         vaultState.lastStrikeOverride = vaultState.round;
     }
@@ -669,12 +669,4 @@ contract RibbonThetaVault is OptionsVaultStorage {
     /************************************************
      *  HELPERS
      ***********************************************/
-
-    function assertUint104(uint256 num) internal pure {
-        require(num < type(uint104).max, ">U104");
-    }
-
-    function assertUint128(uint256 num) internal pure {
-        require(num < type(uint104).max, ">U128");
-    }
 }
