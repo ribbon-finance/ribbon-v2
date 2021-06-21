@@ -39,8 +39,6 @@ contract OptionsVaultStorageV1 is
     Vault.OptionState public optionState;
 
     Vault.ProtocolFee public protocolFee;
-
-    uint256 public overridenStrikePrice;
 }
 
 // We are following Compound's method of upgrading new contract implementations
