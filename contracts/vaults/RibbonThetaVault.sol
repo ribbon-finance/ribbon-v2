@@ -142,17 +142,21 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function initialize(
         address _owner,
+        address _feeRecipient,
+        uint256 _performanceFee,
+        uint256 _managementFee,
         string memory tokenName,
         string memory tokenSymbol,
-        Vault.VaultParams calldata _vaultParams,
-        Vault.ProtocolFee calldata _protocolFee
+        Vault.VaultParams calldata _vaultParams
     ) external initializer {
         VaultLifecycle.verifyConstructorParams(
             _owner,
+            _feeRecipient,
+            _performanceFee,
+            _managementFee,
             tokenName,
             tokenSymbol,
-            _vaultParams,
-            _protocolFee
+            _vaultParams
         );
 
         __ReentrancyGuard_init();
@@ -160,8 +164,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
         __Ownable_init();
         transferOwnership(_owner);
 
+        feeRecipient = _feeRecipient;
+        performanceFee = _performanceFee;
+        managementFee = _managementFee;
         vaultParams = _vaultParams;
-        protocolFee = _protocolFee;
 
         vaultState.round = 1;
     }
@@ -176,7 +182,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
         require(newFeeRecipient != address(0), "!newFeeRecipient");
-        protocolFee.recipient = newFeeRecipient;
+        feeRecipient = newFeeRecipient;
     }
 
     /**
@@ -661,10 +667,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     function cap() external view returns (uint256) {
         return vaultParams.cap;
-    }
-
-    function feeRecipient() external view returns (address) {
-        return protocolFee.recipient;
     }
 
     function nextOptionReadyAt() external view returns (uint256) {

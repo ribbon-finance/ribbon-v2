@@ -38,7 +38,11 @@ contract OptionsVaultStorageV1 is
 
     Vault.OptionState public optionState;
 
-    Vault.ProtocolFee public protocolFee;
+    address public feeRecipient;
+
+    uint256 public performanceFee;
+
+    uint256 public managementFee;
 }
 
 // We are following Compound's method of upgrading new contract implementations
