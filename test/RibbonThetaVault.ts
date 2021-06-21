@@ -65,83 +65,83 @@ describe("RibbonThetaVault", () => {
     },
   });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS,
-    assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WETH_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
-    chainlinkPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premium: parseEther("0.1"),
-    premiumDiscount: BigNumber.from("997"),
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 100000,
-      depositBestCase: 90000,
-    },
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon ETH Theta Vault (Call)`,
+  //   tokenName: "Ribbon ETH Theta Vault",
+  //   tokenSymbol: "rETH-THETA",
+  //   asset: WETH_ADDRESS,
+  //   assetContractName: "IWETH",
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: WETH_ADDRESS,
+  //   firstOptionStrike: 2400,
+  //   secondOptionStrike: 2500,
+  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
+  //   depositAmount: parseEther("1"),
+  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
+  //   expectedMintAmount: BigNumber.from("100000000"),
+  //   premium: parseEther("0.1"),
+  //   premiumDiscount: BigNumber.from("997"),
+  //   tokenDecimals: 18,
+  //   isPut: false,
+  //   gasLimits: {
+  //     depositWorstCase: 100000,
+  //     depositBestCase: 90000,
+  //   },
+  // });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon WBTC Theta Vault (Put)`,
-    tokenName: "Ribbon BTC Theta Vault Put",
-    tokenSymbol: "rWBTC-THETA-P",
-    asset: WBTC_ADDRESS,
-    assetContractName: "IERC20",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
-    chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    tokenDecimals: 6,
-    depositAmount: BigNumber.from("100000000"),
-    premium: BigNumber.from("10000000"),
-    premiumDiscount: BigNumber.from("997"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("158730"),
-    isPut: true,
-    gasLimits: {
-      depositWorstCase: 110000,
-      depositBestCase: 98000,
-    },
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon WBTC Theta Vault (Put)`,
+  //   tokenName: "Ribbon BTC Theta Vault Put",
+  //   tokenSymbol: "rWBTC-THETA-P",
+  //   asset: WBTC_ADDRESS,
+  //   assetContractName: "IERC20",
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   firstOptionStrike: 63000,
+  //   secondOptionStrike: 64000,
+  //   chainlinkPricer: CHAINLINK_WBTC_PRICER,
+  //   tokenDecimals: 6,
+  //   depositAmount: BigNumber.from("100000000"),
+  //   premium: BigNumber.from("10000000"),
+  //   premiumDiscount: BigNumber.from("997"),
+  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
+  //   expectedMintAmount: BigNumber.from("158730"),
+  //   isPut: true,
+  //   gasLimits: {
+  //     depositWorstCase: 110000,
+  //     depositBestCase: 98000,
+  //   },
+  //   mintConfig: {
+  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
+  //   },
+  // });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Put) `,
-    tokenName: "Ribbon ETH Theta Vault Put",
-    tokenSymbol: "rETH-THETA-P",
-    asset: WETH_ADDRESS,
-    assetContractName: "IERC20",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
-    chainlinkPricer: CHAINLINK_WETH_PRICER,
-    depositAmount: BigNumber.from("100000000000"),
-    premium: BigNumber.from("10000000000"),
-    premiumDiscount: BigNumber.from("997"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("4166666666"),
-    tokenDecimals: 6,
-    isPut: true,
-    gasLimits: {
-      depositWorstCase: 110000,
-      depositBestCase: 98000,
-    },
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
+  // behavesLikeRibbonOptionsVault({
+  //   name: `Ribbon ETH Theta Vault (Put) `,
+  //   tokenName: "Ribbon ETH Theta Vault Put",
+  //   tokenSymbol: "rETH-THETA-P",
+  //   asset: WETH_ADDRESS,
+  //   assetContractName: "IERC20",
+  //   strikeAsset: USDC_ADDRESS,
+  //   collateralAsset: USDC_ADDRESS,
+  //   firstOptionStrike: 2400,
+  //   secondOptionStrike: 2500,
+  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
+  //   depositAmount: BigNumber.from("100000000000"),
+  //   premium: BigNumber.from("10000000000"),
+  //   premiumDiscount: BigNumber.from("997"),
+  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
+  //   expectedMintAmount: BigNumber.from("4166666666"),
+  //   tokenDecimals: 6,
+  //   isPut: true,
+  //   gasLimits: {
+  //     depositWorstCase: 110000,
+  //     depositBestCase: 98000,
+  //   },
+  //   mintConfig: {
+  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
+  //   },
+  // });
 });
 
 type Option = {
@@ -288,29 +288,23 @@ function behavesLikeRibbonOptionsVault(params: {
         GNOSIS_EASY_AUCTION
       );
 
-      const initializeTypes = [
-        "address",
-        "address",
-        "uint256",
-        "Tuple",
-        "uint256",
-        "address",
-        "bool",
-        "uint256",
-        "address",
-        "address",
-      ];
+      const initializeTypes = ["address", "string", "string", "Tuple", "Tuple"];
+
       const initializeArgs = [
         owner,
-        feeRecipient,
-        parseEther("500"),
-        [tokenName, tokenSymbol, tokenDecimals],
-        minimumSupply,
-        asset,
-        isPut,
-        premiumDiscount,
-        strikeSelection.address,
-        optionsPremiumPricer.address,
+        tokenName,
+        tokenSymbol,
+        [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS : asset,
+          asset,
+          minimumSupply,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          parseEther("500"),
+        ],
+        [feeRecipient, parseEther("0.2"), parseEther("0.02")],
       ];
 
       const deployArgs = [
@@ -404,6 +398,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await vault.initRounds(50);
 
+      await vault
+        .connect(ownerSigner)
+        .setPremiumDiscount(params.premiumDiscount);
+
       await optionsPremiumPricer.setPremium(params.premium.toString());
 
       defaultOtokenAddress = firstOption.address;
@@ -439,10 +437,6 @@ function behavesLikeRibbonOptionsVault(params: {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    describe("constructor", () => {
-      time.revertToSnapshotAfterEach();
-    });
-
     describe("#initialize", () => {
       let testVault: Contract;
 
@@ -469,36 +463,52 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("500"));
         assert.equal(await vault.owner(), owner);
         assert.equal(await vault.feeRecipient(), feeRecipient);
-        assert.equal(await vault.asset(), collateralAsset);
+
+        const [
+          isPut,
+          decimals,
+          asset,
+          underlying,
+          minimumSupply,
+          optionsPremiumPricerAddress,
+          strikeSelectionAddress,
+          cap,
+        ] = await vault.vaultParams();
+        assert.equal(await decimals, tokenDecimals);
+        assert.equal(decimals, tokenDecimals);
+        assert.equal(asset, collateralAsset);
+        assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS);
         assert.equal(await vault.USDC(), USDC_ADDRESS);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
-        assert.equal(await vault.minimumSupply(), params.minimumSupply);
-        assert.equal(await vault.isPut(), params.isPut);
+        assert.equal(minimumSupply, params.minimumSupply);
+        assert.equal(isPut, params.isPut);
         assert.equal(
-          (await vault.premiumDiscount()).toString(),
+          premiumDiscount.toString(),
           params.premiumDiscount.toString()
         );
-        assert.equal(
-          await vault.optionsPremiumPricer(),
-          optionsPremiumPricer.address
-        );
-        assert.equal(await vault.strikeSelection(), strikeSelection.address);
+        assert.bnEqual(cap, parseEther("500"));
+        assert.equal(optionsPremiumPricerAddress, optionsPremiumPricer.address);
+        assert.equal(strikeSelectionAddress, strikeSelection.address);
       });
 
       it("cannot be initialized twice", async function () {
         await expect(
           vault.initialize(
             owner,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ],
+            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
       });
@@ -507,119 +517,126 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             constants.AddressZero,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ],
+            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
           )
-        ).to.be.revertedWith("!_owner");
+        ).to.be.revertedWith("!owner");
       });
 
       it("reverts when initializing with 0 feeRecipient", async function () {
         await expect(
           testVault.initialize(
             owner,
-            constants.AddressZero,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ],
+            [constants.AddressZero, parseEther("0.2"), parseEther("0.02")]
           )
-        ).to.be.revertedWith("!_feeRecipient");
+        ).to.be.revertedWith("!feeRecipient");
       });
 
       it("reverts when initializing with 0 initCap", async function () {
         await expect(
           testVault.initialize(
             owner,
-            feeRecipient,
-            "0",
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              "0",
+            ],
+            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
           )
-        ).to.be.revertedWith("!_initCap");
+        ).to.be.revertedWith("!cap");
       });
 
       it("reverts when asset is 0x", async function () {
         await expect(
           testVault.initialize(
             owner,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            constants.AddressZero,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              constants.AddressZero,
+              collateralAsset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ],
+            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
           )
-        ).to.be.revertedWith("!_asset");
+        ).to.be.revertedWith("!asset");
       });
 
       it("reverts when decimals is 0", async function () {
         await expect(
           testVault.initialize(
             owner,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, 0],
-            minimumSupply,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              0,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ],
+            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
           )
-        ).to.be.revertedWith("!_tokenDecimals");
+        ).to.be.revertedWith("!tokenDecimals");
       });
 
       it("reverts when minimumSupply is 0", async function () {
         await expect(
           testVault.initialize(
             owner,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            0,
-            asset,
-            isPut,
-            premiumDiscount,
-            strikeSelection.address,
-            optionsPremiumPricer.address
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              0,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ],
+            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
           )
-        ).to.be.revertedWith("!_minimumSupply");
-      });
-
-      it("reverts when premiumDiscount is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            parseEther("500"),
-            [tokenName, tokenSymbol, tokenDecimals],
-            minimumSupply,
-            asset,
-            isPut,
-            0,
-            strikeSelection.address,
-            optionsPremiumPricer.address
-          )
-        ).to.be.revertedWith("!_premiumDiscount");
+        ).to.be.revertedWith("!minimumSupply");
       });
     });
 
@@ -635,21 +652,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#isPut", () => {
-      it("returns the correct option type", async function () {
-        assert.equal(await vault.isPut(), isPut);
-      });
-    });
-
     describe("#delay", () => {
       it("returns the delay", async function () {
         assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
-      });
-    });
-
-    describe("#asset", () => {
-      it("returns the asset", async function () {
-        assert.equal(await vault.asset(), collateralAsset);
       });
     });
 
@@ -861,35 +866,6 @@ function behavesLikeRibbonOptionsVault(params: {
         // Uncomment to log gas used
         // console.log("Worst case", receipt1.gasUsed.toNumber());
         // console.log("Best case", receipt2.gasUsed.toNumber());
-      });
-
-      it("reverts when deposit amount exceeds uint128", async function () {
-        await vault
-          .connect(ownerSigner)
-          .setCap(
-            "115792089237316195423570985008687907853269984665640564039457584007913129639935"
-          );
-
-        const depositAmount = BigNumber.from(
-          "340282366920938463463374607431768211455"
-        );
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
-
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
-
-        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-          "Overflow"
-        );
-
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
-
-        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-          "Overflow"
-        );
       });
 
       it("does not inflate the share tokens on initialization", async function () {

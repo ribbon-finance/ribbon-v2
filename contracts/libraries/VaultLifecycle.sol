@@ -427,6 +427,7 @@ library VaultLifecycle {
             _vaultParams.optionsPremiumPricer != address(0),
             "!optionsPremiumPricer"
         );
+        require(_vaultParams.cap > 0, "!cap");
     }
 
     /**

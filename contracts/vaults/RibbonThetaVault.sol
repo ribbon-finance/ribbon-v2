@@ -189,7 +189,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
         require(
-            newPremiumDiscount > 0 && newPremiumDiscount < 300,
+            newPremiumDiscount > 0 && newPremiumDiscount < 1000,
             "Invalid discount"
         );
 
@@ -664,6 +664,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function decimals() public view override returns (uint8) {
         return vaultParams.decimals;
+    }
+
+    function cap() external view returns (uint256) {
+        return vaultParams.cap;
+    }
+
+    function feeRecipient() external view returns (address) {
+        return protocolFee.recipient;
     }
 
     /************************************************
