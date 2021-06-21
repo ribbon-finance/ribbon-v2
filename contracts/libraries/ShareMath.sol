@@ -74,4 +74,16 @@ library ShareMath {
             unredeemedShares = depositReceipt.unredeemedShares;
         }
     }
+
+    /************************************************
+     *  HELPERS
+     ***********************************************/
+
+    function assertUint104(uint256 num) internal pure {
+        require(num < type(uint104).max, ">U104");
+    }
+
+    function assertUint128(uint256 num) internal pure {
+        require(num < type(uint104).max, ">U128");
+    }
 }
