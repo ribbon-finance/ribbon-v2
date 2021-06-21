@@ -26,7 +26,6 @@ import {
   mintToken,
   bidForOToken,
 } from "./helpers/utils";
-// import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -227,7 +226,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let gammaProtocolLib: Contract;
+  let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
@@ -281,8 +280,8 @@ function behavesLikeRibbonOptionsVault(params: {
       );
       optionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
 
-      const GammaProtocol = await ethers.getContractFactory("GammaProtocol");
-      gammaProtocolLib = await GammaProtocol.deploy();
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      vaultLifecycleLib = await VaultLifecycle.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -332,7 +331,7 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              GammaProtocol: gammaProtocolLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
             },
           }
         )
@@ -452,7 +451,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaVault",
           {
             libraries: {
-              GammaProtocol: gammaProtocolLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
             },
           }
         );

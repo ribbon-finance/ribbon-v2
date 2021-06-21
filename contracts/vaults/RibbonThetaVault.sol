@@ -28,11 +28,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
-    struct ReceiptTokenDetails {
-        string tokenName;
-        string tokenSymbol;
-    }
-
     address public immutable WETH;
     address public immutable USDC;
 
@@ -149,15 +144,21 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function initialize(
         address _owner,
+        string memory tokenName,
+        string memory tokenSymbol,
         Vault.VaultParams calldata _vaultParams,
-        Vault.ProtocolFee calldata _protocolFee,
-        ReceiptTokenDetails calldata _receiptTokenDetails
+        Vault.ProtocolFee calldata _protocolFee
     ) external initializer {
-        __ReentrancyGuard_init();
-        __ERC20_init(
-            _receiptTokenDetails.tokenName,
-            _receiptTokenDetails.tokenSymbol
+        VaultLifecycle.verifyConstructorParams(
+            _owner,
+            tokenName,
+            tokenSymbol,
+            _vaultParams,
+            _protocolFee
         );
+
+        __ReentrancyGuard_init();
+        __ERC20_init(tokenName, tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
 

@@ -406,6 +406,29 @@ library VaultLifecycle {
         GnosisAuction.startAuction(auctionDetails);
     }
 
+    function verifyConstructorParams(
+        address owner,
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        Vault.VaultParams calldata _vaultParams,
+        Vault.ProtocolFee calldata _protocolFee
+    ) external pure {
+        require(owner != address(0), "!owner");
+        require(bytes(tokenName).length > 0, "!tokenName");
+        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
+
+        require(_vaultParams.asset != address(0), "!asset");
+
+        require(_protocolFee.recipient != address(0), "!feeRecipient");
+        require(_vaultParams.decimals > 0, "!tokenDecimals");
+        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
+        require(_vaultParams.strikeSelection != address(0), "!strikeSelection");
+        require(
+            _vaultParams.optionsPremiumPricer != address(0),
+            "!optionsPremiumPricer"
+        );
+    }
+
     /**
      * @notice Gets the next options expiry timestamp
      */

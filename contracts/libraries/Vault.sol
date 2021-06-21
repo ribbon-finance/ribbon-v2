@@ -34,7 +34,7 @@ library Vault {
     }
 
     struct VaultState {
-        // 32-byteb slot 1
+        // 32 byte slot 1
         //  Current round number. `round` represents the number of `period`s elapsed.
         uint16 round;
         uint16 lastStrikeOverride;
@@ -44,7 +44,7 @@ library Vault {
         uint104 currentOtokenPremium;
         // Amount that is currently locked for selling options
         uint104 lockedAmount;
-        // 32 byte-slot 2
+        // 32 byte slot 2
         // Stores the total tally of how much of collateral there is
         // to be used to mint rTHETA tokens
         uint128 totalPending;
