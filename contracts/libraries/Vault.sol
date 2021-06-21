@@ -12,14 +12,14 @@ library Vault {
         // Logic contract used to select strike prices
         // Underlying asset of the options sold by vault
         address underlying;
-        // Minimum supply of the vault shares issued
-        uint32 minimumSupply;
+        // Minimum supply of the vault shares issued, for ETH it's 10**10
+        uint56 minimumSupply;
         // Logic contract used to price options
         address optionsPremiumPricer;
         // Logic contract used to select strike prices
         address strikeSelection;
         // Vault cap
-        uint128 cap;
+        uint104 cap;
     }
 
     struct OptionState {
