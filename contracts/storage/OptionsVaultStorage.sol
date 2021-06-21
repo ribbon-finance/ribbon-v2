@@ -13,7 +13,7 @@ import {
 import {Vault} from "../libraries/Vault.sol";
 import {StrikeOverride} from "../libraries/StrikeOverride.sol";
 
-contract OptionsVaultStorageV1 is
+abstract contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
     ERC20Upgradeable
@@ -49,6 +49,6 @@ contract OptionsVaultStorageV1 is
 // When we need to add new storage variables, we create a new version of OptionsVaultStorage
 // e.g. OptionsVaultStorageV<versionNumber>, so finally it would look like
 // contract OptionsVaultStorage is OptionsVaultStorageV1, OptionsVaultStorageV2
-contract OptionsVaultStorage is OptionsVaultStorageV1 {
+abstract contract OptionsVaultStorage is OptionsVaultStorageV1 {
 
 }
