@@ -302,6 +302,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
       const initializeArgs = [
         owner,
+        feeRecipient,
+        parseEther("0.2"),
+        parseEther("0.02"),
         tokenName,
         tokenSymbol,
         [
@@ -314,7 +317,6 @@ function behavesLikeRibbonOptionsVault(params: {
           strikeSelection.address,
           parseEther("500"),
         ],
-        [feeRecipient, parseEther("0.2"), parseEther("0.02")],
       ];
 
       const deployArgs = [
@@ -506,6 +508,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.initialize(
             owner,
+            feeRecipient,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
@@ -517,8 +522,7 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               parseEther("500"),
-            ],
-            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
+            ]
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
       });
@@ -527,6 +531,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             constants.AddressZero,
+            feeRecipient,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
@@ -538,8 +545,7 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               parseEther("500"),
-            ],
-            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
+            ]
           )
         ).to.be.revertedWith("!owner");
       });
@@ -548,6 +554,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            constants.AddressZero,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
@@ -559,8 +568,7 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               parseEther("500"),
-            ],
-            [constants.AddressZero, parseEther("0.2"), parseEther("0.02")]
+            ]
           )
         ).to.be.revertedWith("!feeRecipient");
       });
@@ -569,6 +577,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            feeRecipient,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
@@ -579,9 +590,8 @@ function behavesLikeRibbonOptionsVault(params: {
               minimumSupply,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              "0",
-            ],
-            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
+              0,
+            ]
           )
         ).to.be.revertedWith("!cap");
       });
@@ -590,19 +600,21 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            feeRecipient,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
               isPut,
               tokenDecimals,
               constants.AddressZero,
-              collateralAsset,
+              asset,
               minimumSupply,
               optionsPremiumPricer.address,
               strikeSelection.address,
               parseEther("500"),
-            ],
-            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
+            ]
           )
         ).to.be.revertedWith("!asset");
       });
@@ -611,6 +623,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            feeRecipient,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
@@ -622,8 +637,7 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               parseEther("500"),
-            ],
-            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
+            ]
           )
         ).to.be.revertedWith("!tokenDecimals");
       });
@@ -632,6 +646,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            feeRecipient,
+            parseEther("0.2"),
+            parseEther("0.02"),
             tokenName,
             tokenSymbol,
             [
@@ -643,8 +660,7 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               parseEther("500"),
-            ],
-            [feeRecipient, parseEther("0.2"), parseEther("0.02")]
+            ]
           )
         ).to.be.revertedWith("!minimumSupply");
       });

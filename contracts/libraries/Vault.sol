@@ -51,12 +51,6 @@ library Vault {
         uint128 queuedWithdrawShares;
     }
 
-    struct ProtocolFee {
-        address recipient;
-        uint104 performanceFeeRate;
-        uint104 managementFeeRate;
-    }
-
     struct DepositReceipt {
         // Flag to mark if processed or not
         bool processed;
