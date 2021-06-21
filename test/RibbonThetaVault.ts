@@ -65,83 +65,83 @@ describe("RibbonThetaVault", () => {
     },
   });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon ETH Theta Vault (Call)`,
-  //   tokenName: "Ribbon ETH Theta Vault",
-  //   tokenSymbol: "rETH-THETA",
-  //   asset: WETH_ADDRESS,
-  //   assetContractName: "IWETH",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: WETH_ADDRESS,
-  //   firstOptionStrike: 2400,
-  //   secondOptionStrike: 2500,
-  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
-  //   depositAmount: parseEther("1"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("100000000"),
-  //   premium: parseEther("0.1"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   tokenDecimals: 18,
-  //   isPut: false,
-  //   gasLimits: {
-  //     depositWorstCase: 100000,
-  //     depositBestCase: 90000,
-  //   },
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Theta Vault (Call)`,
+    tokenName: "Ribbon ETH Theta Vault",
+    tokenSymbol: "rETH-THETA",
+    asset: WETH_ADDRESS,
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: WETH_ADDRESS,
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premium: parseEther("0.1"),
+    premiumDiscount: BigNumber.from("997"),
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 100000,
+      depositBestCase: 90000,
+    },
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon WBTC Theta Vault (Put)`,
-  //   tokenName: "Ribbon BTC Theta Vault Put",
-  //   tokenSymbol: "rWBTC-THETA-P",
-  //   asset: WBTC_ADDRESS,
-  //   assetContractName: "IERC20",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: USDC_ADDRESS,
-  //   firstOptionStrike: 63000,
-  //   secondOptionStrike: 64000,
-  //   chainlinkPricer: CHAINLINK_WBTC_PRICER,
-  //   tokenDecimals: 6,
-  //   depositAmount: BigNumber.from("100000000"),
-  //   premium: BigNumber.from("10000000"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
-  //   expectedMintAmount: BigNumber.from("158730"),
-  //   isPut: true,
-  //   gasLimits: {
-  //     depositWorstCase: 110000,
-  //     depositBestCase: 98000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
-  //   },
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon WBTC Theta Vault (Put)`,
+    tokenName: "Ribbon BTC Theta Vault Put",
+    tokenSymbol: "rWBTC-THETA-P",
+    asset: WBTC_ADDRESS,
+    assetContractName: "IERC20",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    firstOptionStrike: 63000,
+    secondOptionStrike: 64000,
+    chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    tokenDecimals: 6,
+    depositAmount: BigNumber.from("100000000"),
+    premium: BigNumber.from("10000000"),
+    premiumDiscount: BigNumber.from("997"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("158730"),
+    isPut: true,
+    gasLimits: {
+      depositWorstCase: 115000,
+      depositBestCase: 98000,
+    },
+    mintConfig: {
+      contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon ETH Theta Vault (Put) `,
-  //   tokenName: "Ribbon ETH Theta Vault Put",
-  //   tokenSymbol: "rETH-THETA-P",
-  //   asset: WETH_ADDRESS,
-  //   assetContractName: "IERC20",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: USDC_ADDRESS,
-  //   firstOptionStrike: 2400,
-  //   secondOptionStrike: 2500,
-  //   chainlinkPricer: CHAINLINK_WETH_PRICER,
-  //   depositAmount: BigNumber.from("100000000000"),
-  //   premium: BigNumber.from("10000000000"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   minimumSupply: BigNumber.from("10").pow("3").toString(),
-  //   expectedMintAmount: BigNumber.from("4166666666"),
-  //   tokenDecimals: 6,
-  //   isPut: true,
-  //   gasLimits: {
-  //     depositWorstCase: 110000,
-  //     depositBestCase: 98000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: USDC_OWNER_ADDRESS,
-  //   },
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon ETH Theta Vault (Put) `,
+    tokenName: "Ribbon ETH Theta Vault Put",
+    tokenSymbol: "rETH-THETA-P",
+    asset: WETH_ADDRESS,
+    assetContractName: "IERC20",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: USDC_ADDRESS,
+    firstOptionStrike: 2400,
+    secondOptionStrike: 2500,
+    chainlinkPricer: CHAINLINK_WETH_PRICER,
+    depositAmount: BigNumber.from("100000000000"),
+    premium: BigNumber.from("10000000000"),
+    premiumDiscount: BigNumber.from("997"),
+    minimumSupply: BigNumber.from("10").pow("3").toString(),
+    expectedMintAmount: BigNumber.from("4166666666"),
+    tokenDecimals: 6,
+    isPut: true,
+    gasLimits: {
+      depositWorstCase: 115000,
+      depositBestCase: 98000,
+    },
+    mintConfig: {
+      contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
+  });
 });
 
 type Option = {
@@ -478,7 +478,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const [
           isPut,
           decimals,
-          asset,
+          assetFromContract,
           underlying,
           minimumSupply,
           optionsPremiumPricerAddress,
@@ -487,7 +487,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ] = await vault.vaultParams();
         assert.equal(await decimals, tokenDecimals);
         assert.equal(decimals, tokenDecimals);
-        assert.equal(asset, collateralAsset);
+        assert.equal(assetFromContract, collateralAsset);
         assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS);
         assert.equal(await vault.USDC(), USDC_ADDRESS);
@@ -739,11 +739,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 90000);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 90100);
 
           // Uncomment to measure precise gas numbers
-          // console.log("Worst case", receipt1.gasUsed.toNumber());
-          // console.log("Best case", receipt2.gasUsed.toNumber());
+          // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
+          // console.log("Best case depositETH", receipt2.gasUsed.toNumber());
         });
 
         it("reverts when no value passed", async function () {
@@ -875,8 +875,8 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // Uncomment to log gas used
-        // console.log("Worst case", receipt1.gasUsed.toNumber());
-        // console.log("Best case", receipt2.gasUsed.toNumber());
+        // console.log("Worst case deposit", receipt1.gasUsed.toNumber());
+        // console.log("Best case deposit", receipt2.gasUsed.toNumber());
       });
 
       it("does not inflate the share tokens on initialization", async function () {
@@ -972,7 +972,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.gasLimits.depositBestCase
         );
         // Uncomment to see exact gas use
-        // console.log(receipt.gasUsed.toNumber());
+        // console.log("deposit with refresh", receipt.gasUsed.toNumber());
       });
     });
 
@@ -1082,7 +1082,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 750000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 670000);
+        // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
 
@@ -2045,8 +2046,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 92000);
-        // console.log(receipt.gasUsed.toNumber());
+        assert.isAtMost(receipt.gasUsed.toNumber(), 75000);
+        // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
 

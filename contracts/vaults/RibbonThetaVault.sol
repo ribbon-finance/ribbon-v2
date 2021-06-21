@@ -202,7 +202,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    function setCap(uint128 newCap) external onlyOwner {
+    function setCap(uint104 newCap) external onlyOwner {
         uint256 oldCap = vaultParams.cap;
         vaultParams.cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
