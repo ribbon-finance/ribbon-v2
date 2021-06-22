@@ -71,7 +71,10 @@ contract StrikeSelection is DSMath, Ownable {
 
         while (true) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(strike, expiryTimestamp);
+                optionsPremiumPricer.getOptionDelta(
+                    strike.mul(10**8),
+                    expiryTimestamp
+                );
 
             //  If the current delta is between the previous
             //  strike price delta and current strike price delta

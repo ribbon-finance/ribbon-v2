@@ -116,6 +116,7 @@ library GnosisAuction {
 
     function getOTokenPremium(
         address oTokenAddress,
+        address asset,
         address optionsPremiumPricer,
         uint256 premiumDiscount
     ) internal view returns (uint256 optionPremium) {
@@ -129,7 +130,8 @@ library GnosisAuction {
             newOToken.isPut()
         )
             .mul(premiumDiscount)
-            .div(1000);
+            .div(1000)
+            .div(10**uint256(18).sub(IERC20(asset).decimals()));
 
         require(
             optionPremium <= type(uint96).max,
