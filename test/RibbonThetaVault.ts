@@ -2171,6 +2171,8 @@ function behavesLikeRibbonOptionsVault(params: {
           const afterBalance = await assetContract.balanceOf(user);
           actualWithdrawAmount = afterBalance.sub(beforeBalance);
         }
+        // Should be less because the pps is down
+        assert.bnLt(actualWithdrawAmount, depositAmount);
         assert.bnEqual(actualWithdrawAmount, withdrawAmount);
       });
     });
