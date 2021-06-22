@@ -5,7 +5,7 @@ import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-const { getContractFactory, getContractAt } = ethers;
+const { getContractFactory } = ethers;
 
 describe("StrikeSelection", () => {
   let strikeSelection: Contract;
