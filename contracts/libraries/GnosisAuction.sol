@@ -116,9 +116,9 @@ library GnosisAuction {
 
     function getOTokenPremium(
         address oTokenAddress,
-        address asset,
         address optionsPremiumPricer,
-        uint256 premiumDiscount
+        uint256 premiumDiscount,
+        uint256 assetDecimals
     ) internal view returns (uint256 optionPremium) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         // Apply black-scholes formula (from rvol library) to option given its features
@@ -131,7 +131,7 @@ library GnosisAuction {
         )
             .mul(premiumDiscount)
             .div(1000)
-            .div(10**uint256(18).sub(IERC20(asset).decimals()));
+            .div(10**(uint256(18).sub(assetDecimals)));
 
         require(
             optionPremium <= type(uint96).max,
