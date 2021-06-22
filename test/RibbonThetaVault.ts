@@ -252,6 +252,23 @@ function behavesLikeRibbonOptionsVault(params: {
       await vault.connect(ownerSigner).rollToNextOption();
     };
 
+    const rollToSecondOption = async () => {
+      const oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+
+      await setOpynOracleExpiryPrice(
+        params.asset,
+        oracle,
+        await getCurrentOptionExpiry(),
+        parseUnits(params.firstOptionStrike.toString(), 8)
+      );
+      await strikeSelection.setStrikePrice(
+        parseUnits(params.secondOptionStrike.toString(), 8)
+      );
+      await vault.connect(ownerSigner).commitAndClose();
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+      await vault.connect(ownerSigner).rollToNextOption();
+    };
+
     const getNextOptionReadyAt = async () => {
       const optionState = await vault.optionState();
       return optionState.nextOptionReadyAt;
@@ -2054,6 +2071,62 @@ function behavesLikeRibbonOptionsVault(params: {
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 91000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
+      });
+    });
+
+    describe("#completeWithdraw", () => {
+      time.revertToSnapshotAfterEach(async () => {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await assetContract.connect(userSigner).transfer(owner, depositAmount);
+        await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(ownerSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount);
+      });
+
+      it("reverts when not initiated", async function () {
+        await expect(
+          vault.connect(ownerSigner).completeWithdraw()
+        ).to.be.revertedWith("Not initiated");
+      });
+
+      it("reverts when round not closed", async function () {
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
+          "Round not closed"
+        );
+      });
+
+      it("reverts when calling completeWithdraw twice", async function () {
+        await rollToSecondOption();
+
+        await vault.completeWithdraw();
+
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
+          "Not initiated"
+        );
+      });
+
+      it("completes the withdrawal", async function () {
+        await rollToSecondOption();
+
+        const tx = await vault.completeWithdraw();
+
+        await expect(tx)
+          .to.emit(vault, "Withdraw")
+          .withArgs(user, depositAmount, depositAmount);
+
+        const { initiated, shares, round } = await vault.withdrawals(user);
+        assert.isFalse(initiated);
+        assert.equal(shares, 0);
+        assert.equal(round, 2);
       });
     });
 
