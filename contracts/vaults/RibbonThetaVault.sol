@@ -421,6 +421,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
         }
     }
 
+    /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     */
     function completeWithdraw() external nonReentrant {
         Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
