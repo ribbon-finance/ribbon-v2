@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
+import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -19,8 +20,10 @@ contract StrikeSelection is DSMath, Ownable {
     // delta for options strike price selection (ex: 1 is 100)
     uint256 public delta;
     // step in absolute terms at which we will increment
-    // (ex: 100 means we will move at increments of 100 points)
+    // (ex: 100 * 10 ** assetOracleDecimals means we will move at increments of 100 points)
     uint256 public step;
+    // multiplier to shift asset prices
+    uint256 private assetOracleMultiplier;
 
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
@@ -37,7 +40,19 @@ contract StrikeSelection is DSMath, Ownable {
         // ex: delta = 10
         delta = _delta;
         // ex: step = 1000
-        step = _step;
+        step = _step.mul(
+            10 **
+                IPriceOracle(
+                    IOptionsPremiumPricer(_optionsPremiumPricer).priceOracle()
+                )
+                    .decimals()
+        );
+        assetOracleMultiplier =
+            10 **
+                IPriceOracle(
+                    IOptionsPremiumPricer(_optionsPremiumPricer).priceOracle()
+                )
+                    .decimals();
     }
 
     /**
@@ -71,11 +86,7 @@ contract StrikeSelection is DSMath, Ownable {
 
         while (true) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(
-                    strike.mul(10**8),
-                    expiryTimestamp
-                );
-
+                optionsPremiumPricer.getOptionDelta(strike, expiryTimestamp);
             //  If the current delta is between the previous
             //  strike price delta and current strike price delta
             //  then we are done
@@ -94,7 +105,11 @@ contract StrikeSelection is DSMath, Ownable {
                         ? finalStrike <= assetPrice
                         : finalStrike >= assetPrice
                 );
-                return (finalStrike.mul(10**8), finalDelta);
+                // make decimals consistent with oToken strike price decimals (10 ** 8)
+                return (
+                    finalStrike.mul(10**8).div(assetOracleMultiplier),
+                    finalDelta
+                );
             }
 
             strike = isPut ? strike.sub(step) : strike.add(step);
@@ -174,7 +189,7 @@ contract StrikeSelection is DSMath, Ownable {
      */
     function setStep(uint256 newStep) external onlyOwner {
         uint256 oldStep = step;
-        step = newStep;
+        step = newStep.mul(assetOracleMultiplier);
         emit StepSet(oldStep, newStep, msg.sender);
     }
 }

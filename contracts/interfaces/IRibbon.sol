@@ -23,4 +23,6 @@ interface IOptionsPremiumPricer {
         returns (uint256 delta);
 
     function getUnderlyingPrice() external view returns (uint256 price);
+
+    function priceOracle() external view returns (address oracle);
 }

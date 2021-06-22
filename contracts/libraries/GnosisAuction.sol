@@ -121,17 +121,23 @@ library GnosisAuction {
         uint256 assetDecimals
     ) internal view returns (uint256 optionPremium) {
         IOtoken newOToken = IOtoken(oTokenAddress);
+        IOptionsPremiumPricer premiumPricer =
+            IOptionsPremiumPricer(optionsPremiumPricer);
+
         // Apply black-scholes formula (from rvol library) to option given its features
-        // and afterwards apply a discount to incentivize arbitraguers
-        optionPremium = IOptionsPremiumPricer(optionsPremiumPricer)
-            .getPremium(
+        // and get price for 100 contracts denominated in the underlying asset for call option
+        // and USDC for put option
+        optionPremium = premiumPricer.getPremium(
             newOToken.strikePrice(),
             newOToken.expiryTimestamp(),
             newOToken.isPut()
-        )
-            .mul(premiumDiscount)
-            .div(1000)
-            .div(10**(uint256(18).sub(assetDecimals)));
+        );
+
+        // Apply a discount to incentivize arbitraguers and shift to
+        // correspond to decimals of USDC for puts and underlying for calls
+        optionPremium = optionPremium.mul(premiumDiscount).div(1000).div(
+            10**(uint256(18).sub(assetDecimals))
+        );
 
         require(
             optionPremium <= type(uint96).max,

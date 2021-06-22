@@ -5,11 +5,12 @@ import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-const { getContractFactory } = ethers;
+const { getContractFactory, getContractAt } = ethers;
 
 describe("StrikeSelection", () => {
   let strikeSelection: Contract;
   let mockOptionsPremiumPricer: Contract;
+  let mockPriceOracle: Contract;
   let signer: SignerWithAddress;
   let signer2: SignerWithAddress;
 
@@ -19,17 +20,26 @@ describe("StrikeSelection", () => {
       "MockOptionsPremiumPricer",
       signer
     );
+    const MockPriceOracle = await getContractFactory("MockPriceOracle", signer);
     const StrikeSelection = await getContractFactory("StrikeSelection", signer);
 
     mockOptionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
+
+    mockPriceOracle = await MockPriceOracle.deploy();
+
+    await mockOptionsPremiumPricer.setPriceOracle(mockPriceOracle.address);
+    await mockPriceOracle.setDecimals(8);
+    await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
+      BigNumber.from(2500).mul(
+        BigNumber.from(10).pow(await mockPriceOracle.decimals())
+      )
+    );
 
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
       10,
       100
     );
-
-    await mockOptionsPremiumPricer.setOptionUnderlyingPrice(2500);
   });
 
   describe("setDelta", () => {
@@ -58,7 +68,12 @@ describe("StrikeSelection", () => {
 
     it("sets the step", async function () {
       await strikeSelection.connect(signer).setStep(50);
-      assert.equal((await strikeSelection.step()).toString(), "50");
+      assert.equal(
+        (await strikeSelection.step()).toString(),
+        BigNumber.from(50)
+          .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
+          .toString()
+      );
     });
   });
 
@@ -69,14 +84,16 @@ describe("StrikeSelection", () => {
     let deltaAtUnderlying = BigNumber.from(50);
 
     beforeEach(async () => {
-      underlyingPrice = (
-        await mockOptionsPremiumPricer.getUnderlyingPrice()
-      ).mul(BigNumber.from(10).pow(8));
+      underlyingPrice = await mockOptionsPremiumPricer.getUnderlyingPrice();
 
       let delta = 100;
       for (let i = -1000; i < 1100; i += 100) {
         await mockOptionsPremiumPricer.setOptionDelta(
-          underlyingPrice.add(BigNumber.from(i).mul(BigNumber.from(10).pow(8))),
+          underlyingPrice.add(
+            BigNumber.from(i).mul(
+              BigNumber.from(10).pow(await mockPriceOracle.decimals())
+            )
+          ),
           delta
         );
         delta -= 5;
@@ -96,7 +113,11 @@ describe("StrikeSelection", () => {
       const isPut = false;
       const targetDelta = await strikeSelection.delta();
 
-      await mockOptionsPremiumPricer.setOptionUnderlyingPrice(2578);
+      await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
+        BigNumber.from(2578).mul(
+          BigNumber.from(10).pow(await mockPriceOracle.decimals())
+        )
+      );
 
       const [strikePrice, delta] = await strikeSelection.getStrikePrice(
         expiryTimestamp,
@@ -111,7 +132,7 @@ describe("StrikeSelection", () => {
               .sub(targetDelta)
               .div(5)
               .mul(100)
-              .mul(BigNumber.from(10).pow(8))
+              .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           )
           .toString()
       );
@@ -134,7 +155,7 @@ describe("StrikeSelection", () => {
               .sub(targetDelta)
               .div(5)
               .mul(100)
-              .mul(BigNumber.from(10).pow(8))
+              .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           )
           .toString()
       );
@@ -157,7 +178,7 @@ describe("StrikeSelection", () => {
               .sub(targetDelta)
               .div(5)
               .mul(100)
-              .mul(BigNumber.from(10).pow(8))
+              .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           )
           .toString()
       );
