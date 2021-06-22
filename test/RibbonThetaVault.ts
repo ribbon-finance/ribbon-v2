@@ -252,14 +252,14 @@ function behavesLikeRibbonOptionsVault(params: {
       await vault.connect(ownerSigner).rollToNextOption();
     };
 
-    const rollToSecondOption = async () => {
+    const rollToSecondOption = async (settlementPrice: BigNumber) => {
       const oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
       await setOpynOracleExpiryPrice(
         params.asset,
         oracle,
         await getCurrentOptionExpiry(),
-        parseUnits(params.firstOptionStrike.toString(), 8)
+        settlementPrice
       );
       await strikeSelection.setStrikePrice(
         parseUnits(params.secondOptionStrike.toString(), 8)
@@ -2105,7 +2105,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling completeWithdraw twice", async function () {
-        await rollToSecondOption();
+        await rollToSecondOption(
+          parseUnits(params.firstOptionStrike.toString(), 8)
+        );
 
         await vault.completeWithdraw();
 
@@ -2115,18 +2117,61 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("completes the withdrawal", async function () {
-        await rollToSecondOption();
+        const firstStrikePrice = parseUnits(
+          params.firstOptionStrike.toString(),
+          8
+        );
+        const settlePriceITM = isPut
+          ? firstStrikePrice.sub(100000000)
+          : firstStrikePrice.add(100000000);
 
-        const tx = await vault.completeWithdraw();
+        await rollToSecondOption(settlePriceITM);
+
+        const pricePerShare = await vault.pricePerShare();
+        const withdrawAmount = depositAmount
+          .mul(pricePerShare)
+          .div(BigNumber.from(10).pow(await vault.decimals()));
+
+        let beforeBalance: BigNumber;
+        if (collateralAsset === WETH_ADDRESS) {
+          beforeBalance = await provider.getBalance(user);
+        } else {
+          beforeBalance = await assetContract.balanceOf(user);
+        }
+
+        const tx = await vault.completeWithdraw({ gasPrice });
+        const receipt = await tx.wait();
+        const gasFee = receipt.gasUsed.mul(gasPrice);
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
-          .withArgs(user, depositAmount, depositAmount);
+          .withArgs(user, withdrawAmount, depositAmount);
+
+        if (collateralAsset !== WETH_ADDRESS) {
+          const collateralERC20 = await getContractAt(
+            "IERC20",
+            collateralAsset
+          );
+
+          await expect(tx)
+            .to.emit(collateralERC20, "Transfer")
+            .withArgs(vault.address, user, withdrawAmount);
+        }
 
         const { initiated, shares, round } = await vault.withdrawals(user);
         assert.isFalse(initiated);
         assert.equal(shares, 0);
         assert.equal(round, 2);
+
+        let actualWithdrawAmount: BigNumber;
+        if (collateralAsset === WETH_ADDRESS) {
+          const afterBalance = await provider.getBalance(user);
+          actualWithdrawAmount = afterBalance.sub(beforeBalance).add(gasFee);
+        } else {
+          const afterBalance = await assetContract.balanceOf(user);
+          actualWithdrawAmount = afterBalance.sub(beforeBalance);
+        }
+        assert.bnEqual(actualWithdrawAmount, withdrawAmount);
       });
     });
 
