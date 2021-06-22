@@ -69,12 +69,14 @@ describe("StrikeSelection", () => {
     let deltaAtUnderlying = BigNumber.from(50);
 
     beforeEach(async () => {
-      underlyingPrice = await mockOptionsPremiumPricer.getUnderlyingPrice();
+      underlyingPrice = (
+        await mockOptionsPremiumPricer.getUnderlyingPrice()
+      ).mul(BigNumber.from(10).pow(8));
 
       let delta = 100;
       for (let i = -1000; i < 1100; i += 100) {
         await mockOptionsPremiumPricer.setOptionDelta(
-          underlyingPrice.add(BigNumber.from(i)),
+          underlyingPrice.add(BigNumber.from(i).mul(BigNumber.from(10).pow(8))),
           delta
         );
         delta -= 5;
@@ -104,7 +106,13 @@ describe("StrikeSelection", () => {
       assert.equal(
         strikePrice.toString(),
         underlyingPrice
-          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100)).mul(BigNumber.from(10).pow(8))
+          .add(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(5)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(8))
+          )
           .toString()
       );
       assert.equal(delta.toString(), targetDelta.toString());
@@ -121,7 +129,13 @@ describe("StrikeSelection", () => {
       assert.equal(
         strikePrice.toString(),
         underlyingPrice
-          .add(deltaAtUnderlying.sub(targetDelta).div(5).mul(100)).mul(BigNumber.from(10).pow(8))
+          .add(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(5)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(8))
+          )
           .toString()
       );
       assert.equal(delta.toString(), targetDelta.toString());
@@ -138,7 +152,13 @@ describe("StrikeSelection", () => {
       assert.equal(
         strikePrice.toString(),
         underlyingPrice
-          .sub(deltaAtUnderlying.sub(targetDelta).div(5).mul(100)).mul(BigNumber.from(10).pow(8))
+          .sub(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(5)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(8))
+          )
           .toString()
       );
       assert.equal(

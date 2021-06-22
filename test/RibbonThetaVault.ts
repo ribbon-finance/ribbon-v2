@@ -244,7 +244,12 @@ function behavesLikeRibbonOptionsVault(params: {
         parseUnits(params.firstOptionStrike.toString(), 8)
       );
 
-      await optionsPremiumPricer.setPremium(params.premium.toString());
+      await optionsPremiumPricer.setPremium(
+        params.premium
+          .mul(BigNumber.from(10).pow(18))
+          .div(BigNumber.from(10).pow(params.tokenDecimals))
+          .toString()
+      );
 
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAt()) + 1);
@@ -414,7 +419,12 @@ function behavesLikeRibbonOptionsVault(params: {
         .connect(ownerSigner)
         .setPremiumDiscount(params.premiumDiscount);
 
-      await optionsPremiumPricer.setPremium(params.premium.toString());
+      await optionsPremiumPricer.setPremium(
+        params.premium
+          .mul(BigNumber.from(10).pow(18))
+          .div(BigNumber.from(10).pow(params.tokenDecimals))
+          .toString()
+      );
 
       defaultOtokenAddress = firstOption.address;
       defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
