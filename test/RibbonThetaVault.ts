@@ -2,6 +2,7 @@ import { ethers } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
+
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -24,7 +25,9 @@ import {
   whitelistProduct,
   mintToken,
   bidForOToken,
+  decodeOrder,
 } from "./helpers/utils";
+import { wdiv, wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -246,8 +249,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await optionsPremiumPricer.setPremium(
         params.premium
-          .mul(BigNumber.from(10).pow(18))
-          .div(BigNumber.from(10).pow(params.tokenDecimals))
+          .mul(BigNumber.from(10).pow(18 - params.tokenDecimals))
           .toString()
       );
 
@@ -438,8 +440,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await optionsPremiumPricer.setPremium(
         params.premium
-          .mul(BigNumber.from(10).pow(18))
-          .div(BigNumber.from(10).pow(params.tokenDecimals))
+          .mul(BigNumber.from(10).pow(18 - params.tokenDecimals))
           .toString()
       );
 
@@ -1124,27 +1125,33 @@ function behavesLikeRibbonOptionsVault(params: {
           await weth.deposit({ value: premium });
           return;
         }
+      });
 
+      it("reverts when not called with owner", async function () {
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         await vault.connect(ownerSigner).rollToNextOption();
-      });
 
-      it("reverts when not called with owner", async function () {
         await expect(
           vault.connect(userSigner).burnRemainingOTokens()
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
+        await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+
+        await vault.connect(ownerSigner).rollToNextOption();
+
         const auctionDetails = await bidForOToken(
           gnosisAuction,
           optionsPremiumPricer,
           assetContract,
           userSigner.address,
-          defaultOtokenAddress,
+          params.expectedMintAmount,
           params.premium,
           "1"
         );
@@ -1159,12 +1166,18 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns all remaining oTokens", async function () {
+        await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+
+        await vault.connect(ownerSigner).rollToNextOption();
+
         const auctionDetails = await bidForOToken(
           gnosisAuction,
           optionsPremiumPricer,
           assetContract,
           userSigner.address,
-          defaultOtokenAddress,
+          params.expectedMintAmount,
           params.premium,
           "2"
         );
@@ -1264,6 +1277,79 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         assert.equal(await vault.currentOption(), defaultOtokenAddress);
+      });
+
+      it("starts auction with correct parameters", async function () {
+        await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const res = vault.connect(ownerSigner).rollToNextOption();
+
+        const currentAuctionCounter = await gnosisAuction.auctionCounter();
+        const auctionDetails = await gnosisAuction.auctionData(
+          currentAuctionCounter.toString()
+        );
+        const feeNumerator = await gnosisAuction.feeNumerator();
+        const feeDenominator = await gnosisAuction.FEE_DENOMINATOR();
+
+        assert.equal(auctionDetails.auctioningToken, defaultOtokenAddress);
+        assert.equal(auctionDetails.biddingToken, collateralAsset);
+        assert.equal(
+          auctionDetails.orderCancellationEndDate.toString(),
+          (await time.now()).add(10800).toString()
+        );
+        assert.equal(
+          auctionDetails.auctionEndDate.toString(),
+          (await time.now()).add(21600).toString()
+        );
+        assert.equal(
+          auctionDetails.minimumBiddingAmountPerOrder.toString(),
+          "1"
+        );
+        assert.equal(auctionDetails.isAtomicClosureAllowed, false);
+        assert.equal(
+          auctionDetails.feeNumerator.toString(),
+          feeNumerator.toString()
+        );
+        assert.equal(auctionDetails.minFundingThreshold.toString(), "0");
+        assert.equal(
+          await gnosisAuction.auctionAccessManager(currentAuctionCounter),
+          ownerSigner.address
+        );
+        assert.equal(
+          await gnosisAuction.auctionAccessData(currentAuctionCounter),
+          "0x"
+        );
+
+        const initialAuctionOrder = decodeOrder(
+          auctionDetails.initialAuctionOrder
+        );
+        const oTokenSellAmount = params.expectedMintAmount
+          .mul(feeDenominator)
+          .div(feeDenominator.add(feeNumerator));
+        const oTokenPremium = (
+          await optionsPremiumPricer.getPremium(0, 0, true)
+        )
+          .mul((await vault.vaultState()).premiumDiscount)
+          .div(1000);
+        assert.equal(
+          initialAuctionOrder.sellAmount.toString(),
+          oTokenSellAmount.toString()
+        );
+        assert.equal(
+          initialAuctionOrder.buyAmount.toString(),
+          wmul(oTokenSellAmount.mul(BigNumber.from(10).pow(10)), oTokenPremium)
+            .div(BigNumber.from(10).pow(18 - tokenDecimals))
+            .toString()
+        );
+
+        // Hardcoded
+        // assert.equal(auctionDetails.interimSumBidAmount, 0);
+        // assert.equal(auctionDetails.interimOrder, IterableOrderedOrderSet.QUEUE_START);
+        // assert.equal(auctionDetails.clearingPriceOrder, bytes32(0));
+        // assert.equal(auctionDetails.volumeClearingPriceOrder, 0);
+        // assert.equal(auctionDetails.minFundingThresholdNotReached, false);
       });
 
       it("reverts when calling before expiry", async function () {
