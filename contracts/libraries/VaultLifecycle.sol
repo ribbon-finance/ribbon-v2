@@ -86,8 +86,7 @@ library VaultLifecycle {
         premium = GnosisAuction.getOTokenPremium(
             otokenAddress,
             vaultParams.optionsPremiumPricer,
-            vaultState.premiumDiscount,
-            vaultParams.decimals
+            vaultState.premiumDiscount
         );
 
         require(premium > 0, "!premium");

@@ -24,6 +24,7 @@ library GnosisAuction {
         address oTokenAddress;
         address gnosisEasyAuction;
         address asset;
+        uint256 assetDecimals;
         uint256 oTokenPremium;
         address manager;
         uint256 duration;
@@ -53,8 +54,12 @@ library GnosisAuction {
             IERC20(auctionDetails.oTokenAddress).balanceOf(address(this))
         );
 
+        // minBidAmount is total oTokens to sell * premium per oToken
+        // shift decimals to correspond to decimals of USDC for puts
+        // and underlying for calls
         uint256 minBidAmount =
-            auctionDetails.oTokenPremium.mul(oTokenSellAmount);
+            dswmul(oTokenSellAmount.mul(10**12), auctionDetails.oTokenPremium)
+                .div(10**(uint256(18).sub(auctionDetails.assetDecimals)));
 
         require(
             minBidAmount <= type(uint96).max,
@@ -117,8 +122,7 @@ library GnosisAuction {
     function getOTokenPremium(
         address oTokenAddress,
         address optionsPremiumPricer,
-        uint256 premiumDiscount,
-        uint256 assetDecimals
+        uint256 premiumDiscount
     ) internal view returns (uint256 optionPremium) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IOptionsPremiumPricer premiumPricer =
@@ -133,15 +137,31 @@ library GnosisAuction {
             newOToken.isPut()
         );
 
-        // Apply a discount to incentivize arbitraguers and shift to
-        // correspond to decimals of USDC for puts and underlying for calls
-        optionPremium = optionPremium.mul(premiumDiscount).div(1000).div(
-            10**(uint256(18).sub(assetDecimals))
-        );
+        // Apply a discount to incentivize arbitraguers
+        optionPremium = optionPremium.mul(premiumDiscount).div(1000);
 
         require(
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
         );
+    }
+
+    /***
+     * DSMath Copy paste
+     */
+
+    uint256 constant DSWAD = 10**18;
+
+    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
+        require((z = x + y) >= x, "ds-math-add-overflow");
+    }
+
+    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
+        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
+    }
+
+    //rounds to zero if x*y < WAD / 2
+    function dswmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = dsadd(dsmul(x, y), DSWAD / 2) / DSWAD;
     }
 }
