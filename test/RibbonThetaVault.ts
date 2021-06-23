@@ -1050,10 +1050,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(
           vaultState.currentOtokenPremium,
-          params.premium
+          (await optionsPremiumPricer.getPremium(0, 0, true))
             .mul(vaultState.premiumDiscount)
             .div(1000)
-            .mul(BigNumber.from(10).pow(12))
         );
       });
 
@@ -1079,10 +1078,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.equal(
           vaultState.currentOtokenPremium.toString(),
-          params.premium
+          (await optionsPremiumPricer.getPremium(0, 0, true))
             .mul(vaultState.premiumDiscount)
             .div(1000)
-            .mul(BigNumber.from(10).pow(12))
             .toString()
         );
       });
