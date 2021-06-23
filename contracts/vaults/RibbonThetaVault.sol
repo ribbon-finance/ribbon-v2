@@ -421,6 +421,32 @@ contract RibbonThetaVault is OptionsVaultStorage {
         }
     }
 
+    /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     */
+    function completeWithdraw() external nonReentrant {
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+
+        require(withdrawal.initiated, "Not initiated");
+        require(withdrawal.round < vaultState.round, "Round not closed");
+
+        // We leave the round number as non-zero to save on gas for subsequent writes
+        withdrawals[msg.sender].initiated = false;
+        withdrawals[msg.sender].shares = 0;
+
+        uint256 withdrawAmount =
+            ShareMath.sharesToUnderlying(
+                withdrawal.shares,
+                roundPricePerShare[withdrawal.round],
+                vaultParams.decimals
+            );
+
+        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+
+        require(withdrawAmount > 0, "!withdrawAmount");
+        transferAsset(msg.sender, withdrawAmount);
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
