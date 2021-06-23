@@ -27,7 +27,7 @@ import {
   bidForOToken,
   decodeOrder,
 } from "./helpers/utils";
-import { wdiv, wmul } from "./helpers/math";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -1284,7 +1284,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const res = vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(ownerSigner).rollToNextOption();
 
         const currentAuctionCounter = await gnosisAuction.auctionCounter();
         const auctionDetails = await gnosisAuction.auctionData(
