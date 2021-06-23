@@ -39,20 +39,17 @@ contract StrikeSelection is DSMath, Ownable {
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
         // ex: delta = 10
         delta = _delta;
-        // ex: step = 1000
-        step = _step.mul(
-            10 **
-                IPriceOracle(
-                    IOptionsPremiumPricer(_optionsPremiumPricer).priceOracle()
-                )
-                    .decimals()
-        );
-        assetOracleMultiplier =
+        uint256 _assetOracleMultiplier =
             10 **
                 IPriceOracle(
                     IOptionsPremiumPricer(_optionsPremiumPricer).priceOracle()
                 )
                     .decimals();
+
+        // ex: step = 1000
+        step = _step.mul(_assetOracleMultiplier);
+
+        assetOracleMultiplier = _assetOracleMultiplier;
     }
 
     /**
