@@ -58,7 +58,7 @@ library GnosisAuction {
         // shift decimals to correspond to decimals of USDC for puts
         // and underlying for calls
         uint256 minBidAmount =
-            dswmul(oTokenSellAmount.mul(10**12), auctionDetails.oTokenPremium)
+            dswmul(oTokenSellAmount.mul(10**10), auctionDetails.oTokenPremium)
                 .div(10**(uint256(18).sub(auctionDetails.assetDecimals)));
 
         require(
