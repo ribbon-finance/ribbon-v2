@@ -37,7 +37,7 @@ describe("StrikeSelection", () => {
 
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
-      10,
+      1000,
       100
     );
   });
@@ -47,13 +47,13 @@ describe("StrikeSelection", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setDelta(50)
+        strikeSelection.connect(signer2).setDelta(5000)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("sets the delta", async function () {
-      await strikeSelection.connect(signer).setDelta(50);
-      assert.equal((await strikeSelection.delta()).toString(), "50");
+      await strikeSelection.connect(signer).setDelta(5000);
+      assert.equal((await strikeSelection.delta()).toString(), "5000");
     });
   });
 
@@ -81,12 +81,12 @@ describe("StrikeSelection", () => {
     time.revertToSnapshotAfterEach();
 
     let underlyingPrice: BigNumber;
-    let deltaAtUnderlying = BigNumber.from(50);
+    let deltaAtUnderlying = BigNumber.from(5000);
 
     beforeEach(async () => {
       underlyingPrice = await mockOptionsPremiumPricer.getUnderlyingPrice();
 
-      let delta = 100;
+      let delta = 10000;
       for (let i = -1000; i < 1100; i += 100) {
         await mockOptionsPremiumPricer.setOptionDelta(
           underlyingPrice.add(
@@ -96,7 +96,7 @@ describe("StrikeSelection", () => {
           ),
           delta
         );
-        delta -= 5;
+        delta -= 500;
       }
     });
 
@@ -130,7 +130,7 @@ describe("StrikeSelection", () => {
           .add(
             deltaAtUnderlying
               .sub(targetDelta)
-              .div(5)
+              .div(500)
               .mul(100)
               .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           )
@@ -153,7 +153,7 @@ describe("StrikeSelection", () => {
           .add(
             deltaAtUnderlying
               .sub(targetDelta)
-              .div(5)
+              .div(500)
               .mul(100)
               .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           )
@@ -176,14 +176,14 @@ describe("StrikeSelection", () => {
           .sub(
             deltaAtUnderlying
               .sub(targetDelta)
-              .div(5)
+              .div(500)
               .mul(100)
               .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           )
           .toString()
       );
       assert.equal(
-        BigNumber.from(100).sub(delta).toString(),
+        BigNumber.from(10000).sub(delta).toString(),
         targetDelta.toString()
       );
     });

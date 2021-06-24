@@ -17,7 +17,7 @@ contract StrikeSelection is DSMath, Ownable {
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
 
-    // delta for options strike price selection (ex: 1 is 100)
+    // delta for options strike price selection. 1 is 10000
     uint256 public delta;
     // step in absolute terms at which we will increment
     // (ex: 100 * 10 ** assetOracleDecimals means we will move at increments of 100 points)
@@ -37,7 +37,7 @@ contract StrikeSelection is DSMath, Ownable {
         require(_delta > 0, "!_delta");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
-        // ex: delta = 10
+        // ex: delta = 7500 (.75)
         delta = _delta;
         uint256 _assetOracleMultiplier =
             10 **
@@ -78,8 +78,8 @@ contract StrikeSelection is DSMath, Ownable {
         //        return strike price
 
         uint256 strike = assetPrice.sub(assetPrice % step);
-        uint256 targetDelta = isPut ? uint256(100).sub(delta) : delta;
-        uint256 prevDelta = 100;
+        uint256 targetDelta = isPut ? uint256(10000).sub(delta) : delta;
+        uint256 prevDelta = 10000;
 
         while (true) {
             uint256 currDelta =
