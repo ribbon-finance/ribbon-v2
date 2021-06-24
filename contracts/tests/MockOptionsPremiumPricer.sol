@@ -4,6 +4,8 @@ pragma solidity ^0.7.3;
 contract MockOptionsPremiumPricer {
     uint256 private _optionPremiumPrice;
     uint256 private _optionUnderlyingPrice;
+    uint256 private _optionUSDCPrice;
+    address private _priceOracle;
     mapping(uint256 => uint256) private _deltas;
 
     function getPremium(
@@ -26,6 +28,10 @@ contract MockOptionsPremiumPricer {
         return _optionUnderlyingPrice;
     }
 
+    function priceOracle() external view returns (address) {
+        return _priceOracle;
+    }
+
     function setPremium(uint256 premium) external {
         _optionPremiumPrice = premium;
     }
@@ -36,5 +42,9 @@ contract MockOptionsPremiumPricer {
 
     function setOptionDelta(uint256 strikePrice, uint256 delta) external {
         _deltas[strikePrice] = delta;
+    }
+
+    function setPriceOracle(address priceOracle) external {
+        _priceOracle = priceOracle;
     }
 }

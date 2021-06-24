@@ -211,18 +211,14 @@ export async function bidForOToken(
   optionsPremiumPricer: Contract,
   assetContract: Contract,
   contractSigner: string,
-  oToken: string,
+  mintAmount: BigNumber,
   premium: BigNumberish,
   multiplier: string
 ) {
   const userSigner = await ethers.provider.getSigner(contractSigner);
 
   const latestAuction = (await gnosisAuction.auctionCounter()).toString();
-  const totalOptionsAvailableToBuy = BigNumber.from(
-    await (
-      await ethers.getContractAt("IERC20", oToken)
-    ).balanceOf(gnosisAuction.address)
-  )
+  const totalOptionsAvailableToBuy = mintAmount
     .mul(await gnosisAuction.FEE_DENOMINATOR())
     .div(
       (await gnosisAuction.FEE_DENOMINATOR()).add(
@@ -256,4 +252,18 @@ export async function bidForOToken(
   await increaseTo((await provider.getBlock("latest")).timestamp + 21600);
 
   return [latestAuction, totalOptionsAvailableToBuy, bid];
+}
+
+export interface Order {
+  sellAmount: BigNumber;
+  buyAmount: BigNumber;
+  userId: BigNumber;
+}
+
+export function decodeOrder(bytes: string): Order {
+  return {
+    userId: BigNumber.from("0x" + bytes.substring(2, 18)),
+    sellAmount: BigNumber.from("0x" + bytes.substring(43, 66)),
+    buyAmount: BigNumber.from("0x" + bytes.substring(19, 42)),
+  };
 }

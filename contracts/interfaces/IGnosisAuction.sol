@@ -1,5 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.3;
+pragma experimental ABIEncoderV2;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+library AuctionType {
+    struct AuctionData {
+        IERC20 auctioningToken;
+        IERC20 biddingToken;
+        uint256 orderCancellationEndDate;
+        uint256 auctionEndDate;
+        bytes32 initialAuctionOrder;
+        uint256 minimumBiddingAmountPerOrder;
+        uint256 interimSumBidAmount;
+        bytes32 interimOrder;
+        bytes32 clearingPriceOrder;
+        uint96 volumeClearingPriceOrder;
+        bool minFundingThresholdNotReached;
+        bool isAtomicClosureAllowed;
+        uint256 feeNumerator;
+        uint256 minFundingThreshold;
+    }
+}
 
 interface IGnosisAuction {
     function initiateAuction(
@@ -17,6 +39,21 @@ interface IGnosisAuction {
     ) external returns (uint256);
 
     function auctionCounter() external view returns (uint256);
+
+    function auctionData(uint256 auctionId)
+        external
+        view
+        returns (AuctionType.AuctionData memory);
+
+    function auctionAccessManager(uint256 auctionId)
+        external
+        view
+        returns (address);
+
+    function auctionAccessData(uint256 auctionId)
+        external
+        view
+        returns (bytes memory);
 
     function FEE_DENOMINATOR() external view returns (uint256);
 
