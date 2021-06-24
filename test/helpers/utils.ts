@@ -13,6 +13,7 @@ import {
 } from "../helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
+import { wmul } from "../helpers/math";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -211,14 +212,19 @@ export async function bidForOToken(
   optionsPremiumPricer: Contract,
   assetContract: Contract,
   contractSigner: string,
-  mintAmount: BigNumber,
-  premium: BigNumberish,
+  oToken: string,
+  premium: BigNumber,
+  tokenDecimals: number,
   multiplier: string
 ) {
   const userSigner = await ethers.provider.getSigner(contractSigner);
 
   const latestAuction = (await gnosisAuction.auctionCounter()).toString();
-  const totalOptionsAvailableToBuy = mintAmount
+  const totalOptionsAvailableToBuy = BigNumber.from(
+    await (
+      await ethers.getContractAt("IERC20", oToken)
+    ).balanceOf(gnosisAuction.address)
+  )
     .mul(await gnosisAuction.FEE_DENOMINATOR())
     .div(
       (await gnosisAuction.FEE_DENOMINATOR()).add(
@@ -227,14 +233,15 @@ export async function bidForOToken(
     )
     .div(multiplier);
 
-  await optionsPremiumPricer.connect(userSigner).setPremium(premium);
-
-  const bid = (await optionsPremiumPricer.getPremium(100, 100, true))
-    .mul(totalOptionsAvailableToBuy)
+  const bid = wmul(
+    await optionsPremiumPricer.getPremium(100, 100, true),
+    totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10))
+  )
+    .div(BigNumber.from(10).pow(18 - tokenDecimals))
     .toString();
 
   const queueStartElement =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
+    "0x0000000000000000000000000000000000000000000000000000000000000001";
 
   await assetContract.connect(userSigner).approve(gnosisAuction.address, bid);
 

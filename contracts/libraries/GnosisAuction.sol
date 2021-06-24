@@ -86,8 +86,8 @@ library GnosisAuction {
                 0,
                 // no atomic closure
                 false,
-                // manager of auction
-                auctionDetails.manager,
+                // access manager contract
+                address(0),
                 // bytes for storing info like a whitelist for who can bid
                 bytes("")
             );
