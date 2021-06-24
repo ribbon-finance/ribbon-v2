@@ -1217,7 +1217,7 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.address
         );
 
-        let res = await gnosisAuction
+        await gnosisAuction
           .connect(userSigner)
           .settleAuction(auctionDetails[0]);
 
