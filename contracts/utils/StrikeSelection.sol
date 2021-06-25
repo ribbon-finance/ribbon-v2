@@ -4,7 +4,9 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
-import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
+import {
+    IPriceOracle
+} from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
