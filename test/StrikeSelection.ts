@@ -7,7 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const { getContractFactory } = ethers;
 
-describe("StrikeSelection", () => {
+describe.skip("StrikeSelection", () => {
   let strikeSelection: Contract;
   let mockOptionsPremiumPricer: Contract;
   let mockPriceOracle: Contract;

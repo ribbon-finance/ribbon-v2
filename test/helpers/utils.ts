@@ -13,6 +13,7 @@ import {
 } from "../helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
+import { wmul } from "./helpers/math";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -212,7 +213,8 @@ export async function bidForOToken(
   assetContract: Contract,
   contractSigner: string,
   mintAmount: BigNumber,
-  premium: BigNumberish,
+  premium: BigNumber,
+  assetDecimals: number,
   multiplier: string
 ) {
   const userSigner = await ethers.provider.getSigner(contractSigner);
@@ -227,10 +229,11 @@ export async function bidForOToken(
     )
     .div(multiplier);
 
-  await optionsPremiumPricer.connect(userSigner).setPremium(premium);
-
-  const bid = (await optionsPremiumPricer.getPremium(100, 100, true))
-    .mul(totalOptionsAvailableToBuy)
+  const bid = wmul(
+    totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
+    premium
+  )
+    .div(BigNumber.from(10).pow(18 - assetDecimals))
     .toString();
 
   const queueStartElement =
