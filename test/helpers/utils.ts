@@ -13,7 +13,11 @@ import {
 } from "../helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
+<<<<<<< HEAD
 import { wmul } from "./helpers/math";
+=======
+import { wmul } from "../helpers/math";
+>>>>>>> placeSellOrder-testing
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -220,7 +224,11 @@ export async function bidForOToken(
   const userSigner = await ethers.provider.getSigner(contractSigner);
 
   const latestAuction = (await gnosisAuction.auctionCounter()).toString();
-  const totalOptionsAvailableToBuy = mintAmount
+  const totalOptionsAvailableToBuy = BigNumber.from(
+    await (
+      await ethers.getContractAt("IERC20", oToken)
+    ).balanceOf(gnosisAuction.address)
+  )
     .mul(await gnosisAuction.FEE_DENOMINATOR())
     .div(
       (await gnosisAuction.FEE_DENOMINATOR()).add(
@@ -237,7 +245,7 @@ export async function bidForOToken(
     .toString();
 
   const queueStartElement =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
+    "0x0000000000000000000000000000000000000000000000000000000000000001";
 
   await assetContract.connect(userSigner).approve(gnosisAuction.address, bid);
 
