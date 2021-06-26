@@ -13,11 +13,7 @@ import {
 } from "../helpers/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
-<<<<<<< HEAD
-import { wmul } from "./helpers/math";
-=======
 import { wmul } from "../helpers/math";
->>>>>>> placeSellOrder-testing
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -216,7 +212,7 @@ export async function bidForOToken(
   optionsPremiumPricer: Contract,
   assetContract: Contract,
   contractSigner: string,
-  mintAmount: BigNumber,
+  oToken: string,
   premium: BigNumber,
   assetDecimals: number,
   multiplier: string
