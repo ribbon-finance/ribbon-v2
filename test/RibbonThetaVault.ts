@@ -78,7 +78,7 @@ describe("RibbonThetaVault", () => {
     },
   });
 
-  /*behavesLikeRibbonOptionsVault({
+  behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Theta Vault (Call)`,
     tokenName: "Ribbon ETH Theta Vault",
     tokenSymbol: "rETH-THETA",
@@ -112,13 +112,13 @@ describe("RibbonThetaVault", () => {
     collateralAsset: USDC_ADDRESS,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
     deltaFirstOption: BigNumber.from("1000"),
-    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("1000"),
     tokenDecimals: 6,
     depositAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("158730"),
+    expectedMintAmount: BigNumber.from("370370"),
     isPut: true,
     gasLimits: {
       depositWorstCase: 115000,
@@ -144,7 +144,7 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000000"),
     premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("4166666666"),
+    expectedMintAmount: BigNumber.from("5263157894"),
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
@@ -154,7 +154,7 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
     },
-  });*/
+  });
 });
 
 type Option = {
@@ -1098,8 +1098,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("sets the correct strike when overriding strike price", async function () {
         const newStrikePrice =
-          this.asset == WETH_ADDRESS
-            ? BigNumber.from("150000000000")
+          params.asset == WETH_ADDRESS
+            ? BigNumber.from("250000000000")
             : BigNumber.from("4050000000000");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
