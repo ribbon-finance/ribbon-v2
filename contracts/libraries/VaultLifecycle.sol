@@ -420,7 +420,6 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
-        require(managementFee > 0, "!managementFee");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
