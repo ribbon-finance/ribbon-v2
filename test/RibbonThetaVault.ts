@@ -2550,14 +2550,6 @@ function behavesLikeRibbonOptionsVault(params: {
           ? firstStrikePrice.sub(100000000)
           : firstStrikePrice.add(100000000);
 
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-
         await rollToSecondOption(settlePriceITM);
 
         const pricePerShare = await vault.roundPricePerShare(2);
