@@ -103,11 +103,11 @@ describe("RibbonThetaVault", () => {
     secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
     tokenDecimals: 6,
-    depositAmount: BigNumber.from("100000000"),
-    premium: BigNumber.from("10000000"),
+    depositAmount: BigNumber.from("100000000000"),
+    premium: BigNumber.from("10000000000"),
     premiumDiscount: BigNumber.from("997"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("158730"),
+    expectedMintAmount: BigNumber.from("158730158"),
     isPut: true,
     gasLimits: {
       depositWorstCase: 115000,
@@ -1116,7 +1116,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe.skip("#burnRemainingOTokens", () => {
+    describe("#burnRemainingOTokens", () => {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
@@ -1146,23 +1146,46 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).rollToNextOption();
 
+        let bidMultiplier = 1;
+
         const auctionDetails = await bidForOToken(
           gnosisAuction,
           optionsPremiumPricer,
           assetContract,
           userSigner.address,
-          params.expectedMintAmount,
+          defaultOtokenAddress,
           params.premium,
-          "1"
+          tokenDecimals,
+          bidMultiplier.toString()
+        );
+
+        const assetBalanceBeforeSettle = await assetContract.balanceOf(
+          vault.address
+        );
+
+        assert.equal(
+          (await defaultOtoken.balanceOf(vault.address)).toString(),
+          "0"
         );
 
         await gnosisAuction
           .connect(userSigner)
           .settleAuction(auctionDetails[0]);
 
+        assert.equal(
+          (await defaultOtoken.balanceOf(vault.address)).toString(),
+          "0"
+        );
+        assert.equal(
+          (await assetContract.balanceOf(vault.address)).toString(),
+          assetBalanceBeforeSettle
+            .add(BigNumber.from(auctionDetails[2]))
+            .toString()
+        );
+
         await expect(
           vault.connect(ownerSigner).burnRemainingOTokens()
-        ).to.be.revertedWith("No OTokens to burn!");
+        ).to.be.revertedWith("!otokens");
       });
 
       it("burns all remaining oTokens", async function () {
@@ -1172,42 +1195,75 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).rollToNextOption();
 
+        let bidMultiplier = 2;
+
         const auctionDetails = await bidForOToken(
           gnosisAuction,
           optionsPremiumPricer,
           assetContract,
           userSigner.address,
-          params.expectedMintAmount,
+          defaultOtokenAddress,
           params.premium,
-          "2"
+          tokenDecimals,
+          bidMultiplier.toString()
         );
 
-        const vaultOTokenBalanceBefore = (
-          await defaultOtoken.balanceOf(vault.address)
-        ).toString();
+        assert.equal(
+          (await defaultOtoken.balanceOf(vault.address)).toString(),
+          "0"
+        );
+
+        const assetBalanceBeforeSettle = await assetContract.balanceOf(
+          vault.address
+        );
+
         await gnosisAuction
           .connect(userSigner)
           .settleAuction(auctionDetails[0]);
-        const vaultOTokenBalanceAfter = (
-          await defaultOtoken.balanceOf(vault.address)
-        ).toString();
 
         assert.isAbove(
-          parseInt(vaultOTokenBalanceAfter),
-          parseInt(vaultOTokenBalanceBefore)
+          parseInt((await defaultOtoken.balanceOf(vault.address)).toString()),
+          parseInt(
+            params.expectedMintAmount
+              .div(bidMultiplier)
+              .mul(params.premiumDiscount.sub(1))
+              .div(1000)
+              .toString()
+          )
         );
 
-        const collateralBalanceBefore = (
-          await assetContract.balanceOf(vault.address)
-        ).toString();
+        assert.isAbove(
+          parseInt((await assetContract.balanceOf(vault.address)).toString()),
+          parseInt(
+            (
+              (assetBalanceBeforeSettle.add(BigNumber.from(auctionDetails[2])) *
+                99) /
+              100
+            ).toString()
+          )
+        );
+
+        const lockedAmountBeforeBurn = (await vault.vaultState()).lockedAmount;
+        const assetBalanceAfterSettle = await assetContract.balanceOf(
+          vault.address
+        );
         vault.connect(ownerSigner).burnRemainingOTokens();
-        const collateralBalanceAfter = (
-          await assetContract.balanceOf(vault.address)
-        ).toString();
+        const assetBalanceAfterBurn = await assetContract.balanceOf(
+          vault.address
+        );
 
         assert.isAbove(
-          parseInt(collateralBalanceAfter),
-          parseInt(collateralBalanceBefore)
+          parseInt(assetBalanceAfterBurn.toString()),
+          parseInt(
+            assetBalanceAfterSettle
+              .add(
+                lockedAmountBeforeBurn
+                  .div(bidMultiplier)
+                  .mul(params.premiumDiscount.sub(1))
+                  .div(1000)
+              )
+              .toString()
+          )
         );
       });
     });
@@ -1315,7 +1371,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(auctionDetails.minFundingThreshold.toString(), "0");
         assert.equal(
           await gnosisAuction.auctionAccessManager(currentAuctionCounter),
-          ownerSigner.address
+          constants.AddressZero
         );
         assert.equal(
           await gnosisAuction.auctionAccessData(currentAuctionCounter),
