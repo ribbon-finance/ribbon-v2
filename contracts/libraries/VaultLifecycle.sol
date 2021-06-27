@@ -411,8 +411,8 @@ library VaultLifecycle {
     function verifyConstructorParams(
         address owner,
         address feeRecipient,
-        uint256 performanceFee,
         uint256 managementFee,
+        uint256 performanceFee,
         string calldata tokenName,
         string calldata tokenSymbol,
         Vault.VaultParams calldata _vaultParams
