@@ -651,7 +651,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     /*
      * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param currentLockedBalance is the current locked balance
+     * @param currentLockedBalance is the balance we are about to lock for next round
      * @return vaultFee is the fee deducted
      */
     function _collectVaultFees(uint256 currentLockedBalance)
