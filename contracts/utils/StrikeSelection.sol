@@ -10,7 +10,8 @@ import {
 import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
+import "@ribbon-finance/rvol/contracts/core/OptionsPremiumPricer.sol"
+import "@ribbon-finance/rvol/contracts/core/VolOracle.sol"
 contract StrikeSelection is DSMath, Ownable {
     using SafeMath for uint256;
 
