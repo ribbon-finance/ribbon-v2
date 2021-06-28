@@ -663,30 +663,30 @@ contract RibbonThetaVault is OptionsVaultStorage {
         private
         returns (uint256 vaultFee)
     {
-        // Take management fee
-        if (managementFee > 0) {
-            uint256 managementFeeInAsset =
-                currentLockedBalance.mul(managementFee).div(100 * 10**6);
-            vaultFee = managementFeeInAsset;
-        }
-
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
 
-        // Take performance fee ONLY if difference between last week and this week's
-        // vault deposits, taking into account pending deposits and withdrawals, is positive.
-        // If it is negative, last week's option expired ITM past breakeven,
-        // and the vault took a loss so we do not collect performance fee for last week
+        // Take performance fee and management fee ONLY if difference between
+        // last week and this week's vault deposits, taking into account pending
+        // deposits and withdrawals, is positive. If it is negative, last week's
+        // option expired ITM past breakeven, and the vault took a loss so we
+        // do not collect performance fee for last week
         if (
-            performanceFee > 0 &&
             currentLockedBalance.sub(vaultState.totalPending) > prevLockedAmount
         ) {
             uint256 performanceFeeInAsset =
-                currentLockedBalance
-                    .sub(vaultState.totalPending)
-                    .sub(prevLockedAmount)
-                    .mul(performanceFee)
-                    .div(100 * 10**6);
-            vaultFee = vaultFee.add(performanceFeeInAsset);
+                performanceFee > 0
+                    ? currentLockedBalance
+                        .sub(vaultState.totalPending)
+                        .sub(prevLockedAmount)
+                        .mul(performanceFee)
+                        .div(100 * 10**6)
+                    : 0;
+            uint256 managementFeeInAsset =
+                managementFee > 0
+                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
+                    : 0;
+
+            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
         }
 
         if (vaultFee > 0) {

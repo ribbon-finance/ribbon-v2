@@ -1426,32 +1426,17 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
         const res = await vault.connect(ownerSigner).rollToNextOption();
-
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
 
         await expect(res).to.not.emit(vault, "CloseShort");
 
         await expect(res)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            defaultOtokenAddress,
-            depositAmount.sub(managementFeeInAsset),
-            owner
-          );
+          .withArgs(defaultOtokenAddress, depositAmount, owner);
 
         const vaultState = await vault.vaultState();
 
-        assert.equal(
-          vaultState.lockedAmount.toString(),
-          depositAmount.sub(managementFeeInAsset)
-        );
+        assert.equal(vaultState.lockedAmount.toString(), depositAmount);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1462,19 +1447,12 @@ function behavesLikeRibbonOptionsVault(params: {
           (await assetContract.balanceOf(MARGIN_POOL))
             .sub(startMarginBalance)
             .toString(),
-          depositAmount.sub(managementFeeInAsset).toString()
+          depositAmount.toString()
         );
-
-        let newOTokenBalance = params.expectedMintAmount
-          .mul(depositAmount.sub(managementFeeInAsset))
-          .div(depositAmount);
-        if (params.isPut) {
-          newOTokenBalance = newOTokenBalance.add(1);
-        }
 
         assert.bnEqual(
           await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION),
-          newOTokenBalance
+          params.expectedMintAmount
         );
 
         assert.equal(await vault.currentOption(), defaultOtokenAddress);
@@ -1484,15 +1462,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
-
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
 
         await vault.connect(ownerSigner).rollToNextOption();
 
@@ -1536,14 +1505,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDetails.initialAuctionOrder
         );
 
-        let newOTokenBalance = params.expectedMintAmount
-          .mul(depositAmount.sub(managementFeeInAsset))
-          .div(depositAmount);
-        if (params.isPut) {
-          newOTokenBalance = newOTokenBalance.add(1);
-        }
-
-        const oTokenSellAmount = newOTokenBalance
+        const oTokenSellAmount = params.expectedMintAmount
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
         const oTokenPremium = (
@@ -1575,25 +1537,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).commitAndClose();
 
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         const firstTx = await vault.connect(ownerSigner).rollToNextOption();
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            depositAmount.sub(managementFeeInAsset),
-            owner
-          );
+          .withArgs(firstOptionAddress, depositAmount, owner);
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1615,33 +1565,14 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-
         const firstTx = await vault.connect(ownerSigner).rollToNextOption();
-
-        assert.equal(
-          initialLockedBalance
-            .sub((await vault.vaultState()).lockedAmount)
-            .toString(),
-          managementFeeInAsset.toString()
-        );
 
         assert.equal(await vault.currentOption(), firstOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), firstOption.expiry);
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            depositAmount.sub(managementFeeInAsset),
-            owner
-          );
+          .withArgs(firstOptionAddress, depositAmount, owner);
 
         await assetContract
           .connect(userSigner)
@@ -1751,13 +1682,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
@@ -1765,11 +1689,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            depositAmount.sub(managementFeeInAsset),
-            owner
-          );
+          .withArgs(firstOptionAddress, depositAmount, owner);
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1791,30 +1711,11 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let initialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
-        let managementFeeInAsset = initialLockedBalance
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-
         const firstTx = await vault.connect(ownerSigner).rollToNextOption();
-
-        assert.equal(
-          initialLockedBalance
-            .sub((await vault.vaultState()).lockedAmount)
-            .toString(),
-          managementFeeInAsset.toString()
-        );
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            depositAmount.sub(managementFeeInAsset),
-            owner
-          );
+          .withArgs(firstOptionAddress, depositAmount, owner);
 
         await assetContract
           .connect(userSigner)
@@ -1850,7 +1751,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const afterBalance = await assetContract.balanceOf(vault.address);
         // test that the vault's balance decreased after closing short when ITM
         assert.equal(
-          parseInt(depositAmount.sub(managementFeeInAsset).toString()),
+          parseInt(depositAmount.toString()),
           parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
         );
 
@@ -1898,7 +1799,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(
             secondOptionAddress,
-            depositAmount.add(premium).sub(managementFeeInAsset).sub(vaultFees),
+            depositAmount.add(premium).sub(vaultFees),
             owner
           );
 
