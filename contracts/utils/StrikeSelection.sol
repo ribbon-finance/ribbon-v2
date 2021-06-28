@@ -7,6 +7,9 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+import {
+    IVolatilityOracle
+} from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StrikeSelection is DSMath, Ownable {
@@ -71,9 +74,18 @@ contract StrikeSelection is DSMath, Ownable {
 
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
+        // asset price formatted decimals
+        uint256 assetPriceFormatted =
+            assetPrice.mul(10**8).div(assetOracleMultiplier);
 
-        // For each asset prices with step of 'margin' (down if put, up if call)
-        //   if asset's getOptionDelta(currStrikePrice, t) == (isPut ? 1 - delta:delta)
+        IVolatilityOracle volatilityOracle =
+            IVolatilityOracle(optionsPremiumPricer.volatilityOracle());
+        // asset's annualized volatility
+        uint256 annualizedVol =
+            volatilityOracle.annualizedVol(volatilityOracle.pool()).mul(10**10);
+
+        // For each asset prices with step of 'step' (down if put, up if call)
+        //   if asset's getOptionDelta(currStrikePrice, spotPrice, annualizedVol, t) == (isPut ? 1 - delta:delta)
         //   with certain margin of error
         //        return strike price
 
@@ -83,7 +95,12 @@ contract StrikeSelection is DSMath, Ownable {
 
         while (true) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(strike, expiryTimestamp);
+                optionsPremiumPricer.getOptionDelta(
+                    assetPriceFormatted,
+                    strike,
+                    annualizedVol,
+                    expiryTimestamp
+                );
             //  If the current delta is between the previous
             //  strike price delta and current strike price delta
             //  then we are done
