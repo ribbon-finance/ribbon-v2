@@ -40,8 +40,6 @@ const OPTION_DELAY = 60 * 60; // 1 hour
 const gasPrice = parseUnits("1", "gwei");
 
 const PERIOD = 43200; // 12 hours
-const WEEK = 604800; // 7 days
-const WAD = BigNumber.from(10).pow(18);
 
 const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
 const wbtcusdcPool = "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35";
@@ -251,7 +249,6 @@ function behavesLikeRibbonOptionsVault(params: {
   // Contracts
   let strikeSelection: Contract;
   let volOracle: Contract;
-  let wethPriceOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
   let vaultLifecycleLib: Contract;
@@ -266,7 +263,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionPremium: BigNumber;
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
-  let secondOptionPremium: BigNumber;
   let secondOptionExpiry: number;
 
   describe(`${params.name}`, () => {
