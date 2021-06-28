@@ -106,6 +106,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    event CollectVaultFees(
+        uint256 performanceFee,
+        uint256 vaultFee,
+        uint256 round
+    );
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -156,7 +162,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
         VaultLifecycle.verifyConstructorParams(
             _owner,
             _feeRecipient,
-            _managementFee,
             _performanceFee,
             tokenName,
             tokenSymbol,
@@ -686,6 +691,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         if (vaultFee > 0) {
             transferAsset(payable(feeRecipient), vaultFee);
+            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
         }
     }
 
