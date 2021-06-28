@@ -53,6 +53,40 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "sp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "st",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "v",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "expiryTimestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "getOptionDelta",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "delta",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "st",
         "type": "uint256"
       },
