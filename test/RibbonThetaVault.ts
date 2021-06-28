@@ -55,6 +55,8 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000"),
     premium: BigNumber.from("10000000"),
     premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
@@ -83,6 +85,8 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     premium: parseEther("0.1"),
     premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
@@ -106,6 +110,8 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000000"),
     premium: BigNumber.from("10000000000"),
     premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("158730158"),
     isPut: true,
@@ -132,6 +138,8 @@ describe("RibbonThetaVault", () => {
     depositAmount: BigNumber.from("100000000000"),
     premium: BigNumber.from("10000000000"),
     premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("4166666666"),
     tokenDecimals: 6,
@@ -173,6 +181,8 @@ type Option = {
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {BigNumber} params.premium - Premium paid for options
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
+ * @param {BigNumber} params.managementFee - Management fee (6 decimals)
+ * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -192,6 +202,8 @@ function behavesLikeRibbonOptionsVault(params: {
   expectedMintAmount: BigNumber;
   premium: BigNumber;
   premiumDiscount: BigNumber;
+  managementFee: BigNumber;
+  performanceFee: BigNumber;
   isPut: boolean;
   gasLimits: {
     depositWorstCase: number;
@@ -221,6 +233,8 @@ function behavesLikeRibbonOptionsVault(params: {
   let depositAmount = params.depositAmount;
   let premium = params.premium;
   let premiumDiscount = params.premiumDiscount;
+  let managementFee = params.managementFee;
+  let performanceFee = params.performanceFee;
   // let expectedMintAmount = params.expectedMintAmount;
   let isPut = params.isPut;
 
@@ -322,13 +336,21 @@ function behavesLikeRibbonOptionsVault(params: {
         GNOSIS_EASY_AUCTION
       );
 
-      const initializeTypes = ["address", "string", "string", "Tuple", "Tuple"];
+      const initializeTypes = [
+        "address",
+        "address",
+        "string",
+        "string",
+        "string",
+        "string",
+        "Tuple",
+      ];
 
       const initializeArgs = [
         owner,
         feeRecipient,
-        parseEther("0.2"),
-        parseEther("0.02"),
+        managementFee,
+        performanceFee,
         tokenName,
         tokenSymbol,
         [
@@ -503,6 +525,14 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("500"));
         assert.equal(await vault.owner(), owner);
         assert.equal(await vault.feeRecipient(), feeRecipient);
+        assert.equal(
+          (await vault.managementFee()).toString(),
+          managementFee.div(BigNumber.from(365).div(7)).toString()
+        );
+        assert.equal(
+          (await vault.performanceFee()).toString(),
+          performanceFee.toString()
+        );
 
         const [
           isPut,
@@ -537,8 +567,8 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.initialize(
             owner,
             feeRecipient,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -560,8 +590,8 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             constants.AddressZero,
             feeRecipient,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -583,8 +613,8 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             constants.AddressZero,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -606,8 +636,8 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -629,8 +659,8 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -652,8 +682,8 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -675,8 +705,8 @@ function behavesLikeRibbonOptionsVault(params: {
           testVault.initialize(
             owner,
             feeRecipient,
-            parseEther("0.2"),
-            parseEther("0.02"),
+            managementFee,
+            performanceFee,
             tokenName,
             tokenSymbol,
             [
@@ -691,6 +721,29 @@ function behavesLikeRibbonOptionsVault(params: {
             ]
           )
         ).to.be.revertedWith("!minimumSupply");
+      });
+
+      it("reverts when performanceFee is 0", async function () {
+        await expect(
+          testVault.initialize(
+            owner,
+            feeRecipient,
+            managementFee,
+            "0",
+            tokenName,
+            tokenSymbol,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              parseEther("500"),
+            ]
+          )
+        ).to.be.revertedWith("!performanceFee");
       });
     });
 
@@ -718,6 +771,24 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#managementFee", () => {
+      it("returns the management fee", async function () {
+        assert.equal(
+          (await vault.managementFee()).toString(),
+          managementFee.div(BigNumber.from(365).div(7)).toString()
+        );
+      });
+    });
+
+    describe("#performanceFee", () => {
+      it("returns the performance fee", async function () {
+        assert.equal(
+          (await vault.performanceFee()).toString(),
+          performanceFee.toString()
+        );
+      });
+    });
+
     describe("#setFeeRecipient", () => {
       time.revertToSnapshotAfterTest();
 
@@ -736,6 +807,58 @@ function behavesLikeRibbonOptionsVault(params: {
       it("changes the fee recipient", async function () {
         await vault.connect(ownerSigner).setFeeRecipient(owner);
         assert.equal(await vault.feeRecipient(), owner);
+      });
+    });
+
+    describe("#setManagementFee", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when setting 0 to setManagementFee", async function () {
+        await expect(
+          vault.connect(ownerSigner).setManagementFee("0")
+        ).to.be.revertedWith("Invalid management fee");
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(
+          vault.setManagementFee(BigNumber.from("1000000").toString())
+        ).to.be.revertedWith("caller is not the owner");
+      });
+
+      it("changes the management fee", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setManagementFee(BigNumber.from("1000000").toString());
+        assert.equal(
+          (await vault.managementFee()).toString(),
+          BigNumber.from("1000000").div(BigNumber.from(365).div(7)).toString()
+        );
+      });
+    });
+
+    describe("#setPerformanceFee", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when setting 0 to setPerformanceFee", async function () {
+        await expect(
+          vault.connect(ownerSigner).setPerformanceFee("0")
+        ).to.be.revertedWith("Invalid performance fee");
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(
+          vault.setPerformanceFee(BigNumber.from("1000000").toString())
+        ).to.be.revertedWith("caller is not the owner");
+      });
+
+      it("changes the performance fee", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setPerformanceFee(BigNumber.from("1000000").toString());
+        assert.equal(
+          (await vault.performanceFee()).toString(),
+          BigNumber.from("1000000").toString()
+        );
       });
     });
 
@@ -1303,7 +1426,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const res = vault.connect(ownerSigner).rollToNextOption();
+        const res = await vault.connect(ownerSigner).rollToNextOption();
 
         await expect(res).to.not.emit(vault, "CloseShort");
 
@@ -1381,6 +1504,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const initialAuctionOrder = decodeOrder(
           auctionDetails.initialAuctionOrder
         );
+
         const oTokenSellAmount = params.expectedMintAmount
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
@@ -1463,10 +1587,10 @@ function behavesLikeRibbonOptionsVault(params: {
         const settlementPriceITM = isPut
           ? parseEther(params.firstOptionStrike.toString())
               .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(1)
+              .sub(100000)
           : parseEther(params.firstOptionStrike.toString())
               .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(1);
+              .add(100000);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -1503,16 +1627,33 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         const currBalance = await assetContract.balanceOf(vault.address);
-        const mintAmount = currBalance.toString();
+
+        let pendingAmount = (await vault.vaultState()).totalPending;
+        let secondInitialLockedBalance = await lockedBalanceForRollover(
+          assetContract,
+          vault
+        );
 
         const secondTx = await vault.connect(ownerSigner).rollToNextOption();
+
+        let vaultFees = secondInitialLockedBalance
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        // Performance fee is included because still net positive on week
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(secondOptionAddress, mintAmount, owner);
+          .withArgs(secondOptionAddress, currBalance.sub(vaultFees), owner);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1586,10 +1727,10 @@ function behavesLikeRibbonOptionsVault(params: {
         const settlementPriceOTM = isPut
           ? parseEther(params.firstOptionStrike.toString())
               .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(1)
+              .add(100000)
           : parseEther(params.firstOptionStrike.toString())
               .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(1);
+              .sub(100000);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -1625,14 +1766,42 @@ function behavesLikeRibbonOptionsVault(params: {
         // Time increase to after next option available
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        let pendingAmount = (await vault.vaultState()).totalPending;
+        let secondInitialLockedBalance = await lockedBalanceForRollover(
+          assetContract,
+          vault
+        );
+
         const secondTx = await vault.connect(ownerSigner).rollToNextOption();
+
+        let vaultFees = secondInitialLockedBalance
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
+
+        assert.equal(
+          secondInitialLockedBalance
+            .sub((await vault.vaultState()).lockedAmount)
+            .toString(),
+          vaultFees.toString()
+        );
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(secondOptionAddress, depositAmount.add(premium), owner);
+          .withArgs(
+            secondOptionAddress,
+            depositAmount.add(premium).sub(vaultFees),
+            owner
+          );
 
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),
@@ -1657,7 +1826,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(ownerSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 900000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 910000);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -1783,10 +1952,10 @@ function behavesLikeRibbonOptionsVault(params: {
         const settlementPriceITM = isPut
           ? parseEther(params.firstOptionStrike.toString())
               .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(1000)
+              .sub(100000000000)
           : parseEther(params.firstOptionStrike.toString())
               .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(1000);
+              .add(100000000000);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -2284,7 +2453,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToSecondOption(settlePriceITM);
 
-        const pricePerShare = await vault.pricePerShare();
+        const pricePerShare = await vault.roundPricePerShare(2);
         const withdrawAmount = depositAmount
           .mul(pricePerShare)
           .div(BigNumber.from(10).pow(await vault.decimals()));
@@ -2302,7 +2471,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
-          .withArgs(user, withdrawAmount, depositAmount);
+          .withArgs(user, withdrawAmount.toString(), depositAmount);
 
         if (collateralAsset !== WETH_ADDRESS) {
           const collateralERC20 = await getContractAt(
@@ -2458,4 +2627,16 @@ async function depositIntoVault(
   } else {
     await vault.deposit(amount);
   }
+}
+
+async function lockedBalanceForRollover(asset: Contract, vault: Contract) {
+  let currentBalance = await asset.balanceOf(vault.address);
+  let queuedWithdrawAmount =
+    (await vault.totalSupply()) == 0
+      ? 0
+      : (await vault.vaultState()).queuedWithdrawShares
+          .mul(currentBalance)
+          .div(await vault.totalSupply());
+  let balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
+  return balanceSansQueued;
 }

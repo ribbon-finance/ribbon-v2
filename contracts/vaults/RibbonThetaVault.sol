@@ -93,6 +93,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 newPremiumDiscount
     );
 
+    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
+
+    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
+
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
@@ -101,6 +105,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
     );
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
+
+    event CollectVaultFees(
+        uint256 performanceFee,
+        uint256 vaultFee,
+        uint256 round
+    );
 
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
@@ -143,8 +153,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function initialize(
         address _owner,
         address _feeRecipient,
-        uint256 _performanceFee,
         uint256 _managementFee,
+        uint256 _performanceFee,
         string memory tokenName,
         string memory tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -153,7 +163,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
             _owner,
             _feeRecipient,
             _performanceFee,
-            _managementFee,
             tokenName,
             tokenSymbol,
             _vaultParams
@@ -166,7 +175,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee;
+        managementFee = _managementFee.div(uint256(365).div(7));
         vaultParams = _vaultParams;
 
         vaultState.round = 1;
@@ -198,6 +207,39 @@ contract RibbonThetaVault is OptionsVaultStorage {
         emit PremiumDiscountSet(vaultState.premiumDiscount, newPremiumDiscount);
 
         vaultState.premiumDiscount = newPremiumDiscount;
+    }
+
+    /**
+     * @notice Sets the management fee for the vault
+     * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
+     */
+    function setManagementFee(uint256 newManagementFee) external onlyOwner {
+        require(
+            newManagementFee > 0 && newManagementFee < 100 * 10**6,
+            "Invalid management fee"
+        );
+
+        emit ManagementFeeSet(managementFee, newManagementFee);
+
+        // We are dividing annualized management fee by num weeks in a year
+        managementFee = uint16(
+            uint256(newManagementFee).div(uint256(365).div(7))
+        );
+    }
+
+    /**
+     * @notice Sets the performance fee for the vault
+     * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
+     */
+    function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
+        require(
+            newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
+            "Invalid performance fee"
+        );
+
+        emit PerformanceFeeSet(performanceFee, newPerformanceFee);
+
+        performanceFee = newPerformanceFee;
     }
 
     /**
@@ -490,6 +532,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
+        vaultState.lastLockedAmount = vaultState.lockedAmount;
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
@@ -517,6 +560,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
         // Finalize the pricePerShare at the end of the round
         uint16 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
+
+        // Take management / performance fee from previous round and deduct
+        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
 
         vaultState.lockedAmount = uint104(lockedBalance);
         vaultState.totalPending = 0;
@@ -605,6 +651,47 @@ contract RibbonThetaVault is OptionsVaultStorage {
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
+        }
+    }
+
+    /*
+     * @notice Helper function that transfers management fees and performance fees from previous round.
+     * @param currentLockedBalance is the balance we are about to lock for next round
+     * @return vaultFee is the fee deducted
+     */
+    function _collectVaultFees(uint256 currentLockedBalance)
+        private
+        returns (uint256 vaultFee)
+    {
+        uint256 prevLockedAmount = vaultState.lastLockedAmount;
+
+        // Take performance fee and management fee ONLY if difference between
+        // last week and this week's vault deposits, taking into account pending
+        // deposits and withdrawals, is positive. If it is negative, last week's
+        // option expired ITM past breakeven, and the vault took a loss so we
+        // do not collect performance fee for last week
+        if (
+            currentLockedBalance.sub(vaultState.totalPending) > prevLockedAmount
+        ) {
+            uint256 performanceFeeInAsset =
+                performanceFee > 0
+                    ? currentLockedBalance
+                        .sub(vaultState.totalPending)
+                        .sub(prevLockedAmount)
+                        .mul(performanceFee)
+                        .div(100 * 10**6)
+                    : 0;
+            uint256 managementFeeInAsset =
+                managementFee > 0
+                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
+                    : 0;
+
+            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
+        }
+
+        if (vaultFee > 0) {
+            transferAsset(payable(feeRecipient), vaultFee);
+            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
         }
     }
 
