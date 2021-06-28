@@ -3,7 +3,6 @@ import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
-import { OptionsPremiumPricer_BYTECODE } from "./helpers/constants";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -18,6 +17,7 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
+  OptionsPremiumPricer_BYTECODE,
 } from "./helpers/constants";
 import {
   deployProxy,
