@@ -263,6 +263,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionPremium: BigNumber;
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
+  let secondOptionPremium: BigNumber;
   let secondOptionExpiry: number;
 
   describe(`${params.name}`, () => {
