@@ -19,6 +19,7 @@ contract StrikeSelection is DSMath, Ownable {
      * Immutables
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
+    IVolatilityOracle public immutable volatilityOracle;
 
     // delta for options strike price selection. 1 is 10000
     uint256 public delta;
@@ -40,6 +41,9 @@ contract StrikeSelection is DSMath, Ownable {
         require(_delta > 0, "!_delta");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
+        volatilityOracle = IVolatilityOracle(
+            IOptionsPremiumPricer(_optionsPremiumPricer).volatilityOracle()
+        );
         // ex: delta = 7500 (.75)
         delta = _delta;
         uint256 _assetOracleMultiplier =
@@ -74,12 +78,7 @@ contract StrikeSelection is DSMath, Ownable {
 
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
-        // asset price formatted decimals
-        uint256 assetPriceFormatted =
-            assetPrice.mul(10**8).div(assetOracleMultiplier);
 
-        IVolatilityOracle volatilityOracle =
-            IVolatilityOracle(optionsPremiumPricer.volatilityOracle());
         // asset's annualized volatility
         uint256 annualizedVol =
             volatilityOracle.annualizedVol(volatilityOracle.pool()).mul(10**10);
@@ -96,7 +95,7 @@ contract StrikeSelection is DSMath, Ownable {
         while (true) {
             uint256 currDelta =
                 optionsPremiumPricer.getOptionDelta(
-                    assetPriceFormatted,
+                    assetPrice.mul(10**8).div(assetOracleMultiplier),
                     strike,
                     annualizedVol,
                     expiryTimestamp
