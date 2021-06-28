@@ -5,7 +5,8 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-
+import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import { OptionsPremiumPricer_BYTECODE } from "./helpers/constants";
 const { provider, getContractFactory } = ethers;
 
 moment.tz.setDefault("UTC");
@@ -43,7 +44,8 @@ describe("StrikeSelectionE2E", () => {
     [signer, signer2] = await ethers.getSigners();
     const TestVolOracle = await getContractFactory("TestVolOracle", signer);
     const OptionsPremiumPricer = await getContractFactory(
-      "OptionsPremiumPricer",
+      OptionsPremiumPricer_ABI,
+      OptionsPremiumPricer_BYTECODE,
       signer
     );
     const StrikeSelection = await getContractFactory("StrikeSelection", signer);
