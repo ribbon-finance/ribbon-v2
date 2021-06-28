@@ -263,7 +263,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionPremium: BigNumber;
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
-  let secondOptionPremium: BigNumber;
   let secondOptionExpiry: number;
 
   describe(`${params.name}`, () => {
@@ -486,14 +485,6 @@ function behavesLikeRibbonOptionsVault(params: {
         .unix();
 
       secondOptionStrike = firstOptionStrike.add(await strikeSelection.step());
-
-      secondOptionPremium = BigNumber.from(
-        await optionsPremiumPricer.getPremium(
-          secondOptionStrike,
-          secondOptionExpiry,
-          params.isPut
-        )
-      );
 
       await strikeSelection.setDelta(params.deltaFirstOption);
 
