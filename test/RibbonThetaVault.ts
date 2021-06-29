@@ -1,8 +1,9 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
-
+import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -17,6 +18,8 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
+  OptionsPremiumPricer_BYTECODE,
+  TestVolOracle_BYTECODE,
 } from "./helpers/constants";
 import {
   deployProxy,
@@ -31,13 +34,22 @@ import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
-const { provider, getContractAt } = ethers;
+const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 60 * 60; // 1 hour
 const gasPrice = parseUnits("1", "gwei");
+
+const PERIOD = 43200; // 12 hours
+
+const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
+const wbtcusdcPool = "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35";
+
+const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
+const wbtcPriceOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
+const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
 describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
@@ -48,12 +60,12 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWBTC",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WBTC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("1000"),
     tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
-    premium: BigNumber.from("10000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
@@ -77,13 +89,13 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WETH_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
-    premium: parseEther("0.1"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
@@ -103,17 +115,17 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IERC20",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
-    firstOptionStrike: 63000,
-    secondOptionStrike: 64000,
     chainlinkPricer: CHAINLINK_WBTC_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("1000"),
     tokenDecimals: 6,
-    depositAmount: BigNumber.from("100000000000"),
-    premium: BigNumber.from("10000000000"),
+    depositAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("158730158"),
+    expectedMintAmount: BigNumber.from("370370"),
     isPut: true,
     gasLimits: {
       depositWorstCase: 115000,
@@ -132,16 +144,16 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IERC20",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: USDC_ADDRESS,
-    firstOptionStrike: 2400,
-    secondOptionStrike: 2500,
     chainlinkPricer: CHAINLINK_WETH_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
     depositAmount: BigNumber.from("100000000000"),
-    premium: BigNumber.from("10000000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("4166666666"),
+    expectedMintAmount: BigNumber.from("5263157894"),
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
@@ -171,15 +183,15 @@ type Option = {
  * @param {string} params.assetContractName - Name of collateral asset contract
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
- * @param {number} params.firstOptionStrike - Strike price of first option
- * @param {number} params.secondOptionStrike - Strike price of second option
  * @param {string} params.chainlinkPricer - Address of chainlink pricer
+ * @param {BigNumber} params.deltaFirstOption - Delta of first option
+ * @param {BigNumber} params.deltaSecondOption - Delta of second option
+ * @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
  * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
- * @param {BigNumber} params.premium - Premium paid for options
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
@@ -194,13 +206,13 @@ function behavesLikeRibbonOptionsVault(params: {
   assetContractName: string;
   strikeAsset: string;
   collateralAsset: string;
-  firstOptionStrike: number;
-  secondOptionStrike: number;
   chainlinkPricer: string;
+  deltaFirstOption: BigNumber;
+  deltaSecondOption: BigNumber;
+  deltaStep: BigNumber;
   depositAmount: BigNumber;
   minimumSupply: string;
   expectedMintAmount: BigNumber;
-  premium: BigNumber;
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
@@ -231,7 +243,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let asset = params.asset;
   let collateralAsset = params.collateralAsset;
   let depositAmount = params.depositAmount;
-  let premium = params.premium;
   let premiumDiscount = params.premiumDiscount;
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
@@ -240,6 +251,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
   // Contracts
   let strikeSelection: Contract;
+  let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
   let vaultLifecycleLib: Contract;
@@ -250,6 +262,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
   // Variables
   let defaultOtokenAddress: string;
+  let firstOptionStrike: BigNumber;
+  let firstOptionPremium: BigNumber;
+  let firstOptionExpiry: number;
+  let secondOptionStrike: BigNumber;
+  let secondOptionExpiry: number;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -257,19 +274,9 @@ function behavesLikeRibbonOptionsVault(params: {
     let secondOption: Option;
 
     const rollToNextOption = async () => {
-      await strikeSelection.setStrikePrice(
-        parseUnits(params.firstOptionStrike.toString(), 8)
-      );
-
-      await optionsPremiumPricer.setPremium(
-        params.premium
-          .mul(BigNumber.from(10).pow(18 - params.tokenDecimals))
-          .toString()
-      );
-
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAt()) + 1);
-
+      await strikeSelection.setDelta(params.deltaFirstOption);
       await vault.connect(ownerSigner).rollToNextOption();
     };
 
@@ -282,9 +289,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await getCurrentOptionExpiry(),
         settlementPrice
       );
-      await strikeSelection.setStrikePrice(
-        parseUnits(params.secondOptionStrike.toString(), 8)
-      );
+      await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
       await vault.connect(ownerSigner).rollToNextOption();
@@ -302,6 +307,19 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     before(async function () {
+      // Reset block
+      await network.provider.request({
+        method: "hardhat_reset",
+        params: [
+          {
+            forking: {
+              jsonRpcUrl: process.env.TEST_URI,
+              blockNumber: 12529250,
+            },
+          },
+        ],
+      });
+
       initSnapshotId = await time.takeSnapshot();
 
       [
@@ -316,17 +334,38 @@ function behavesLikeRibbonOptionsVault(params: {
       owner = ownerSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
-      const MockStrikeSelection = await ethers.getContractFactory(
-        "MockStrikeSelection"
+      const TestVolOracle = await getContractFactory(
+        TestVolOracle_ABI,
+        TestVolOracle_BYTECODE,
+        ownerSigner
       );
-      strikeSelection = await MockStrikeSelection.deploy();
-      await strikeSelection.setStrikePrice(3000);
-      await strikeSelection.setDelta(10);
 
-      const MockOptionsPremiumPricer = await ethers.getContractFactory(
-        "MockOptionsPremiumPricer"
+      const OptionsPremiumPricer = await getContractFactory(
+        OptionsPremiumPricer_ABI,
+        OptionsPremiumPricer_BYTECODE,
+        ownerSigner
       );
-      optionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
+      const StrikeSelection = await getContractFactory(
+        "StrikeSelection",
+        ownerSigner
+      );
+
+      volOracle = await TestVolOracle.deploy(PERIOD);
+
+      optionsPremiumPricer = await OptionsPremiumPricer.deploy(
+        params.asset === WETH_ADDRESS ? ethusdcPool : wbtcusdcPool,
+        volOracle.address,
+        params.asset === WETH_ADDRESS
+          ? wethPriceOracleAddress
+          : wbtcPriceOracleAddress,
+        usdcPriceOracleAddress
+      );
+
+      strikeSelection = await StrikeSelection.deploy(
+        optionsPremiumPricer.address,
+        params.deltaFirstOption,
+        params.deltaStep
+      );
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
@@ -389,6 +428,9 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
+      // Update volatility
+      await updateVol(params.asset);
+
       oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
 
       await whitelistProduct(
@@ -401,7 +443,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
 
       // Create first option
-      const firstOptionExpiry = moment(latestTimestamp * 1000)
+      firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
         .add(1, "week")
         .day("friday")
@@ -410,23 +452,36 @@ function behavesLikeRibbonOptionsVault(params: {
         .seconds(0)
         .unix();
 
+      [firstOptionStrike] = await strikeSelection.getStrikePrice(
+        firstOptionExpiry,
+        params.isPut
+      );
+
+      firstOptionPremium = BigNumber.from(
+        await optionsPremiumPricer.getPremium(
+          firstOptionStrike,
+          firstOptionExpiry,
+          params.isPut
+        )
+      );
+
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
         params.strikeAsset,
         params.collateralAsset,
-        parseUnits(params.firstOptionStrike.toString(), 8),
+        firstOptionStrike,
         firstOptionExpiry,
         params.isPut
       );
 
       firstOption = {
         address: firstOptionAddress,
-        strikePrice: parseUnits(params.firstOptionStrike.toString(), 8),
+        strikePrice: firstOptionStrike,
         expiry: firstOptionExpiry,
       };
 
       // Create second option
-      const secondOptionExpiry = moment(latestTimestamp * 1000)
+      secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
         .add(2, "week")
         .day("friday")
@@ -435,36 +490,30 @@ function behavesLikeRibbonOptionsVault(params: {
         .seconds(0)
         .unix();
 
+      secondOptionStrike = firstOptionStrike.add(await strikeSelection.step());
+
+      await strikeSelection.setDelta(params.deltaFirstOption);
+
       const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
         params.strikeAsset,
         params.collateralAsset,
-        parseUnits(params.secondOptionStrike.toString(), 8),
+        secondOptionStrike,
         secondOptionExpiry,
         params.isPut
       );
 
       secondOption = {
         address: secondOptionAddress,
-        strikePrice: parseUnits(params.secondOptionStrike.toString(), 8),
+        strikePrice: secondOptionStrike,
         expiry: secondOptionExpiry,
       };
-
-      await strikeSelection.setStrikePrice(
-        parseUnits(params.firstOptionStrike.toString(), 8)
-      );
 
       await vault.initRounds(50);
 
       await vault
         .connect(ownerSigner)
         .setPremiumDiscount(params.premiumDiscount);
-
-      await optionsPremiumPricer.setPremium(
-        params.premium
-          .mul(BigNumber.from(10).pow(18 - params.tokenDecimals))
-          .toString()
-      );
 
       defaultOtokenAddress = firstOption.address;
       defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
@@ -1165,7 +1214,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("sets the correct strike when overriding strike price", async function () {
-        const newStrikePrice = parseEther("10");
+        const newStrikePrice =
+          params.asset === WETH_ADDRESS
+            ? BigNumber.from("250000000000")
+            : BigNumber.from("4050000000000");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
         const optionState = await vault.optionState();
@@ -1189,40 +1241,21 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const vaultState = await vault.vaultState();
 
+        const expiryTimestampOfNewOption = await (
+          await getContractAt("IOtoken", await vault.nextOption())
+        ).expiryTimestamp();
+
         assert.bnEqual(
           vaultState.currentOtokenPremium,
-          (await optionsPremiumPricer.getPremium(0, 0, true))
-            .mul(vaultState.premiumDiscount)
-            .div(1000)
-        );
-      });
-
-      it("sets the correct strike when setting the strike selection contract strike price", async function () {
-        const strikePrice = parseEther("200");
-        const delta = parseEther("0.1");
-
-        await strikeSelection.connect(adminSigner).setStrikePrice(strikePrice);
-        await strikeSelection.connect(adminSigner).setDelta(delta);
-
-        await vault.connect(ownerSigner).commitAndClose({ from: owner });
-
-        assert.equal(
           (
-            await (
-              await getContractAt("IOtoken", await vault.nextOption())
-            ).strikePrice()
-          ).toString(),
-          strikePrice.toString()
-        );
-
-        const vaultState = await vault.vaultState();
-
-        assert.equal(
-          vaultState.currentOtokenPremium.toString(),
-          (await optionsPremiumPricer.getPremium(0, 0, true))
+            await optionsPremiumPricer.getPremium(
+              newStrikePrice,
+              expiryTimestampOfNewOption,
+              params.isPut
+            )
+          )
             .mul(vaultState.premiumDiscount)
             .div(1000)
-            .toString()
         );
       });
 
@@ -1234,18 +1267,17 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 685000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1220000);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
-
     describe("#burnRemainingOTokens", () => {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
         if (params.collateralAsset === WETH_ADDRESS) {
           const weth = assetContract.connect(counterpartySigner);
-          await weth.deposit({ value: premium });
+          await weth.deposit({ value: depositAmount });
           return;
         }
       });
@@ -1277,7 +1309,7 @@ function behavesLikeRibbonOptionsVault(params: {
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
-          params.premium,
+          firstOptionPremium,
           tokenDecimals,
           bidMultiplier.toString()
         );
@@ -1326,7 +1358,7 @@ function behavesLikeRibbonOptionsVault(params: {
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
-          params.premium,
+          firstOptionPremium,
           tokenDecimals,
           bidMultiplier.toString()
         );
@@ -1394,7 +1426,6 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#rollToNextOption", () => {
       let oracle: Contract;
       const depositAmount = params.depositAmount;
-      const premium = params.premium;
 
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
@@ -1463,6 +1494,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        const nextOption = await getContractAt(
+          "IOtoken",
+          await vault.nextOption()
+        );
+
         await vault.connect(ownerSigner).rollToNextOption();
 
         const currentAuctionCounter = await gnosisAuction.auctionCounter();
@@ -1508,8 +1544,13 @@ function behavesLikeRibbonOptionsVault(params: {
         const oTokenSellAmount = params.expectedMintAmount
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
+
         const oTokenPremium = (
-          await optionsPremiumPricer.getPremium(0, 0, true)
+          await optionsPremiumPricer.getPremium(
+            await nextOption.strikePrice(),
+            await nextOption.expiryTimestamp(),
+            params.isPut
+          )
         )
           .mul((await vault.vaultState()).premiumDiscount)
           .div(1000);
@@ -1574,23 +1615,32 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmount, owner);
 
-        await assetContract
+        let bidMultiplier = 1;
+
+        const auctionDetails = await bidForOToken(
+          gnosisAuction,
+          optionsPremiumPricer,
+          assetContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          tokenDecimals,
+          bidMultiplier.toString()
+        );
+
+        await gnosisAuction
           .connect(userSigner)
-          .transfer(vault.address, premium);
+          .settleAuction(auctionDetails[0]);
 
         // only the premium should be left over because the funds are locked into Opyn
-        assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
-          premium
+        assert.isAbove(
+          parseInt((await assetContract.balanceOf(vault.address)).toString()),
+          (parseInt(auctionDetails[2].toString()) * 99) / 100
         );
 
         const settlementPriceITM = isPut
-          ? parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(100000)
-          : parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(100000);
+          ? firstOptionStrike.sub(1)
+          : firstOptionStrike.add(1);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -1602,9 +1652,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
 
-        await strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
-        );
+        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         const firstCloseTx = await vault.connect(ownerSigner).commitAndClose();
 
@@ -1717,20 +1765,32 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmount, owner);
 
-        await assetContract
+        let bidMultiplier = 1;
+
+        const auctionDetails = await bidForOToken(
+          gnosisAuction,
+          optionsPremiumPricer,
+          assetContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          tokenDecimals,
+          bidMultiplier.toString()
+        );
+
+        await gnosisAuction
           .connect(userSigner)
-          .transfer(vault.address, premium);
+          .settleAuction(auctionDetails[0]);
 
         // only the premium should be left over because the funds are locked into Opyn
-        assert.bnEqual(await assetContract.balanceOf(vault.address), premium);
+        assert.isAbove(
+          parseInt((await assetContract.balanceOf(vault.address)).toString()),
+          (parseInt(auctionDetails[2].toString()) * 99) / 100
+        );
 
         const settlementPriceOTM = isPut
-          ? parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(100000)
-          : parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(100000);
+          ? firstOptionStrike.add(1)
+          : firstOptionStrike.sub(1);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -1742,9 +1802,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
 
-        await strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
-        );
+        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         const firstCloseTx = await vault.connect(ownerSigner).commitAndClose();
 
@@ -1799,7 +1857,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(
             secondOptionAddress,
-            depositAmount.add(premium).sub(vaultFees),
+            depositAmount.add(auctionDetails[2]).sub(vaultFees),
             owner
           );
 
@@ -1950,12 +2008,8 @@ function behavesLikeRibbonOptionsVault(params: {
         const beforePps = await vault.pricePerShare();
 
         const settlementPriceITM = isPut
-          ? parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .sub(100000000000)
-          : parseEther(params.firstOptionStrike.toString())
-              .div(BigNumber.from("10").pow(BigNumber.from("10")))
-              .add(100000000000);
+          ? firstOptionStrike.sub(100000000000)
+          : firstOptionStrike.add(100000000000);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -1965,9 +2019,7 @@ function behavesLikeRibbonOptionsVault(params: {
           settlementPriceITM
         );
 
-        await strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
-        );
+        await strikeSelection.setDelta(params.deltaSecondOption);
 
         await vault.connect(ownerSigner).commitAndClose();
         const afterBalance = await assetContract.balanceOf(vault.address);
@@ -2260,11 +2312,10 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          parseUnits(params.firstOptionStrike.toString(), 8)
+          firstOptionStrike
         );
-        await strikeSelection.setStrikePrice(
-          parseUnits(params.secondOptionStrike.toString(), 8)
-        );
+        await strikeSelection.setDelta(params.deltaSecondOption);
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(ownerSigner).rollToNextOption();
@@ -2431,9 +2482,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling completeWithdraw twice", async function () {
-        await rollToSecondOption(
-          parseUnits(params.firstOptionStrike.toString(), 8)
-        );
+        await rollToSecondOption(firstOptionStrike);
 
         await vault.completeWithdraw();
 
@@ -2443,10 +2492,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("completes the withdrawal", async function () {
-        const firstStrikePrice = parseUnits(
-          params.firstOptionStrike.toString(),
-          8
-        );
+        const firstStrikePrice = firstOptionStrike;
         const settlePriceITM = isPut
           ? firstStrikePrice.sub(100000000)
           : firstStrikePrice.add(100000000);
@@ -2615,6 +2661,46 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
   });
+
+  const getTopOfPeriod = async () => {
+    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
+    let topOfPeriod: number;
+
+    const rem = latestTimestamp % PERIOD;
+    if (rem < Math.floor(PERIOD / 2)) {
+      topOfPeriod = latestTimestamp - rem + PERIOD;
+    } else {
+      topOfPeriod = latestTimestamp + rem + PERIOD;
+    }
+    return topOfPeriod;
+  };
+
+  const updateVol = async (asset: string) => {
+    const values = [
+      BigNumber.from("2000000000"),
+      BigNumber.from("2100000000"),
+      BigNumber.from("2200000000"),
+      BigNumber.from("2150000000"),
+      BigNumber.from("2250000000"),
+      BigNumber.from("2350000000"),
+      BigNumber.from("2450000000"),
+      BigNumber.from("2550000000"),
+      BigNumber.from("2350000000"),
+      BigNumber.from("2450000000"),
+      BigNumber.from("2250000000"),
+      BigNumber.from("2250000000"),
+      BigNumber.from("2650000000"),
+    ];
+
+    for (let i = 0; i < values.length; i++) {
+      await volOracle.setPrice(values[i]);
+      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
+      await time.increaseTo(topOfPeriod);
+      await volOracle.mockCommit(
+        asset === WETH_ADDRESS ? ethusdcPool : wbtcusdcPool
+      );
+    }
+  };
 }
 
 async function depositIntoVault(
