@@ -17,12 +17,19 @@ interface IOptionsPremiumPricer {
         bool isPut
     ) external view returns (uint256);
 
-    function getOptionDelta(uint256 st, uint256 t)
-        external
-        view
-        returns (uint256 delta);
+    function getOptionDelta(
+        uint256 sp,
+        uint256 st,
+        uint256 v,
+        uint256 t
+    ) external view returns (uint256 delta);
 
     function getUnderlyingPrice() external view returns (uint256 price);
 
     function priceOracle() external view returns (address oracle);
+
+    function volatilityOracle()
+        external
+        view
+        returns (address volatilityOracle);
 }
