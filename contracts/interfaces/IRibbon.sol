@@ -32,4 +32,6 @@ interface IOptionsPremiumPricer {
         external
         view
         returns (address volatilityOracle);
+
+    function pool() external view returns (address pool);
 }

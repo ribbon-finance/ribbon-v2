@@ -37,9 +37,9 @@ describe("StrikeSelection", () => {
     await mockOptionsPremiumPricer.setVolatilityOracle(
       mockVolatilityOracle.address
     );
+    await mockOptionsPremiumPricer.setPool(mockPriceOracle.address);
     await mockPriceOracle.setDecimals(8);
     await mockVolatilityOracle.setAnnualizedVol(1);
-    await mockVolatilityOracle.setPool(mockPriceOracle.address);
 
     await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
       BigNumber.from(2500).mul(
