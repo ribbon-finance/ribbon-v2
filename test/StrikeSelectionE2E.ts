@@ -6,7 +6,11 @@ import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
-import { OptionsPremiumPricer_BYTECODE } from "./helpers/constants";
+import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import {
+  OptionsPremiumPricer_BYTECODE,
+  TestVolOracle_BYTECODE,
+} from "./helpers/constants";
 const { provider, getContractFactory } = ethers;
 
 moment.tz.setDefault("UTC");
@@ -42,7 +46,11 @@ describe("StrikeSelectionE2E", () => {
     });
 
     [signer, signer2] = await ethers.getSigners();
-    const TestVolOracle = await getContractFactory("TestVolOracle", signer);
+    const TestVolOracle = await getContractFactory(
+      TestVolOracle_ABI,
+      TestVolOracle_BYTECODE,
+      signer
+    );
     const OptionsPremiumPricer = await getContractFactory(
       OptionsPremiumPricer_ABI,
       OptionsPremiumPricer_BYTECODE,
@@ -120,10 +128,9 @@ describe("StrikeSelectionE2E", () => {
         BigNumber.from(underlyingPrice).mod(await strikeSelection.step())
       );
       expiryTimestamp = (await time.now()).add(WEEK);
-      deltaAtUnderlying = await optionsPremiumPricer.getOptionDelta(
-        underlyingPrice,
-        expiryTimestamp
-      );
+      deltaAtUnderlying = await optionsPremiumPricer[
+        "getOptionDelta(uint256,uint256)"
+      ](underlyingPrice, expiryTimestamp);
     });
 
     it("reverts on timestamp being in the past", async function () {
@@ -140,6 +147,9 @@ describe("StrikeSelectionE2E", () => {
         expiryTimestamp,
         isPut
       );
+
+      console.log(deltaAtUnderlying.toString());
+      console.log(targetDelta.toString());
 
       assert.equal(
         strikePrice.toString(),
@@ -160,7 +170,7 @@ describe("StrikeSelectionE2E", () => {
       assert.isAbove(
         parseInt(targetDelta.toString()),
         parseInt(
-          await optionsPremiumPricer.getOptionDelta(
+          await optionsPremiumPricer["getOptionDelta(uint256,uint256)"](
             strikePrice.add(await strikeSelection.step()),
             expiryTimestamp
           )
@@ -199,7 +209,7 @@ describe("StrikeSelectionE2E", () => {
         parseInt(
           BigNumber.from(10000)
             .sub(
-              await optionsPremiumPricer.getOptionDelta(
+              await optionsPremiumPricer["getOptionDelta(uint256,uint256)"](
                 strikePrice.add(await strikeSelection.step()),
                 expiryTimestamp
               )

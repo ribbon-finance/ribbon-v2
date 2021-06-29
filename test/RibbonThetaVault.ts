@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -18,6 +19,7 @@ import {
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
+  TestVolOracle_BYTECODE,
 } from "./helpers/constants";
 import {
   deployProxy,
@@ -333,9 +335,11 @@ function behavesLikeRibbonOptionsVault(params: {
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
-        "TestVolOracle",
+        TestVolOracle_ABI,
+        TestVolOracle_BYTECODE,
         ownerSigner
       );
+
       const OptionsPremiumPricer = await getContractFactory(
         OptionsPremiumPricer_ABI,
         OptionsPremiumPricer_BYTECODE,
@@ -349,9 +353,9 @@ function behavesLikeRibbonOptionsVault(params: {
       volOracle = await TestVolOracle.deploy(PERIOD);
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset == WETH_ADDRESS ? ethusdcPool : wbtcusdcPool,
+        params.asset === WETH_ADDRESS ? ethusdcPool : wbtcusdcPool,
         volOracle.address,
-        params.asset == WETH_ADDRESS
+        params.asset === WETH_ADDRESS
           ? wethPriceOracleAddress
           : wbtcPriceOracleAddress,
         usdcPriceOracleAddress
@@ -1211,7 +1215,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("sets the correct strike when overriding strike price", async function () {
         const newStrikePrice =
-          params.asset == WETH_ADDRESS
+          params.asset === WETH_ADDRESS
             ? BigNumber.from("250000000000")
             : BigNumber.from("4050000000000");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
@@ -2693,7 +2697,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
       await time.increaseTo(topOfPeriod);
       await volOracle.mockCommit(
-        asset == WETH_ADDRESS ? ethusdcPool : wbtcusdcPool
+        asset === WETH_ADDRESS ? ethusdcPool : wbtcusdcPool
       );
     }
   };

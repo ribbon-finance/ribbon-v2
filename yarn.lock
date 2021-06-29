@@ -1161,10 +1161,10 @@
     path-browserify "^1.0.0"
     url "^0.11.0"
 
-"@ribbon-finance/rvol@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/@ribbon-finance/rvol/-/rvol-1.1.0.tgz#160ce2fa0fc112cd6bb4ca45fe1dfee2eeeb419b"
-  integrity sha512-eC9XBn+mesUxTxeEOjgTLxjS02FPzji1dZbCCuU75JhaZzORQRg6l0m14bA2icg4GBipJZS9LatkZWyEd7j48g==
+"@ribbon-finance/rvol@^1.2.0":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@ribbon-finance/rvol/-/rvol-1.2.0.tgz#d5252b3fcd92517d53077067918a89202098a4af"
+  integrity sha512-WsncHc1gHrjk1vcQeWKWUOIdyJigXuZ+6Vvm1d4tothlhu4CHB4lPrTcEOYed1LgxZim7LxZc02IwSkEoQ10xQ==
   dependencies:
     "@uniswap/v3-core" "^1.0.0"
     "@uniswap/v3-periphery" "^1.0.1"

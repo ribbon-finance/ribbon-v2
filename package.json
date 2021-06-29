@@ -66,7 +66,7 @@
     "@airswap/utils": "^0.4.4",
     "@openzeppelin/contracts": "^3.2.0",
     "@openzeppelin/contracts-upgradeable": "^3.4.1",
-    "@ribbon-finance/rvol": "^1.1.0",
+    "@ribbon-finance/rvol": "^1.2.0",
     "dotenv": "^10.0.0",
     "moment-timezone": "^0.5.33"
   },

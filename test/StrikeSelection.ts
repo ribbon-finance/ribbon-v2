@@ -7,7 +7,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const { getContractFactory } = ethers;
 
-describe.skip("StrikeSelection", () => {
+describe("StrikeSelection", () => {
   let strikeSelection: Contract;
   let mockOptionsPremiumPricer: Contract;
   let mockPriceOracle: Contract;
@@ -37,9 +37,9 @@ describe.skip("StrikeSelection", () => {
     await mockOptionsPremiumPricer.setVolatilityOracle(
       mockVolatilityOracle.address
     );
+    await mockOptionsPremiumPricer.setPool(mockPriceOracle.address);
     await mockPriceOracle.setDecimals(8);
     await mockVolatilityOracle.setAnnualizedVol(1);
-    await mockVolatilityOracle.setPool(mockPriceOracle.address);
 
     await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
       BigNumber.from(2500).mul(
