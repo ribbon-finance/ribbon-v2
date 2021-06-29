@@ -4,7 +4,9 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
-import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
+import {
+    IPriceOracle
+} from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import {
@@ -81,7 +83,9 @@ contract StrikeSelection is DSMath, Ownable {
 
         // asset's annualized volatility
         uint256 annualizedVol =
-            volatilityOracle.annualizedVol(volatilityOracle.pool()).mul(10**10);
+            volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
+                10**10
+            );
 
         // For each asset prices with step of 'step' (down if put, up if call)
         //   if asset's getOptionDelta(currStrikePrice, spotPrice, annualizedVol, t) == (isPut ? 1 - delta:delta)
