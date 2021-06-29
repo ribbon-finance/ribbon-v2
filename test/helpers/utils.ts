@@ -214,7 +214,7 @@ export async function bidForOToken(
   contractSigner: string,
   oToken: string,
   premium: BigNumber,
-  tokenDecimals: number,
+  assetDecimals: number,
   multiplier: string
 ) {
   const userSigner = await ethers.provider.getSigner(contractSigner);
@@ -234,10 +234,10 @@ export async function bidForOToken(
     .div(multiplier);
 
   const bid = wmul(
-    await optionsPremiumPricer.getPremium(100, 100, true),
-    totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10))
+    totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
+    premium
   )
-    .div(BigNumber.from(10).pow(18 - tokenDecimals))
+    .div(BigNumber.from(10).pow(18 - assetDecimals))
     .toString();
 
   const queueStartElement =
