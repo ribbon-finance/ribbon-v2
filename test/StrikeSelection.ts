@@ -11,6 +11,7 @@ describe("StrikeSelection", () => {
   let strikeSelection: Contract;
   let mockOptionsPremiumPricer: Contract;
   let mockPriceOracle: Contract;
+  let mockVolatilityOracle: Contract;
   let signer: SignerWithAddress;
   let signer2: SignerWithAddress;
 
@@ -21,14 +22,25 @@ describe("StrikeSelection", () => {
       signer
     );
     const MockPriceOracle = await getContractFactory("MockPriceOracle", signer);
+    const MockVolatilityOracle = await getContractFactory(
+      "MockVolatilityOracle",
+      signer
+    );
     const StrikeSelection = await getContractFactory("StrikeSelection", signer);
 
     mockOptionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
 
     mockPriceOracle = await MockPriceOracle.deploy();
+    mockVolatilityOracle = await MockVolatilityOracle.deploy();
 
     await mockOptionsPremiumPricer.setPriceOracle(mockPriceOracle.address);
+    await mockOptionsPremiumPricer.setVolatilityOracle(
+      mockVolatilityOracle.address
+    );
     await mockPriceOracle.setDecimals(8);
+    await mockVolatilityOracle.setAnnualizedVol(1);
+    await mockVolatilityOracle.setPool(mockPriceOracle.address);
+
     await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
       BigNumber.from(2500).mul(
         BigNumber.from(10).pow(await mockPriceOracle.decimals())

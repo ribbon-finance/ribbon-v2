@@ -7,6 +7,9 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+import {
+    IVolatilityOracle
+} from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StrikeSelection is DSMath, Ownable {
@@ -16,6 +19,7 @@ contract StrikeSelection is DSMath, Ownable {
      * Immutables
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
+    IVolatilityOracle public immutable volatilityOracle;
 
     // delta for options strike price selection. 1 is 10000
     uint256 public delta;
@@ -37,6 +41,9 @@ contract StrikeSelection is DSMath, Ownable {
         require(_delta > 0, "!_delta");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
+        volatilityOracle = IVolatilityOracle(
+            IOptionsPremiumPricer(_optionsPremiumPricer).volatilityOracle()
+        );
         // ex: delta = 7500 (.75)
         delta = _delta;
         uint256 _assetOracleMultiplier =
@@ -72,8 +79,12 @@ contract StrikeSelection is DSMath, Ownable {
         // asset price
         uint256 assetPrice = optionsPremiumPricer.getUnderlyingPrice();
 
-        // For each asset prices with step of 'margin' (down if put, up if call)
-        //   if asset's getOptionDelta(currStrikePrice, t) == (isPut ? 1 - delta:delta)
+        // asset's annualized volatility
+        uint256 annualizedVol =
+            volatilityOracle.annualizedVol(volatilityOracle.pool()).mul(10**10);
+
+        // For each asset prices with step of 'step' (down if put, up if call)
+        //   if asset's getOptionDelta(currStrikePrice, spotPrice, annualizedVol, t) == (isPut ? 1 - delta:delta)
         //   with certain margin of error
         //        return strike price
 
@@ -83,7 +94,12 @@ contract StrikeSelection is DSMath, Ownable {
 
         while (true) {
             uint256 currDelta =
-                optionsPremiumPricer.getOptionDelta(strike, expiryTimestamp);
+                optionsPremiumPricer.getOptionDelta(
+                    assetPrice.mul(10**8).div(assetOracleMultiplier),
+                    strike,
+                    annualizedVol,
+                    expiryTimestamp
+                );
             //  If the current delta is between the previous
             //  strike price delta and current strike price delta
             //  then we are done
