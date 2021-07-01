@@ -2,8 +2,8 @@ const Web3 = require("web3");
 const { ether } = require("@openzeppelin/test-helpers");
 module.exports = { sleep, wdiv, wmul };
 
-async function sleep(time) {
-  return new Promise((resolve) => setTimeout(resolve, time));
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function wdiv(x, y) {
