@@ -22,6 +22,8 @@ program.option("-n, --network <network>", "Network", "mainnet");
 
 program.parse(process.argv);
 
+require("dotenv").config();
+
 // 3600000 = 1hr
 const TIMELOCK_PERIOD = 3600000;
 // 0 10 * * 5 = 10am UTC on Fridays. https://crontab.guru/ is a friend
@@ -181,7 +183,7 @@ function run() {
     console.log(`Logged in as ${client.user.tag}!`);
   });
 
-  client.login(auth.token);
+  client.login(process.env.DISCORD_TOKEN);
 
   //Atlantic/Reykjavik corresponds to UTC
 
