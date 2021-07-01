@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { BigNumber, ethers } from "ethers";
+import { BigNumber, constants, ethers } from "ethers";
 import {
   getDefaultProvider,
   getDefaultSigner,
@@ -10,7 +10,6 @@ import deployments from "../constants/deployments.json";
 import { gas } from "./helpers/getGasPrice";
 import * as time from "../test/helpers/time";
 import { GNOSIS_EASY_AUCTION, BYTES_ZERO } from "../test/helpers/constants";
-import { sleep } from "../test/helpers/utils";
 const { getContractAt } = ethers;
 import { hexStripZeros } from "ethers/lib/utils";
 var CronJob = require("cron").CronJob;
@@ -25,6 +24,10 @@ program.parse(process.argv);
 const TIMELOCK_PERIOD = 3600000;
 // 0 10 * * 5 = 10am UTC on Fridays. https://crontab.guru/ is a friend
 const CRON = "0 10 * * 5";
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function waitForAuctionClose(
   auctionCounters: Array,
@@ -52,10 +55,14 @@ async function settleAuctions(
       continue;
     }
     let gasPrice = await gas(network);
-    const tx = await gnosisAuction.connect(signer).settleAuction({
-      gasPrice,
-    });
-    console.log(`settleAuction (${auctionID}): ${tx.hash}`);
+    try {
+      const tx = await gnosisAuction.connect(signer).settleAuction({
+        gasPrice,
+      });
+      console.log(`settleAuction (${auctionID}): ${tx.hash}`);
+    } catch (error) {
+      console.log(`settleAuction (${auctionID}): failed with error ${error}`);
+    }
   }
 }
 
@@ -66,25 +73,39 @@ async function runTX(
   method: string
 ) {
   let returnData = [];
-  for (let vault in deployments[network]) {
+  for (let vaultName in deployments[network]) {
     const vault = new ethers.Contract(
-      deployments[network].vault,
+      deployments[network].vaultName,
       vaultArtifactAbi,
       provider
     );
 
+    // If current option is not zero address, means
+    // someone already called new weeks rollToNextOption
+    if (
+      method === "rollToNextOption" &&
+      (await vault.currentOption()) === constants.AddressZero
+    ) {
+      console.log(`${method} (${vaultName}): skipped`);
+      continue;
+    }
+
     let gasPrice = await gas(network);
 
-    const tx = await vault.connect(signer)[`${method}()`]({
-      gasPrice,
-    });
-    console.log(`${method} (${vault}): ${tx.hash}`);
+    try {
+      const tx = await vault.connect(signer)[`${method}()`]({
+        gasPrice,
+      });
+      console.log(`${method} (${vaultName}): ${tx.hash}`);
 
-    if (method === "rollToNextOption") {
-      const receipt = await tx.wait();
-      returnData.push(
-        hexStripZeros(receipt["logs"][15]["topics"][1]).toString().slice(2)
-      );
+      if (method === "rollToNextOption") {
+        const receipt = await tx.wait();
+        returnData.push(
+          hexStripZeros(receipt["logs"][15]["topics"][1]).toString().slice(2)
+        );
+      }
+    } catch (error) {
+      console.log(`${method} (${vaultName}): failed with error ${error}`);
     }
   }
 
