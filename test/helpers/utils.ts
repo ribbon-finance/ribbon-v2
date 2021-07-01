@@ -274,7 +274,3 @@ export function decodeOrder(bytes: string): Order {
     buyAmount: BigNumber.from("0x" + bytes.substring(19, 42)),
   };
 }
-
-export function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
