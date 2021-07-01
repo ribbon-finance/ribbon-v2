@@ -122,7 +122,7 @@ async function main() {
   // 5. settleAuction
   await settleAuctions(gnosisAuction, provider, signer, auctionCounters);
   // 6. if otokens left to burn: burnRemainingOTokens
-  await runTX(vaultArtifact.abi, provider, "burnRemainingOTokens");
+  await runTX(vaultArtifact.abi, provider, signer, "burnRemainingOTokens");
   // 7. wait approximately a week
 }
 
