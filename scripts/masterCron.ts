@@ -100,7 +100,7 @@ async function runTX(
       method === "rollToNextOption" &&
       (await vault.currentOption()) === constants.AddressZero
     ) {
-      await log(`@everyone ${method} (${vaultName}): skipped`);
+      await log(`${method} (${vaultName}): skipped`);
       continue;
     }
 
