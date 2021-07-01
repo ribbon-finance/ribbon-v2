@@ -28,6 +28,7 @@ require("dotenv").config();
 const TIMELOCK_PERIOD = 3600000;
 // 0 10 * * 5 = 10am UTC on Fridays. https://crontab.guru/ is a friend
 const CRON = "0 10 * * 5";
+
 var client = new Discord.Client();
 
 function sleep(ms: number) {
@@ -35,9 +36,7 @@ function sleep(ms: number) {
 }
 
 async function log(msg: string) {
-  ((await client.channels.fetch(auth.channel_id)) as Discord.TextChannel).send(
-    msg
-  );
+  (client.channels.cache.get(auth.channel_id) as Discord.TextChannel).send(msg);
 }
 
 async function waitForAuctionClose(
@@ -181,6 +180,13 @@ async function main() {
 function run() {
   client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    client.user.setPresence({
+      activity: {
+        name: "vault status",
+        type: "WATCHING",
+      },
+      status: "idle",
+    });
   });
 
   client.login(process.env.DISCORD_TOKEN);
