@@ -1,18 +1,20 @@
 import { Command } from "commander";
-import { BigNumber, constants, ethers } from "ethers";
+import hre from "hardhat";
+import { ethers } from "ethers";
+import { BigNumber, constants, Contract, Wallet } from "ethers";
+import auth from "./auth.json";
 import {
   getDefaultProvider,
   getDefaultSigner,
 } from "./helpers/getDefaultEthersProvider";
-import hre from "hardhat";
 import moment from "moment";
 import deployments from "../constants/deployments.json";
 import { gas } from "./helpers/getGasPrice";
 import * as time from "../test/helpers/time";
 import { GNOSIS_EASY_AUCTION, BYTES_ZERO } from "../test/helpers/constants";
-const { getContractAt } = ethers;
 import { hexStripZeros } from "ethers/lib/utils";
-var CronJob = require("cron").CronJob;
+import { CronJob } from "cron";
+import Discord = require("discord.js");
 
 const program = new Command();
 program.version("0.0.1");
@@ -24,17 +26,24 @@ program.parse(process.argv);
 const TIMELOCK_PERIOD = 3600000;
 // 0 10 * * 5 = 10am UTC on Fridays. https://crontab.guru/ is a friend
 const CRON = "0 10 * * 5";
+var client = new Discord.Client();
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function log(msg: string) {
+  ((await client.channels.fetch(auth.channel_id)) as Discord.TextChannel).send(
+    msg
+  );
+}
+
 async function waitForAuctionClose(
-  auctionCounters: Array,
+  auctionCounters: Array<number>,
   gnosisAuction: Contract
 ) {
   const auctionDetails = await gnosisAuction.auctionData(
-    auctionCounters[auctionDetails.length - 1]
+    auctionCounters[auctionCounters.length - 1]
   );
 
   // Wait until the last initiated auction is finished
@@ -43,9 +52,10 @@ async function waitForAuctionClose(
 
 async function settleAuctions(
   gnosisAuction: Contract,
-  provider: object,
-  signer: SignerWithAddress,
-  auctionCounters: Array
+  provider: any,
+  signer: Wallet,
+  network: string,
+  auctionCounters: Array<number>
 ) {
   for (let auctionID in auctionCounters) {
     const auctionDetails = await gnosisAuction.auctionData(auctionID);
@@ -59,17 +69,20 @@ async function settleAuctions(
       const tx = await gnosisAuction.connect(signer).settleAuction({
         gasPrice,
       });
-      console.log(`settleAuction (${auctionID}): ${tx.hash}`);
+      await log(`settleAuction (${auctionID}): ${tx.hash}`);
     } catch (error) {
-      console.log(`settleAuction (${auctionID}): failed with error ${error}`);
+      await log(
+        `@everyone settleAuction (${auctionID}): failed with error ${error}`
+      );
     }
   }
 }
 
 async function runTX(
-  vaultArtifactAbi: object,
-  provider: object,
-  signer: SignerWithAddress,
+  vaultArtifactAbi: any,
+  provider: any,
+  signer: Wallet,
+  network: string,
   method: string
 ) {
   let returnData = [];
@@ -86,7 +99,7 @@ async function runTX(
       method === "rollToNextOption" &&
       (await vault.currentOption()) === constants.AddressZero
     ) {
-      console.log(`${method} (${vaultName}): skipped`);
+      await log(`@everyone ${method} (${vaultName}): skipped`);
       continue;
     }
 
@@ -96,7 +109,7 @@ async function runTX(
       const tx = await vault.connect(signer)[`${method}()`]({
         gasPrice,
       });
-      console.log(`${method} (${vaultName}): ${tx.hash}`);
+      log(`${method} (${vaultName}): ${tx.hash}`);
 
       if (method === "rollToNextOption") {
         const receipt = await tx.wait();
@@ -105,7 +118,9 @@ async function runTX(
         );
       }
     } catch (error) {
-      console.log(`${method} (${vaultName}): failed with error ${error}`);
+      await log(
+        `@everyone ${method} (${vaultName}): failed with error ${error}`
+      );
     }
   }
 
@@ -119,16 +134,17 @@ async function main() {
     provider
   );
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-
-  const gnosisAuction = await getContractAt(
-    "IGnosisAuction",
-    GNOSIS_EASY_AUCTION
+  const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
+  const gnosisAuction = new ethers.Contract(
+    GNOSIS_EASY_AUCTION,
+    gnosisArtifact.abi,
+    provider
   );
 
   // Master Cron Job
   //
   // 1. commitAndClose
-  await runTX(vaultArtifact.abi, provider, signer, "commitAndClose");
+  await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
   // 2. wait an hour (timelock period)
   await sleep(TIMELOCK_PERIOD);
   // 3. rollToNextOption
@@ -136,27 +152,50 @@ async function main() {
     vaultArtifact.abi,
     provider,
     signer,
+    network,
     "rollToNextOption"
   );
   // 4. wait for auctions to close
   await waitForAuctionClose(auctionCounters, gnosisAuction);
   // 5. settleAuction
-  await settleAuctions(gnosisAuction, provider, signer, auctionCounters);
+  await settleAuctions(
+    gnosisAuction,
+    provider,
+    signer,
+    network,
+    auctionCounters
+  );
   // 6. if otokens left to burn: burnRemainingOTokens
-  await runTX(vaultArtifact.abi, provider, signer, "burnRemainingOTokens");
+  await runTX(
+    vaultArtifact.abi,
+    provider,
+    signer,
+    network,
+    "burnRemainingOTokens"
+  );
   // 7. wait approximately a week
 }
 
-//Atlantic/Reykjavik corresponds to UTC
+function run() {
+  client.on("ready", () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+  });
 
-var job = new CronJob(
-  CRON,
-  function () {
-    await main();
-  },
-  null,
-  true,
-  "Atlantic/Reykjavik"
-);
+  client.login(auth.token);
 
-job.start();
+  //Atlantic/Reykjavik corresponds to UTC
+
+  var job = new CronJob(
+    CRON,
+    async function () {
+      await main();
+    },
+    null,
+    true,
+    "Atlantic/Reykjavik"
+  );
+
+  job.start();
+}
+
+run();

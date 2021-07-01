@@ -1,4 +1,5 @@
-import { BigNumber } from "ethers";
+import { BigNumber, ethers } from "ethers";
+const { parseUnits } = ethers.utils;
 import axios from "axios";
 
 require("dotenv").config();
