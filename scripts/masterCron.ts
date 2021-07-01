@@ -8,6 +8,7 @@ import hre from "hardhat";
 import moment from "moment";
 import deployments from "../constants/deployments.json";
 import { gas } from "./helpers/getGasPrice";
+import { sleep } from "./helpers/utils.js";
 import * as time from "../test/helpers/time";
 import { GNOSIS_EASY_AUCTION, BYTES_ZERO } from "../test/helpers/constants";
 const { getContractAt } = ethers;
@@ -25,10 +26,6 @@ const TIMELOCK_PERIOD = 3600000;
 // 0 10 * * 5 = 10am UTC on Fridays. https://crontab.guru/ is a friend
 const CRON = "0 10 * * 5";
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function waitForAuctionClose(
   auctionCounters: Array,
   gnosisAuction: Contract
@@ -38,7 +35,7 @@ async function waitForAuctionClose(
   );
 
   // Wait until the last initiated auction is finished
-  await delay(auctionDetails.auctionEndDate.sub(await time.now()).mul(1000));
+  await sleep(auctionDetails.auctionEndDate.sub(await time.now()).mul(1000));
 }
 
 async function settleAuctions(
@@ -112,7 +109,7 @@ async function main() {
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, "commitAndClose");
   // 2. wait an hour (timelock period)
-  await delay(TIMELOCK_PERIOD);
+  await sleep(TIMELOCK_PERIOD);
   // 3. rollToNextOption
   let auctionCounters = await runTX(
     vaultArtifact.abi,
