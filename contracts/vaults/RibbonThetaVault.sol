@@ -414,10 +414,17 @@ contract RibbonThetaVault is OptionsVaultStorage {
         transferAsset(msg.sender, amount);
     }
 
+    /**
+     * @notice Initiates a withdrawal that can be processed once the round completes
+     * @param shares is the number of shares to withdraw
+     */
     function initiateWithdraw(uint128 shares) external nonReentrant {
         _initiateWithdraw(shares);
     }
 
+    /**
+     * @notice Initiates a max withdraw that can be processed once the round completes
+     */
     function maxWithdraw() external nonReentrant {
         _initiateWithdraw(uint128(shares(msg.sender)));
     }
@@ -722,6 +729,21 @@ contract RibbonThetaVault is OptionsVaultStorage {
     /************************************************
      *  GETTERS
      ***********************************************/
+
+    /**
+     * @notice Returns the underlying balance held on the vault for the account
+     * @param account is the address to lookup balance for
+     */
+    function accountVaultBalance(address account)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 numShares = shares(account);
+        uint256 pps = totalBalance().div(totalSupply());
+        return
+            ShareMath.sharesToUnderlying(numShares, pps, vaultParams.decimals);
+    }
 
     /**
      * @notice Getter for returning the account's share balance including unredeemed shares
