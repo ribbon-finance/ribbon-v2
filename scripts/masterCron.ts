@@ -55,18 +55,6 @@ const getTopOfPeriod = async (provider: any, period: number) => {
   return topOfPeriod;
 };
 
-async function waitForAuctionClose(
-  auctionCounters: Array<number>,
-  gnosisAuction: Contract
-) {
-  const auctionDetails = await gnosisAuction.auctionData(
-    auctionCounters[auctionCounters.length - 1]
-  );
-
-  // Wait until the last initiated auction is finished
-  await sleep(auctionDetails.auctionEndDate.sub(await time.now()).mul(1000));
-}
-
 async function settleAuctions(
   gnosisAuction: Contract,
   provider: any,
@@ -86,10 +74,10 @@ async function settleAuctions(
       const tx = await gnosisAuction.connect(signer).settleAuction({
         gasPrice,
       });
-      await log(`settleAuction (${auctionID}): ${tx.hash}`);
+      await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
     } catch (error) {
       await log(
-        `@everyone settleAuction (${auctionID}): failed with error ${error}`
+        `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
       );
     }
   }
@@ -126,10 +114,10 @@ async function runTX(
       const tx = await vault.connect(signer)[`${method}()`]({
         gasPrice,
       });
-      log(`${method} (${vaultName}): ${tx.hash}`);
+      log(`ThetaVault-${method}()-${vaultName}: ${tx.hash}`);
 
       if (method === "commitAndClose") {
-        returnData[0] = (await vault.delay()).mul(1000);
+        returnData[0] = (await vault.delay()).div(3600);
       } else if (method === "rollToNextOption") {
         const receipt = await tx.wait();
         returnData.push(
@@ -138,7 +126,7 @@ async function runTX(
       }
     } catch (error) {
       await log(
-        `@everyone ${method} (${vaultName}): failed with error ${error}`
+        `@everyone ThetaVault-${method}()-${vaultName}: failed with error ${error}`
       );
     }
   }
@@ -146,7 +134,52 @@ async function runTX(
   return returnData;
 }
 
-async function masterJob() {
+async function commitAndClose() {
+  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+
+  // 1. commitAndClose
+  let delayBeforeRoll = await runTX(
+    vaultArtifact.abi,
+    provider,
+    signer,
+    network,
+    "commitAndClose"
+  );
+
+  return delayBeforeRoll[0];
+}
+
+async function rollToNextOption() {
+  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
+
+  // 3. rollToNextOption
+  let auctionCounters = await runTX(
+    vaultArtifact.abi,
+    provider,
+    signer,
+    network,
+    "rollToNextOption"
+  );
+
+  const gnosisAuction = new ethers.Contract(
+    GNOSIS_EASY_AUCTION,
+    gnosisArtifact.abi,
+    provider
+  );
+
+  const auctionDetails = await gnosisAuction.auctionData(
+    auctionCounters[auctionCounters.length - 1]
+  );
+
+  // Wait until the last initiated auction is finished
+  return [
+    auctionDetails.auctionEndDate.sub(await time.now()).div(3600) + 1,
+    auctionCounters,
+  ];
+}
+
+async function settleAuction(auctionCounters: Array<number>) {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
 
@@ -156,29 +189,6 @@ async function masterJob() {
     provider
   );
 
-  // Master Cron Job
-  //
-  // 1. commitAndClose
-  let delayBeforeRoll = await runTX(
-    vaultArtifact.abi,
-    provider,
-    signer,
-    network,
-    "commitAndClose"
-  );
-  // 2. wait an hour (timelock period)
-  await sleep(delayBeforeRoll[0]);
-  // 3. rollToNextOption
-  let auctionCounters = await runTX(
-    vaultArtifact.abi,
-    provider,
-    signer,
-    network,
-    "rollToNextOption"
-  );
-  // 4. wait for auctions to close
-  await waitForAuctionClose(auctionCounters, gnosisAuction);
-  // 5. settleAuction
   await settleAuctions(
     gnosisAuction,
     provider,
@@ -186,7 +196,7 @@ async function masterJob() {
     network,
     auctionCounters
   );
-  // 6. if otokens left to burn: burnRemainingOTokens
+
   await runTX(
     vaultArtifact.abi,
     provider,
@@ -194,10 +204,9 @@ async function masterJob() {
     network,
     "burnRemainingOTokens"
   );
-  // 7. wait approximately a week
 }
 
-async function volOracleJob() {
+async function updateVolatility() {
   const volOracleArtifact = await hre.artifacts.readArtifact("VolOracle");
 
   const volOracle = new ethers.Contract(
@@ -207,7 +216,11 @@ async function volOracleJob() {
   );
 
   for (let univ3poolName in deployments[network].univ3pools) {
-    volOracle.commit(deployments[network].univ3pools[univ3poolName]);
+    let gasPrice = await gas(network);
+    const tx = volOracle
+      .connect(signer)
+      .commit(deployments[network].univ3pools[univ3poolName], { gasPrice });
+    await log(`VolOracle-commit()-(${univ3poolName}): ${tx.hash}`);
   }
 }
 
@@ -227,31 +240,56 @@ function run() {
 
   //Atlantic/Reykjavik corresponds to UTC
 
-  // 0 0 10 * * 5 = 10am UTC on Fridays. https://crontab.guru/ is a friend
-  const MASTER_JOB_CRON = "0 0 10 * * 5";
-  const VOL_ORACLE_CRON = `* * */${(await volOracle.period())
-    .div(3600)
-    .toString()} * * *`;
-  const CLOSEST_VALID_TIME =
-    (await getTopOfPeriod(provider, await volOracle.period())) * 1000;
+  const COMMIT_START = 10; // 10 am UTC
+  let timelockDelay: number;
 
-  var masterJob = new CronJob(
-    MASTER_JOB_CRON,
+  var commitAndCloseJob = new CronJob(
+    // 0 0 10 * * 5 = 10am UTC on Fridays.
+    `0 0 ${COMMIT_START} * * 5`,
     async function () {
-      await masterJob();
+      timelockDelay = await commitAndClose();
     },
     null,
     true,
     "Atlantic/Reykjavik"
   );
 
-  var volOracleJob = new CronJob(
+  let auctionLifetimeDelay: number;
+  let auctionCounters: Array<number>;
+
+  var rollToNextOptionJob = new CronJob(
+    `0 0 ${COMMIT_START + delay} * * 5`,
+    async function () {
+      [auctionLifetimeDelay, auctionCounters] = await rollToNextOption();
+    },
+    null,
+    true,
+    "Atlantic/Reykjavik"
+  );
+
+  var settleAuctionJob = new CronJob(
+    `0 0 ${COMMIT_START + delay + auctionLifetimeDelay} * * 5`,
+    async function () {
+      await settleAuction(auctionCounters);
+    },
+    null,
+    true,
+    "Atlantic/Reykjavik"
+  );
+
+  const VOL_ORACLE_CRON = `* * */${(await volOracle.period())
+    .div(3600)
+    .toString()} * * *`;
+  const CLOSEST_VALID_TIME =
+    (await getTopOfPeriod(provider, await volOracle.period())) * 1000;
+
+  var updateVolatilityJob = new CronJob(
     new Date(CLOSEST_VALID_TIME),
     function () {
       var _ = new CronJob(
         VOL_ORACLE_CRON,
         async function () {
-          await volOracleJob();
+          await updateVolatility();
         },
         null,
         true,
@@ -265,8 +303,10 @@ function run() {
     "Atlantic/Reykjavik"
   );
 
-  masterJob.start();
-  volOracleJob.start();
+  commitAndCloseJob.start();
+  rollToNextOptionJob.start();
+  settleAuctionJob.start();
+  updateVolatilityJob.start();
 }
 
 run();
