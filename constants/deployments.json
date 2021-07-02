@@ -1,8 +1,10 @@
 {
   "kovan": {
-    "vaults": {}
+    "vaults": {},
+    "univ3pools": {}
   },
   "mainnet": {
-    "vaults": {}
+    "vaults": {},
+    "univ3pools": {}
   }
 }

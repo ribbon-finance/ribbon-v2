@@ -44,6 +44,12 @@ export const BYTES_ZERO =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 /**
+ *  Rvol Addresses
+ */
+
+export const VOL_ORACLE = "0x0000000000000000000000000000000000000000";
+
+/**
  * RVol Bytecode
  */
 export const OptionsPremiumPricer_BYTECODE =
