@@ -217,7 +217,7 @@ async function updateVolatility() {
 
   for (let univ3poolName in deployments[network].univ3pools) {
     let gasPrice = await gas(network);
-    const tx = volOracle
+    const tx = await volOracle
       .connect(signer)
       .commit(deployments[network].univ3pools[univ3poolName], { gasPrice });
     await log(`VolOracle-commit()-(${univ3poolName}): ${tx.hash}`);
