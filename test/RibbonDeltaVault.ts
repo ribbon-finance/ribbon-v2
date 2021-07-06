@@ -1243,8 +1243,6 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        const vaultState = await vault.vaultState();
-
         const expiryTimestampOfNewOption = await (
           await getContractAt("IOtoken", await vault.nextOption())
         ).expiryTimestamp();
