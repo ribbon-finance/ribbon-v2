@@ -51,7 +51,7 @@ const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
 const wbtcPriceOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
 const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
-describe("RibbonThetaVault", () => {
+describe("RibbonDeltaVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
@@ -392,14 +392,15 @@ function behavesLikeRibbonOptionsVault(params: {
         performanceFee,
         tokenName,
         tokenSymbol,
+        optionsPremiumPricer.address,
+        strikeSelection.address,
+        premiumDiscount,
         [
           isPut,
           tokenDecimals,
           isPut ? USDC_ADDRESS : asset,
           asset,
           minimumSupply,
-          optionsPremiumPricer.address,
-          strikeSelection.address,
           parseEther("500"),
         ],
       ];
@@ -511,10 +512,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await vault.initRounds(50);
 
-      await vault
-        .connect(ownerSigner)
-        .setPremiumDiscount(params.premiumDiscount);
-
       defaultOtokenAddress = firstOption.address;
       defaultOtoken = await getContractAt("IERC20", defaultOtokenAddress);
       assetContract = await getContractAt(
@@ -589,8 +586,6 @@ function behavesLikeRibbonOptionsVault(params: {
           assetFromContract,
           underlying,
           minimumSupply,
-          optionsPremiumPricerAddress,
-          strikeSelectionAddress,
           cap,
         ] = await vault.vaultParams();
         assert.equal(await decimals, tokenDecimals);
@@ -603,12 +598,15 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);
         assert.equal(
-          premiumDiscount.toString(),
+          (await vault.premiumDiscount()).toString(),
           params.premiumDiscount.toString()
         );
         assert.bnEqual(cap, parseEther("500"));
-        assert.equal(optionsPremiumPricerAddress, optionsPremiumPricer.address);
-        assert.equal(strikeSelectionAddress, strikeSelection.address);
+        assert.equal(
+          await vault.optionsPremiumPricer(),
+          optionsPremiumPricer.address
+        );
+        assert.equal(await vault.strikeSelection(), strikeSelection.address);
       });
 
       it("cannot be initialized twice", async function () {
@@ -620,14 +618,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -643,14 +642,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -666,14 +666,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -689,14 +690,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               0,
             ]
           )
@@ -712,14 +714,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               constants.AddressZero,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -735,14 +738,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               0,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -758,14 +762,15 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               0,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -781,14 +786,15 @@ function behavesLikeRibbonOptionsVault(params: {
             "0",
             tokenName,
             tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -1220,11 +1226,9 @@ function behavesLikeRibbonOptionsVault(params: {
             : BigNumber.from("4050000000000");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        const optionState = await vault.optionState();
-
-        assert.equal(optionState.lastStrikeOverride.toString(), "1");
+        assert.equal((await vault.lastStrikeOverride()).toString(), "1");
         assert.equal(
-          optionState.overriddenStrikePrice.toString(),
+          (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
         );
 
@@ -1246,7 +1250,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ).expiryTimestamp();
 
         assert.bnEqual(
-          vaultState.currentOtokenPremium,
+          await vault.currentOtokenPremium(),
           (
             await optionsPremiumPricer.getPremium(
               newStrikePrice,
@@ -1254,7 +1258,7 @@ function behavesLikeRibbonOptionsVault(params: {
               params.isPut
             )
           )
-            .mul(vaultState.premiumDiscount)
+            .mul(await vault.premiumDiscount())
             .div(1000)
         );
       });
@@ -1552,7 +1556,7 @@ function behavesLikeRibbonOptionsVault(params: {
             params.isPut
           )
         )
-          .mul((await vault.vaultState()).premiumDiscount)
+          .mul(await vault.premiumDiscount())
           .div(1000);
         assert.equal(
           initialAuctionOrder.sellAmount.toString(),
@@ -2560,9 +2564,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("should set the new strike price", async function () {
         await vault.connect(ownerSigner).setStrikePrice(parseEther("10"));
-        const optionState = await vault.optionState();
         assert.bnEqual(
-          BigNumber.from(optionState.overriddenStrikePrice),
+          BigNumber.from(await vault.overriddenStrikePrice()),
           parseEther("10")
         );
       });
@@ -2649,6 +2652,59 @@ function behavesLikeRibbonOptionsVault(params: {
         const [heldByAccount2, heldByVault2] = await vault.shareBalances(user);
         assert.bnEqual(heldByAccount2, BigNumber.from(1));
         assert.bnEqual(heldByVault2, depositAmount.sub(1));
+      });
+    });
+
+    describe("#shares", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("returns the total number of shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        // Should remain the same after redemption because it's held on balanceOf
+        await vault.redeem(1);
+        assert.bnEqual(await vault.shares(user), depositAmount);
+      });
+    });
+
+    describe("#accountVaultBalance", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("returns a lesser underlying amount for user", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
+
+        await assetContract.connect(userSigner).transfer(owner, depositAmount);
+        await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(ownerSigner).deposit(depositAmount);
+
+        // remain the same after deposit
+        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
+
+        const settlementPriceITM = isPut
+          ? firstOptionStrike.sub(100000000000)
+          : firstOptionStrike.add(100000000000);
+
+        console.log(settlementPriceITM.toString());
+
+        await rollToSecondOption(settlementPriceITM);
+
+        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
       });
     });
 
