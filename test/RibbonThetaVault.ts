@@ -2653,6 +2653,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#shares", () => {
+      time.revertToSnapshotAfterEach();
+
       it("returns the total number of shares", async function () {
         await assetContract
           .connect(userSigner)
@@ -2699,10 +2701,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToSecondOption(settlementPriceITM);
 
-        assert.bnEqual(
-          await vault.accountVaultBalance(user),
-          BigNumber.from("761904761904761904")
-        );
+        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
       });
     });
 
