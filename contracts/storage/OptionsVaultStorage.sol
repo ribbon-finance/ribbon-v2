@@ -47,26 +47,26 @@ abstract contract OptionsVaultStorageV1 is
 
 abstract contract OptionsThetaVaultStorageV1 {
     // Logic contract used to price options
-    address optionsPremiumPricer;
+    address public optionsPremiumPricer;
     // Logic contract used to select strike prices
-    address strikeSelection;
+    address public strikeSelection;
     // Premium discount on options we are selling (thousandths place: 000 - 999)
-    uint32 premiumDiscount;
+    uint32 public premiumDiscount;
     // Current oToken premium
-    uint104 currentOtokenPremium;
+    uint104 public currentOtokenPremium;
     // Last round id at which the strike was manually overridden
-    uint16 lastStrikeOverride;
+    uint16 public lastStrikeOverride;
     // Price last overridden strike set to
-    uint128 overriddenStrikePrice;
+    uint128 public overriddenStrikePrice;
     // Auction id of current option
-    uint256 optionAuctionID;
+    uint256 public optionAuctionID;
 }
 
 abstract contract OptionsDeltaVaultStorageV1 {
     // Ribbon counterparty theta vault
-    address counterpartyThetaVault;
+    address public counterpartyThetaVault;
     // % of funds to be used for weekly option purchase
-    uint256 optionAllocationPct;
+    uint256 public optionAllocationPct;
 }
 
 // We are following Compound's method of upgrading new contract implementations
