@@ -45,6 +45,30 @@ abstract contract OptionsVaultStorageV1 is
     uint256 public managementFee;
 }
 
+abstract contract OptionsThetaVaultStorageV1 {
+    // Logic contract used to price options
+    address optionsPremiumPricer;
+    // Logic contract used to select strike prices
+    address strikeSelection;
+    // Premium discount on options we are selling (thousandths place: 000 - 999)
+    uint32 premiumDiscount;
+    // Current oToken premium
+    uint104 currentOtokenPremium;
+    // Last round id at which the strike was manually overridden
+    uint16 lastStrikeOverride;
+    // Price last overridden strike set to
+    uint128 overriddenStrikePrice;
+    // Auction id of current option
+    uint256 optionAuctionID;
+}
+
+abstract contract OptionsDeltaVaultStorageV1 {
+    // Ribbon counterparty theta vault
+    address counterpartyThetaVault;
+    // % of funds to be used for weekly option purchase
+    uint256 optionAllocationPct;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of OptionsVaultStorage
 // e.g. OptionsVaultStorageV<versionNumber>, so finally it would look like
@@ -52,3 +76,7 @@ abstract contract OptionsVaultStorageV1 is
 abstract contract OptionsVaultStorage is OptionsVaultStorageV1 {
 
 }
+
+abstract contract OptionsThetaVaultStorage is OptionsThetaVaultStorageV1 {}
+
+abstract contract OptionsDeltaVaultStorage is OptionsDeltaVaultStorageV1 {}

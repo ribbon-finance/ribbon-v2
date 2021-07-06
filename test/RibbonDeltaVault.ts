@@ -603,7 +603,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);
         assert.equal(
-          (await vault.premiumDiscount()).toString(),
+          premiumDiscount.toString(),
           params.premiumDiscount.toString()
         );
         assert.bnEqual(cap, parseEther("500"));
@@ -620,15 +620,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -644,15 +643,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -668,15 +666,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -692,15 +689,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               0,
             ]
           )
@@ -716,15 +712,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               constants.AddressZero,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -740,15 +735,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               0,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -764,15 +758,14 @@ function behavesLikeRibbonOptionsVault(params: {
             performanceFee,
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               0,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -788,15 +781,14 @@ function behavesLikeRibbonOptionsVault(params: {
             "0",
             tokenName,
             tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
               parseEther("500"),
             ]
           )
@@ -2657,59 +2649,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const [heldByAccount2, heldByVault2] = await vault.shareBalances(user);
         assert.bnEqual(heldByAccount2, BigNumber.from(1));
         assert.bnEqual(heldByVault2, depositAmount.sub(1));
-      });
-    });
-
-    describe("#shares", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("returns the total number of shares", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        assert.bnEqual(await vault.shares(user), depositAmount);
-
-        // Should remain the same after redemption because it's held on balanceOf
-        await vault.redeem(1);
-        assert.bnEqual(await vault.shares(user), depositAmount);
-      });
-    });
-
-    describe("#accountVaultBalance", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("returns a lesser underlying amount for user", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
-
-        await assetContract.connect(userSigner).transfer(owner, depositAmount);
-        await assetContract
-          .connect(ownerSigner)
-          .approve(vault.address, depositAmount);
-        await vault.connect(ownerSigner).deposit(depositAmount);
-
-        // remain the same after deposit
-        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
-
-        const settlementPriceITM = isPut
-          ? firstOptionStrike.sub(100000000000)
-          : firstOptionStrike.add(100000000000);
-
-        console.log(settlementPriceITM.toString());
-
-        await rollToSecondOption(settlementPriceITM);
-
-        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
       });
     });
 

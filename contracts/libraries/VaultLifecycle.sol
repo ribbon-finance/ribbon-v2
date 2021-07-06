@@ -33,6 +33,9 @@ library VaultLifecycle {
     }
 
     function commitAndClose(
+        address strikeSelection,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount,
         CloseParams calldata closeParams,
         Vault.VaultParams calldata vaultParams,
         Vault.VaultState calldata vaultState
@@ -56,8 +59,7 @@ library VaultLifecycle {
             );
         }
 
-        IStrikeSelection selection =
-            IStrikeSelection(vaultParams.strikeSelection);
+        IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
@@ -85,8 +87,8 @@ library VaultLifecycle {
 
         premium = GnosisAuction.getOTokenPremium(
             otokenAddress,
-            vaultParams.optionsPremiumPricer,
-            vaultState.premiumDiscount
+            optionsPremiumPricer,
+            premiumDiscount
         );
 
         require(premium > 0, "!premium");
@@ -404,8 +406,9 @@ library VaultLifecycle {
 
     function startAuction(GnosisAuction.AuctionDetails memory auctionDetails)
         external
+        returns (uint256)
     {
-        GnosisAuction.startAuction(auctionDetails);
+        return GnosisAuction.startAuction(auctionDetails);
     }
 
     function verifyConstructorParams(
@@ -426,11 +429,6 @@ library VaultLifecycle {
 
         require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
-        require(_vaultParams.strikeSelection != address(0), "!strikeSelection");
-        require(
-            _vaultParams.optionsPremiumPricer != address(0),
-            "!optionsPremiumPricer"
-        );
         require(_vaultParams.cap > 0, "!cap");
     }
 
