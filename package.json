@@ -31,6 +31,7 @@
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
     "prepare": "husky install",
+    "prettier:sol": "yarn prettier --write contracts/*",
     "lint:test": "eslint 'test/**/*.ts'",
     "lint:test:fix": "yarn lint:test --fix",
     "lint:test:prettier": "prettier --write 'test/**/*.ts'",
@@ -49,6 +50,7 @@
   },
   "lint-staged": {
     "contracts/**/*.sol": [
+      "yarn prettier:contracts",
       "yarn lint:sol",
       "yarn lint:sol:prettier"
     ],
