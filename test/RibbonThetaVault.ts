@@ -2670,6 +2670,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#accountVaultBalance", () => {
+      time.revertToSnapshotAfterEach();
+
       it("returns a lesser underlying amount for user", async function () {
         await assetContract
           .connect(userSigner)
