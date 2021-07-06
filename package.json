@@ -49,6 +49,7 @@
   },
   "lint-staged": {
     "contracts/**/*.sol": [
+      "yarn prettier --write contracts/*",
       "yarn lint:sol",
       "yarn lint:sol:prettier"
     ],
