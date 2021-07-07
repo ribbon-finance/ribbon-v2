@@ -2652,6 +2652,59 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#shares", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("returns the total number of shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        // Should remain the same after redemption because it's held on balanceOf
+        await vault.redeem(1);
+        assert.bnEqual(await vault.shares(user), depositAmount);
+      });
+    });
+
+    describe("#accountVaultBalance", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("returns a lesser underlying amount for user", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
+
+        await assetContract.connect(userSigner).transfer(owner, depositAmount);
+        await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(ownerSigner).deposit(depositAmount);
+
+        // remain the same after deposit
+        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
+
+        const settlementPriceITM = isPut
+          ? firstOptionStrike.sub(100000000000)
+          : firstOptionStrike.add(100000000000);
+
+        console.log(settlementPriceITM.toString());
+
+        await rollToSecondOption(settlementPriceITM);
+
+        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
+      });
+    });
+
     describe("#decimals", () => {
       it("should return 18 for decimals", async function () {
         assert.equal(
