@@ -12,6 +12,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {StrikeOverride} from "../libraries/StrikeOverride.sol";
+import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 
 abstract contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,
@@ -64,7 +65,7 @@ abstract contract OptionsThetaVaultStorageV1 {
 
 abstract contract OptionsDeltaVaultStorageV1 {
     // Ribbon counterparty theta vault
-    address public counterpartyThetaVault;
+    IRibbonThetaVault public counterpartyThetaVault;
     // % of funds to be used for weekly option purchase
     uint256 public optionAllocationPct;
 }
