@@ -91,9 +91,9 @@ contract RibbonVault is OptionsVaultStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * It's important to bake the _factory variable into the contract with the constructor
-     * If we do it in the `initialize` function, users get to set the factory variable and
-     * subsequently the adapter, which allows them to make a delegatecall, then selfdestruct the contract.
+     * @param _gammaController is the contract address for opyn actions
+     * @param _marginPool is the contract address for providing collateral to opyn
+     * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
      */
     constructor(
         address _weth,
