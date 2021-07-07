@@ -30,7 +30,10 @@ library GnosisAuction {
         uint256 duration;
     }
 
-    function startAuction(AuctionDetails memory auctionDetails) internal {
+    function startAuction(AuctionDetails memory auctionDetails)
+        internal
+        returns (uint256 auctionID)
+    {
         uint256 oTokenSellAmount =
             getOTokenSellAmount(
                 auctionDetails.oTokenAddress,
@@ -66,36 +69,36 @@ library GnosisAuction {
             "optionPremium * oTokenSellAmount > type(uint96) max value!"
         );
 
-        uint256 auctionCounter =
-            IGnosisAuction(auctionDetails.gnosisEasyAuction).initiateAuction(
-                // address of oToken we minted and are selling
-                auctionDetails.oTokenAddress,
-                // address of asset we want in exchange for oTokens. Should match vault collateral
-                auctionDetails.asset,
-                // orders can be cancelled before the auction's halfway point
-                block.timestamp.add(auctionDetails.duration.div(2)),
-                // order will last for `duration`
-                block.timestamp.add(auctionDetails.duration),
-                // we are selling all of the otokens minus a fee taken by gnosis
-                uint96(oTokenSellAmount),
-                // the minimum we are willing to sell all the oTokens for. A discount is applied on black-scholes price
-                uint96(minBidAmount),
-                // the minimum bidding amount must be 1 * 10 ** -assetDecimals
-                1,
-                // the min funding threshold
-                0,
-                // no atomic closure
-                false,
-                // access manager contract
-                address(0),
-                // bytes for storing info like a whitelist for who can bid
-                bytes("")
-            );
+        auctionID = IGnosisAuction(auctionDetails.gnosisEasyAuction)
+            .initiateAuction(
+            // address of oToken we minted and are selling
+            auctionDetails.oTokenAddress,
+            // address of asset we want in exchange for oTokens. Should match vault collateral
+            auctionDetails.asset,
+            // orders can be cancelled before the auction's halfway point
+            block.timestamp.add(auctionDetails.duration.div(2)),
+            // order will last for `duration`
+            block.timestamp.add(auctionDetails.duration),
+            // we are selling all of the otokens minus a fee taken by gnosis
+            uint96(oTokenSellAmount),
+            // the minimum we are willing to sell all the oTokens for. A discount is applied on black-scholes price
+            uint96(minBidAmount),
+            // the minimum bidding amount must be 1 * 10 ** -assetDecimals
+            1,
+            // the min funding threshold
+            0,
+            // no atomic closure
+            false,
+            // access manager contract
+            address(0),
+            // bytes for storing info like a whitelist for who can bid
+            bytes("")
+        );
 
         emit InitiateGnosisAuction(
             auctionDetails.oTokenAddress,
             auctionDetails.asset,
-            auctionCounter,
+            auctionID,
             auctionDetails.manager
         );
     }
