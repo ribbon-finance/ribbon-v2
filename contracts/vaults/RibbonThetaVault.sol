@@ -716,11 +716,29 @@ contract RibbonThetaVault is OptionsVaultStorage {
      ***********************************************/
 
     /**
+     * @notice Returns the underlying balance held on the vault for the account
+     * @param account is the address to lookup balance for
+     */
+    function accountVaultBalance(address account)
+        external
+        view
+        returns (uint256)
+    {
+        uint8 decimals = vaultParams.decimals;
+        uint256 numShares = shares(account);
+        uint256 pps =
+            totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
+                totalSupply()
+            );
+        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+    }
+
+    /**
      * @notice Getter for returning the account's share balance including unredeemed shares
      * @param account is the account to lookup share balance for
      * @return the share balance
      */
-    function shares(address account) external view returns (uint256) {
+    function shares(address account) public view returns (uint256) {
         (uint256 heldByAccount, uint256 heldByVault) = shareBalances(account);
         return heldByAccount.add(heldByVault);
     }

@@ -5,7 +5,7 @@ contract MockStrikeSelection {
     uint256 private _strikePrice;
     uint256 private _delta;
 
-    function getStrikePrice(uint256 expiryTimestamp, bool isPut)
+    function getStrikePrice(uint256, bool)
         external
         view
         returns (uint256, uint256)
