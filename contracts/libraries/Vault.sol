@@ -7,40 +7,29 @@ library Vault {
         bool isPut;
         // Token decimals for vault shares
         uint8 decimals;
-        // Asset used in Theta Vault
+        // Asset used in Theta / Delta Vault
         address asset;
-        // Logic contract used to select strike prices
         // Underlying asset of the options sold by vault
         address underlying;
         // Minimum supply of the vault shares issued, for ETH it's 10**10
         uint56 minimumSupply;
-        // Logic contract used to price options
-        address optionsPremiumPricer;
-        // Logic contract used to select strike prices
-        address strikeSelection;
         // Vault cap
         uint104 cap;
     }
 
     struct OptionState {
-        uint16 lastStrikeOverride;
-        // Option that the vault is shorting in the next cycle
+        // Option that the vault is shorting / longing in the next cycle
         address nextOption;
-        // Option that the vault is currently shorting
+        // Option that the vault is currently shorting / longing
         address currentOption;
         // The timestamp when the `nextOption` can be used by the vault
         uint32 nextOptionReadyAt;
-        uint128 overriddenStrikePrice;
     }
 
     struct VaultState {
         // 32 byte slot 1
         //  Current round number. `round` represents the number of `period`s elapsed.
         uint16 round;
-        // Premium discount on options we are selling (thousandths place: 000 - 999)
-        uint32 premiumDiscount;
-        // Current oToken premium
-        uint104 currentOtokenPremium;
         // Amount that is currently locked for selling options
         uint104 lockedAmount;
         // Amount that was locked for selling options in the previous round
