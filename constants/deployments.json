@@ -1,0 +1,18 @@
+{
+  "kovan": {
+    "vaults": {},
+    "univ3pools": {}
+  },
+  "mainnet": {
+    "vaults": {
+      "ethcall": "0x0fabaf48bbf864a3947bdd0ba9d764791a60467a",
+      "wbtccall": "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c",
+      "ethput": "0x16772a7f4a3ca291c21b8ace76f9332ddffbb5ef",
+      "ethput-yearn": "0x8FE74471F198E426e96bE65f40EeD1F8BA96e54f"
+    },
+    "univ3pools": {
+      "wethusdc": "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
+      "wbtcusdc": "0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35"
+    }
+  }
+}
