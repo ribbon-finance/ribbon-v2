@@ -4,7 +4,7 @@ pragma solidity ^0.7.3;
 contract MockVolatilityOracle {
     uint256 private _annualizedVol;
 
-    function annualizedVol(address pool) external view returns (uint256) {
+    function annualizedVol(address) external view returns (uint256) {
         return _annualizedVol;
     }
 
