@@ -262,7 +262,6 @@ async function run() {
         VOL_ORACLE_CRON,
         async function () {
           await updateVolatility();
-          console.log("hello");
         },
         null,
         true,
