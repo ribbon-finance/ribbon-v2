@@ -1374,12 +1374,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        /*
-        const nextOption = await getContractAt(
-          "IOtoken",
-          await vault.nextOption()
-        );*/
-
         await vault.connect(ownerSigner).rollToNextOption();
       });
 
