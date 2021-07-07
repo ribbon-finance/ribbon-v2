@@ -16,7 +16,6 @@ import {
   VOL_ORACLE,
   BYTES_ZERO,
 } from "../test/helpers/constants";
-import { hexStripZeros } from "ethers/lib/utils";
 import { CronJob } from "cron";
 import Discord = require("discord.js");
 
@@ -34,8 +33,6 @@ const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
 const signer = getDefaultSigner("m/44'/60'/0'/0/1", network).connect(provider);
 
-let auctionIDs: Array<number>;
-
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -52,13 +49,20 @@ const getTopOfPeriod = async (provider: any, period: number) => {
 
 async function settleAuctions(
   gnosisAuction: Contract,
+  vaultArtifactAbi: any,
   provider: any,
   signer: Wallet,
-  network: string,
-  auctionCounters: Array<number>
+  network: string
 ) {
-  for (let auctionID in auctionCounters) {
-    const auctionDetails = await gnosisAuction.auctionData(auctionID);
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName],
+      vaultArtifactAbi,
+      provider
+    );
+    const auctionDetails = await gnosisAuction.auctionData(
+      await vault.optionAuctionID()
+    );
     // If initialAuctionOrder is bytes32(0) auction has
     // already been settled as gnosis does gas refunds
     if (auctionDetails.initialAuctionOrder === BYTES_ZERO) {
@@ -109,15 +113,6 @@ async function runTX(
         gasPrice,
       });
       log(`ThetaVault-${method}()-${vaultName}: ${tx.hash}`);
-
-      if (method === "rollToNextOption") {
-        const receipt = await tx.wait();
-        auctionIDs.push(
-          parseInt(
-            hexStripZeros(receipt["logs"][15]["topics"][1]).toString().slice(2)
-          )
-        );
-      }
     } catch (error) {
       await log(
         `@everyone ThetaVault-${method}()-${vaultName}: failed with error ${error}`
@@ -135,21 +130,14 @@ async function commitAndClose() {
 
 async function rollToNextOption() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-  const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
 
-  // 3. rollToNextOption
+  // 2. rollToNextOption
   let auctionCounters = await runTX(
     vaultArtifact.abi,
     provider,
     signer,
     network,
     "rollToNextOption"
-  );
-
-  const gnosisAuction = new ethers.Contract(
-    GNOSIS_EASY_AUCTION,
-    gnosisArtifact.abi,
-    provider
   );
 }
 
@@ -163,8 +151,10 @@ async function settleAuction() {
     provider
   );
 
-  await settleAuctions(gnosisAuction, provider, signer, network, auctionIDs);
+  // 3. settleAuction
+  await settleAuctions(gnosisAuction, vaultArtifact, provider, signer, network);
 
+  // 4. burnRemainingOTokens
   await runTX(
     vaultArtifact.abi,
     provider,
@@ -172,8 +162,6 @@ async function settleAuction() {
     network,
     "burnRemainingOTokens"
   );
-
-  auctionIDs = [];
 }
 
 async function updateVolatility() {
