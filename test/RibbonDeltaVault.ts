@@ -28,9 +28,7 @@ import {
   whitelistProduct,
   mintToken,
   bidForOToken,
-  decodeOrder,
 } from "./helpers/utils";
-import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -238,8 +236,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let adminSigner: SignerWithAddress,
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
-    feeRecipientSigner: SignerWithAddress,
-    counterpartySigner: SignerWithAddress;
+    feeRecipientSigner: SignerWithAddress;
 
   // Parameters
   let tokenName = params.tokenName;
@@ -332,13 +329,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [
-        adminSigner,
-        ownerSigner,
-        userSigner,
-        feeRecipientSigner,
-        counterpartySigner,
-      ] = await ethers.getSigners();
+      [adminSigner, ownerSigner, userSigner, feeRecipientSigner] =
+        await ethers.getSigners();
       owner = ownerSigner.address;
       user = userSigner.address;
       owner = ownerSigner.address;
@@ -1382,10 +1374,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        /*
         const nextOption = await getContractAt(
           "IOtoken",
           await vault.nextOption()
-        );
+        );*/
 
         await vault.connect(ownerSigner).rollToNextOption();
       });
