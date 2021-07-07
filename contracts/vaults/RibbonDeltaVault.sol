@@ -14,6 +14,8 @@ import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 
+import "hardhat/console.sol";
+
 contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -100,7 +102,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
             "!_counterpartyThetaVault"
         );
         require(
-            IRibbonThetaVault(_counterpartyThetaVault).vaultParams().asset !=
+            IRibbonThetaVault(_counterpartyThetaVault).vaultParams().asset ==
                 vaultParams.asset,
             "!_counterpartyThetaVault: asset"
         );
