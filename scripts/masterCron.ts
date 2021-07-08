@@ -33,6 +33,8 @@ const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
 const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
 
+const GAS_LIMIT = 85000;
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -71,6 +73,7 @@ async function settleAuctions(
     try {
       const tx = await gnosisAuction.connect(signer).settleAuction({
         gasPrice: newGasPrice,
+        gasLimit: GAS_LIMIT,
       });
       await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
     } catch (error) {
@@ -110,6 +113,7 @@ async function runTX(
     try {
       const tx = await vault.connect(signer)[`${method}()`]({
         gasPrice: newGasPrice,
+        gasLimit: GAS_LIMIT,
       });
       log(`ThetaVault-${method}()-${vaultName}: ${tx.hash}`);
     } catch (error) {
@@ -178,6 +182,7 @@ async function updateVolatility() {
       .connect(signer)
       .commit(deployments[network].univ3pools[univ3poolName], {
         gasPrice: newGasPrice,
+        gasLimit: GAS_LIMIT,
       });
     await log(`VolOracle-commit()-(${univ3poolName}): ${tx.hash}`);
   }
