@@ -31,7 +31,15 @@ var client = new Discord.Client();
 
 const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
-const signer = getDefaultSigner("m/44'/60'/0'/0/1", network).connect(provider);
+const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
+
+let gasLimits = {
+  volOracleCommit: 85000,
+  settleAuction: 0,
+  commitAndClose: 0,
+  rollToNextOption: 0,
+  burnRemainingOTokens: 0,
+};
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -43,7 +51,7 @@ async function log(msg: string) {
 
 const getTopOfPeriod = async (provider: any, period: number) => {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp;
-  let topOfPeriod = latestTimestamp - latestTimestamp % period + period;
+  let topOfPeriod = latestTimestamp - (latestTimestamp % period) + period;
   return topOfPeriod;
 };
 
@@ -60,17 +68,18 @@ async function settleAuctions(
       vaultArtifactAbi,
       provider
     );
-    const auctionID = await vault.optionAuctionID()
+    const auctionID = await vault.optionAuctionID();
     const auctionDetails = await gnosisAuction.auctionData(auctionID);
     // If initialAuctionOrder is bytes32(0) auction has
     // already been settled as gnosis does gas refunds
     if (auctionDetails.initialAuctionOrder === BYTES_ZERO) {
       continue;
     }
-    let gasPrice = await gas(network);
+    let newGasPrice = (await gas(network)).toString();
     try {
       const tx = await gnosisAuction.connect(signer).settleAuction({
-        gasPrice,
+        gasPrice: newGasPrice,
+        gasLimit: gasLimits["settleAuction"],
       });
       await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
     } catch (error) {
@@ -105,11 +114,12 @@ async function runTX(
       continue;
     }
 
-    let gasPrice = await gas(network);
+    let newGasPrice = (await gas(network)).toString();
 
     try {
       const tx = await vault.connect(signer)[`${method}()`]({
-        gasPrice,
+        gasPrice: newGasPrice,
+        gasLimit: gasLimits[method],
       });
       log(`ThetaVault-${method}()-${vaultName}: ${tx.hash}`);
     } catch (error) {
@@ -124,13 +134,7 @@ async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
 
   // 1. commitAndClose
-  await runTX(
-    vaultArtifact.abi,
-    provider,
-    signer,
-    network,
-    "commitAndClose"
-  );
+  await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 }
 
 async function rollToNextOption() {
@@ -157,13 +161,7 @@ async function settleAuction() {
   );
 
   // 3. settleAuction
-  await settleAuctions(
-    gnosisAuction,
-    vaultArtifact,
-    provider,
-    signer,
-    network
-  );
+  await settleAuctions(gnosisAuction, vaultArtifact, provider, signer, network);
 
   // 4. burnRemainingOTokens
   await runTX(
@@ -185,10 +183,13 @@ async function updateVolatility() {
   );
 
   for (let univ3poolName in deployments[network].univ3pools) {
-    let gasPrice = await gas(network);
+    let newGasPrice = (await gas(network)).toString();
     const tx = await volOracle
       .connect(signer)
-      .commit(deployments[network].univ3pools[univ3poolName], { gasPrice });
+      .commit(deployments[network].univ3pools[univ3poolName], {
+        gasPrice: newGasPrice,
+        gasLimit: gasLimits["volOracleCommit"],
+      });
     await log(`VolOracle-commit()-(${univ3poolName}): ${tx.hash}`);
   }
 }
@@ -211,9 +212,9 @@ async function run() {
 
   const COMMIT_START = 10; // 10 am UTC
   const VOL_PERIOD = 12 * 3600; // 12 hours
-  const TIMELOCK_DELAY = 1 // 1 hour
-  const AUCTION_LIFE_TIME_DELAY = 6 // 6 hours
-  const AUCTION_SETTLE_BUFFER = 10 // 10 minutes
+  const TIMELOCK_DELAY = 1; // 1 hour
+  const AUCTION_LIFE_TIME_DELAY = 6; // 6 hours
+  const AUCTION_SETTLE_BUFFER = 10; // 10 minutes
 
   var commitAndCloseJob = new CronJob(
     // 0 0 10 * * 5 = 10am UTC on Fridays.
@@ -222,7 +223,7 @@ async function run() {
       await commitAndClose();
     },
     null,
-    true,
+    false,
     "Atlantic/Reykjavik"
   );
 
@@ -232,24 +233,27 @@ async function run() {
       await rollToNextOption();
     },
     null,
-    true,
+    false,
     "Atlantic/Reykjavik"
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${AUCTION_SETTLE_BUFFER} ${COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY} * * 5`,
+    `0 ${AUCTION_SETTLE_BUFFER} ${
+      COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
+    } * * 5`,
     async function () {
       await settleAuction();
     },
     null,
-    true,
+    false,
     "Atlantic/Reykjavik"
   );
 
-  const VOL_ORACLE_CRON = `* * */${BigNumber.from(VOL_PERIOD)
+  const VOL_ORACLE_CRON = `0 0 */${BigNumber.from(VOL_PERIOD)
     .div(3600)
     .toString()} * * *`;
-  const CLOSEST_VALID_TIME = 1000 * await getTopOfPeriod(provider, VOL_PERIOD)
+  const CLOSEST_VALID_TIME =
+    1000 * (await getTopOfPeriod(provider, VOL_PERIOD));
 
   var updateVolatilityJob = new CronJob(
     new Date(CLOSEST_VALID_TIME),
@@ -260,14 +264,14 @@ async function run() {
           await updateVolatility();
         },
         null,
-        true,
+        false,
         "Atlantic/Reykjavik"
       );
 
       _.start();
     },
     null,
-    true,
+    false,
     "Atlantic/Reykjavik"
   );
 
