@@ -180,7 +180,11 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new long position.
      */
-    function rollToNextOption() external nonReentrant {
+    function rollToNextOption(uint256 optionPremium)
+        external
+        onlyOwner
+        nonReentrant
+    {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
         balanceAfterPremium = uint104(lockedBalance);
@@ -191,8 +195,10 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         bidDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         bidDetails.oTokenAddress = newOption;
         bidDetails.asset = vaultParams.asset;
+        bidDetails.assetDecimals = vaultParams.decimals;
         bidDetails.lockedBalance = lockedBalance;
         bidDetails.optionAllocationPct = optionAllocationPct;
+        bidDetails.optionPremium = optionPremium;
 
         // place bid
         (uint256 numOTokens, uint256 bidAmount) =
