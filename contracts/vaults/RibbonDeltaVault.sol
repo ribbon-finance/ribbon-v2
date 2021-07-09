@@ -29,13 +29,14 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
 
     event OpenLong(
         address indexed options,
-        uint256 depositAmount,
+        uint256 purchaseAmount,
+        uint256 premium,
         address manager
     );
 
     event CloseLong(
         address indexed options,
-        uint256 withdrawAmount,
+        uint256 profitAmount,
         address manager
     );
 
@@ -143,10 +144,33 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Closes the existing long.
+     * @notice Closes the existing long position for the vault.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner nonReentrant {}
+    function commitAndClose() external onlyOwner nonReentrant {
+        address oldOption = optionState.currentOption;
+
+        address counterpartyNextOption =
+            counterpartyThetaVault.optionState().nextOption;
+        require(counterpartyNextOption != address(0));
+        optionState.nextOption = counterpartyNextOption;
+        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+
+        optionState.currentOption = address(0);
+        vaultState.lastLockedAmount = vaultState.lockedAmount;
+        vaultState.lockedAmount = 0;
+
+        // redeem
+        if (oldOption != address(0)) {
+            uint256 profitAmount =
+                VaultLifecycle.settleLong(
+                    GAMMA_CONTROLLER,
+                    oldOption,
+                    vaultParams.asset
+                );
+            emit CloseLong(oldOption, profitAmount, msg.sender);
+        }
+    }
 
     /**
      * @notice Rolls the vault's funds into a new long position.

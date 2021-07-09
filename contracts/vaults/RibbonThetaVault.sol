@@ -48,6 +48,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         uint256 newPremiumDiscount
     );
 
+    event AuctionDurationSet(
+        uint256 auctionDuration,
+        uint256 newAuctionDuration
+    );
+
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
@@ -101,6 +106,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         address _optionsPremiumPricer,
         address _strikeSelection,
         uint32 _premiumDiscount,
+        uint256 _auctionDuration,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -118,9 +124,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
             _premiumDiscount > 0 && _premiumDiscount < 1000,
             "!_premiumDiscount"
         );
+        require(_auctionDuration >= 1 hours, "!_auctionDuration");
         optionsPremiumPricer = _optionsPremiumPricer;
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
+        auctionDuration = _auctionDuration;
     }
 
     /************************************************
@@ -140,6 +148,18 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
 
         premiumDiscount = newPremiumDiscount;
+    }
+
+    /**
+     * @notice Sets the new auction duration
+     * @param newAuctionDuration is the auction duration
+     */
+    function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
+        require(newAuctionDuration >= 1 hours, "Invalid auction duration");
+
+        emit AuctionDurationSet(auctionDuration, newAuctionDuration);
+
+        auctionDuration = newAuctionDuration;
     }
 
     /************************************************
@@ -259,7 +279,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         auctionDetails.assetDecimals = vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.manager = owner();
-        auctionDetails.duration = 6 hours;
+        auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
     }
