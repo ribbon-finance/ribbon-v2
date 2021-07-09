@@ -47,7 +47,7 @@ export const BYTES_ZERO =
  *  Rvol Addresses
  */
 
-export const VOL_ORACLE = "0x8eB47e59E0C03A7D1BFeaFEe6b85910Cefd0ee99";
+export const VOL_ORACLE = "0x4df938e57fD4Ad1dFDdDEEb1B4cFAbAB19E33A0E";
 
 /**
  * RVol Bytecode
