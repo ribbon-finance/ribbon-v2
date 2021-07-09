@@ -70,6 +70,7 @@ describe("RibbonDeltaVault", () => {
     optionAllocationPct: BigNumber.from("500"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
+    auctionDuration: 21600,
     isPut: false,
     gasLimits: {
       depositWorstCase: 100000,
@@ -99,6 +100,7 @@ describe("RibbonDeltaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     optionAllocationPct: BigNumber.from("500"),
+    auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
@@ -127,6 +129,7 @@ describe("RibbonDeltaVault", () => {
     optionAllocationPct: BigNumber.from("500"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("370370"),
+    auctionDuration: 21600,
     isPut: true,
     gasLimits: {
       depositWorstCase: 115000,
@@ -156,6 +159,7 @@ describe("RibbonDeltaVault", () => {
     optionAllocationPct: BigNumber.from("500"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("5263157894"),
+    auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
@@ -194,6 +198,7 @@ type Option = {
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
+ * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.optionAllocationPct - Percentage of funds to allocate towards options purchase that week
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
@@ -220,6 +225,7 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   optionAllocationPct: BigNumber;
+  auctionDuration: number;
   isPut: boolean;
   gasLimits: {
     depositWorstCase: number;
@@ -251,6 +257,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let performanceFee = params.performanceFee;
   let optionAllocationPct = params.optionAllocationPct;
   // let expectedMintAmount = params.expectedMintAmount;
+  let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
 
   // Contracts
@@ -387,6 +394,7 @@ function behavesLikeRibbonOptionsVault(params: {
         "address",
         "address",
         "string",
+        "string",
         "Tuple",
       ];
 
@@ -400,6 +408,7 @@ function behavesLikeRibbonOptionsVault(params: {
         optionsPremiumPricer.address,
         strikeSelection.address,
         premiumDiscount,
+        auctionDuration,
         [
           isPut,
           tokenDecimals,
@@ -1249,7 +1258,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe.skip("#commitAndClose", () => {
+    describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
       it("reverts when not called with owner", async function () {
@@ -1261,6 +1270,8 @@ function behavesLikeRibbonOptionsVault(params: {
       it("sets the next option and closes existing long", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await thetaVault.connect(ownerSigner).commitAndClose({ from: owner });
 
         const res = await vault
           .connect(ownerSigner)
@@ -1285,21 +1296,22 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
+        await thetaVault.connect(ownerSigner).commitAndClose();
         await vault.connect(ownerSigner).commitAndClose();
-
+        await thetaVault.connect(ownerSigner).commitAndClose();
         await vault.connect(ownerSigner).commitAndClose();
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
+        await thetaVault.connect(ownerSigner).commitAndClose();
         const res = await vault
           .connect(ownerSigner)
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 1220000);
-        // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
 

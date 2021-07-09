@@ -59,6 +59,8 @@ abstract contract OptionsThetaVaultStorageV1 {
     uint16 public lastStrikeOverride;
     // Price last overridden strike set to
     uint128 public overriddenStrikePrice;
+    // Auction duration
+    uint256 public auctionDuration;
     // Auction id of current option
     uint256 public optionAuctionID;
 }

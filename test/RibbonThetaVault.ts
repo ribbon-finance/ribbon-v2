@@ -71,6 +71,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
+    auctionDuration: 21600,
     isPut: false,
     gasLimits: {
       depositWorstCase: 100000,
@@ -99,6 +100,7 @@ describe("RibbonThetaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
@@ -126,6 +128,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("370370"),
+    auctionDuration: 21600,
     isPut: true,
     gasLimits: {
       depositWorstCase: 115000,
@@ -154,6 +157,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("5263157894"),
+    auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
@@ -192,6 +196,7 @@ type Option = {
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
+ * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
@@ -213,6 +218,7 @@ function behavesLikeRibbonOptionsVault(params: {
   depositAmount: BigNumber;
   minimumSupply: string;
   expectedMintAmount: BigNumber;
+  auctionDuration: number;
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
@@ -247,6 +253,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
   // let expectedMintAmount = params.expectedMintAmount;
+  let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
 
   // Contracts
@@ -382,6 +389,10 @@ function behavesLikeRibbonOptionsVault(params: {
         "string",
         "string",
         "string",
+        "address",
+        "address",
+        "string",
+        "string",
         "Tuple",
       ];
 
@@ -395,6 +406,7 @@ function behavesLikeRibbonOptionsVault(params: {
         optionsPremiumPricer.address,
         strikeSelection.address,
         premiumDiscount,
+        auctionDuration,
         [
           isPut,
           tokenDecimals,
@@ -607,6 +619,7 @@ function behavesLikeRibbonOptionsVault(params: {
           optionsPremiumPricer.address
         );
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
+        assert.equal(await vault.auctionDuration(), auctionDuration);
       });
 
       it("cannot be initialized twice", async function () {
@@ -621,6 +634,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -645,6 +659,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -669,6 +684,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -693,6 +709,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -717,6 +734,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -741,6 +759,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               0,
@@ -765,6 +784,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -789,6 +809,7 @@ function behavesLikeRibbonOptionsVault(params: {
             optionsPremiumPricer.address,
             strikeSelection.address,
             premiumDiscount,
+            auctionDuration,
             [
               isPut,
               tokenDecimals,
@@ -840,6 +861,15 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(
           (await vault.performanceFee()).toString(),
           performanceFee.toString()
+        );
+      });
+    });
+
+    describe("#auctionDuration", () => {
+      it("returns the auction duration", async function () {
+        assert.equal(
+          (await vault.auctionDuration()).toString(),
+          auctionDuration.toString()
         );
       });
     });
@@ -914,6 +944,27 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.performanceFee()).toString(),
           BigNumber.from("1000000").toString()
         );
+      });
+    });
+
+    describe("#setAuctionDuration", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when setting 10 seconds to setAuctionDuration", async function () {
+        await expect(
+          vault.connect(ownerSigner).setAuctionDuration("10")
+        ).to.be.revertedWith("Invalid auction duration");
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(
+          vault.setAuctionDuration(BigNumber.from("10").toString())
+        ).to.be.revertedWith("caller is not the owner");
+      });
+
+      it("changes the auction duration", async function () {
+        await vault.connect(ownerSigner).setAuctionDuration("1000000");
+        assert.equal((await vault.auctionDuration()).toString(), "1000000");
       });
     });
 
