@@ -163,8 +163,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
-        vaultState.lockedAmount = 0;
+        vaultState.lastLockedAmount = balanceAfterPremium;
 
         // redeem
         if (oldOption != address(0)) {
@@ -183,6 +182,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
      */
     function rollToNextOption() external nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
+
+        balanceAfterPremium = lockedBalance;
 
         GnosisAuction.BidDetails memory bidDetails;
 

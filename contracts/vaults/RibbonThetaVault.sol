@@ -229,6 +229,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     function rollToNextOption() external nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
+        vaultState.lockedAmount = uint104(lockedBalance);
+
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
         VaultLifecycle.createShort(

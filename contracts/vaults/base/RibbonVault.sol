@@ -493,7 +493,6 @@ contract RibbonVault is OptionsVaultStorage {
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
 
-        vaultState.lockedAmount = uint104(lockedBalance);
         vaultState.totalPending = 0;
         vaultState.round = currentRound + 1;
 
