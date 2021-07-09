@@ -183,7 +183,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     function rollToNextOption() external nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
-        balanceAfterPremium = lockedBalance;
+        balanceAfterPremium = uint104(lockedBalance);
 
         GnosisAuction.BidDetails memory bidDetails;
 
