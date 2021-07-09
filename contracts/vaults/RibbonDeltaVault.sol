@@ -30,6 +30,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     event OpenLong(
         address indexed options,
         uint256 purchaseAmount,
+        uint256 premium,
         address manager
     );
 
@@ -42,6 +43,12 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     event NewOptionAllocationSet(
         uint256 optionAllocationPct,
         uint256 newOptionAllocationPct
+    );
+
+    event PlaceAuctionBid(
+        uint256 auctionId,
+        address auctioningToken,
+        uint256 bidAmount
     );
 
     /************************************************
@@ -180,5 +187,22 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new long position.
      */
-    function rollToNextOption() external nonReentrant {}
+    function rollToNextOption() external nonReentrant {
+        (address newOption, uint256 lockedBalance) = _rollToNextOption();
+
+        GnosisAuction.BidDetails memory bidDetails;
+
+        bidDetails.auctionId = counterpartyThetaVault.optionAuctionID();
+        bidDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
+        bidDetails.oTokenAddress = newOption;
+        bidDetails.asset = vaultParams.asset;
+        bidDetails.lockedBalance = lockedBalance;
+        bidDetails.optionAllocationPct = optionAllocationPct;
+
+        // place bid
+        (uint256 numOTokens, uint256 bidAmount) =
+            VaultLifecycle.placeBid(bidDetails);
+
+        emit OpenLong(newOption, numOTokens, bidAmount, msg.sender);
+    }
 }
