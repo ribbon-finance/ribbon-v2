@@ -23,7 +23,8 @@ library GnosisAuction {
     event PlaceAuctionBid(
         uint256 auctionId,
         address auctioningToken,
-        uint256 bidAmount
+        uint256 bidAmount,
+        address bidder
     );
 
     struct AuctionDetails {
@@ -45,6 +46,7 @@ library GnosisAuction {
         uint256 lockedBalance;
         uint256 optionAllocationPct;
         uint256 optionPremium;
+        address bidder;
     }
 
     function startAuction(AuctionDetails memory auctionDetails)
@@ -173,7 +175,8 @@ library GnosisAuction {
         emit PlaceAuctionBid(
             bidDetails.auctionId,
             bidDetails.oTokenAddress,
-            bidAmount
+            bidAmount,
+            bidDetails.bidder
         );
     }
 
