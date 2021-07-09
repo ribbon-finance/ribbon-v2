@@ -70,6 +70,8 @@ abstract contract OptionsDeltaVaultStorageV1 {
     IRibbonThetaVault public counterpartyThetaVault;
     // % of funds to be used for weekly option purchase
     uint256 public optionAllocationPct;
+    // Delta vault equivalent of lockedAmount
+    uint256 public balanceAfterPremium;
 }
 
 // We are following Compound's method of upgrading new contract implementations
