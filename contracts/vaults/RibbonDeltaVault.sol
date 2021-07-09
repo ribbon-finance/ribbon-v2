@@ -48,7 +48,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     event PlaceAuctionBid(
         uint256 auctionId,
         address auctioningToken,
-        uint256 bidAmount
+        uint256 bidAmount,
+        address bidder
     );
 
     /************************************************
@@ -199,6 +200,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         bidDetails.lockedBalance = lockedBalance;
         bidDetails.optionAllocationPct = optionAllocationPct;
         bidDetails.optionPremium = optionPremium;
+        bidDetails.bidder = owner();
 
         // place bid
         (uint256 numOTokens, uint256 bidAmount) =
