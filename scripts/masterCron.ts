@@ -268,7 +268,6 @@ async function run() {
         "Atlantic/Reykjavik"
       );
 
-      await updateVolatility();
       _.start();
     },
     null,
