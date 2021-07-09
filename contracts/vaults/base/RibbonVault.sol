@@ -472,7 +472,6 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function _rollToNextOption()
         internal
-        nonReentrant
         returns (address, uint256)
     {
         require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
