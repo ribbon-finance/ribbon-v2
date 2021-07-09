@@ -150,7 +150,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     function commitAndClose() external onlyOwner nonReentrant {
         address oldOption = optionState.currentOption;
 
-        uint256 counterpartyNextOption =
+        address counterpartyNextOption =
             counterpartyThetaVault.optionState().nextOption;
         require(counterpartyNextOption != address(0));
         optionState.nextOption = counterpartyNextOption;
