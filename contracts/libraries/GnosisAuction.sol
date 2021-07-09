@@ -40,9 +40,11 @@ library GnosisAuction {
         address oTokenAddress;
         address gnosisEasyAuction;
         address asset;
+        uint256 assetDecimals;
         uint256 auctionId;
         uint256 lockedBalance;
         uint256 optionAllocationPct;
+        uint256 optionPremium;
     }
 
     function startAuction(AuctionDetails memory auctionDetails)
@@ -127,7 +129,12 @@ library GnosisAuction {
             .lockedBalance
             .mul(bidDetails.optionAllocationPct)
             .div(100 * 10**2);
-        oTokensToBuy = 0; //bidAmount.div(PREMIUM)
+
+        // divide the `asset` bidAmount by the target premium per oToken to
+        // get the number of oTokens to buy (8 decimals)
+        oTokensToBuy = bidAmount.div(bidDetails.optionPremium).mul(10**8).div(
+            10**bidDetails.assetDecimals
+        );
 
         require(
             bidAmount <= type(uint96).max,
