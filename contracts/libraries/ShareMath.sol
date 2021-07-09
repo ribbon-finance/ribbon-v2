@@ -54,7 +54,7 @@ library ShareMath {
         uint16 currentRound,
         uint256 pps,
         uint8 decimals,
-        uint256 initialSharePrice,
+        uint256 initialSharePrice
     ) internal pure returns (uint128 unredeemedShares) {
         if (
             depositReceipt.round > 0 &&
