@@ -128,7 +128,7 @@ library GnosisAuction {
         bidAmount = bidDetails
             .lockedBalance
             .mul(bidDetails.optionAllocationPct)
-            .div(100 * 10**2);
+            .div(10000);
 
         // divide the `asset` bidAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
