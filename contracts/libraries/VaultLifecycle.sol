@@ -310,6 +310,47 @@ library VaultLifecycle {
     }
 
     /**
+     * @notice Exercises the ITM option using existing long otoken position. Currently this implementation is simple.
+     * It calls the `Redeem` action to claim the payout.
+     */
+    function settleLong(
+        address gammaController,
+        address oldOption,
+        address asset
+    ) external returns (uint256) {
+        IController controller = IController(gammaController);
+
+        uint256 oldOptionBalance = IERC20(oldOption).balanceOf(address(this));
+
+        if (controller.getPayout(oldOption, oldOptionBalance) == 0) {
+            return 0;
+        }
+
+        uint256 startAssetBalance = IERC20(asset).balanceOf(address(this));
+
+        // If it is after expiry, we need to redeem the profits
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.Redeem,
+            address(0), // not used
+            address(this), // address to send profits to
+            oldOption, // address of otoken
+            0, // not used
+            oldOptionBalance, // otoken balance
+            0, // not used
+            "" // not used
+        );
+
+        controller.operate(actions);
+
+        uint256 endAssetBalance = IERC20(asset).balanceOf(address(this));
+
+        return endAssetBalance.sub(startAssetBalance);
+    }
+
+    /**
      * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
