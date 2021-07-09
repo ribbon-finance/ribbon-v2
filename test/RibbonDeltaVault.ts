@@ -1296,21 +1296,22 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
+        await thetaVault.connect(ownerSigner).commitAndClose();
         await vault.connect(ownerSigner).commitAndClose();
-
+        await thetaVault.connect(ownerSigner).commitAndClose();
         await vault.connect(ownerSigner).commitAndClose();
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
+        await thetaVault.connect(ownerSigner).commitAndClose();
         const res = await vault
           .connect(ownerSigner)
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 1220000);
-        // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
 
