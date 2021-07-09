@@ -6,14 +6,20 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsThetaVaultStorage} from "../storage/OptionsVaultStorage.sol";
-import {Vault} from "../libraries/Vault.sol";
-import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../libraries/ShareMath.sol";
-import {RibbonVault} from "./base/RibbonVault.sol";
+import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {OptionsVaultStorage} from "../../storage/OptionsVaultStorage.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
+import {IOtoken} from "../../interfaces/GammaInterface.sol";
+import {IWETH} from "../../interfaces/IWETH.sol";
+import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
+import {
+    IStrikeSelection,
+    IOptionsPremiumPricer
+} from "../../interfaces/IRibbon.sol";
 
-contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
+contract RibbonVault is OptionsVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -22,42 +28,59 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
-    // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
-    address public immutable OTOKEN_FACTORY;
+    address public immutable WETH;
+    address public immutable USDC;
+
+    uint256 public constant delay = 1 hours;
+
+    uint256 public constant period = 7 days;
+
+    uint128 private constant PLACEHOLDER_UINT = 1;
+
+    // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
+    // which allows users to perform multiple actions on their vaults
+    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+    address public immutable GAMMA_CONTROLLER;
+
+    // MARGIN_POOL is Gamma protocol's collateral pool.
+    // Needed to approve collateral.safeTransferFrom for minting otokens.
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
+    address public immutable MARGIN_POOL;
+
+    // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids
+    // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
+    address public immutable GNOSIS_EASY_AUCTION;
 
     /************************************************
      *  EVENTS
      ***********************************************/
 
-    event OpenShort(
-        address indexed options,
-        uint256 depositAmount,
-        address manager
+    event Deposit(address indexed account, uint256 amount, uint16 round);
+
+    event InitiateWithdraw(address account, uint256 shares, uint16 round);
+
+    event Withdraw(address indexed account, uint256 amount, uint256 share);
+
+    event InstantWithdraw(
+        address indexed account,
+        uint256 amount,
+        uint16 round
     );
 
-    event CloseShort(
-        address indexed options,
-        uint256 withdrawAmount,
-        address manager
-    );
+    event Redeem(address indexed account, uint256 share, uint16 round);
 
-    event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
+    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
-    event PremiumDiscountSet(
-        uint256 premiumDiscount,
-        uint256 newPremiumDiscount
-    );
+    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
 
-    event AuctionDurationSet(
-        uint256 auctionDuration,
-        uint256 newAuctionDuration
-    );
+    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
 
-    event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
-        uint256 auctionCounter,
-        address manager
+    event CapSet(uint256 oldCap, uint256 newCap, address manager);
+
+    event CollectVaultFees(
+        uint256 performanceFee,
+        uint256 vaultFee,
+        uint256 round
     );
 
     /************************************************
@@ -68,7 +91,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
@@ -76,59 +98,55 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     constructor(
         address _weth,
         address _usdc,
-        address _oTokenFactory,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction
-    )
-        RibbonVault(
-            _weth,
-            _usdc,
-            _gammaController,
-            _marginPool,
-            _gnosisEasyAuction
-        )
-    {
-        require(_oTokenFactory != address(0), "!_oTokenFactory");
-        OTOKEN_FACTORY = _oTokenFactory;
+    ) {
+        require(_weth != address(0), "!_weth");
+        require(_usdc != address(0), "!_usdc");
+        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
+        require(_gammaController != address(0), "!_gammaController");
+        require(_marginPool != address(0), "!_marginPool");
+
+        WETH = _weth;
+        USDC = _usdc;
+        GAMMA_CONTROLLER = _gammaController;
+        MARGIN_POOL = _marginPool;
+        GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
     }
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      */
-    function initialize(
+    function baseInitialize(
         address _owner,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
         string memory tokenName,
         string memory tokenSymbol,
-        address _optionsPremiumPricer,
-        address _strikeSelection,
-        uint32 _premiumDiscount,
-        uint256 _auctionDuration,
         Vault.VaultParams calldata _vaultParams
-    ) external initializer {
-        baseInitialize(
+    ) internal initializer {
+        VaultLifecycle.verifyConstructorParams(
             _owner,
             _feeRecipient,
-            _managementFee,
             _performanceFee,
             tokenName,
             tokenSymbol,
             _vaultParams
         );
-        require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
-        require(_strikeSelection != address(0), "!_strikeSelection");
-        require(
-            _premiumDiscount > 0 && _premiumDiscount < 1000,
-            "!_premiumDiscount"
-        );
-        require(_auctionDuration >= 1 hours, "!_auctionDuration");
-        optionsPremiumPricer = _optionsPremiumPricer;
-        strikeSelection = _strikeSelection;
-        premiumDiscount = _premiumDiscount;
-        auctionDuration = _auctionDuration;
+
+        __ReentrancyGuard_init();
+        __ERC20_init(tokenName, tokenSymbol);
+        __Ownable_init();
+        transferOwnership(_owner);
+
+        feeRecipient = _feeRecipient;
+        performanceFee = _performanceFee;
+        managementFee = _managementFee.div(uint256(365).div(7));
+        vaultParams = _vaultParams;
+
+        vaultState.round = 1;
     }
 
     /************************************************
@@ -136,30 +154,30 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new discount on premiums for options we are selling
-     * @param newPremiumDiscount is the premium discount
+     * @notice Sets the new fee recipient
+     * @param newFeeRecipient is the address of the new fee recipient
      */
-    function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
-        require(
-            newPremiumDiscount > 0 && newPremiumDiscount < 1000,
-            "Invalid discount"
-        );
-
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
-
-        premiumDiscount = newPremiumDiscount;
+    function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+        require(newFeeRecipient != address(0), "!newFeeRecipient");
+        feeRecipient = newFeeRecipient;
     }
 
     /**
-     * @notice Sets the new auction duration
-     * @param newAuctionDuration is the auction duration
+     * @notice Sets the management fee for the vault
+     * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
-    function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(newAuctionDuration >= 1 hours, "Invalid auction duration");
+    function setManagementFee(uint256 newManagementFee) external onlyOwner {
+        require(
+            newManagementFee > 0 && newManagementFee < 100 * 10**6,
+            "Invalid management fee"
+        );
 
-        emit AuctionDurationSet(auctionDuration, newAuctionDuration);
+        emit ManagementFeeSet(managementFee, newManagementFee);
 
-        auctionDuration = newAuctionDuration;
+        // We are dividing annualized management fee by num weeks in a year
+        managementFee = uint16(
+            uint256(newManagementFee).div(uint256(365).div(7))
+        );
     }
 
     /**
@@ -201,22 +219,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         _depositFor(msg.value, msg.sender);
 
         IWETH(WETH).deposit{value: msg.value}();
-    }
-
-    /**
-     * @notice Deposits the `asset` into the contract and mint vault shares.
-     * @param amount is the amount of `asset` to deposit
-     */
-    function deposit(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
-
-        _depositFor(amount, msg.sender);
-
-        IERC20(vaultParams.asset).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
     }
 
     /**
@@ -263,8 +265,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals
-                vaultParams.initialSharePrice,
+                vaultParams.decimals,
+                vaultParams.initialSharePrice
             );
 
         uint104 depositAmount = uint104(amount);
@@ -328,8 +330,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals
-                vaultParams.initialSharePrice,
+                vaultParams.decimals,
+                vaultParams.initialSharePrice
             );
 
         shares = isMax ? unredeemedShares : shares;
@@ -450,152 +452,112 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      *  VAULT OPERATIONS
      ***********************************************/
 
-    /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short.
-     *         This allows all the users to withdraw if the next option is malicious.
+    /*
+     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
+     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
+     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
+     * @param numRounds is the number of rounds to initialize in the map
      */
-    function commitAndClose() external onlyOwner nonReentrant {
-        address oldOption = optionState.currentOption;
+    function initRounds(uint256 numRounds) external nonReentrant {
+        require(numRounds < 52, "numRounds >= 52");
 
-        VaultLifecycle.CloseParams memory closeParams =
-            VaultLifecycle.CloseParams({
-                OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
-                currentOption: oldOption,
-                delay: delay,
-                lastStrikeOverride: lastStrikeOverride,
-                overriddenStrikePrice: overriddenStrikePrice
-            });
-
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
-            VaultLifecycle.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
-                closeParams,
-                vaultParams,
-                vaultState
-            );
-
-        emit NewOptionStrikeSelected(strikePrice, delta);
-
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
-        optionState.nextOption = otokenAddress;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
-
-        _closeShort(oldOption);
+        uint16 _round = vaultState.round;
+        for (uint16 i = 0; i < numRounds; i++) {
+            uint16 index = _round + i;
+            require(index >= _round, "Overflow");
+            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            roundPricePerShare[index] = PLACEHOLDER_UINT;
+        }
     }
 
-    /**
-     * @notice Closes the existing short position for the vault.
+    /*
+     * @notice Helper function that transfers management fees and performance fees from previous round.
+     * @param currentLockedBalance is the balance we are about to lock for next round
+     * @return vaultFee is the fee deducted
      */
-    function _closeShort(address oldOption) private {
-        optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
-        vaultState.lockedAmount = 0;
+    function _collectVaultFees(uint256 currentLockedBalance)
+        internal
+        returns (uint256 vaultFee)
+    {
+        uint256 prevLockedAmount = vaultState.lastLockedAmount;
 
-        if (oldOption != address(0)) {
-            uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
-            emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        // Take performance fee and management fee ONLY if difference between
+        // last week and this week's vault deposits, taking into account pending
+        // deposits and withdrawals, is positive. If it is negative, last week's
+        // option expired ITM past breakeven, and the vault took a loss so we
+        // do not collect performance fee for last week
+        if (
+            currentLockedBalance.sub(vaultState.totalPending) > prevLockedAmount
+        ) {
+            uint256 performanceFeeInAsset =
+                performanceFee > 0
+                    ? currentLockedBalance
+                        .sub(vaultState.totalPending)
+                        .sub(prevLockedAmount)
+                        .mul(performanceFee)
+                        .div(100 * 10**6)
+                    : 0;
+            uint256 managementFeeInAsset =
+                managementFee > 0
+                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
+                    : 0;
+
+            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
+        }
+
+        if (vaultFee > 0) {
+            transferAsset(payable(feeRecipient), vaultFee);
+            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
         }
     }
 
     /**
-     * @notice Rolls the vault's funds into a new short position.
+     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @param recipient is the receiving address
+     * @param amount is the transfer amount
      */
-    function rollToNextOption() external nonReentrant {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
-
-        address newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
-
-        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
-            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
-
-        optionState.currentOption = newOption;
-        optionState.nextOption = address(0);
-
-        // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
-
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
-
-        vaultState.lockedAmount = uint104(lockedBalance);
-        vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
-
-        emit OpenShort(newOption, lockedBalance, msg.sender);
-
-        _mint(address(this), mintShares);
-
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
-
-        startAuction();
+    function transferAsset(address payable recipient, uint256 amount) private {
+        address asset = vaultParams.asset;
+        if (asset == WETH) {
+            IWETH(WETH).withdraw(amount);
+            (bool success, ) = recipient.call{value: amount}("");
+            require(success, "!success");
+            return;
+        }
+        IERC20(asset).safeTransfer(recipient, amount);
     }
 
-    /**
-     * @notice Initiate the gnosis auction.
-     */
-    function startAuction() public onlyOwner {
-        GnosisAuction.AuctionDetails memory auctionDetails;
-
-        uint256 currOtokenPremium = currentOtokenPremium;
-
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
-        auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = vaultParams.asset;
-        auctionDetails.assetDecimals = vaultParams.decimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
-        auctionDetails.manager = owner();
-        auctionDetails.duration = auctionDuration;
-
-        optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
-    }
+    /************************************************
+     *  GETTERS
+     ***********************************************/
 
     /**
-     * @notice Burn the remaining oTokens left over from gnosis auction.
+     * @notice Returns the underlying balance held on the vault for the account
+     * @param account is the address to lookup balance for
      */
-    function burnRemainingOTokens() external onlyOwner nonReentrant {
-        uint256 numOTokensToBurn =
-            IERC20(optionState.currentOption).balanceOf(address(this));
-        require(numOTokensToBurn > 0, "!otokens");
-        uint256 unlockedAssedAmount =
-            VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
-        );
-    }
-
-    /**
-     * @notice Optionality to set strike price manually
-     * @param strikePrice is the strike price of the new oTokens (decimals = 8)
-     */
-    function setStrikePrice(uint128 strikePrice)
+    function accountVaultBalance(address account)
         external
-        onlyOwner
-        nonReentrant
+        view
+        returns (uint256)
     {
-        require(strikePrice > 0, "!strikePrice");
-        overriddenStrikePrice = strikePrice;
-        lastStrikeOverride = vaultState.round;
+        uint8 decimals = vaultParams.decimals;
+        uint256 numShares = shares(account);
+        uint256 pps =
+            totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
+                totalSupply()
+            );
+        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
     }
-<<<<<<< HEAD
+
+    /**
+     * @notice Getter for returning the account's share balance including unredeemed shares
+     * @param account is the account to lookup share balance for
+     * @return the share balance
+     */
+    function shares(address account) public view returns (uint256) {
+        (uint256 heldByAccount, uint256 heldByVault) = shareBalances(account);
+        return heldByAccount.add(heldByVault);
+    }
 
     /**
      * @notice Getter for returning the account's share balance split between account and vault holdings
@@ -618,8 +580,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals
-                vaultParams.initialSharePrice,
+                vaultParams.decimals,
+                vaultParams.initialSharePrice
             );
 
         return (balanceOf(account), unredeemedShares);
@@ -675,6 +637,4 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     /************************************************
      *  HELPERS
      ***********************************************/
-=======
->>>>>>> master
 }

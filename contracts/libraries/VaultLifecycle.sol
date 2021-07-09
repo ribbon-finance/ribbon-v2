@@ -33,6 +33,9 @@ library VaultLifecycle {
     }
 
     function commitAndClose(
+        address strikeSelection,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount,
         CloseParams calldata closeParams,
         Vault.VaultParams calldata vaultParams,
         Vault.VaultState calldata vaultState
@@ -56,8 +59,7 @@ library VaultLifecycle {
             );
         }
 
-        IStrikeSelection selection =
-            IStrikeSelection(vaultParams.strikeSelection);
+        IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
@@ -85,8 +87,8 @@ library VaultLifecycle {
 
         premium = GnosisAuction.getOTokenPremium(
             otokenAddress,
-            vaultParams.optionsPremiumPricer,
-            vaultState.premiumDiscount
+            optionsPremiumPricer,
+            premiumDiscount
         );
 
         require(premium > 0, "!premium");
@@ -308,6 +310,47 @@ library VaultLifecycle {
     }
 
     /**
+     * @notice Exercises the ITM option using existing long otoken position. Currently this implementation is simple.
+     * It calls the `Redeem` action to claim the payout.
+     */
+    function settleLong(
+        address gammaController,
+        address oldOption,
+        address asset
+    ) external returns (uint256) {
+        IController controller = IController(gammaController);
+
+        uint256 oldOptionBalance = IERC20(oldOption).balanceOf(address(this));
+
+        if (controller.getPayout(oldOption, oldOptionBalance) == 0) {
+            return 0;
+        }
+
+        uint256 startAssetBalance = IERC20(asset).balanceOf(address(this));
+
+        // If it is after expiry, we need to redeem the profits
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.Redeem,
+            address(0), // not used
+            address(this), // address to send profits to
+            oldOption, // address of otoken
+            0, // not used
+            oldOptionBalance, // otoken balance
+            0, // not used
+            "" // not used
+        );
+
+        controller.operate(actions);
+
+        uint256 endAssetBalance = IERC20(asset).balanceOf(address(this));
+
+        return endAssetBalance.sub(startAssetBalance);
+    }
+
+    /**
      * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
@@ -404,8 +447,9 @@ library VaultLifecycle {
 
     function startAuction(GnosisAuction.AuctionDetails memory auctionDetails)
         external
+        returns (uint256)
     {
-        GnosisAuction.startAuction(auctionDetails);
+        return GnosisAuction.startAuction(auctionDetails);
     }
 
     function verifyConstructorParams(
@@ -426,11 +470,6 @@ library VaultLifecycle {
 
         require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
-        require(_vaultParams.strikeSelection != address(0), "!strikeSelection");
-        require(
-            _vaultParams.optionsPremiumPricer != address(0),
-            "!optionsPremiumPricer"
-        );
         require(_vaultParams.cap > 0, "!cap");
     }
 

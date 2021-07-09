@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.3;
+pragma experimental ABIEncoderV2;
 
 library Vault {
     struct VaultParams {
@@ -15,8 +16,6 @@ library Vault {
         uint56 minimumSupply;
         // Vault cap
         uint104 cap;
-        // If migrating from existing vault, allows for smooth migration
-        uint256 initialSharePrice;
     }
 
     struct OptionState {
@@ -44,24 +43,18 @@ library Vault {
         // Amount locked for scheduled withdrawals;
         uint128 queuedWithdrawShares;
     }
+}
 
-    struct DepositReceipt {
-        // Flag to mark if processed or not
-        bool processed;
-        // Maximum of 65535 rounds. Assuming 1 round is 7 days, maximum is 1256 years.
-        uint16 round;
-        // Deposit amount, max 20,282,409,603,651 or 20 trillion ETH deposit
-        uint104 amount;
-        // Unredeemed shares balance
-        uint128 unredeemedShares;
-    }
+interface IRibbonThetaVault {
+    function currentOption() external view returns (address _currentOption);
 
-    struct Withdrawal {
-        // Flag for marking an initialized withdrawal
-        bool initiated;
-        // Maximum of 65535 rounds. Assuming 1 round is 7 days, maximum is 1256 years.
-        uint16 round;
-        // Number of shares withdrawn
-        uint128 shares;
-    }
+    function nextOption() external view returns (address _nextOption);
+
+    function vaultParams() external view returns (Vault.VaultParams memory);
+
+    function vaultState() external view returns (Vault.VaultState memory);
+
+    function optionState() external view returns (Vault.OptionState memory);
+
+    function optionAuctionID() external view returns (uint256 _auctionID);
 }
