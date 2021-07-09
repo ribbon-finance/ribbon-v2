@@ -263,7 +263,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         require(vaultParams.asset == WETH, "!WETH");
         require(msg.value > 0, "!value");
 
-        _deposit(msg.value);
+        _depositFor(msg.value, msg.sender);
 
         IWETH(WETH).deposit{value: msg.value}();
     }
@@ -275,7 +275,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _deposit(amount);
+        _depositFor(amount, msg.sender);
 
         IERC20(vaultParams.asset).safeTransferFrom(
             msg.sender,
@@ -285,10 +285,30 @@ contract RibbonThetaVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Mints the vault shares to the msg.sender
-     * @param amount is the amount of `asset` deposited
+     * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
+     * @notice Used for vault -> vault deposits on the user's behalf
+     * @param amount is the amount of `asset` to deposit
+     * @param creditor is the address that can claim/withdraw deposited amount
      */
-    function _deposit(uint256 amount) private {
+    function depositFor(uint256 amount, address creditor) external nonReentrant {
+        require(amount > 0, "!amount");
+        require(creditor != address(0));
+
+        _depositFor(amount, creditor);
+
+        IERC20(vaultParams.asset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+    }
+
+    /**
+     * @notice Mints the vault shares to the creditor
+     * @param amount is the amount of `asset` deposited
+     * @param creditor is the address to receieve the deposit 
+     */
+    function _depositFor(uint256 amount, address creditor) private {
         uint16 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
@@ -298,10 +318,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
             "Insufficient balance"
         );
 
-        emit Deposit(msg.sender, amount, currentRound);
+        emit Deposit(creditor, amount, currentRound);
 
         Vault.DepositReceipt memory depositReceipt =
-            depositReceipts[msg.sender];
+            depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint128 unredeemedShares =
@@ -309,6 +329,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
+                vaultParams.initialSharePrice,
             );
 
         uint104 depositAmount = uint104(amount);
@@ -324,7 +345,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
             ShareMath.assertUint104(amount);
         }
 
-        depositReceipts[msg.sender] = Vault.DepositReceipt({
+        depositReceipts[creditor] = Vault.DepositReceipt({
             processed: false,
             round: currentRound,
             amount: depositAmount,
@@ -373,6 +394,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
+                vaultParams.initialSharePrice,
             );
 
         shares = isMax ? unredeemedShares : shares;
@@ -747,6 +769,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
+                vaultParams.initialSharePrice,
             );
 
         return (balanceOf(account), unredeemedShares);

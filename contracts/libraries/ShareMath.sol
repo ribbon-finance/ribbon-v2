@@ -53,7 +53,8 @@ library ShareMath {
         Vault.DepositReceipt memory depositReceipt,
         uint16 currentRound,
         uint256 pps,
-        uint8 decimals
+        uint8 decimals,
+        uint256 initialSharePrice,
     ) internal pure returns (uint128 unredeemedShares) {
         if (
             depositReceipt.round > 0 &&
@@ -71,7 +72,7 @@ library ShareMath {
 
             unredeemedShares = uint128(unredeemedShares256);
         } else {
-            unredeemedShares = depositReceipt.unredeemedShares;
+            unredeemedShares = defaultSharePrice.mul(depositReceipt.unredeemedShares);
         }
     }
 
