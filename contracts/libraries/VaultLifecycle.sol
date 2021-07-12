@@ -142,7 +142,7 @@ library VaultLifecycle {
 
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : singleShare;
+            : vaultParams.initialSharePrice;
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.

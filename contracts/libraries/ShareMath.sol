@@ -72,7 +72,7 @@ library ShareMath {
 
             unredeemedShares = uint128(unredeemedShares256);
         } else {
-            unredeemedShares = defaultSharePrice.mul(depositReceipt.unredeemedShares);
+            unredeemedShares = depositReceipt.unredeemedShares);
         }
     }
 
