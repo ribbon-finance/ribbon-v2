@@ -32,6 +32,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
+        uint256 mintAmount,
         address manager
     );
 
@@ -249,16 +250,17 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         vaultState.totalPending = 0;
         vaultState.round = currentRound + 1;
 
-        emit OpenShort(newOption, lockedBalance, msg.sender);
-
         _mint(address(this), mintShares);
 
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
+        uint256 otokenMintAmount =
+            VaultLifecycle.createShort(
+                GAMMA_CONTROLLER,
+                MARGIN_POOL,
+                newOption,
+                lockedBalance
+            );
+
+        emit OpenShort(newOption, lockedBalance, otokenMintAmount, msg.sender);
 
         startAuction();
     }
