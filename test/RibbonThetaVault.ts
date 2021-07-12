@@ -2341,6 +2341,9 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isFalse(processed);
         assert.equal(round, 1);
         assert.bnEqual(amount, BigNumber.from(0));
+
+        // Should decrement the pending amounts
+        assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
       });
     });
 
