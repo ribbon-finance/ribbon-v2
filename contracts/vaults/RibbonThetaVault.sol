@@ -408,7 +408,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
-        vaultState.totalPending = uint128(uint256(vaultState.totalPending).sub(amount));
+        vaultState.totalPending = uint128(
+            uint256(vaultState.totalPending).sub(amount)
+        );
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
