@@ -1516,7 +1516,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(res)
           .to.emit(vault, "OpenShort")
-          .withArgs(defaultOtokenAddress, depositAmount, owner);
+          .withArgs(
+            defaultOtokenAddress,
+            depositAmount,
+            params.expectedMintAmount,
+            owner
+          );
 
         const vaultState = await vault.vaultState();
 
@@ -1637,7 +1642,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(
+            firstOptionAddress,
+            depositAmount,
+            params.expectedMintAmount,
+            owner
+          );
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1666,7 +1676,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(
+            firstOptionAddress,
+            depositAmount,
+            params.expectedMintAmount,
+            owner
+          );
 
         let bidMultiplier = 1;
 
@@ -1754,7 +1769,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(secondOptionAddress, currBalance.sub(vaultFees), owner);
+          .withArgs(
+            secondOptionAddress,
+            currBalance.sub(vaultFees),
+            params.expectedMintAmount,
+            owner
+          );
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1790,7 +1810,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(
+            firstOptionAddress,
+            depositAmount,
+            params.expectedMintAmount,
+            owner
+          );
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1816,7 +1841,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(
+            firstOptionAddress,
+            depositAmount,
+            params.expectedMintAmount,
+            owner
+          );
 
         let bidMultiplier = 1;
 
@@ -1911,6 +1941,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             secondOptionAddress,
             depositAmount.add(auctionDetails[2]).sub(vaultFees),
+            params.expectedMintAmount,
             owner
           );
 
