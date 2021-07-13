@@ -53,8 +53,7 @@ library ShareMath {
         Vault.DepositReceipt memory depositReceipt,
         uint16 currentRound,
         uint256 pps,
-        uint8 decimals,
-        uint256 initialSharePrice
+        uint8 decimals
     ) internal pure returns (uint128 unredeemedShares) {
         if (
             depositReceipt.round > 0 &&
