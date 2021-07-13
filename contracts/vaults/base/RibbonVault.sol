@@ -266,7 +266,6 @@ contract RibbonVault is OptionsVaultStorage {
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals,
-                vaultParams.initialSharePrice
             );
 
         uint104 depositAmount = uint104(amount);
@@ -331,7 +330,6 @@ contract RibbonVault is OptionsVaultStorage {
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals,
-                vaultParams.initialSharePrice
             );
 
         shares = isMax ? unredeemedShares : shares;
@@ -581,7 +579,6 @@ contract RibbonVault is OptionsVaultStorage {
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals,
-                vaultParams.initialSharePrice
             );
 
         return (balanceOf(account), unredeemedShares);

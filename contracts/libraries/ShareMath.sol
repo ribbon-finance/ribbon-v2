@@ -72,7 +72,7 @@ library ShareMath {
 
             unredeemedShares = uint128(unredeemedShares256);
         } else {
-            unredeemedShares = depositReceipt.unredeemedShares);
+            unredeemedShares = depositReceipt.unredeemedShares;
         }
     }
 
