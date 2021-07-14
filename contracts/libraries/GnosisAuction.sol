@@ -23,7 +23,8 @@ library GnosisAuction {
     event PlaceAuctionBid(
         uint256 auctionId,
         address auctioningToken,
-        uint256 bidAmount,
+        uint96 sellAmount,
+        uint96 buyAmount,
         address bidder
     );
 
@@ -124,47 +125,55 @@ library GnosisAuction {
 
     function placeBid(BidDetails memory bidDetails)
         internal
-        returns (uint256 oTokensToBuy, uint256 bidAmount)
+        returns (
+            uint96 sellAmount,
+            uint96 buyAmount,
+            uint64 userId
+        )
     {
         // calculate how much to allocate
-        bidAmount = bidDetails
-            .lockedBalance
-            .mul(bidDetails.optionAllocationPct)
-            .div(10000);
+        sellAmount = uint96(
+            bidDetails.lockedBalance.mul(bidDetails.optionAllocationPct).div(
+                10000
+            )
+        );
 
-        // divide the `asset` bidAmount by the target premium per oToken to
+        // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
-        oTokensToBuy = bidAmount.div(bidDetails.optionPremium).mul(10**8).div(
-            10**bidDetails.assetDecimals
+        buyAmount = uint96(
+            uint256(sellAmount)
+                .mul(10**bidDetails.assetDecimals)
+                .div(bidDetails.optionPremium)
+                .mul(10**8)
+                .div(10**bidDetails.assetDecimals)
         );
 
         require(
-            bidAmount <= type(uint96).max,
-            "bidAmount > type(uint96) max value!"
+            sellAmount <= type(uint96).max,
+            "sellAmount > type(uint96) max value!"
         );
         require(
-            oTokensToBuy <= type(uint96).max,
-            "oTokensToBuy > type(uint96) max value!"
+            buyAmount <= type(uint96).max,
+            "buyAmount > type(uint96) max value!"
         );
 
         // approve that amount
         IERC20(bidDetails.asset).safeApprove(
             bidDetails.gnosisEasyAuction,
-            bidAmount
+            sellAmount
         );
 
-        uint96[] memory _minBuyAmounts;
-        uint96[] memory _sellAmounts;
-        bytes32[] memory _prevSellOrders;
-
-        _minBuyAmounts[0] = uint96(oTokensToBuy);
-        _sellAmounts[0] = uint96(bidAmount);
+        uint96[] memory _minBuyAmounts = new uint96[](1);
+        uint96[] memory _sellAmounts = new uint96[](1);
+        bytes32[] memory _prevSellOrders = new bytes32[](1);
+        _minBuyAmounts[0] = uint96(buyAmount);
+        _sellAmounts[0] = uint96(sellAmount);
         _prevSellOrders[
             0
         ] = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
         // place sell order with that amount
-        IGnosisAuction(bidDetails.gnosisEasyAuction).placeSellOrders(
+        userId = IGnosisAuction(bidDetails.gnosisEasyAuction).placeSellOrders(
             bidDetails.auctionId,
             _minBuyAmounts,
             _sellAmounts,
@@ -175,7 +184,8 @@ library GnosisAuction {
         emit PlaceAuctionBid(
             bidDetails.auctionId,
             bidDetails.oTokenAddress,
-            bidAmount,
+            sellAmount,
+            buyAmount,
             bidDetails.bidder
         );
     }
