@@ -1364,7 +1364,8 @@ function behavesLikeRibbonOptionsVault(params: {
           defaultOtokenAddress,
           firstOptionPremium,
           tokenDecimals,
-          bidMultiplier.toString()
+          bidMultiplier.toString(),
+          auctionDuration
         );
 
         const assetBalanceBeforeSettle = await assetContract.balanceOf(
@@ -1413,7 +1414,8 @@ function behavesLikeRibbonOptionsVault(params: {
           defaultOtokenAddress,
           firstOptionPremium,
           tokenDecimals,
-          bidMultiplier.toString()
+          bidMultiplier.toString(),
+          auctionDuration
         );
 
         assert.equal(
@@ -1678,7 +1680,8 @@ function behavesLikeRibbonOptionsVault(params: {
           defaultOtokenAddress,
           firstOptionPremium,
           tokenDecimals,
-          bidMultiplier.toString()
+          bidMultiplier.toString(),
+          auctionDuration
         );
 
         await gnosisAuction
@@ -1828,7 +1831,8 @@ function behavesLikeRibbonOptionsVault(params: {
           defaultOtokenAddress,
           firstOptionPremium,
           tokenDecimals,
-          bidMultiplier.toString()
+          bidMultiplier.toString(),
+          auctionDuration
         );
 
         await gnosisAuction

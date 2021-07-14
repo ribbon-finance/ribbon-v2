@@ -48,7 +48,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     event PlaceAuctionBid(
         uint256 auctionId,
         address auctioningToken,
-        uint256 bidAmount,
+        uint96 sellAmount,
+        uint96 buyAmount,
         address bidder
     );
 
@@ -159,12 +160,12 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
 
         address counterpartyNextOption =
             counterpartyThetaVault.optionState().nextOption;
-        require(counterpartyNextOption != address(0));
+        require(counterpartyNextOption != address(0), "!thetavaultclosed");
         optionState.nextOption = counterpartyNextOption;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = balanceAfterPremium;
+        vaultState.lastLockedAmount = balanceBeforePremium;
 
         // redeem
         if (oldOption != address(0)) {
@@ -180,6 +181,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
 
     /**
      * @notice Rolls the vault's funds into a new long position.
+     * @param optionPremium is the premium per token to pay in `asset`.
+       Same decimals as `asset` (ex: 1 * 10 ** 8 means 1 WBTC per oToken)
      */
     function rollToNextOption(uint256 optionPremium)
         external
@@ -188,7 +191,7 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
-        balanceAfterPremium = uint104(lockedBalance);
+        balanceBeforePremium = uint104(lockedBalance);
 
         GnosisAuction.BidDetails memory bidDetails;
 
@@ -203,9 +206,13 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         bidDetails.bidder = owner();
 
         // place bid
-        (uint256 numOTokens, uint256 bidAmount) =
+        (uint96 sellAmount, uint96 buyAmount, uint64 userId) =
             VaultLifecycle.placeBid(bidDetails);
 
-        emit OpenLong(newOption, numOTokens, bidAmount, msg.sender);
+        auctionSellOrder.sellAmount = sellAmount;
+        auctionSellOrder.buyAmount = buyAmount;
+        auctionSellOrder.userId = userId;
+
+        emit OpenLong(newOption, buyAmount, sellAmount, msg.sender);
     }
 }
