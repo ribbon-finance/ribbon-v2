@@ -438,12 +438,17 @@ library VaultLifecycle {
      * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
      * Reference: https://codereview.stackexchange.com/a/33532
+     * Examples:
+     * getNextFriday(week 1 thursday) -> week 1 friday
+     * getNextFriday(week 1 friday) -> week 2 friday
+     * getNextFriday(week 1 saturday) -> week 2 friday
      */
     function getNextFriday(uint256 currentExpiry)
         internal
         pure
         returns (uint256)
     {
+        // dayOfWeek = 1 (monday) - 7 (sunday)
         uint256 dayOfWeek = ((currentExpiry / 86400) + 4) % 7;
         uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 86400;
         uint256 friday8am =
