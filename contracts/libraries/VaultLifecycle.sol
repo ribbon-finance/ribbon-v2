@@ -471,6 +471,7 @@ library VaultLifecycle {
         require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
+        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
     }
 
     /**

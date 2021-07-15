@@ -222,6 +222,22 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /**
+     * @notice Deposits the `asset` from msg.sender.
+     * @param amount is the amount of `asset` to deposit
+     */
+    function deposit(uint256 amount) external nonReentrant {
+        require(amount > 0, "!amount");
+
+        _depositFor(amount, msg.sender);
+
+        IERC20(vaultParams.asset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+    }
+        
+    /**
      * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
      * @notice Used for vault -> vault deposits on the user's behalf
      * @param amount is the amount of `asset` to deposit
@@ -265,7 +281,7 @@ contract RibbonVault is OptionsVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals,
+                vaultParams.decimals
             );
 
         uint104 depositAmount = uint104(amount);
@@ -329,7 +345,7 @@ contract RibbonVault is OptionsVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals,
+                vaultParams.decimals
             );
 
         shares = isMax ? unredeemedShares : shares;
@@ -578,7 +594,7 @@ contract RibbonVault is OptionsVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals,
+                vaultParams.decimals
             );
 
         return (balanceOf(account), unredeemedShares);

@@ -69,11 +69,12 @@ describe("RibbonDeltaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     optionAllocationPct: BigNumber.from("500"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
+    initialSharePrice: BigNumber.from("10").pow("8").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     auctionDuration: 21600,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 100000,
+      depositWorstCase: 101000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -95,6 +96,7 @@ describe("RibbonDeltaVault", () => {
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
+    initialSharePrice: BigNumber.from("10").pow("18").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
@@ -104,7 +106,7 @@ describe("RibbonDeltaVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 100000,
+      depositWorstCase: 101000,
       depositBestCase: 90000,
     },
   });
@@ -128,6 +130,7 @@ describe("RibbonDeltaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     optionAllocationPct: BigNumber.from("500"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
+    initialSharePrice: BigNumber.from("10").pow("6").toString(),
     expectedMintAmount: BigNumber.from("370370"),
     auctionDuration: 21600,
     isPut: true,
@@ -157,6 +160,7 @@ describe("RibbonDeltaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     optionAllocationPct: BigNumber.from("500"),
+    initialSharePrice: BigNumber.from("10").pow("6").toString(),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("5263157894"),
     auctionDuration: 21600,
@@ -197,6 +201,7 @@ type Option = {
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
+ * @param {string} params.intialSharePrice - Round 1 asset/share price
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
@@ -220,6 +225,7 @@ function behavesLikeRibbonOptionsVault(params: {
   deltaStep: BigNumber;
   depositAmount: BigNumber;
   minimumSupply: string;
+  initialSharePrice: string;
   expectedMintAmount: BigNumber;
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
@@ -249,6 +255,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let tokenSymbol = params.tokenSymbol;
   let tokenDecimals = params.tokenDecimals;
   let minimumSupply = params.minimumSupply;
+  let initialSharePrice = params.initialSharePrice;
   let asset = params.asset;
   let collateralAsset = params.collateralAsset;
   let depositAmount = params.depositAmount;
@@ -416,6 +423,7 @@ function behavesLikeRibbonOptionsVault(params: {
           asset,
           minimumSupply,
           parseEther("500"),
+          initialSharePrice,
         ],
       ];
 
@@ -471,6 +479,7 @@ function behavesLikeRibbonOptionsVault(params: {
           asset,
           minimumSupply,
           parseEther("500"),
+          initialSharePrice,
         ],
       ];
 
@@ -654,6 +663,7 @@ function behavesLikeRibbonOptionsVault(params: {
           underlying,
           minimumSupply,
           cap,
+          initialSharePrice,
         ] = await vault.vaultParams();
         assert.equal(await decimals, tokenDecimals);
         assert.equal(decimals, tokenDecimals);
@@ -663,6 +673,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.USDC(), USDC_ADDRESS);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
         assert.equal(minimumSupply, params.minimumSupply);
+        assert.equal(initialSharePrice, params.initialSharePrice);
         assert.equal(isPut, params.isPut);
         assert.equal(await vault.counterpartyThetaVault(), thetaVault.address);
         assert.bnEqual(cap, parseEther("500"));
@@ -690,6 +701,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
@@ -713,6 +725,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!owner");
@@ -736,6 +749,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!feeRecipient");
@@ -759,6 +773,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               0,
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!cap");
@@ -782,6 +797,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!asset");
@@ -805,6 +821,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!tokenDecimals");
@@ -828,6 +845,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               0,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!minimumSupply");
@@ -851,6 +869,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!performanceFee");
@@ -874,6 +893,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
+              initialSharePrice,
             ]
           )
         ).to.be.revertedWith("!performanceFee");
@@ -1038,7 +1058,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 90100);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 91100);
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
