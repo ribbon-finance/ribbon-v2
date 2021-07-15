@@ -1384,6 +1384,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("places bid on oTokens and gains possession after auction settlement", async function () {
+        let startGnosisBalance = await assetContract.balanceOf(
+          GNOSIS_EASY_AUCTION
+        );
+
         await rollToNextOptionSetup();
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
@@ -1426,7 +1430,9 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         assert.equal(
-          (await assetContract.balanceOf(GNOSIS_EASY_AUCTION)).toString(),
+          (await assetContract.balanceOf(GNOSIS_EASY_AUCTION))
+            .sub(startGnosisBalance)
+            .toString(),
           bidAmount.toString()
         );
 
@@ -1446,7 +1452,10 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // Received at least as many as requested.
-        assert.bnGt(await defaultOtoken.balanceOf(vault.address), numOTokens);
+        assert.bnEqual(
+          await defaultOtoken.balanceOf(vault.address),
+          params.expectedMintAmount
+        );
       });
 
       it("reverts when calling before expiry", async function () {
@@ -1551,7 +1560,10 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // oToken balance should increase
-        assert.bnGt(await defaultOtoken.balanceOf(vault.address), numOTokens);
+        assert.bnEqual(
+          await defaultOtoken.balanceOf(vault.address),
+          params.expectedMintAmount
+        );
 
         let diff =
           params.asset === WETH_ADDRESS
@@ -1686,8 +1698,12 @@ function behavesLikeRibbonOptionsVault(params: {
         // balance should be everything minus premium
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),
-          (await assetContract.balanceOf(GNOSIS_EASY_AUCTION))
-            .sub(startGnosisBalance)
+          startAssetBalance
+            .sub(
+              (await assetContract.balanceOf(GNOSIS_EASY_AUCTION)).sub(
+                startGnosisBalance
+              )
+            )
             .toString()
         );
 
@@ -1705,7 +1721,10 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // oToken balance should increase
-        assert.bnGt(await defaultOtoken.balanceOf(vault.address), numOTokens);
+        assert.bnEqual(
+          await defaultOtoken.balanceOf(vault.address),
+          params.expectedMintAmount
+        );
 
         let diff =
           params.asset === WETH_ADDRESS
@@ -1834,6 +1853,49 @@ function behavesLikeRibbonOptionsVault(params: {
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 910000);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
+      });
+    });
+
+    describe("#claimAuctionOtokens", () => {
+      let oracle: Contract;
+
+      const depositAmount = params.depositAmount;
+
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+        await depositIntoVault(
+          params.collateralAsset,
+          thetaVault,
+          depositAmount
+        );
+
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      });
+
+      it("claims the tokens for the delta vault", async function () {
+        await rollToNextOptionSetup();
+
+        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+
+        await vault
+          .connect(ownerSigner)
+          .rollToNextOption(optionPremium.toString());
+
+        await time.increaseTo(
+          (await time.now()).toNumber() +
+            (await thetaVault.auctionDuration()).toNumber() +
+            1
+        );
+
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await thetaVault.optionAuctionID());
+
+        let oTokenBalanceBefore = await defaultOtoken.balanceOf(vault.address);
+        await vault.claimAuctionOtokens();
+        let oTokenBalanceAfter = await defaultOtoken.balanceOf(vault.address);
+
+        assert.bnGt(oTokenBalanceAfter, oTokenBalanceBefore);
       });
     });
 
@@ -1997,8 +2059,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(diff)
           : firstOptionStrike.add(diff);
-
-        console.log(firstOptionStrike.toString());
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(

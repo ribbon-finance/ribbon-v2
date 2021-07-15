@@ -23,8 +23,8 @@ library GnosisAuction {
     event PlaceAuctionBid(
         uint256 auctionId,
         address auctioningToken,
-        uint96 sellAmount,
-        uint96 buyAmount,
+        uint256 sellAmount,
+        uint256 buyAmount,
         address bidder
     );
 
@@ -126,27 +126,24 @@ library GnosisAuction {
     function placeBid(BidDetails memory bidDetails)
         internal
         returns (
-            uint96 sellAmount,
-            uint96 buyAmount,
+            uint256 sellAmount,
+            uint256 buyAmount,
             uint64 userId
         )
     {
         // calculate how much to allocate
-        sellAmount = uint96(
-            bidDetails.lockedBalance.mul(bidDetails.optionAllocationPct).div(
-                10000
-            )
-        );
+        sellAmount = bidDetails
+            .lockedBalance
+            .mul(bidDetails.optionAllocationPct)
+            .div(10000);
 
         // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
-        buyAmount = uint96(
-            uint256(sellAmount)
-                .mul(10**bidDetails.assetDecimals)
-                .div(bidDetails.optionPremium)
-                .mul(10**8)
-                .div(10**bidDetails.assetDecimals)
-        );
+        buyAmount = sellAmount
+            .mul(10**bidDetails.assetDecimals)
+            .div(bidDetails.optionPremium)
+            .mul(10**8)
+            .div(10**bidDetails.assetDecimals);
 
         require(
             sellAmount <= type(uint96).max,
@@ -234,6 +231,19 @@ library GnosisAuction {
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
         );
+    }
+
+    function encodeOrder(
+        uint64 userId,
+        uint96 buyAmount,
+        uint96 sellAmount
+    ) internal pure returns (bytes32) {
+        return
+            bytes32(
+                (uint256(userId) << 192) +
+                    (uint256(buyAmount) << 96) +
+                    uint256(sellAmount)
+            );
     }
 
     /***
