@@ -25,7 +25,7 @@ describe("VaultLifecycle", () => {
       // The block we're hardcoded to is a Friday so we add 1 day to get to Saturday
       const saturday = currentTime.add(1, "days");
 
-      const expectedFriday = saturday
+      const expectedFriday = moment(saturday)
         .startOf("isoWeek")
         .add(1, "week")
         .day("friday")
@@ -45,9 +45,8 @@ describe("VaultLifecycle", () => {
       // The block we're hardcoded to is a Friday so we subtract 1 day to get to Thursday
       const thursday = currentTime.add(-1, "days");
 
-      const expectedFriday = thursday
+      const expectedFriday = moment(thursday)
         .startOf("isoWeek")
-        .add(1, "week")
         .day("friday")
         .hour(8); // needs to be 8am UTC
 
