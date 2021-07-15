@@ -478,6 +478,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].initiated = false;
         withdrawals[msg.sender].shares = 0;
+        vaultState.queuedWithdrawShares = uint128(
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+        );
 
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(

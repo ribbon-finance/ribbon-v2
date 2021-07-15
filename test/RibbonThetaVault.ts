@@ -2468,6 +2468,9 @@ function behavesLikeRibbonOptionsVault(params: {
           beforeBalance = await assetContract.balanceOf(user);
         }
 
+        const { queuedWithdrawShares: startQueuedShares } =
+          await vault.vaultState();
+
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
         const gasFee = receipt.gasUsed.mul(gasPrice);
@@ -2491,6 +2494,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isFalse(initiated);
         assert.equal(shares, 0);
         assert.equal(round, 2);
+
+        const { queuedWithdrawShares: endQueuedShares } =
+          await vault.vaultState();
+
+        assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
 
         let actualWithdrawAmount: BigNumber;
         if (collateralAsset === WETH_ADDRESS) {
