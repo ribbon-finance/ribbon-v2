@@ -444,16 +444,10 @@ library VaultLifecycle {
     {
         uint256 nextWeek = currentExpiry + 86400 * 7;
         uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
-
-        uint256 friday;
-        if (dayOfWeek > 5) {
-            friday = nextWeek - 86400 * (dayOfWeek - 5);
-        } else {
-            friday = nextWeek + 86400 * (5 - dayOfWeek);
-        }
+        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7);
 
         uint256 friday8am =
-            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
+            (nextFriday - (nextFriday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
     }
 
