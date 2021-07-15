@@ -16,6 +16,8 @@ import {
   VOL_ORACLE,
   BYTES_ZERO,
 } from "../test/helpers/constants";
+import { encodeOrder } from "../test/helpers/utils";
+
 import { CronJob } from "cron";
 import Discord = require("discord.js");
 
@@ -36,6 +38,7 @@ const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
 let gasLimits = {
   volOracleCommit: 85000,
   settleAuction: 0,
+  claimAuctionOtokens: 0,
   commitAndClose: 0,
   rollToNextOption: 0,
   burnRemainingOTokens: 0,
@@ -55,7 +58,7 @@ const getTopOfPeriod = async (provider: any, period: number) => {
   return topOfPeriod;
 };
 
-async function settleAuctions(
+async function settleAuctionsAndClaim(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
   provider: any,
@@ -81,10 +84,25 @@ async function settleAuctions(
         gasPrice: newGasPrice,
         gasLimit: gasLimits["settleAuction"],
       });
+
       await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
     } catch (error) {
       await log(
         `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
+      );
+    }
+
+    try {
+      await gnosisAuction.claimFromParticipantOrder(auctionID, [
+        encodeOrder(await vault.auctionSellOrder()),
+      ]);
+
+      await log(
+        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: ${tx.hash}`
+      );
+    } catch (error) {
+      await log(
+        `@everyone GnosisAuction-claimFromParticipantOrder()-${auctionID}: failed with error ${error}`
       );
     }
   }
@@ -150,7 +168,7 @@ async function rollToNextOption() {
   );
 }
 
-async function settleAuction() {
+async function settleAuctionAndClaim() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
 
@@ -160,8 +178,14 @@ async function settleAuction() {
     provider
   );
 
-  // 3. settleAuction
-  await settleAuctions(gnosisAuction, vaultArtifact, provider, signer, network);
+  // 3. settleAuction and claim
+  await settleAuctionsAndClaim(
+    gnosisAuction,
+    vaultArtifact,
+    provider,
+    signer,
+    network
+  );
 
   // 4. burnRemainingOTokens
   await runTX(
@@ -237,12 +261,12 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  var settleAuctionJob = new CronJob(
+  var settleAuctionAndClaimJob = new CronJob(
     `0 ${AUCTION_SETTLE_BUFFER} ${
       COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
     } * * 5`,
     async function () {
-      await settleAuction();
+      await settleAuctionAndClaim();
     },
     null,
     false,
@@ -277,7 +301,7 @@ async function run() {
 
   commitAndCloseJob.start();
   rollToNextOptionJob.start();
-  settleAuctionJob.start();
+  settleAuctionAndClaimJob.start();
   updateVolatilityJob.start();
 }
 
