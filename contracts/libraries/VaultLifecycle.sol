@@ -444,18 +444,15 @@ library VaultLifecycle {
         pure
         returns (uint256)
     {
-        uint256 nextWeek = currentExpiry + 86400 * 7;
-        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 4 - dayOfWeek) % 7);
-
+        uint256 dayOfWeek = ((currentExpiry / 86400) + 4) % 7;
+        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 86400;
         uint256 friday8am =
-            (nextFriday - (nextFriday % (60 * 60 * 24))) + (8 * 60 * 60);
+            nextFriday - (nextFriday % (60 * 60 * 24)) + (8 * 60 * 60);
 
         // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
         if (currentExpiry >= friday8am) {
             friday8am += 86400 * 7;
         }
-
         return friday8am;
     }
 
