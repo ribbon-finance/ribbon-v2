@@ -13,6 +13,7 @@ import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
+import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
 contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     using SafeERC20 for IERC20;
@@ -48,8 +49,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     event PlaceAuctionBid(
         uint256 auctionId,
         address auctioningToken,
-        uint96 sellAmount,
-        uint96 buyAmount,
+        uint256 sellAmount,
+        uint256 buyAmount,
         address bidder
     );
 
@@ -203,16 +204,34 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         bidDetails.lockedBalance = lockedBalance;
         bidDetails.optionAllocationPct = optionAllocationPct;
         bidDetails.optionPremium = optionPremium;
-        bidDetails.bidder = owner();
+        bidDetails.bidder = msg.sender;
 
         // place bid
-        (uint96 sellAmount, uint96 buyAmount, uint64 userId) =
+        (uint256 sellAmount, uint256 buyAmount, uint64 userId) =
             VaultLifecycle.placeBid(bidDetails);
 
-        auctionSellOrder.sellAmount = sellAmount;
-        auctionSellOrder.buyAmount = buyAmount;
+        auctionSellOrder.sellAmount = uint96(sellAmount);
+        auctionSellOrder.buyAmount = uint96(buyAmount);
         auctionSellOrder.userId = userId;
 
         emit OpenLong(newOption, buyAmount, sellAmount, msg.sender);
+    }
+
+    /**
+     * @notice Claims the delta vault's oTokens from latest auction
+     */
+    function claimAuctionOtokens() external nonReentrant {
+        bytes32 order =
+            GnosisAuction.encodeOrder(
+                auctionSellOrder.userId,
+                auctionSellOrder.buyAmount,
+                auctionSellOrder.sellAmount
+            );
+        bytes32[] memory orders = new bytes32[](1);
+        orders[0] = order;
+        IGnosisAuction(GNOSIS_EASY_AUCTION).claimFromParticipantOrder(
+            counterpartyThetaVault.optionAuctionID(),
+            orders
+        );
     }
 }

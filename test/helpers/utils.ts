@@ -271,28 +271,16 @@ export async function closeAuctionAndClaim(
   signer: string
 ) {
   const userSigner = await ethers.provider.getSigner(signer);
-  let currAuctionId = await thetaVault.optionAuctionID();
-
-  await gnosisAuction.connect(userSigner).settleAuction(currAuctionId);
-
-  await gnosisAuction.claimFromParticipantOrder(currAuctionId, [
-    encodeOrder(await vault.auctionSellOrder()),
-  ]);
+  await gnosisAuction
+    .connect(userSigner)
+    .settleAuction(await thetaVault.optionAuctionID());
+  await vault.claimAuctionOtokens();
 }
 
 export interface Order {
   sellAmount: BigNumber;
   buyAmount: BigNumber;
   userId: BigNumber;
-}
-
-export function encodeOrder(order: Order): string {
-  return (
-    "0x" +
-    order.userId.toHexString().slice(2).padStart(16, "0") +
-    order.buyAmount.toHexString().slice(2).padStart(24, "0") +
-    order.sellAmount.toHexString().slice(2).padStart(24, "0")
-  );
 }
 
 export function decodeOrder(bytes: string): Order {

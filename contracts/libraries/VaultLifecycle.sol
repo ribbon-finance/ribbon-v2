@@ -455,8 +455,8 @@ library VaultLifecycle {
     function placeBid(GnosisAuction.BidDetails memory bidDetails)
         external
         returns (
-            uint96,
-            uint96,
+            uint256,
+            uint256,
             uint64
         )
     {
