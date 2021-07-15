@@ -26,7 +26,6 @@ library GnosisAuction {
         address asset;
         uint256 assetDecimals;
         uint256 oTokenPremium;
-        address manager;
         uint256 duration;
     }
 
@@ -96,7 +95,7 @@ library GnosisAuction {
             auctionDetails.oTokenAddress,
             auctionDetails.asset,
             auctionCounter,
-            auctionDetails.manager
+            msg.sender
         );
     }
 
