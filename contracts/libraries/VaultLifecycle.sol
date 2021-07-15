@@ -436,6 +436,7 @@ library VaultLifecycle {
 
     /**
      * @notice Gets the next options expiry timestamp
+     * Reference: https://codereview.stackexchange.com/a/33532
      */
     function getNextFriday(uint256 currentExpiry)
         internal
