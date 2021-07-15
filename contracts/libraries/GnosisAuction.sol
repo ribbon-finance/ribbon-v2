@@ -20,6 +20,14 @@ library GnosisAuction {
         address manager
     );
 
+    event PlaceAuctionBid(
+        uint256 auctionId,
+        address auctioningToken,
+        uint256 sellAmount,
+        uint256 buyAmount,
+        address bidder
+    );
+
     struct AuctionDetails {
         address oTokenAddress;
         address gnosisEasyAuction;
@@ -28,6 +36,18 @@ library GnosisAuction {
         uint256 oTokenPremium;
         address manager;
         uint256 duration;
+    }
+
+    struct BidDetails {
+        address oTokenAddress;
+        address gnosisEasyAuction;
+        address asset;
+        uint256 assetDecimals;
+        uint256 auctionId;
+        uint256 lockedBalance;
+        uint256 optionAllocationPct;
+        uint256 optionPremium;
+        address bidder;
     }
 
     function startAuction(AuctionDetails memory auctionDetails)
@@ -103,6 +123,70 @@ library GnosisAuction {
         );
     }
 
+    function placeBid(BidDetails memory bidDetails)
+        internal
+        returns (
+            uint256 sellAmount,
+            uint256 buyAmount,
+            uint64 userId
+        )
+    {
+        // calculate how much to allocate
+        sellAmount = bidDetails
+            .lockedBalance
+            .mul(bidDetails.optionAllocationPct)
+            .div(10000);
+
+        // divide the `asset` sellAmount by the target premium per oToken to
+        // get the number of oTokens to buy (8 decimals)
+        buyAmount = sellAmount
+            .mul(10**bidDetails.assetDecimals)
+            .div(bidDetails.optionPremium)
+            .mul(10**8)
+            .div(10**bidDetails.assetDecimals);
+
+        require(
+            sellAmount <= type(uint96).max,
+            "sellAmount > type(uint96) max value!"
+        );
+        require(
+            buyAmount <= type(uint96).max,
+            "buyAmount > type(uint96) max value!"
+        );
+
+        // approve that amount
+        IERC20(bidDetails.asset).safeApprove(
+            bidDetails.gnosisEasyAuction,
+            sellAmount
+        );
+
+        uint96[] memory _minBuyAmounts = new uint96[](1);
+        uint96[] memory _sellAmounts = new uint96[](1);
+        bytes32[] memory _prevSellOrders = new bytes32[](1);
+        _minBuyAmounts[0] = uint96(buyAmount);
+        _sellAmounts[0] = uint96(sellAmount);
+        _prevSellOrders[
+            0
+        ] = 0x0000000000000000000000000000000000000000000000000000000000000001;
+
+        // place sell order with that amount
+        userId = IGnosisAuction(bidDetails.gnosisEasyAuction).placeSellOrders(
+            bidDetails.auctionId,
+            _minBuyAmounts,
+            _sellAmounts,
+            _prevSellOrders,
+            "0x"
+        );
+
+        emit PlaceAuctionBid(
+            bidDetails.auctionId,
+            bidDetails.oTokenAddress,
+            sellAmount,
+            buyAmount,
+            bidDetails.bidder
+        );
+    }
+
     function getOTokenSellAmount(
         address oTokenAddress,
         address gnosisEasyAuction
@@ -118,7 +202,7 @@ library GnosisAuction {
 
         require(
             oTokenSellAmount <= type(uint96).max,
-            "oTokenSelAmount > type(uint96) max value!"
+            "oTokenSellAmount > type(uint96) max value!"
         );
     }
 
@@ -147,6 +231,19 @@ library GnosisAuction {
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
         );
+    }
+
+    function encodeOrder(
+        uint64 userId,
+        uint96 buyAmount,
+        uint96 sellAmount
+    ) internal pure returns (bytes32) {
+        return
+            bytes32(
+                (uint256(userId) << 192) +
+                    (uint256(buyAmount) << 96) +
+                    uint256(sellAmount)
+            );
     }
 
     /***

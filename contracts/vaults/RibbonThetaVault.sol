@@ -227,31 +227,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external nonReentrant {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
-
-        address newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
-
-        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
-            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
-
-        optionState.currentOption = newOption;
-        optionState.nextOption = address(0);
-
-        // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
-
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+        (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
         vaultState.lockedAmount = uint104(lockedBalance);
-        vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
-
-        _mint(address(this), mintShares);
 
         VaultLifecycle.createShort(
             GAMMA_CONTROLLER,
