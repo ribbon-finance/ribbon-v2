@@ -48,7 +48,7 @@ library VaultLifecycle {
         uint256 expiry;
 
         // uninitialized state
-        if (closeParams.currentOption <= address(1)) {
+        if (closeParams.currentOption == address(0)) {
             expiry = getNextFriday(block.timestamp);
         } else {
             expiry = getNextFriday(
@@ -436,6 +436,7 @@ library VaultLifecycle {
 
     /**
      * @notice Gets the next options expiry timestamp
+     * @param currentExpiry is the expiry timestamp of the current option
      * Reference: https://codereview.stackexchange.com/a/33532
      */
     function getNextFriday(uint256 currentExpiry)
@@ -445,10 +446,16 @@ library VaultLifecycle {
     {
         uint256 nextWeek = currentExpiry + 86400 * 7;
         uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7);
+        uint256 nextFriday = currentExpiry + ((7 + 4 - dayOfWeek) % 7);
 
         uint256 friday8am =
             (nextFriday - (nextFriday % (60 * 60 * 24))) + (8 * 60 * 60);
+
+        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
+        if (currentExpiry >= friday8am) {
+            friday8am += 86400 * 7;
+        }
+
         return friday8am;
     }
 
