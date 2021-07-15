@@ -13,6 +13,7 @@ import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
+import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
 contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     using SafeERC20 for IERC20;
@@ -43,6 +44,14 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
     event NewOptionAllocationSet(
         uint256 optionAllocationPct,
         uint256 newOptionAllocationPct
+    );
+
+    event PlaceAuctionBid(
+        uint256 auctionId,
+        address auctioningToken,
+        uint256 sellAmount,
+        uint256 buyAmount,
+        address bidder
     );
 
     /************************************************
@@ -152,13 +161,12 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
 
         address counterpartyNextOption =
             counterpartyThetaVault.optionState().nextOption;
-        require(counterpartyNextOption != address(0));
+        require(counterpartyNextOption != address(0), "!thetavaultclosed");
         optionState.nextOption = counterpartyNextOption;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
-        vaultState.lockedAmount = 0;
+        vaultState.lastLockedAmount = balanceBeforePremium;
 
         // redeem
         if (oldOption != address(0)) {
@@ -174,6 +182,56 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
 
     /**
      * @notice Rolls the vault's funds into a new long position.
+     * @param optionPremium is the premium per token to pay in `asset`.
+       Same decimals as `asset` (ex: 1 * 10 ** 8 means 1 WBTC per oToken)
      */
-    function rollToNextOption() external nonReentrant {}
+    function rollToNextOption(uint256 optionPremium)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        (address newOption, uint256 lockedBalance) = _rollToNextOption();
+
+        balanceBeforePremium = uint104(lockedBalance);
+
+        GnosisAuction.BidDetails memory bidDetails;
+
+        bidDetails.auctionId = counterpartyThetaVault.optionAuctionID();
+        bidDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
+        bidDetails.oTokenAddress = newOption;
+        bidDetails.asset = vaultParams.asset;
+        bidDetails.assetDecimals = vaultParams.decimals;
+        bidDetails.lockedBalance = lockedBalance;
+        bidDetails.optionAllocationPct = optionAllocationPct;
+        bidDetails.optionPremium = optionPremium;
+        bidDetails.bidder = msg.sender;
+
+        // place bid
+        (uint256 sellAmount, uint256 buyAmount, uint64 userId) =
+            VaultLifecycle.placeBid(bidDetails);
+
+        auctionSellOrder.sellAmount = uint96(sellAmount);
+        auctionSellOrder.buyAmount = uint96(buyAmount);
+        auctionSellOrder.userId = userId;
+
+        emit OpenLong(newOption, buyAmount, sellAmount, msg.sender);
+    }
+
+    /**
+     * @notice Claims the delta vault's oTokens from latest auction
+     */
+    function claimAuctionOtokens() external nonReentrant {
+        bytes32 order =
+            GnosisAuction.encodeOrder(
+                auctionSellOrder.userId,
+                auctionSellOrder.buyAmount,
+                auctionSellOrder.sellAmount
+            );
+        bytes32[] memory orders = new bytes32[](1);
+        orders[0] = order;
+        IGnosisAuction(GNOSIS_EASY_AUCTION).claimFromParticipantOrder(
+            counterpartyThetaVault.optionAuctionID(),
+            orders
+        );
+    }
 }

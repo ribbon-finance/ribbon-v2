@@ -465,6 +465,42 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /*
+     * @notice Helper function that performs most administrative tasks
+     * such as setting next option, minting new shares, getting vault fees, etc.
+     * @return newOption is the new option address
+     * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
+     */
+    function _rollToNextOption()
+        internal
+        returns (address, uint256)
+    {
+        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
+
+        address newOption = optionState.nextOption;
+        require(newOption != address(0), "!nextOption");
+
+        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
+            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
+
+        optionState.currentOption = newOption;
+        optionState.nextOption = address(0);
+
+        // Finalize the pricePerShare at the end of the round
+        uint16 currentRound = vaultState.round;
+        roundPricePerShare[currentRound] = newPricePerShare;
+
+        // Take management / performance fee from previous round and deduct
+        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+
+        vaultState.totalPending = 0;
+        vaultState.round = currentRound + 1;
+
+        _mint(address(this), mintShares);
+
+        return (newOption, lockedBalance);
+    }
+
+    /*
      * @notice Helper function that transfers management fees and performance fees from previous round.
      * @param currentLockedBalance is the balance we are about to lock for next round
      * @return vaultFee is the fee deducted
