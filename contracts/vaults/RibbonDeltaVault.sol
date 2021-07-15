@@ -139,6 +139,14 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         optionAllocationPct = newOptionAllocationPct;
     }
 
+    /**
+     * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
+     * @param amount is the amount to withdraw
+     */
+    function withdrawInstantly(uint256 amount) external nonReentrant {
+        _withdrawInstantly(amount, false);
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
