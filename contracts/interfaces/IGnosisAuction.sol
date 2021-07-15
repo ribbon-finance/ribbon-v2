@@ -68,4 +68,9 @@ interface IGnosisAuction {
         bytes32[] memory _prevSellOrders,
         bytes calldata allowListCallData
     ) external returns (uint64);
+
+    function claimFromParticipantOrder(
+        uint256 auctionId,
+        bytes32[] memory orders
+    ) external returns (uint256, uint256);
 }

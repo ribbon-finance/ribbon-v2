@@ -62,4 +62,13 @@ library Vault {
         // Number of shares withdrawn
         uint128 shares;
     }
+
+    struct AuctionSellOrder {
+        // Amount of `asset` token offered in auction
+        uint96 sellAmount;
+        // Amount of oToken requested in auction
+        uint96 buyAmount;
+        // User Id of delta vault in latest gnosis auction
+        uint64 userId;
+    }
 }

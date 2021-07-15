@@ -215,7 +215,8 @@ export async function bidForOToken(
   oToken: string,
   premium: BigNumber,
   assetDecimals: number,
-  multiplier: string
+  multiplier: string,
+  auctionDuration: number
 ) {
   const userSigner = await ethers.provider.getSigner(contractSigner);
 
@@ -256,9 +257,24 @@ export async function bidForOToken(
       "0x"
     );
 
-  await increaseTo((await provider.getBlock("latest")).timestamp + 21600);
+  await increaseTo(
+    (await provider.getBlock("latest")).timestamp + auctionDuration
+  );
 
   return [latestAuction, totalOptionsAvailableToBuy, bid];
+}
+
+export async function closeAuctionAndClaim(
+  gnosisAuction: Contract,
+  thetaVault: Contract,
+  vault: Contract,
+  signer: string
+) {
+  const userSigner = await ethers.provider.getSigner(signer);
+  await gnosisAuction
+    .connect(userSigner)
+    .settleAuction(await thetaVault.optionAuctionID());
+  await vault.claimAuctionOtokens();
 }
 
 export interface Order {
@@ -273,4 +289,13 @@ export function decodeOrder(bytes: string): Order {
     sellAmount: BigNumber.from("0x" + bytes.substring(43, 66)),
     buyAmount: BigNumber.from("0x" + bytes.substring(19, 42)),
   };
+}
+
+export function encodeOrder(order: Order): string {
+  return (
+    "0x" +
+    order.userId.toHexString().slice(2).padStart(16, "0") +
+    order.buyAmount.toHexString().slice(2).padStart(24, "0") +
+    order.sellAmount.toHexString().slice(2).padStart(24, "0")
+  );
 }
