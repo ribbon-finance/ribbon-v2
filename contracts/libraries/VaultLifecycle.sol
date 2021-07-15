@@ -452,6 +452,17 @@ library VaultLifecycle {
         return GnosisAuction.startAuction(auctionDetails);
     }
 
+    function placeBid(GnosisAuction.BidDetails memory bidDetails)
+        external
+        returns (
+            uint256,
+            uint256,
+            uint64
+        )
+    {
+        return GnosisAuction.placeBid(bidDetails);
+    }
+
     function verifyConstructorParams(
         address owner,
         address feeRecipient,
