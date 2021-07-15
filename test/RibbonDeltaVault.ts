@@ -27,7 +27,6 @@ import {
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
-  bidForOToken,
   closeAuctionAndClaim,
 } from "./helpers/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
@@ -283,7 +282,6 @@ function behavesLikeRibbonOptionsVault(params: {
   // Variables
   let defaultOtokenAddress: string;
   let firstOptionStrike: BigNumber;
-  let firstOptionPremium: BigNumber;
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
@@ -551,14 +549,6 @@ function behavesLikeRibbonOptionsVault(params: {
       [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
         params.isPut
-      );
-
-      firstOptionPremium = BigNumber.from(
-        await optionsPremiumPricer.getPremium(
-          firstOptionStrike,
-          firstOptionExpiry,
-          params.isPut
-        )
       );
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
@@ -1412,8 +1402,6 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenLong")
           .withArgs(defaultOtokenAddress, numOTokens, bidAmount, owner);
 
-        const vaultState = await vault.vaultState();
-
         assert.equal(
           (await vault.balanceBeforePremium()).toString(),
           depositAmount
@@ -1774,8 +1762,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const currBalance = await assetContract.balanceOf(vault.address);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-
         let newBidAmount = (
           await lockedBalanceForRollover(assetContract, vault)
         )
@@ -1857,8 +1843,6 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#claimAuctionOtokens", () => {
-      let oracle: Contract;
-
       const depositAmount = params.depositAmount;
 
       time.revertToSnapshotAfterEach(async function () {
@@ -1868,8 +1852,6 @@ function behavesLikeRibbonOptionsVault(params: {
           thetaVault,
           depositAmount
         );
-
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("claims the tokens for the delta vault", async function () {
@@ -2044,8 +2026,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // Mid-week deposit in round 2
         await vault.connect(userSigner).deposit(params.depositAmount);
-
-        const vaultState = await vault.vaultState();
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
 
