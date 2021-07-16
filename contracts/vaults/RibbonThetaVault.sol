@@ -18,7 +18,6 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
-import "hardhat/console.sol";
 
 contract RibbonThetaVault is OptionsVaultStorage {
     using SafeERC20 for IERC20;
@@ -427,7 +426,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // We do a max redeem before initiating a withdrawal
         // But we check if they must first have unredeemed shares
-        if (depositReceipts[msg.sender].amount > 0 || depositReceipts[msg.sender].unredeemedShares > 0) {
+        if (
+            depositReceipts[msg.sender].amount > 0 ||
+            depositReceipts[msg.sender].unredeemedShares > 0
+        ) {
             _redeem(0, true);
         }
 
