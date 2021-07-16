@@ -35,7 +35,7 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint256 public constant period = 7 days;
 
-    uint128 private constant PLACEHOLDER_UINT = 1;
+    uint128 internal constant PLACEHOLDER_UINT = 1;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
