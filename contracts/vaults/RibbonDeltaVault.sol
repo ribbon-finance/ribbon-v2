@@ -235,7 +235,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Closes the existing long position for the vault.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner nonReentrant {
+    function commitAndClose() external onlyOwner updatePPS(true) nonReentrant {
         address oldOption = optionState.currentOption;
 
         address counterpartyNextOption =
