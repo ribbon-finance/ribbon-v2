@@ -2366,31 +2366,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(shares, depositAmount);
       });
 
-      it("tops up existing withdrawal and debits user", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.initiateWithdraw(depositAmount.div(2));
-
-        // Redeem 1/2, so we need to transfer 1/2 in the initiateWithdraw call
-        await vault.redeem(depositAmount.div(2));
-
-        const tx = await vault.initiateWithdraw(depositAmount.div(2));
-
-        await expect(tx)
-          .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.div(2));
-
-        const { initiated, round, shares } = await vault.withdrawals(user);
-        assert.isTrue(initiated);
-        assert.equal(round, 2);
-        assert.bnEqual(shares, depositAmount);
-      });
-
       it("reverts when there is insufficient balance over multiple calls", async function () {
         await assetContract
           .connect(userSigner)
@@ -2403,7 +2378,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.initiateWithdraw(depositAmount.div(2).add(1))
-        ).to.be.revertedWith("Insufficient balance");
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2416,7 +2391,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 91000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 104000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
