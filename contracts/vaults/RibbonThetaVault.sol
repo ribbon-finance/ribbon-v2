@@ -18,6 +18,7 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 contract RibbonThetaVault is OptionsVaultStorage {
     using SafeERC20 for IERC20;
@@ -424,19 +425,17 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function initiateWithdraw(uint128 shares) external nonReentrant {
         require(shares > 0, "!shares");
 
+        // We do a max redeem before initiating a withdrawal
+        // But we check if they must first have unredeemed shares
+        if (depositReceipts[msg.sender].amount > 0 || depositReceipts[msg.sender].unredeemedShares > 0) {
+            _redeem(0, true);
+        }
+
         // This caches the `round` variable used in shareBalances
         uint16 currentRound = vaultState.round;
         Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
 
         bool topup = withdrawal.initiated && withdrawal.round == currentRound;
-
-        (uint256 heldByAccount, uint256 heldByVault) =
-            shareBalances(msg.sender);
-
-        uint256 vaultRemainder = heldByVault.sub(withdrawal.shares);
-        uint256 totalShares = heldByAccount.add(vaultRemainder);
-
-        require(shares <= totalShares, "Insufficient balance");
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
@@ -458,12 +457,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
             uint256(vaultState.queuedWithdrawShares).add(shares)
         );
 
-        // We need to debit the user's account when they are trying to withdraw
-        // more than what's available in the vault, accounting for previous withdrawals
-        if (shares > vaultRemainder) {
-            uint256 debitShares = uint256(shares).sub(vaultRemainder);
-            _transfer(msg.sender, address(this), debitShares);
-        }
+        _transfer(msg.sender, address(this), shares);
     }
 
     /**
@@ -490,6 +484,8 @@ contract RibbonThetaVault is OptionsVaultStorage {
             );
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+
+        _burn(address(this), withdrawal.shares);
 
         require(withdrawAmount > 0, "!withdrawAmount");
         transferAsset(msg.sender, withdrawAmount);
