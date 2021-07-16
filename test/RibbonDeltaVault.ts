@@ -2199,11 +2199,9 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#withdraw", () => {
-      let oracle: Contract;
       let depositAmountAfterPremium: BigNumber;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
         await depositIntoVault(
           params.collateralAsset,
           thetaVault,
@@ -2248,7 +2246,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let vaultTokenBalanceBefore = await vault.totalSupply();
 
-        const tx = await vault.withdraw(depositAmount);
+        await vault.withdraw(depositAmount);
 
         let vaultTokenBalanceAfter = await vault.totalSupply();
 
