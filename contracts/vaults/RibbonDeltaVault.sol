@@ -47,7 +47,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         uint256 newOptionAllocationPct
     );
 
-    event Withdraw(address indexed account, uint256 amount, uint16 round);
+    event Withdraw(address indexed account, uint256 share, uint16 round);
 
     event PlaceAuctionBid(
         uint256 auctionId,
@@ -125,6 +125,41 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         optionAllocationPct = _optionAllocationPct;
     }
 
+    /**
+     * @notice Updates the price per share of the current round. The current round
+     * pps will change right after call rollToNextOption as the gnosis auction contract
+     * takes custody of a % of `asset` tokens, and right after we claim the tokens from
+     * the action as we may recieve some of `asset` tokens back alongside the oToken,
+     * depending on the gnosis auction outcome. Finally it will change at the end of the week
+     * if the oTokens are ITM
+     */
+    modifier updatePPS(bool isWithdraw) {
+        if (!isWithdraw) {
+            _;
+        }
+
+        if (
+            !isWithdraw ||
+            roundPricePerShare[vaultState.round] <= PLACEHOLDER_UINT
+        ) {
+            uint256 pendingAmount = uint256(vaultState.totalPending);
+            uint256 currentBalance =
+                IERC20(vaultParams.asset).balanceOf(address(this));
+            uint256 roundStartBalance = currentBalance.sub(pendingAmount);
+
+            uint256 singleShare = 10**uint256(vaultParams.decimals);
+            roundPricePerShare[vaultState.round] = VaultLifecycle.getPPS(
+                totalSupply(),
+                roundStartBalance,
+                singleShare
+            );
+        }
+
+        if (isWithdraw) {
+            _;
+        }
+    }
+
     /************************************************
      *  SETTERS
      ***********************************************/
@@ -153,44 +188,43 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
-     * @param amount is the amount to withdraw
+     * @param share is the amount of shares to withdraw
      */
-    function withdraw(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
+    function withdraw(uint256 share) external updatePPS(true) nonReentrant {
+        require(share > 0, "!amount");
 
-        uint256 amountLeftForWithdrawal = _withdrawFromNewDeposit(amount);
+        uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
 
         uint16 currentRound = vaultState.round;
 
-        // If we need to withdraw beyond current round deposit, we will need to
-        // use round pps as it had exposure to at least one week's worth of options
-        if (amountLeftForWithdrawal > 0) {
-            uint256 sharesLeft =
-                ShareMath.underlyingToShares(
-                    amountLeftForWithdrawal,
-                    roundPricePerShare[currentRound],
-                    vaultParams.decimals
-                );
-
+        // If we need to withdraw beyond current round deposit
+        if (sharesLeftForWithdrawal > 0) {
             (uint256 heldByAccount, uint256 heldByVault) =
                 shareBalances(msg.sender);
 
-            uint256 totalShares = heldByAccount.add(heldByVault);
+            require(
+                sharesLeftForWithdrawal <= heldByAccount.add(heldByVault),
+                "Insufficient balance"
+            );
 
-            require(sharesLeft <= totalShares, "Insufficient balance");
+            if (heldByAccount < sharesLeftForWithdrawal) {
+                // Redeem all shares custodied by vault to user
+                _redeem(0, true);
+            }
 
-            // Burn both redeemed shares and custodied shares of user
-            if (heldByAccount > 0) {
-                _burn(msg.sender, heldByAccount);
-            }
-            if (heldByVault > 0) {
-                _burn(address(this), heldByVault);
-            }
+            // Burn shares
+            _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit Withdraw(msg.sender, amount, currentRound);
+        emit Withdraw(msg.sender, share, currentRound);
 
-        transferAsset(msg.sender, amount);
+        uint256 sharesToUnderlying =
+            ShareMath.sharesToUnderlying(
+                share,
+                roundPricePerShare[vaultState.round],
+                vaultParams.decimals
+            );
+        transferAsset(msg.sender, sharesToUnderlying);
     }
 
     /************************************************
@@ -233,6 +267,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     function rollToNextOption(uint256 optionPremium)
         external
         onlyOwner
+        updatePPS(false)
         nonReentrant
     {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
@@ -259,15 +294,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         auctionSellOrder.buyAmount = uint96(buyAmount);
         auctionSellOrder.userId = userId;
 
-        _updatePPS();
-
         emit OpenLong(newOption, buyAmount, sellAmount, msg.sender);
     }
 
     /**
      * @notice Claims the delta vault's oTokens from latest auction
      */
-    function claimAuctionOtokens() external nonReentrant {
+    function claimAuctionOtokens() external updatePPS(false) nonReentrant {
         bytes32 order =
             GnosisAuction.encodeOrder(
                 auctionSellOrder.userId,
@@ -280,46 +313,40 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             counterpartyThetaVault.optionAuctionID(),
             orders
         );
-
-        _updatePPS();
-    }
-
-    /**
-     * @notice Updates the price per share of the current round. The current round
-     * pps will change right after call rollToNextOption as the gnosis auction contract
-     * takes custody of a % of `asset` tokens, and right after we claim the tokens from
-     * the action as we may recieve some of `asset` tokens back alongside the oToken,
-     * depending on the gnosis auction outcome. Finally it will change at the end of the week
-     * if the oTokens are ITM
-     */
-    function _updatePPS() private {
-        (, uint256 newPricePerShare, ) =
-            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
-
-        roundPricePerShare[vaultState.round] = newPricePerShare;
     }
 
     /**
      * @notice Withdraws from the most recent deposit which has not been processed
-     * @param amount is how much to withdraw in total
-     * @return the amount left to withdraw
+     * @param share is how many shares to withdraw in total
+     * @return the shares left to withdraw
      */
-    function _withdrawFromNewDeposit(uint256 amount) private returns (uint256) {
+    function _withdrawFromNewDeposit(uint256 share) private returns (uint256) {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint256 receiptAmount = depositReceipt.amount;
-
         // Immediately get what is in the pending deposits, without need for checking pps
-        if (depositReceipt.round == vaultState.round && receiptAmount > 0) {
-            uint256 amountWithdrawn = min(receiptAmount, amount);
+        if (
+            depositReceipt.round == vaultState.round &&
+            depositReceipt.amount > 0
+        ) {
+            uint256 receiptShares =
+                ShareMath.underlyingToShares(
+                    depositReceipt.amount,
+                    roundPricePerShare[depositReceipt.round],
+                    vaultParams.decimals
+                );
+            uint256 sharesWithdrawn = min(receiptShares, share);
             // Subtraction underflow checks already ensure it is smaller than uint104
             depositReceipt.amount = uint104(
-                uint256(receiptAmount).sub(amountWithdrawn)
+                ShareMath.sharesToUnderlying(
+                    uint256(receiptShares).sub(sharesWithdrawn),
+                    roundPricePerShare[depositReceipt.round],
+                    vaultParams.decimals
+                )
             );
-            return amount.sub(amountWithdrawn);
+            return share.sub(sharesWithdrawn);
         }
 
-        return amount;
+        return share;
     }
 }
