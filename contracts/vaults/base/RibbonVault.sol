@@ -57,16 +57,6 @@ contract RibbonVault is OptionsVaultStorage {
 
     event Deposit(address indexed account, uint256 amount, uint16 round);
 
-    event InitiateWithdraw(address account, uint256 shares, uint16 round);
-
-    event Withdraw(address indexed account, uint256 amount, uint256 share);
-
-    event InstantWithdraw(
-        address indexed account,
-        uint256 amount,
-        uint16 round
-    );
-
     event Redeem(address indexed account, uint256 share, uint16 round);
 
     event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
@@ -344,34 +334,6 @@ contract RibbonVault is OptionsVaultStorage {
         _transfer(address(this), msg.sender, shares);
     }
 
-    /**
-     * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
-     * @param amount is the amount to withdraw
-     * @param isThetaVault is whether the vault is a theta vault
-     */
-    function _withdrawInstantly(uint256 amount, bool isThetaVault) internal {
-        Vault.DepositReceipt storage depositReceipt =
-            depositReceipts[msg.sender];
-
-        uint16 currentRound = vaultState.round;
-        require(amount > 0, "!amount");
-
-        if (isThetaVault) {
-            require(!depositReceipt.processed, "Processed");
-            require(depositReceipt.round == currentRound, "Invalid round");
-        }
-
-        uint104 receiptAmount = depositReceipt.amount;
-        require(receiptAmount >= amount, "Exceed amount");
-
-        // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
-
-        emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        transferAsset(msg.sender, amount);
-    }
-
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -400,10 +362,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      */
-    function _rollToNextOption()
-        internal
-        returns (address, uint256)
-    {
+    function _rollToNextOption() internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
 
         address newOption = optionState.nextOption;
@@ -476,7 +435,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
-    function transferAsset(address payable recipient, uint256 amount) private {
+    function transferAsset(address payable recipient, uint256 amount) internal {
         address asset = vaultParams.asset;
         if (asset == WETH) {
             IWETH(WETH).withdraw(amount);

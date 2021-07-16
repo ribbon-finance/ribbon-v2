@@ -6,6 +6,7 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
+import {DSMath} from "../vendor/DSMath.sol";
 import {GnosisAuction} from "../libraries/GnosisAuction.sol";
 import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
@@ -15,7 +16,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
-contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
+contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -45,6 +46,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         uint256 optionAllocationPct,
         uint256 newOptionAllocationPct
     );
+
+    event Withdraw(address indexed account, uint256 amount, uint16 round);
 
     event PlaceAuctionBid(
         uint256 auctionId,
@@ -152,8 +155,42 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw
      */
-    function withdrawInstantly(uint256 amount) external nonReentrant {
-        _withdrawInstantly(amount, false);
+    function withdraw(uint256 amount) external nonReentrant {
+        require(amount > 0, "!amount");
+
+        uint256 amountLeftForWithdrawal = _withdrawFromNewDeposit(amount);
+
+        uint16 currentRound = vaultState.round;
+
+        // If we need to withdraw beyond current round deposit, we will need to
+        // use round pps as it had exposure to at least one week's worth of options
+        if (amountLeftForWithdrawal > 0) {
+            uint256 sharesLeft =
+                ShareMath.underlyingToShares(
+                    amountLeftForWithdrawal,
+                    roundPricePerShare[currentRound],
+                    vaultParams.decimals
+                );
+
+            (uint256 heldByAccount, uint256 heldByVault) =
+                shareBalances(msg.sender);
+
+            uint256 totalShares = heldByAccount.add(heldByVault);
+
+            require(sharesLeft <= totalShares, "Insufficient balance");
+
+            // Burn both redeemed shares and custodied shares of user
+            if (heldByAccount > 0) {
+                _burn(msg.sender, heldByAccount);
+            }
+            if (heldByVault > 0) {
+                _burn(address(this), heldByVault);
+            }
+        }
+
+        emit Withdraw(msg.sender, amount, currentRound);
+
+        transferAsset(msg.sender, amount);
     }
 
     /************************************************
@@ -222,6 +259,8 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
         auctionSellOrder.buyAmount = uint96(buyAmount);
         auctionSellOrder.userId = userId;
 
+        _updatePPS();
+
         emit OpenLong(newOption, buyAmount, sellAmount, msg.sender);
     }
 
@@ -241,5 +280,46 @@ contract RibbonDeltaVault is RibbonVault, OptionsDeltaVaultStorage {
             counterpartyThetaVault.optionAuctionID(),
             orders
         );
+
+        _updatePPS();
+    }
+
+    /**
+     * @notice Updates the price per share of the current round. The current round
+     * pps will change right after call rollToNextOption as the gnosis auction contract
+     * takes custody of a % of `asset` tokens, and right after we claim the tokens from
+     * the action as we may recieve some of `asset` tokens back alongside the oToken,
+     * depending on the gnosis auction outcome. Finally it will change at the end of the week
+     * if the oTokens are ITM
+     */
+    function _updatePPS() private {
+        (, uint256 newPricePerShare, ) =
+            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
+
+        roundPricePerShare[vaultState.round] = newPricePerShare;
+    }
+
+    /**
+     * @notice Withdraws from the most recent deposit which has not been processed
+     * @param amount is how much to withdraw in total
+     * @return the amount left to withdraw
+     */
+    function _withdrawFromNewDeposit(uint256 amount) private returns (uint256) {
+        Vault.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
+
+        uint256 receiptAmount = depositReceipt.amount;
+
+        // Immediately get what is in the pending deposits, without need for checking pps
+        if (depositReceipt.round == vaultState.round && receiptAmount > 0) {
+            uint256 amountWithdrawn = min(receiptAmount, amount);
+            // Subtraction underflow checks already ensure it is smaller than uint104
+            depositReceipt.amount = uint104(
+                uint256(receiptAmount).sub(amountWithdrawn)
+            );
+            return amount.sub(amountWithdrawn);
+        }
+
+        return amount;
     }
 }

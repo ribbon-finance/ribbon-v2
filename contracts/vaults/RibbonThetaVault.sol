@@ -53,6 +53,16 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         uint256 newAuctionDuration
     );
 
+    event Withdraw(address indexed account, uint256 amount, uint256 share);
+
+    event InstantWithdraw(
+        address indexed account,
+        uint256 amount,
+        uint16 round
+    );
+
+    event InitiateWithdraw(address account, uint256 shares, uint16 round);
+
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
@@ -167,7 +177,24 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @param amount is the amount to withdraw
      */
     function withdrawInstantly(uint256 amount) external nonReentrant {
-        _withdrawInstantly(amount, true);
+        Vault.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
+
+        uint16 currentRound = vaultState.round;
+        require(amount > 0, "!amount");
+
+        require(!depositReceipt.processed, "Processed");
+        require(depositReceipt.round == currentRound, "Invalid round");
+
+        uint104 receiptAmount = depositReceipt.amount;
+        require(receiptAmount >= amount, "Exceed amount");
+
+        // Subtraction underflow checks already ensure it is smaller than uint104
+        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
+
+        emit InstantWithdraw(msg.sender, amount, currentRound);
+
+        transferAsset(msg.sender, amount);
     }
 
     /**
