@@ -2199,55 +2199,30 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#withdrawInstantly", () => {
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(
-          params.collateralAsset,
-          thetaVault,
-          depositAmount
-        );
-      });
+      let depositAmountAfterPremium: BigNumber;
 
-      it("reverts with 0 amount", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
+      time.revertToSnapshotAfterEach(async () => {
         await depositIntoVault(
           params.collateralAsset,
           thetaVault,
           params.depositAmount
         );
-
-        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
+        depositAmountAfterPremium = depositAmount.sub(
+          depositAmount.mul(optionAllocationPct.div(100)).div(100)
+        );
       });
 
-      it("reverts when withdrawing more than available", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await expect(
-          vault.withdrawInstantly(depositAmount.add(1))
-        ).to.be.revertedWith("Exceed amount");
+      it("reverts when passed 0 shares", async function () {
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!shares");
       });
 
-      it("reverts when deposit receipt is processed", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.maxRedeem();
-
-        await expect(
-          vault.withdrawInstantly(depositAmount.add(1))
-        ).to.be.revertedWith("Processed");
+      it("reverts when no deposit made", async function () {
+        await expect(vault.withdrawInstantly(depositAmount)).to.be.revertedWith(
+          "Insufficient balance"
+        );
       });
 
-      it("reverts when withdrawing next round", async function () {
+      it("reverts when withdrawing more than vault + account balance", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -2255,16 +2230,35 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
+        // Move 1 share into account
+        await vault.redeem(depositAmount.div(2));
+
         await expect(
           vault.withdrawInstantly(depositAmount.add(1))
-        ).to.be.revertedWith("Invalid round");
+        ).to.be.revertedWith("Insufficient balance");
       });
 
-      it("withdraws the amount in deposit receipt", async function () {
+      it("creates withdrawal from current round deposit", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
+
+        let vaultTokenBalanceBefore = await vault.totalSupply();
+
+        await vault.withdrawInstantly(depositAmount);
+
+        let vaultTokenBalanceAfter = await vault.totalSupply();
+
+        assert.bnEqual(vaultTokenBalanceBefore, vaultTokenBalanceAfter);
+      });
+
+      it("creates withdrawal from unredeemed shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+        await rollToNextOption();
 
         let startBalance: BigNumber;
         let withdrawAmount: BigNumber;
@@ -2274,7 +2268,7 @@ function behavesLikeRibbonOptionsVault(params: {
           startBalance = await assetContract.balanceOf(user);
         }
 
-        const tx = await vault.withdrawInstantly(depositAmount, { gasPrice });
+        const tx = await vault.withdrawInstantly(depositAmount);
         const receipt = await tx.wait();
 
         if (collateralAsset === WETH_ADDRESS) {
@@ -2286,16 +2280,61 @@ function behavesLikeRibbonOptionsVault(params: {
           const endBalance = await assetContract.balanceOf(user);
           withdrawAmount = endBalance.sub(startBalance);
         }
-        assert.bnEqual(withdrawAmount, depositAmount);
+
+        assert.bnGt(withdrawAmount, depositAmountAfterPremium.mul(99).div(100));
+        assert.bnLt(
+          withdrawAmount,
+          depositAmountAfterPremium.mul(101).div(100)
+        );
+
+        let vaultTokenBalanceAfter = await vault.totalSupply();
+
+        assert.equal(vaultTokenBalanceAfter.toString(), "0");
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, depositAmount, 1);
 
         await expect(tx)
           .to.emit(vault, "InstantWithdraw")
-          .withArgs(user, depositAmount, 1);
+          .withArgs(user, depositAmount, 2);
+      });
 
-        const { processed, round, amount } = await vault.depositReceipts(user);
-        assert.isFalse(processed);
-        assert.equal(round, 1);
-        assert.bnEqual(amount, BigNumber.from(0));
+      it("creates withdrawal from redeemed shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        // Move all shares into account
+        await vault.redeem(depositAmount);
+
+        const tx = await vault.withdrawInstantly(depositAmount);
+
+        let vaultTokenBalanceAfter = await vault.totalSupply();
+
+        assert.equal(vaultTokenBalanceAfter.toString(), "0");
+
+        await expect(tx).to.not.emit(vault, "Redeem");
+
+        await expect(tx)
+          .to.emit(vault, "InstantWithdraw")
+          .withArgs(user, depositAmount, 2);
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.withdrawInstantly(depositAmountAfterPremium);
+        const receipt = await tx.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 115000);
       });
     });
 
@@ -2313,7 +2352,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("reverts when user initiates withdraws without any deposit", async function () {
         await expect(vault.initiateWithdraw(depositAmount)).to.be.revertedWith(
-          "Insufficient balance"
+          "ERC20: transfer amount exceeds balance"
         );
       });
 
@@ -2331,7 +2370,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.initiateWithdraw(depositAmount.add(1))
-        ).to.be.revertedWith("Insufficient balance");
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
       it("reverts when withdrawing more than vault + account balance", async function () {
@@ -2347,7 +2386,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.initiateWithdraw(depositAmount.add(1))
-        ).to.be.revertedWith("Insufficient balance");
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
       it("reverts when initiating with past existing withdrawal", async function () {
@@ -2366,7 +2405,6 @@ function behavesLikeRibbonOptionsVault(params: {
           await getCurrentOptionExpiry(),
           firstOptionStrike
         );
-        // await strikeSelection.setDelta(params.deltaSecondOption);
 
         await rollToNextOption();
 
@@ -2389,7 +2427,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "InitiateWithdraw")
           .withArgs(user, depositAmount, 2);
 
-        await expect(tx).to.not.emit(vault, "Transfer");
+        await expect(tx)
+          .to.emit(vault, "Transfer")
+          .withArgs(vault.address, user, depositAmount);
 
         const { initiated, round, shares } = await vault.withdrawals(user);
         assert.isTrue(initiated);
@@ -2413,9 +2453,15 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "InitiateWithdraw")
           .withArgs(user, depositAmount, 2);
 
+        // First we redeem the leftover amount
         await expect(tx)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.div(2));
+          .withArgs(vault.address, user, depositAmount.div(2));
+
+        // Then we debit the shares from the user
+        await expect(tx)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount);
 
         assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
         assert.bnEqual(await vault.balanceOf(vault.address), depositAmount);
@@ -2434,34 +2480,19 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        await vault.initiateWithdraw(depositAmount.div(2));
+        const tx1 = await vault.initiateWithdraw(depositAmount.div(2));
 
-        const tx = await vault.initiateWithdraw(depositAmount.div(2));
+        // We redeem the full amount on the first initiateWithdraw
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(vault.address, user, depositAmount);
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(2));
 
-        await expect(tx).to.not.emit(vault, "Transfer");
+        const tx2 = await vault.initiateWithdraw(depositAmount.div(2));
 
-        const { initiated, round, shares } = await vault.withdrawals(user);
-        assert.isTrue(initiated);
-        assert.equal(round, 2);
-        assert.bnEqual(shares, depositAmount);
-      });
-
-      it("tops up existing withdrawal and debits user", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.initiateWithdraw(depositAmount.div(2));
-
-        // Redeem 1/2, so we need to transfer 1/2 in the initiateWithdraw call
-        await vault.redeem(depositAmount.div(2));
-
-        const tx = await vault.initiateWithdraw(depositAmount.div(2));
-
-        await expect(tx)
+        await expect(tx2)
           .to.emit(vault, "Transfer")
           .withArgs(user, vault.address, depositAmount.div(2));
 
@@ -2483,7 +2514,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.initiateWithdraw(depositAmount.div(2).add(1))
-        ).to.be.revertedWith("Insufficient balance");
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2496,13 +2527,19 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 91000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 104000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
 
     describe("#completeWithdraw", () => {
       time.revertToSnapshotAfterEach(async () => {
+        await depositIntoVault(
+          params.collateralAsset,
+          thetaVault,
+          params.depositAmount
+        );
+
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -2513,11 +2550,6 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .approve(vault.address, depositAmount);
         await vault.connect(ownerSigner).deposit(depositAmount);
-        await depositIntoVault(
-          params.collateralAsset,
-          thetaVault,
-          depositAmount
-        );
 
         await rollToNextOption();
 
@@ -2548,11 +2580,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("completes the withdrawal", async function () {
         const firstStrikePrice = firstOptionStrike;
-        const settlePriceOTM = isPut
-          ? firstStrikePrice.add(100000000)
-          : firstStrikePrice.sub(100000000);
+        const settlePriceITM = isPut
+          ? firstStrikePrice.sub(100000000)
+          : firstStrikePrice.add(100000000);
 
-        await rollToSecondOption(settlePriceOTM);
+        await rollToSecondOption(settlePriceITM);
 
         const pricePerShare = await vault.roundPricePerShare(2);
         const withdrawAmount = depositAmount
