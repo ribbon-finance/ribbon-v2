@@ -220,17 +220,6 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
-
-        // Subtract from an initiated withdraw to prevent double spending
-        if (withdrawal.initiated) {
-            withdrawals[msg.sender].shares = uint128(
-                uint256(withdrawal.shares).sub(
-                    min(withdrawal.shares, sharesLeftForWithdrawal)
-                )
-            );
-        }
-
         emit InstantWithdraw(msg.sender, share, currentRound);
 
         uint256 sharesToUnderlying =

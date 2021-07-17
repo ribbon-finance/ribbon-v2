@@ -2324,29 +2324,6 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, depositAmount, 2);
       });
 
-      it("cancels out previous initiate withdraw", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.connect(userSigner).initiateWithdraw(depositAmount.div(2));
-
-        assert.bnGt(
-          await vault.withdrawals(userSigner.address),
-          BigNumber.from("0")
-        );
-
-        await vault.connect(userSigner).withdrawInstantly(depositAmount);
-
-        assert.bnEqual(
-          await vault.withdrawals(userSigner.address),
-          BigNumber.from("0")
-        );
-      });
-
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract
           .connect(userSigner)
