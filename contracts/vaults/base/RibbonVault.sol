@@ -35,7 +35,7 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint256 public constant period = 7 days;
 
-    uint128 private constant PLACEHOLDER_UINT = 1;
+    uint128 internal constant PLACEHOLDER_UINT = 1;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
@@ -57,16 +57,6 @@ contract RibbonVault is OptionsVaultStorage {
 
     event Deposit(address indexed account, uint256 amount, uint16 round);
 
-    event InitiateWithdraw(address account, uint256 shares, uint16 round);
-
-    event Withdraw(address indexed account, uint256 amount, uint256 share);
-
-    event InstantWithdraw(
-        address indexed account,
-        uint256 amount,
-        uint16 round
-    );
-
     event Redeem(address indexed account, uint256 share, uint16 round);
 
     event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
@@ -76,6 +66,10 @@ contract RibbonVault is OptionsVaultStorage {
     event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
+
+    event Withdraw(address account, uint256 amount, uint256 shares);
+
+    event InitiateWithdraw(address account, uint256 shares, uint16 round);
 
     event CollectVaultFees(
         uint256 performanceFee,
@@ -290,6 +284,82 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /**
+     * @notice Initiates a withdrawal that can be processed once the round completes
+     * @param shares is the number of shares to withdraw
+     */
+    function initiateWithdraw(uint128 shares) external nonReentrant {
+        require(shares > 0, "!shares");
+
+        // We do a max redeem before initiating a withdrawal
+        // But we check if they must first have unredeemed shares
+        if (
+            depositReceipts[msg.sender].amount > 0 ||
+            depositReceipts[msg.sender].unredeemedShares > 0
+        ) {
+            _redeem(0, true);
+        }
+
+        // This caches the `round` variable used in shareBalances
+        uint16 currentRound = vaultState.round;
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+
+        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
+
+        emit InitiateWithdraw(msg.sender, shares, currentRound);
+
+        if (topup) {
+            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
+            require(increasedShares < type(uint128).max, "Overflow");
+            withdrawals[msg.sender].shares = uint128(increasedShares);
+        } else if (!withdrawal.initiated) {
+            withdrawals[msg.sender].initiated = true;
+            withdrawals[msg.sender].shares = shares;
+            withdrawals[msg.sender].round = currentRound;
+        } else {
+            // If we have an old withdrawal, we revert
+            // The user has to process the withdrawal
+            revert("Existing withdraw");
+        }
+
+        vaultState.queuedWithdrawShares = uint128(
+            uint256(vaultState.queuedWithdrawShares).add(shares)
+        );
+
+        _transfer(msg.sender, address(this), shares);
+    }
+
+    /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     */
+    function completeWithdraw() external nonReentrant {
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+
+        require(withdrawal.initiated, "Not initiated");
+        require(withdrawal.round < vaultState.round, "Round not closed");
+
+        // We leave the round number as non-zero to save on gas for subsequent writes
+        withdrawals[msg.sender].initiated = false;
+        withdrawals[msg.sender].shares = 0;
+        vaultState.queuedWithdrawShares = uint128(
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+        );
+
+        uint256 withdrawAmount =
+            ShareMath.sharesToUnderlying(
+                withdrawal.shares,
+                roundPricePerShare[withdrawal.round],
+                vaultParams.decimals
+            );
+
+        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+
+        _burn(address(this), withdrawal.shares);
+
+        require(withdrawAmount > 0, "!withdrawAmount");
+        transferAsset(msg.sender, withdrawAmount);
+    }
+
+    /**
      * @notice Redeems shares that are owed to the account
      * @param shares is the number of shares to redeem
      */
@@ -344,104 +414,6 @@ contract RibbonVault is OptionsVaultStorage {
         _transfer(address(this), msg.sender, shares);
     }
 
-    /**
-     * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
-     * @param amount is the amount to withdraw
-     */
-    function withdrawInstantly(uint256 amount) external nonReentrant {
-        Vault.DepositReceipt storage depositReceipt =
-            depositReceipts[msg.sender];
-
-        uint16 currentRound = vaultState.round;
-        require(amount > 0, "!amount");
-        require(!depositReceipt.processed, "Processed");
-        require(depositReceipt.round == currentRound, "Invalid round");
-        uint104 receiptAmount = depositReceipt.amount;
-        require(receiptAmount >= amount, "Exceed amount");
-
-        // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
-
-        emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        transferAsset(msg.sender, amount);
-    }
-
-    /**
-     * @notice Initiates a withdrawal that can be processed once the round completes
-     * @param shares is the number of shares to withdraw
-     */
-    function initiateWithdraw(uint128 shares) external nonReentrant {
-        require(shares > 0, "!shares");
-
-        // This caches the `round` variable used in shareBalances
-        uint16 currentRound = vaultState.round;
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
-
-        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
-
-        (uint256 heldByAccount, uint256 heldByVault) =
-            shareBalances(msg.sender);
-
-        uint256 vaultRemainder = heldByVault.sub(withdrawal.shares);
-        uint256 totalShares = heldByAccount.add(vaultRemainder);
-
-        require(shares <= totalShares, "Insufficient balance");
-
-        emit InitiateWithdraw(msg.sender, shares, currentRound);
-
-        if (topup) {
-            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
-            require(increasedShares < type(uint128).max, "Overflow");
-            withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (!withdrawal.initiated) {
-            withdrawals[msg.sender].initiated = true;
-            withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = currentRound;
-        } else {
-            // If we have an old withdrawal, we revert
-            // The user has to process the withdrawal
-            revert("Existing withdraw");
-        }
-
-        vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).add(shares)
-        );
-
-        // We need to debit the user's account when they are trying to withdraw
-        // more than what's available in the vault, accounting for previous withdrawals
-        if (shares > vaultRemainder) {
-            uint256 debitShares = uint256(shares).sub(vaultRemainder);
-            _transfer(msg.sender, address(this), debitShares);
-        }
-    }
-
-    /**
-     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
-     */
-    function completeWithdraw() external nonReentrant {
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
-
-        require(withdrawal.initiated, "Not initiated");
-        require(withdrawal.round < vaultState.round, "Round not closed");
-
-        // We leave the round number as non-zero to save on gas for subsequent writes
-        withdrawals[msg.sender].initiated = false;
-        withdrawals[msg.sender].shares = 0;
-
-        uint256 withdrawAmount =
-            ShareMath.sharesToUnderlying(
-                withdrawal.shares,
-                roundPricePerShare[withdrawal.round],
-                vaultParams.decimals
-            );
-
-        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
-
-        require(withdrawAmount > 0, "!withdrawAmount");
-        transferAsset(msg.sender, withdrawAmount);
-    }
-
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -470,10 +442,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      */
-    function _rollToNextOption()
-        internal
-        returns (address, uint256)
-    {
+    function _rollToNextOption() internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
 
         address newOption = optionState.nextOption;
@@ -546,7 +515,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
-    function transferAsset(address payable recipient, uint256 amount) private {
+    function transferAsset(address payable recipient, uint256 amount) internal {
         address asset = vaultParams.asset;
         if (asset == WETH) {
             IWETH(WETH).withdraw(amount);
