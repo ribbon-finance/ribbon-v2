@@ -67,6 +67,10 @@ contract RibbonVault is OptionsVaultStorage {
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
+    event Withdraw(address account, uint256 amount, uint256 shares);
+
+    event InitiateWithdraw(address account, uint256 shares, uint16 round);
+
     event CollectVaultFees(
         uint256 performanceFee,
         uint256 vaultFee,
@@ -277,6 +281,82 @@ contract RibbonVault is OptionsVaultStorage {
         vaultState.totalPending = uint128(
             uint256(vaultState.totalPending).add(amount)
         );
+    }
+
+    /**
+     * @notice Initiates a withdrawal that can be processed once the round completes
+     * @param shares is the number of shares to withdraw
+     */
+    function initiateWithdraw(uint128 shares) external nonReentrant {
+        require(shares > 0, "!shares");
+
+        // We do a max redeem before initiating a withdrawal
+        // But we check if they must first have unredeemed shares
+        if (
+            depositReceipts[msg.sender].amount > 0 ||
+            depositReceipts[msg.sender].unredeemedShares > 0
+        ) {
+            _redeem(0, true);
+        }
+
+        // This caches the `round` variable used in shareBalances
+        uint16 currentRound = vaultState.round;
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+
+        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
+
+        emit InitiateWithdraw(msg.sender, shares, currentRound);
+
+        if (topup) {
+            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
+            require(increasedShares < type(uint128).max, "Overflow");
+            withdrawals[msg.sender].shares = uint128(increasedShares);
+        } else if (!withdrawal.initiated) {
+            withdrawals[msg.sender].initiated = true;
+            withdrawals[msg.sender].shares = shares;
+            withdrawals[msg.sender].round = currentRound;
+        } else {
+            // If we have an old withdrawal, we revert
+            // The user has to process the withdrawal
+            revert("Existing withdraw");
+        }
+
+        vaultState.queuedWithdrawShares = uint128(
+            uint256(vaultState.queuedWithdrawShares).add(shares)
+        );
+
+        _transfer(msg.sender, address(this), shares);
+    }
+
+    /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     */
+    function completeWithdraw() external nonReentrant {
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+
+        require(withdrawal.initiated, "Not initiated");
+        require(withdrawal.round < vaultState.round, "Round not closed");
+
+        // We leave the round number as non-zero to save on gas for subsequent writes
+        withdrawals[msg.sender].initiated = false;
+        withdrawals[msg.sender].shares = 0;
+        vaultState.queuedWithdrawShares = uint128(
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+        );
+
+        uint256 withdrawAmount =
+            ShareMath.sharesToUnderlying(
+                withdrawal.shares,
+                roundPricePerShare[withdrawal.round],
+                vaultParams.decimals
+            );
+
+        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+
+        _burn(address(this), withdrawal.shares);
+
+        require(withdrawAmount > 0, "!withdrawAmount");
+        transferAsset(msg.sender, withdrawAmount);
     }
 
     /**

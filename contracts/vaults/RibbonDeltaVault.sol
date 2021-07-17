@@ -47,7 +47,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         uint256 newOptionAllocationPct
     );
 
-    event Withdraw(address indexed account, uint256 share, uint16 round);
+    event InstantWithdraw(address indexed account, uint256 share, uint16 round);
 
     event PlaceAuctionBid(
         uint256 auctionId,
@@ -190,8 +190,12 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param share is the amount of shares to withdraw
      */
-    function withdraw(uint256 share) external updatePPS(true) nonReentrant {
-        require(share > 0, "!amount");
+    function withdrawInstantly(uint256 share)
+        external
+        updatePPS(true)
+        nonReentrant
+    {
+        require(share > 0, "!shares");
 
         uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
 
@@ -216,7 +220,18 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit Withdraw(msg.sender, share, currentRound);
+        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+
+        // Subtract from an initiated withdraw to prevent double spending
+        if (withdrawal.initiated) {
+            withdrawals[msg.sender].shares = uint128(
+                uint256(withdrawal.shares).sub(
+                    min(withdrawal.shares, sharesLeftForWithdrawal)
+                )
+            );
+        }
+
+        emit InstantWithdraw(msg.sender, share, currentRound);
 
         uint256 sharesToUnderlying =
             ShareMath.sharesToUnderlying(
