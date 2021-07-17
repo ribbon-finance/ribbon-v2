@@ -2369,11 +2369,9 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          parseUnits(firstOptionStrike.toString(), 8)
+          firstOptionStrike
         );
-        await vault.setStrikePrice(
-          parseUnits(secondOptionStrike.toString(), 8)
-        );
+        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(ownerSigner).rollToNextOption();

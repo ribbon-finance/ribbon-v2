@@ -8,6 +8,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+import {Vault} from "./Vault.sol";
+import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 
 library GnosisAuction {
     using SafeMath for uint256;
@@ -184,6 +186,25 @@ library GnosisAuction {
             sellAmount,
             buyAmount,
             bidDetails.bidder
+        );
+    }
+
+    function claimAuctionOtokens(
+        Vault.AuctionSellOrder calldata auctionSellOrder,
+        address gnosisEasyAuction,
+        address counterpartyThetaVault
+    ) internal {
+        bytes32 order =
+            encodeOrder(
+                auctionSellOrder.userId,
+                auctionSellOrder.buyAmount,
+                auctionSellOrder.sellAmount
+            );
+        bytes32[] memory orders = new bytes32[](1);
+        orders[0] = order;
+        IGnosisAuction(gnosisEasyAuction).claimFromParticipantOrder(
+            IRibbonThetaVault(counterpartyThetaVault).optionAuctionID(),
+            orders
         );
     }
 

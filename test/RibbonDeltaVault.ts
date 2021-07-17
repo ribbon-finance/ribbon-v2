@@ -2213,7 +2213,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!shares");
       });
 
       it("reverts when no deposit made", async function () {
@@ -2343,6 +2343,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async () => {
         oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+        await depositIntoVault(
+          params.collateralAsset,
+          thetaVault,
+          params.depositAmount
+        );
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -2398,12 +2403,10 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          parseUnits(firstOptionStrike.toString(), 8)
+          firstOptionStrike
         );
-        await vault.setStrikePrice(secondOptionStrike);
-        await vault.connect(ownerSigner).commitAndClose();
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(ownerSigner).rollToNextOption();
+
+        await rollToNextOption();
 
         await expect(
           vault.initiateWithdraw(depositAmount.div(2))
@@ -2531,6 +2534,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#completeWithdraw", () => {
       time.revertToSnapshotAfterEach(async () => {
+        await depositIntoVault(
+          params.collateralAsset,
+          thetaVault,
+          params.depositAmount
+        );
+
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);

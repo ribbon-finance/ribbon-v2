@@ -465,6 +465,18 @@ library VaultLifecycle {
         return GnosisAuction.placeBid(bidDetails);
     }
 
+    function claimAuctionOtokens(
+        Vault.AuctionSellOrder calldata auctionSellOrder,
+        address gnosisEasyAuction,
+        address counterpartyThetaVault
+    ) external {
+        GnosisAuction.claimAuctionOtokens(
+            auctionSellOrder,
+            gnosisEasyAuction,
+            counterpartyThetaVault
+        );
+    }
+
     function verifyConstructorParams(
         address owner,
         address feeRecipient,

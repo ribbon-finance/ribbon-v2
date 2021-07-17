@@ -305,17 +305,10 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Claims the delta vault's oTokens from latest auction
      */
     function claimAuctionOtokens() external updatePPS(false) nonReentrant {
-        bytes32 order =
-            GnosisAuction.encodeOrder(
-                auctionSellOrder.userId,
-                auctionSellOrder.buyAmount,
-                auctionSellOrder.sellAmount
-            );
-        bytes32[] memory orders = new bytes32[](1);
-        orders[0] = order;
-        IGnosisAuction(GNOSIS_EASY_AUCTION).claimFromParticipantOrder(
-            counterpartyThetaVault.optionAuctionID(),
-            orders
+        VaultLifecycle.claimAuctionOtokens(
+            auctionSellOrder,
+            GNOSIS_EASY_AUCTION,
+            address(counterpartyThetaVault)
         );
     }
 
