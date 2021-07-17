@@ -2198,7 +2198,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#withdraw", () => {
+    describe("#withdrawInstantly", () => {
       let depositAmountAfterPremium: BigNumber;
 
       time.revertToSnapshotAfterEach(async () => {
@@ -2213,11 +2213,11 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.withdraw(0)).to.be.revertedWith("!amount");
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
       });
 
       it("reverts when no deposit made", async function () {
-        await expect(vault.withdraw(depositAmount)).to.be.revertedWith(
+        await expect(vault.withdrawInstantly(depositAmount)).to.be.revertedWith(
           "Insufficient balance"
         );
       });
@@ -2233,9 +2233,9 @@ function behavesLikeRibbonOptionsVault(params: {
         // Move 1 share into account
         await vault.redeem(depositAmount.div(2));
 
-        await expect(vault.withdraw(depositAmount.add(1))).to.be.revertedWith(
-          "Insufficient balance"
-        );
+        await expect(
+          vault.withdrawInstantly(depositAmount.add(1))
+        ).to.be.revertedWith("Insufficient balance");
       });
 
       it("creates withdrawal from current round deposit", async function () {
@@ -2246,7 +2246,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let vaultTokenBalanceBefore = await vault.totalSupply();
 
-        await vault.withdraw(depositAmount);
+        await vault.withdrawInstantly(depositAmount);
 
         let vaultTokenBalanceAfter = await vault.totalSupply();
 
@@ -2268,7 +2268,7 @@ function behavesLikeRibbonOptionsVault(params: {
           startBalance = await assetContract.balanceOf(user);
         }
 
-        const tx = await vault.withdraw(depositAmount);
+        const tx = await vault.withdrawInstantly(depositAmount);
         const receipt = await tx.wait();
 
         if (collateralAsset === WETH_ADDRESS) {
@@ -2296,7 +2296,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, depositAmount, 1);
 
         await expect(tx)
-          .to.emit(vault, "Withdraw")
+          .to.emit(vault, "InstantWithdraw")
           .withArgs(user, depositAmount, 2);
       });
 
@@ -2311,7 +2311,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // Move all shares into account
         await vault.redeem(depositAmount);
 
-        const tx = await vault.withdraw(depositAmount);
+        const tx = await vault.withdrawInstantly(depositAmount);
 
         let vaultTokenBalanceAfter = await vault.totalSupply();
 
@@ -2320,8 +2320,31 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(tx).to.not.emit(vault, "Redeem");
 
         await expect(tx)
-          .to.emit(vault, "Withdraw")
+          .to.emit(vault, "InstantWithdraw")
           .withArgs(user, depositAmount, 2);
+      });
+
+      it("cancels out previous initiate withdraw", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.connect(userSigner).initiateWithdraw(depositAmount.div(2));
+
+        assert.bnGt(
+          await vault.withdrawals(userSigner.address),
+          BigNumber.from("0")
+        );
+
+        await vault.connect(userSigner).withdrawInstantly(depositAmount);
+
+        assert.bnEqual(
+          await vault.withdrawals(userSigner.address),
+          BigNumber.from("0")
+        );
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2332,9 +2355,298 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        const tx = await vault.withdraw(depositAmountAfterPremium);
+        const tx = await vault.withdrawInstantly(depositAmountAfterPremium);
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 115000);
+      });
+    });
+
+    describe("#initiateWithdraw", () => {
+      let oracle: Contract;
+
+      time.revertToSnapshotAfterEach(async () => {
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      });
+
+      it("reverts when user initiates withdraws without any deposit", async function () {
+        await expect(vault.initiateWithdraw(depositAmount)).to.be.revertedWith(
+          "ERC20: transfer amount exceeds balance"
+        );
+      });
+
+      it("reverts when passed 0 shares", async function () {
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("!shares");
+      });
+
+      it("reverts when withdrawing more than unredeemed balance", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.add(1))
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      });
+
+      it("reverts when withdrawing more than vault + account balance", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        // Move 1 share into account
+        await vault.redeem(1);
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.add(1))
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      });
+
+      it("reverts when initiating with past existing withdrawal", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount.div(2));
+
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          parseUnits(firstOptionStrike.toString(), 8)
+        );
+        await vault.setStrikePrice(secondOptionStrike);
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(ownerSigner).rollToNextOption();
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.div(2))
+        ).to.be.revertedWith("Existing withdraw");
+      });
+
+      it("creates withdrawal from unredeemed shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.initiateWithdraw(depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "InitiateWithdraw")
+          .withArgs(user, depositAmount, 2);
+
+        await expect(tx)
+          .to.emit(vault, "Transfer")
+          .withArgs(vault.address, user, depositAmount);
+
+        const { initiated, round, shares } = await vault.withdrawals(user);
+        assert.isTrue(initiated);
+        assert.equal(round, 2);
+        assert.bnEqual(shares, depositAmount);
+      });
+
+      it("creates withdrawal by debiting user shares", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.redeem(depositAmount.div(2));
+
+        const tx = await vault.initiateWithdraw(depositAmount);
+
+        await expect(tx)
+          .to.emit(vault, "InitiateWithdraw")
+          .withArgs(user, depositAmount, 2);
+
+        // First we redeem the leftover amount
+        await expect(tx)
+          .to.emit(vault, "Transfer")
+          .withArgs(vault.address, user, depositAmount.div(2));
+
+        // Then we debit the shares from the user
+        await expect(tx)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount);
+
+        assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
+        assert.bnEqual(await vault.balanceOf(vault.address), depositAmount);
+
+        const { initiated, round, shares } = await vault.withdrawals(user);
+        assert.isTrue(initiated);
+        assert.equal(round, 2);
+        assert.bnEqual(shares, depositAmount);
+      });
+
+      it("tops up existing withdrawal", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx1 = await vault.initiateWithdraw(depositAmount.div(2));
+
+        // We redeem the full amount on the first initiateWithdraw
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(vault.address, user, depositAmount);
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(2));
+
+        const tx2 = await vault.initiateWithdraw(depositAmount.div(2));
+
+        await expect(tx2)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(2));
+
+        const { initiated, round, shares } = await vault.withdrawals(user);
+        assert.isTrue(initiated);
+        assert.equal(round, 2);
+        assert.bnEqual(shares, depositAmount);
+      });
+
+      it("reverts when there is insufficient balance over multiple calls", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount.div(2));
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.div(2).add(1))
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx = await vault.initiateWithdraw(depositAmount);
+        const receipt = await tx.wait();
+        assert.isAtMost(receipt.gasUsed.toNumber(), 104000);
+        // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
+      });
+    });
+
+    describe("#completeWithdraw", () => {
+      time.revertToSnapshotAfterEach(async () => {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await assetContract.connect(userSigner).transfer(owner, depositAmount);
+        await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(ownerSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(depositAmount);
+      });
+
+      it("reverts when not initiated", async function () {
+        await expect(
+          vault.connect(ownerSigner).completeWithdraw()
+        ).to.be.revertedWith("Not initiated");
+      });
+
+      it("reverts when round not closed", async function () {
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
+          "Round not closed"
+        );
+      });
+
+      it("reverts when calling completeWithdraw twice", async function () {
+        await rollToSecondOption(firstOptionStrike);
+
+        await vault.completeWithdraw();
+
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
+          "Not initiated"
+        );
+      });
+
+      it("completes the withdrawal", async function () {
+        const firstStrikePrice = firstOptionStrike;
+        const settlePriceITM = isPut
+          ? firstStrikePrice.sub(100000000)
+          : firstStrikePrice.add(100000000);
+
+        await rollToSecondOption(settlePriceITM);
+
+        const pricePerShare = await vault.roundPricePerShare(2);
+        const withdrawAmount = depositAmount
+          .mul(pricePerShare)
+          .div(BigNumber.from(10).pow(await vault.decimals()));
+
+        let beforeBalance: BigNumber;
+        if (collateralAsset === WETH_ADDRESS) {
+          beforeBalance = await provider.getBalance(user);
+        } else {
+          beforeBalance = await assetContract.balanceOf(user);
+        }
+
+        const tx = await vault.completeWithdraw({ gasPrice });
+        const receipt = await tx.wait();
+        const gasFee = receipt.gasUsed.mul(gasPrice);
+
+        await expect(tx)
+          .to.emit(vault, "Withdraw")
+          .withArgs(user, withdrawAmount.toString(), depositAmount);
+
+        if (collateralAsset !== WETH_ADDRESS) {
+          const collateralERC20 = await getContractAt(
+            "IERC20",
+            collateralAsset
+          );
+
+          await expect(tx)
+            .to.emit(collateralERC20, "Transfer")
+            .withArgs(vault.address, user, withdrawAmount);
+        }
+
+        const { initiated, shares, round } = await vault.withdrawals(user);
+        assert.isFalse(initiated);
+        assert.equal(shares, 0);
+        assert.equal(round, 2);
+
+        let actualWithdrawAmount: BigNumber;
+        if (collateralAsset === WETH_ADDRESS) {
+          const afterBalance = await provider.getBalance(user);
+          actualWithdrawAmount = afterBalance.sub(beforeBalance).add(gasFee);
+        } else {
+          const afterBalance = await assetContract.balanceOf(user);
+          actualWithdrawAmount = afterBalance.sub(beforeBalance);
+        }
+        // Should be less because the pps is down
+        assert.bnLt(actualWithdrawAmount, depositAmount);
+        assert.bnEqual(actualWithdrawAmount, withdrawAmount);
       });
     });
 
