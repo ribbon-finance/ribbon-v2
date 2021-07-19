@@ -4,19 +4,18 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-
-import {DSMath} from "../vendor/DSMath.sol";
-import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
-import {Vault} from "../libraries/Vault.sol";
-import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../libraries/ShareMath.sol";
+import {SafeERC20} from "../../vendor/CustomSafeERC20.sol";
+import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {
+    OptionsDeltaYearnVaultStorage
+} from "../../storage/OptionsVaultYearnStorage.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 
-contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
+contract RibbonDeltaYearnVault is RibbonVault, OptionsDeltaYearnVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -97,6 +96,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         string memory tokenSymbol,
         address _counterpartyThetaVault,
         uint256 _optionAllocationPct,
+        address _yearnRegistry,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -106,6 +106,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _performanceFee,
             tokenName,
             tokenSymbol,
+            _yearnRegistry,
             _vaultParams
         );
         require(
@@ -148,11 +149,10 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
             uint256 singleShare = 10**uint256(vaultParams.decimals);
-            roundPricePerShare[vaultState.round] = VaultLifecycle.getPPS(
+            roundPricePerShare[vaultState.round] = VaultLifecycleYearn.getPPS(
                 totalSupply(),
                 roundStartBalance,
-                singleShare,
-                vaultParams.initialSharePrice
+                singleShare
             );
         }
 
@@ -190,8 +190,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param share is the amount of shares to withdraw
+     * @param keepWrapped is whether to withdraw in the yield token
      */
-    function withdrawInstantly(uint256 share)
+    function withdrawInstantly(uint256 share, bool keepWrapped)
         external
         updatePPS(true)
         nonReentrant
@@ -223,13 +224,19 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
         emit InstantWithdraw(msg.sender, share, currentRound);
 
-        uint256 sharesToUnderlying =
+        uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 share,
                 roundPricePerShare[vaultState.round],
                 vaultParams.decimals
             );
-        transferAsset(msg.sender, sharesToUnderlying);
+
+        if (!keepWrapped) {
+            _withdrawYieldAndBaseToken(withdrawAmount);
+        } else {
+            _unwrapYieldToken(withdrawAmount);
+            transferAsset(msg.sender, withdrawAmount);
+        }
     }
 
     /************************************************
@@ -255,7 +262,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         // redeem
         if (oldOption != address(0)) {
             uint256 profitAmount =
-                VaultLifecycle.settleLong(
+                VaultLifecycleYearn.settleLong(
                     GAMMA_CONTROLLER,
                     oldOption,
                     vaultParams.asset
@@ -293,7 +300,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
         // place bid
         (uint256 sellAmount, uint256 buyAmount, uint64 userId) =
-            VaultLifecycle.placeBid(bidDetails);
+            VaultLifecycleYearn.placeBid(bidDetails);
 
         auctionSellOrder.sellAmount = uint96(sellAmount);
         auctionSellOrder.buyAmount = uint96(buyAmount);
@@ -306,7 +313,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Claims the delta vault's oTokens from latest auction
      */
     function claimAuctionOtokens() external updatePPS(false) nonReentrant {
-        VaultLifecycle.claimAuctionOtokens(
+        VaultLifecycleYearn.claimAuctionOtokens(
             auctionSellOrder,
             GNOSIS_EASY_AUCTION,
             address(counterpartyThetaVault)
