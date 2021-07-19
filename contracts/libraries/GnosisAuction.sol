@@ -52,15 +52,12 @@ library GnosisAuction {
         address bidder;
     }
 
-    function startAuction(AuctionDetails memory auctionDetails)
+    function startAuction(AuctionDetails calldata auctionDetails)
         internal
         returns (uint256 auctionID)
     {
         uint256 oTokenSellAmount =
-            getOTokenSellAmount(
-                auctionDetails.oTokenAddress,
-                auctionDetails.gnosisEasyAuction
-            );
+            getOTokenSellAmount(auctionDetails.oTokenAddress);
 
         if (
             IERC20(auctionDetails.oTokenAddress).allowance(
@@ -125,7 +122,7 @@ library GnosisAuction {
         );
     }
 
-    function placeBid(BidDetails memory bidDetails)
+    function placeBid(BidDetails calldata bidDetails)
         internal
         returns (
             uint256 sellAmount,
@@ -208,18 +205,14 @@ library GnosisAuction {
         );
     }
 
-    function getOTokenSellAmount(
-        address oTokenAddress,
-        address gnosisEasyAuction
-    ) internal view returns (uint256 oTokenSellAmount) {
-        IGnosisAuction auction = IGnosisAuction(gnosisEasyAuction);
-        // We take our current oToken balance and we subtract an
-        // amount that is the fee gnosis takes. That will be our sell amount
+    function getOTokenSellAmount(address oTokenAddress)
+        internal
+        view
+        returns (uint256 oTokenSellAmount)
+    {
+        // We take our current oToken balance. That will be our sell amount
         // but gnosis will transfer all the otokens
-        oTokenSellAmount = IERC20(oTokenAddress)
-            .balanceOf(address(this))
-            .mul(auction.FEE_DENOMINATOR())
-            .div(auction.FEE_DENOMINATOR().add(auction.feeNumerator()));
+        oTokenSellAmount = IERC20(oTokenAddress).balanceOf(address(this));
 
         require(
             oTokenSellAmount <= type(uint96).max,

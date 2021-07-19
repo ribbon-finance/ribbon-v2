@@ -447,14 +447,14 @@ library VaultLifecycle {
         return otoken;
     }
 
-    function startAuction(GnosisAuction.AuctionDetails memory auctionDetails)
+    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
         external
         returns (uint256)
     {
         return GnosisAuction.startAuction(auctionDetails);
     }
 
-    function placeBid(GnosisAuction.BidDetails memory bidDetails)
+    function placeBid(GnosisAuction.BidDetails calldata bidDetails)
         external
         returns (
             uint256,
