@@ -193,7 +193,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         require(receiptAmount >= amount, "Exceed amount");
 
         if (!keepWrapped) {
-            _withdrawYieldAndBaseToken(amount);
+            _withdrawYieldAndBaseToken(payable(feeRecipient), amount);
         } else {
             // Unwraps necessary amount of yield token
             _unwrapYieldToken(amount);
@@ -318,8 +318,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyOwner nonReentrant {
-        // Wrap entire `asset` balance to `collateralToken` balance
-        _wrapToYieldToken();
         uint256 numOTokensToBurn =
             IERC20(optionState.currentOption).balanceOf(address(this));
         if (numOTokensToBurn > 0) {
@@ -332,6 +330,9 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
                 uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
             );
         }
+
+        // Wrap entire `asset` balance to `collateralToken` balance
+        _wrapToYieldToken();
     }
 
     /**
