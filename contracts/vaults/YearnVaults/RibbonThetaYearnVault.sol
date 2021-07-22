@@ -193,7 +193,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         require(receiptAmount >= amount, "Exceed amount");
 
         if (!keepWrapped) {
-            _withdrawYieldAndBaseToken(payable(feeRecipient), amount);
+            _withdrawYieldAndBaseToken(feeRecipient, amount);
         } else {
             // Unwraps necessary amount of yield token
             _unwrapYieldToken(amount);
