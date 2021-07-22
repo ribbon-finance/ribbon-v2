@@ -154,10 +154,10 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         managementFee = _managementFee.div(uint256(365).div(7));
         vaultParams = _vaultParams;
 
-        require(_yearnRegistry != address(0), "!_yearnRegistry");
+        require(_yearnRegistry != address(0), "!yearnRegistry");
         address collateralAddr =
             IYearnRegistry(_yearnRegistry).latestVault(_vaultParams.asset);
-        require(collateralAddr != address(0), "!_collateralToken");
+        require(collateralAddr != address(0), "!collateralToken");
         collateralToken = IYearnVault(collateralAddr);
 
         vaultState.round = 1;
@@ -419,10 +419,10 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
      * @param amount is the withdraw amount in `asset`
      * @return withdrawAmount is the withdraw amount in `collateralToken`
      */
-    function _withdrawYieldAndBaseToken(
-        address payable recipient,
-        uint256 amount
-    ) internal returns (uint256 withdrawAmount) {
+    function _withdrawYieldAndBaseToken(address recipient, uint256 amount)
+        internal
+        returns (uint256 withdrawAmount)
+    {
         uint256 pricePerYearnShare = collateralToken.pricePerShare();
         withdrawAmount = wdiv(amount, pricePerYearnShare.mul(_decimalShift()));
         uint256 yieldTokenBalance =
@@ -445,10 +445,10 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
      */
-    function _withdrawYieldToken(
-        address payable recipient,
-        uint256 withdrawAmount
-    ) private returns (uint256 yieldTokenBalance) {
+    function _withdrawYieldToken(address recipient, uint256 withdrawAmount)
+        private
+        returns (uint256 yieldTokenBalance)
+    {
         yieldTokenBalance = IERC20(address(collateralToken)).balanceOf(
             address(this)
         );
@@ -469,7 +469,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
      * @param pricePerYearnShare is the yvWETH<->WETH price ratio
      */
     function _withdrawBaseToken(
-        address payable recipient,
+        address recipient,
         uint256 withdrawAmount,
         uint256 yieldTokenBalance,
         uint256 pricePerYearnShare
@@ -479,7 +479,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
                 withdrawAmount.sub(yieldTokenBalance),
                 pricePerYearnShare.mul(_decimalShift())
             );
-        transferAsset(recipient, underlyingTokensToWithdraw);
+        transferAsset(payable(recipient), underlyingTokensToWithdraw);
     }
 
     /**
@@ -679,7 +679,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         }
 
         if (vaultFee > 0) {
-            _withdrawYieldAndBaseToken(payable(feeRecipient), vaultFee);
+            _withdrawYieldAndBaseToken(feeRecipient, vaultFee);
             emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
         }
     }
