@@ -996,7 +996,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when setting 0 to setManagementFee", async function () {
         await expect(
           vault.connect(ownerSigner).setManagementFee("0")
-        ).to.be.revertedWith("Invalid management fee");
+        ).to.be.revertedWith("Invalid m. fee");
       });
 
       it("reverts when not owner call", async function () {
@@ -1022,7 +1022,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when setting 0 to setPerformanceFee", async function () {
         await expect(
           vault.connect(ownerSigner).setPerformanceFee("0")
-        ).to.be.revertedWith("Invalid performance fee");
+        ).to.be.revertedWith("Invalid p. fee");
       });
 
       it("reverts when not owner call", async function () {
@@ -1384,13 +1384,13 @@ function behavesLikeRibbonOptionsVault(params: {
         // will revert when trying to roll immediately
         await expect(
           vault.connect(ownerSigner).rollToNextOption(optionPremium)
-        ).to.be.revertedWith("Not ready");
+        ).to.be.revertedWith("!ready");
 
         await time.increaseTo((await getNextOptionReadyAt()) - 100);
 
         await expect(
           vault.connect(ownerSigner).rollToNextOption(optionPremium)
-        ).to.be.revertedWith("Not ready");
+        ).to.be.revertedWith("!ready");
       });
 
       it("places bid on oTokens and gains possession after auction settlement", async function () {

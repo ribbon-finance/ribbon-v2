@@ -122,8 +122,11 @@ library VaultLifecycle {
 
     function rollover(
         uint256 currentSupply,
-        Vault.VaultParams calldata vaultParams,
-        Vault.VaultState calldata vaultState
+        address asset,
+        uint8 decimals,
+        uint256 initialSharePrice,
+        uint256 pendingAmount,
+        uint128 queuedWithdrawShares
     )
         external
         view
@@ -133,18 +136,17 @@ library VaultLifecycle {
             uint256 mintShares
         )
     {
-        uint256 pendingAmount = uint256(vaultState.totalPending);
         uint256 currentBalance =
-            IERC20(vaultParams.asset).balanceOf(address(this));
+            IERC20(asset).balanceOf(address(this));
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**uint256(vaultParams.decimals);
+        uint256 singleShare = 10**uint256(decimals);
 
         newPricePerShare = getPPS(
             currentSupply,
             roundStartBalance,
             singleShare,
-            vaultParams.initialSharePrice
+            initialSharePrice
         );
 
         // After closing the short, if the options expire in-the-money
@@ -159,14 +161,14 @@ library VaultLifecycle {
         // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? uint256(vaultState.queuedWithdrawShares)
+                ? uint256(queuedWithdrawShares)
                     .mul(currentBalance)
                     .div(newSupply)
                 : 0;
 
         uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
-        return (balanceSansQueued, newPricePerShare, _mintShares);
+        return (currentBalance.sub(queuedWithdrawAmount), newPricePerShare, _mintShares);
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70

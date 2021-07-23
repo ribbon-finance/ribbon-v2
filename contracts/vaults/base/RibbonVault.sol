@@ -163,7 +163,7 @@ contract RibbonVault is OptionsVaultStorage {
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(
             newManagementFee > 0 && newManagementFee < 100 * 10**6,
-            "Invalid management fee"
+            "Invalid m. fee"
         );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
@@ -181,7 +181,7 @@ contract RibbonVault is OptionsVaultStorage {
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(
             newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
-            "Invalid performance fee"
+            "Invalid p. fee"
         );
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
@@ -463,13 +463,20 @@ contract RibbonVault is OptionsVaultStorage {
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      */
     function _rollToNextOption() internal returns (address, uint256) {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
+        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
         (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
-            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
+            VaultLifecycle.rollover(
+                totalSupply(), 
+                vaultParams.asset,
+                vaultParams.decimals,
+                vaultParams.initialSharePrice,
+                uint256(vaultState.totalPending),
+                vaultState.queuedWithdrawShares
+        );
 
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
