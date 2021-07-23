@@ -140,9 +140,11 @@ library VaultLifecycle {
 
         uint256 singleShare = 10**uint256(vaultParams.decimals);
 
-        newPricePerShare = currentSupply > 0
-            ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : vaultParams.initialSharePrice;
+        newPricePerShare = getPPS(
+            currentSupply,
+            roundStartBalance,
+            singleShare
+        );
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
@@ -445,11 +447,34 @@ library VaultLifecycle {
         return otoken;
     }
 
-    function startAuction(GnosisAuction.AuctionDetails memory auctionDetails)
+    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
         external
         returns (uint256)
     {
         return GnosisAuction.startAuction(auctionDetails);
+    }
+
+    function placeBid(GnosisAuction.BidDetails calldata bidDetails)
+        external
+        returns (
+            uint256,
+            uint256,
+            uint64
+        )
+    {
+        return GnosisAuction.placeBid(bidDetails);
+    }
+
+    function claimAuctionOtokens(
+        Vault.AuctionSellOrder calldata auctionSellOrder,
+        address gnosisEasyAuction,
+        address counterpartyThetaVault
+    ) external {
+        GnosisAuction.claimAuctionOtokens(
+            auctionSellOrder,
+            gnosisEasyAuction,
+            counterpartyThetaVault
+        );
     }
 
     function verifyConstructorParams(
@@ -495,6 +520,16 @@ library VaultLifecycle {
         uint256 friday8am =
             (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
+    }
+
+    function getPPS(
+        uint256 currentSupply,
+        uint256 roundStartBalance,
+        uint256 singleShare
+    ) internal pure returns (uint256 newPricePerShare) {
+        newPricePerShare = currentSupply > 0
+            ? singleShare.mul(roundStartBalance).div(currentSupply)
+            : vaultParams.initialSharePrice;
     }
 
     /***

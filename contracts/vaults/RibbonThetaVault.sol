@@ -53,6 +53,12 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         uint256 newAuctionDuration
     );
 
+    event InstantWithdraw(
+        address indexed account,
+        uint256 amount,
+        uint16 round
+    );
+
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
@@ -162,6 +168,31 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         auctionDuration = newAuctionDuration;
     }
 
+    /**
+     * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
+     * @param amount is the amount to withdraw
+     */
+    function withdrawInstantly(uint256 amount) external nonReentrant {
+        Vault.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
+
+        uint16 currentRound = vaultState.round;
+        require(amount > 0, "!amount");
+
+        require(!depositReceipt.processed, "Processed");
+        require(depositReceipt.round == currentRound, "Invalid round");
+
+        uint104 receiptAmount = depositReceipt.amount;
+        require(receiptAmount >= amount, "Exceed amount");
+
+        // Subtraction underflow checks already ensure it is smaller than uint104
+        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
+
+        emit InstantWithdraw(msg.sender, amount, currentRound);
+
+        transferAsset(msg.sender, amount);
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -227,31 +258,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external nonReentrant {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
-
-        address newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
-
-        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
-            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
-
-        optionState.currentOption = newOption;
-        optionState.nextOption = address(0);
-
-        // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
-
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+        (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
         vaultState.lockedAmount = uint104(lockedBalance);
-        vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
-
-        _mint(address(this), mintShares);
 
         VaultLifecycle.createShort(
             GAMMA_CONTROLLER,
