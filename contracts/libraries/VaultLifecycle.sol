@@ -143,7 +143,8 @@ library VaultLifecycle {
         newPricePerShare = getPPS(
             currentSupply,
             roundStartBalance,
-            singleShare
+            singleShare,
+            vaultParams.initialSharePrice
         );
 
         // After closing the short, if the options expire in-the-money
@@ -525,11 +526,12 @@ library VaultLifecycle {
     function getPPS(
         uint256 currentSupply,
         uint256 roundStartBalance,
-        uint256 singleShare
+        uint256 singleShare,
+        uint256 initialSharePrice
     ) internal pure returns (uint256 newPricePerShare) {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : vaultParams.initialSharePrice;
+            : initialSharePrice;
     }
 
     /***

@@ -151,7 +151,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             roundPricePerShare[vaultState.round] = VaultLifecycle.getPPS(
                 totalSupply(),
                 roundStartBalance,
-                singleShare
+                singleShare,
+                vaultParams.initialSharePrice
             );
         }
 
