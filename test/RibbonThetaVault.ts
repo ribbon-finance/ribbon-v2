@@ -70,8 +70,7 @@ describe("RibbonThetaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    initialSharePrice: BigNumber.from("10").pow("8")
-      .add(BigNumber.from("10").pow("7")).toString(),
+    initialSharePrice: BigNumber.from("10").pow("8").mul("2").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     auctionDuration: 21600,
     isPut: false,
@@ -98,8 +97,7 @@ describe("RibbonThetaVault", () => {
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    initialSharePrice: BigNumber.from("10").pow("18")
-      .add(BigNumber.from("10").pow("17")).toString(),
+    initialSharePrice: BigNumber.from("10").pow("18").mul("2").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
@@ -131,8 +129,7 @@ describe("RibbonThetaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    initialSharePrice: BigNumber.from("10").pow("6")
-      .add(BigNumber.from("10").pow("5")).toString(),
+    initialSharePrice: BigNumber.from("10").pow("6").mul("2").toString(),
     expectedMintAmount: BigNumber.from("370370"),
     auctionDuration: 21600,
     isPut: true,
@@ -162,8 +159,7 @@ describe("RibbonThetaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    initialSharePrice: BigNumber.from("10").pow("6")
-      .add(BigNumber.from("10").pow("5")).toString(),
+    initialSharePrice: BigNumber.from("10").pow("6").mul("2").toString(),
     expectedMintAmount: BigNumber.from("5263157894"),
     auctionDuration: 21600,
     tokenDecimals: 6,
@@ -1968,7 +1964,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(ownerSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 860000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 863000);
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2444,7 +2440,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx)
           .to.emit(vault, "Transfer")
-          .withArgs(vault.address, user, depositAmount);
+          .withArgs(vault.address, user, expectedShareBalance);
 
         const { initiated, round, shares } = await vault.withdrawals(user);
         assert.isTrue(initiated);
@@ -2475,7 +2471,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // First we redeem the leftover amount
         await expect(tx)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, expectedShareBalance.div(2));
+          .withArgs(vault.address, user, expectedShareBalance.div(2));
 
         // Then we debit the shares from the user
         await expect(tx)
@@ -2503,37 +2499,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .mul(BigNumber.from(10).pow(await vault.decimals()))
             .div(params.initialSharePrice);
 
-        await vault.initiateWithdraw(expectedShareBalance.div(2));
-
-        const tx = await vault.initiateWithdraw(expectedShareBalance.div(2));
-
-        await expect(tx).to.not.emit(vault, "Transfer");
-
-        const { initiated, round, shares } = await vault.withdrawals(user);
-        assert.isTrue(initiated);
-        assert.equal(round, 2);
-        assert.bnEqual(shares, expectedShareBalance);
-      });
-
-      it("tops up existing withdrawal and debits user", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        const expectedShareBalance = params.depositAmount
-            .mul(BigNumber.from(10).pow(await vault.decimals()))
-            .div(params.initialSharePrice);
-
-        await vault.initiateWithdraw(expectedShareBalance.div(2));
-
-        // Redeem 1/2, so we need to transfer 1/2 in the initiateWithdraw call
-        await vault.redeem(expectedShareBalance.div(2));
-
         const tx1 = await vault.initiateWithdraw(expectedShareBalance.div(2));
-
         // We redeem the full amount on the first initiateWithdraw
         await expect(tx1)
           .to.emit(vault, "Transfer")
@@ -2542,8 +2508,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Transfer")
           .withArgs(user, vault.address, expectedShareBalance.div(2));
 
-        const tx2 = await vault.initiateWithdraw(depositAmount.div(2));
-
+        const tx2 = await vault.initiateWithdraw(expectedShareBalance.div(2));
         await expect(tx2)
           .to.emit(vault, "Transfer")
           .withArgs(user, vault.address, expectedShareBalance.div(2));
@@ -2836,7 +2801,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        assert.bnEqual(await vault.accountVaultBalance(user), BigNumber.from(depositAmount).sub(1));
+        assert.bnEqual(await vault.accountVaultBalance(user), BigNumber.from(depositAmount));
 
         await assetContract.connect(userSigner).transfer(owner, depositAmount);
         await assetContract
@@ -2845,7 +2810,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).deposit(depositAmount);
 
         // remain the same after deposit
-        assert.bnEqual(await vault.accountVaultBalance(user), BigNumber.from(depositAmount).sub(1));
+        assert.bnEqual(await vault.accountVaultBalance(user), BigNumber.from(depositAmount));
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(100000000000)
@@ -2856,7 +2821,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToSecondOption(settlementPriceITM);
 
         // Minus 1 due to rounding errors from share price != 1
-        assert.bnLt(await vault.accountVaultBalance(user), BigNumber.from(depositAmount).sub(1));
+        assert.bnLt(await vault.accountVaultBalance(user), BigNumber.from(depositAmount));
       });
     });
 
