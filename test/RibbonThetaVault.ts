@@ -1794,7 +1794,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // will revert when trying to roll immediately
         await expect(
           vault.connect(ownerSigner).rollToNextOption()
-        ).to.be.revertedWith("Not ready");
+        ).to.be.revertedWith("!ready");
 
         time.increaseTo(
           (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
@@ -1802,7 +1802,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).rollToNextOption()
-        ).to.be.revertedWith("Not ready");
+        ).to.be.revertedWith("!ready");
       });
 
       it("reverts when calling before expiry", async function () {
