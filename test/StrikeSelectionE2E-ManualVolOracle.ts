@@ -10,7 +10,7 @@ import {
   OptionsPremiumPricer_BYTECODE,
   ManualVolOracle_BYTECODE,
 } from "./helpers/constants";
-const { provider, getContractFactory } = ethers;
+const { getContractFactory } = ethers;
 
 describe("StrikeSelectionE2E-ManualVolOracle", () => {
   let volOracle: Contract;
