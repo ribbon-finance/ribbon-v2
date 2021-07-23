@@ -29,7 +29,7 @@
   },
   "resolutions": {
     "elliptic": "6.5.4",
-    "lodash": "4.17.21",
+    "lodash": "4.17.20",
     "underscore": "1.12.1"
   },
   "scripts": {
