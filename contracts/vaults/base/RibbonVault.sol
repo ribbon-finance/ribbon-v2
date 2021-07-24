@@ -163,7 +163,7 @@ contract RibbonVault is OptionsVaultStorage {
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(
             newManagementFee > 0 && newManagementFee < 100 * 10**6,
-            "Invalid management fee"
+            "Invalid m. fee"
         );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
@@ -181,7 +181,7 @@ contract RibbonVault is OptionsVaultStorage {
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(
             newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
-            "Invalid performance fee"
+            "Invalid p. fee"
         );
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
@@ -210,19 +210,38 @@ contract RibbonVault is OptionsVaultStorage {
         require(vaultParams.asset == WETH, "!WETH");
         require(msg.value > 0, "!value");
 
-        _deposit(msg.value);
+        _depositFor(msg.value, msg.sender);
 
         IWETH(WETH).deposit{value: msg.value}();
     }
 
     /**
-     * @notice Deposits the `asset` into the contract and mint vault shares.
+     * @notice Deposits the `asset` from msg.sender.
      * @param amount is the amount of `asset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _deposit(amount);
+        _depositFor(amount, msg.sender);
+
+        IERC20(vaultParams.asset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+    }
+        
+    /**
+     * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
+     * @notice Used for vault -> vault deposits on the user's behalf
+     * @param amount is the amount of `asset` to deposit
+     * @param creditor is the address that can claim/withdraw deposited amount
+     */
+    function depositFor(uint256 amount, address creditor) external nonReentrant {
+        require(amount > 0, "!amount");
+        require(creditor != address(0));
+
+        _depositFor(amount, creditor);
 
         IERC20(vaultParams.asset).safeTransferFrom(
             msg.sender,
@@ -232,10 +251,11 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Mints the vault shares to the msg.sender
+     * @notice Mints the vault shares to the creditor
      * @param amount is the amount of `asset` deposited
+     * @param creditor is the address to receieve the deposit 
      */
-    function _deposit(uint256 amount) private {
+    function _depositFor(uint256 amount, address creditor) private {
         uint16 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
@@ -245,10 +265,10 @@ contract RibbonVault is OptionsVaultStorage {
             "Insufficient balance"
         );
 
-        emit Deposit(msg.sender, amount, currentRound);
+        emit Deposit(creditor, amount, currentRound);
 
         Vault.DepositReceipt memory depositReceipt =
-            depositReceipts[msg.sender];
+            depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint128 unredeemedShares =
@@ -271,7 +291,7 @@ contract RibbonVault is OptionsVaultStorage {
             ShareMath.assertUint104(amount);
         }
 
-        depositReceipts[msg.sender] = Vault.DepositReceipt({
+        depositReceipts[creditor] = Vault.DepositReceipt({
             processed: false,
             round: currentRound,
             amount: depositAmount,
@@ -443,13 +463,20 @@ contract RibbonVault is OptionsVaultStorage {
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      */
     function _rollToNextOption() internal returns (address, uint256) {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
+        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
         (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
-            VaultLifecycle.rollover(totalSupply(), vaultParams, vaultState);
+            VaultLifecycle.rollover(
+                totalSupply(), 
+                vaultParams.asset,
+                vaultParams.decimals,
+                vaultParams.initialSharePrice,
+                uint256(vaultState.totalPending),
+                vaultState.queuedWithdrawShares
+        );
 
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
