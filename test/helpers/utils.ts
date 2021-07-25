@@ -203,25 +203,27 @@ export async function setOpynOracleExpiryPrice(
 
 export async function setOpynOracleExpiryPriceYearn(
   underlyingAsset: string,
-  underlyingOracle: SignerWithAddress,
+  underlyingOracle: Contract,
   underlyingSettlePrice: BigNumber,
-  collateralPricer: SignerWithAddress,
+  collateralPricer: Contract,
+  owner: string,
   expiry: BigNumber
 ) {
-  await time.increaseTo(parseInt(expiry) + ORACLE_LOCKING_PERIOD + 1);
+  const ownerSigner = await ethers.provider.getSigner(owner);
 
-  const res = await underlyingOracle.setExpiryPrice(
-    underlyingAsset,
-    expiry,
-    underlyingSettlePrice
-  );
+  await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
+
+  const res = await underlyingOracle
+    .connect(ownerSigner)
+    .setExpiryPrice(underlyingAsset, expiry, underlyingSettlePrice);
   await res.wait();
-  const res2 = await collateralPricer.setExpiryPriceInOracle(expiry);
+  const res2 = await collateralPricer
+    .connect(ownerSigner)
+    .setExpiryPriceInOracle(expiry);
   const receipt = await res2.wait();
 
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
-
-  await time.increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+  await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
 }
 
 export async function mintToken(
