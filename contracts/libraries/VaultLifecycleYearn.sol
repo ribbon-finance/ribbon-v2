@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -501,6 +502,189 @@ library VaultLifecycleYearn {
     }
 
     /**
+     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param amount is the withdraw amount in `asset`
+     * @return withdrawAmount is the withdraw amount in `collateralToken`
+     */
+    function withdrawYieldAndBaseToken(
+        address weth,
+        address asset,
+        address collateralToken,
+        address recipient,
+        uint256 amount
+    ) internal returns (uint256 withdrawAmount) {
+        uint256 pricePerYearnShare =
+            IYearnVault(collateralToken).pricePerShare();
+        withdrawAmount = dswdiv(
+            amount,
+            pricePerYearnShare.mul(decimalShift(collateralToken))
+        );
+        uint256 yieldTokenBalance =
+            withdrawYieldToken(collateralToken, recipient, withdrawAmount);
+
+        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
+        // transfers the rest in `asset`
+        if (withdrawAmount > yieldTokenBalance) {
+            withdrawBaseToken(
+                weth,
+                asset,
+                collateralToken,
+                recipient,
+                withdrawAmount,
+                yieldTokenBalance,
+                pricePerYearnShare
+            );
+        }
+    }
+
+    /**
+     * @notice Withdraws yvWETH from vault
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     */
+    function withdrawYieldToken(
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount
+    ) internal returns (uint256 yieldTokenBalance) {
+        IERC20 collateral = IERC20(collateralToken);
+
+        yieldTokenBalance = collateral.balanceOf(address(this));
+        uint256 yieldTokensToWithdraw =
+            dsmin(yieldTokenBalance, withdrawAmount);
+        if (yieldTokensToWithdraw > 0) {
+            collateral.safeTransfer(recipient, yieldTokensToWithdraw);
+        }
+    }
+
+    /**
+     * @notice Withdraws `asset` from vault
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
+     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
+     */
+    function withdrawBaseToken(
+        address weth,
+        address asset,
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount,
+        uint256 yieldTokenBalance,
+        uint256 pricePerYearnShare
+    ) internal {
+        uint256 underlyingTokensToWithdraw =
+            dsmul(
+                withdrawAmount.sub(yieldTokenBalance),
+                pricePerYearnShare.mul(decimalShift(collateralToken))
+            );
+        transferAsset(
+            weth,
+            asset,
+            payable(recipient),
+            underlyingTokensToWithdraw
+        );
+    }
+
+    /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to vault
+     * @param amount is the amount of `asset` to withdraw
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param yearnWithdrawalBuffer is the buffer for withdrawals from yearn vault
+     * @param yearnWithdrawalSlippage is the slippage for withdrawals from yearn vault
+     */
+    function unwrapYieldToken(
+        uint256 amount,
+        address asset,
+        address collateralToken,
+        uint256 yearnWithdrawalBuffer,
+        uint256 yearnWithdrawalSlippage
+    ) internal {
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        IYearnVault collateral = IYearnVault(collateralToken);
+
+        uint256 amountToUnwrap =
+            dswdiv(
+                dsmax(assetBalance, amount).sub(assetBalance),
+                collateral.pricePerShare().mul(decimalShift(collateralToken))
+            );
+
+        if (amountToUnwrap > 0) {
+            amountToUnwrap = amountToUnwrap.add(
+                amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000)
+            );
+            collateral.withdraw(
+                amountToUnwrap,
+                address(this),
+                yearnWithdrawalSlippage
+            );
+        }
+    }
+
+    /**
+     * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     */
+    function wrapToYieldToken(address asset, address collateralToken) internal {
+        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
+
+        IERC20(asset).safeApprove(collateralToken, amountToWrap);
+
+        // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+        // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+        // at that point in time.
+        // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+        // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
+        IYearnVault(collateralToken).deposit(amountToWrap, address(this));
+    }
+
+    /**
+     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param recipient is the receiving address
+     * @param amount is the transfer amount
+     */
+    function transferAsset(
+        address weth,
+        address asset,
+        address payable recipient,
+        uint256 amount
+    ) internal {
+        if (asset == weth) {
+            IWETH(weth).withdraw(amount);
+            (bool success, ) = recipient.call{value: amount}("");
+            require(success, "!success");
+            return;
+        }
+        IERC20(asset).safeTransfer(recipient, amount);
+    }
+
+    /**
+     * @notice Returns the decimal shift between 18 decimals and asset tokens
+     * @param collateralToken is the address of the collateral token
+     */
+    function decimalShift(address collateralToken)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
+    }
+
+    /**
      * @notice Gets the next options expiry timestamp
      */
     function getNextFriday(uint256 currentExpiry)
@@ -550,5 +734,13 @@ library VaultLifecycleYearn {
     //rounds to zero if x*y < WAD / 2
     function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
         z = dsadd(dsmul(x, DSWAD), y / 2) / y;
+    }
+
+    function dsmin(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        return x <= y ? x : y;
+    }
+
+    function dsmax(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        return x >= y ? x : y;
     }
 }

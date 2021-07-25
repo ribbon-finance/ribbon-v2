@@ -13,10 +13,10 @@ import {
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
+import {DSMath} from "../../../vendor/DSMath.sol";
 import {IOtoken} from "../../../interfaces/GammaInterface.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../../../interfaces/IGnosisAuction.sol";
-import {DSMath} from "../../../vendor/DSMath.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -259,7 +259,12 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         require(amount > 0, "!amount");
 
         uint256 collateralToAssetBalance =
-            wmul(amount, collateralToken.pricePerShare().mul(_decimalShift()));
+            wmul(
+                amount,
+                collateralToken.pricePerShare().mul(
+                    VaultLifecycleYearn.decimalShift(address(collateralToken))
+                )
+            );
 
         _deposit(collateralToAssetBalance);
 
@@ -392,13 +397,27 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
             );
 
         if (!keepWrapped) {
-            withdrawAmount = _withdrawYieldAndBaseToken(
+            withdrawAmount = VaultLifecycleYearn.withdrawYieldAndBaseToken(
+                WETH,
+                vaultParams.asset,
+                address(collateralToken),
                 msg.sender,
                 withdrawAmount
             );
         } else {
-            _unwrapYieldToken(withdrawAmount);
-            transferAsset(msg.sender, withdrawAmount);
+            VaultLifecycleYearn.unwrapYieldToken(
+                withdrawAmount,
+                vaultParams.asset,
+                address(collateralToken),
+                YEARN_WITHDRAWAL_BUFFER,
+                YEARN_WITHDRAWAL_SLIPPAGE
+            );
+            VaultLifecycleYearn.transferAsset(
+                WETH,
+                vaultParams.asset,
+                msg.sender,
+                withdrawAmount
+            );
         }
 
         require(withdrawAmount > 0, "!withdrawAmount");
@@ -411,118 +430,6 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         );
 
         _burn(address(this), withdrawal.shares);
-    }
-
-    /**
-     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
-     * @param recipient is the recipient
-     * @param amount is the withdraw amount in `asset`
-     * @return withdrawAmount is the withdraw amount in `collateralToken`
-     */
-    function _withdrawYieldAndBaseToken(address recipient, uint256 amount)
-        internal
-        returns (uint256 withdrawAmount)
-    {
-        uint256 pricePerYearnShare = collateralToken.pricePerShare();
-        withdrawAmount = wdiv(amount, pricePerYearnShare.mul(_decimalShift()));
-        uint256 yieldTokenBalance =
-            _withdrawYieldToken(recipient, withdrawAmount);
-
-        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
-        // transfers the rest in `asset`
-        if (withdrawAmount > yieldTokenBalance) {
-            _withdrawBaseToken(
-                recipient,
-                withdrawAmount,
-                yieldTokenBalance,
-                pricePerYearnShare
-            );
-        }
-    }
-
-    /**
-     * @notice Withdraws yvWETH from vault
-     * @param recipient is the recipient
-     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     */
-    function _withdrawYieldToken(address recipient, uint256 withdrawAmount)
-        private
-        returns (uint256 yieldTokenBalance)
-    {
-        yieldTokenBalance = IERC20(address(collateralToken)).balanceOf(
-            address(this)
-        );
-        uint256 yieldTokensToWithdraw = min(yieldTokenBalance, withdrawAmount);
-        if (yieldTokensToWithdraw > 0) {
-            IERC20(address(collateralToken)).safeTransfer(
-                recipient,
-                yieldTokensToWithdraw
-            );
-        }
-    }
-
-    /**
-     * @notice Withdraws `asset` from vault
-     * @param recipient is the recipient
-     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
-     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
-     */
-    function _withdrawBaseToken(
-        address recipient,
-        uint256 withdrawAmount,
-        uint256 yieldTokenBalance,
-        uint256 pricePerYearnShare
-    ) private {
-        uint256 underlyingTokensToWithdraw =
-            wmul(
-                withdrawAmount.sub(yieldTokenBalance),
-                pricePerYearnShare.mul(_decimalShift())
-            );
-        transferAsset(payable(recipient), underlyingTokensToWithdraw);
-    }
-
-    /**
-     * @notice Unwraps the necessary amount of the yield-bearing yearn token
-     *         and transfers amount to vault
-     * @param amount is the amount of `asset` to withdraw
-     */
-    function _unwrapYieldToken(uint256 amount) internal {
-        uint256 assetBalance =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-        uint256 amountToUnwrap =
-            wdiv(
-                max(assetBalance, amount).sub(assetBalance),
-                collateralToken.pricePerShare().mul(_decimalShift())
-            );
-
-        if (amountToUnwrap > 0) {
-            amountToUnwrap = amountToUnwrap.add(
-                amountToUnwrap.mul(YEARN_WITHDRAWAL_BUFFER).div(10000)
-            );
-            collateralToken.withdraw(
-                amountToUnwrap,
-                address(this),
-                YEARN_WITHDRAWAL_SLIPPAGE
-            );
-        }
-    }
-
-    /**
-     * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
-     */
-    function _wrapToYieldToken() internal {
-        address asset = vaultParams.asset;
-        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
-
-        IERC20(asset).safeApprove(address(collateralToken), amountToWrap);
-
-        // there is a slight imprecision with regards to calculating back from yearn token -> underlying
-        // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
-        // at that point in time.
-        // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
-        // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
-        collateralToken.deposit(amountToWrap, address(this));
     }
 
     /**
@@ -638,7 +545,10 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         _mint(address(this), mintShares);
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        _wrapToYieldToken();
+        VaultLifecycleYearn.wrapToYieldToken(
+            vaultParams.asset,
+            address(collateralToken)
+        );
 
         return (newOption, lockedBalance);
     }
@@ -679,25 +589,15 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         }
 
         if (vaultFee > 0) {
-            _withdrawYieldAndBaseToken(feeRecipient, vaultFee);
+            VaultLifecycleYearn.withdrawYieldAndBaseToken(
+                WETH,
+                vaultParams.asset,
+                address(collateralToken),
+                feeRecipient,
+                vaultFee
+            );
             emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
         }
-    }
-
-    /**
-     * @notice Helper function to make either an ETH transfer or ERC20 transfer
-     * @param recipient is the receiving address
-     * @param amount is the transfer amount
-     */
-    function transferAsset(address payable recipient, uint256 amount) internal {
-        address asset = vaultParams.asset;
-        if (asset == WETH) {
-            IWETH(WETH).withdraw(amount);
-            (bool success, ) = recipient.call{value: amount}("");
-            require(success, "!success");
-            return;
-        }
-        IERC20(asset).safeTransfer(recipient, amount);
     }
 
     /************************************************
@@ -779,7 +679,11 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
                 .add(
                 wdiv(
                     collateralToken.balanceOf(address(this)),
-                    collateralToken.pricePerShare().mul(_decimalShift())
+                    collateralToken.pricePerShare().mul(
+                        VaultLifecycleYearn.decimalShift(
+                            address(collateralToken)
+                        )
+                    )
                 )
             );
     }
@@ -789,13 +693,6 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
      */
     function decimals() public view override returns (uint8) {
         return vaultParams.decimals;
-    }
-
-    /**
-     * @notice Returns the decimal shift between 18 decimals and asset tokens
-     */
-    function _decimalShift() internal view returns (uint256) {
-        return 10**(uint256(18).sub(collateralToken.decimals()));
     }
 
     function cap() external view returns (uint256) {
