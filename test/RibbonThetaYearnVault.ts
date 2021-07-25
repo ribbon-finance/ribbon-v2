@@ -57,7 +57,7 @@ const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
 const wbtcPriceOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
 const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
-describe("RibbonThetaVault", () => {
+describe("RibbonThetaYearnVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Theta Vault (Call)`,
     tokenName: "Ribbon ETH Theta Vault",
@@ -96,7 +96,6 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IERC20",
     collateralContractName: "IYearnVault",
     strikeAsset: USDC_ADDRESS,
-    collateralContractName: "IYearnVault",
     collateralAsset: Y_USDC_ADDRESS,
     depositAsset: USDC_ADDRESS,
     collateralPricer: YEARN_USDC_PRICER,
@@ -165,9 +164,12 @@ function behavesLikeRibbonOptionsVault(params: {
   tokenDecimals: number;
   asset: string;
   assetContractName: string;
+  collateralContractName: string;
+  depositAsset: string;
   strikeAsset: string;
   collateralAsset: string;
-  chainlinkPricer: string;
+  collateralPricer: string;
+  underlyingPricer: string;
   deltaFirstOption: BigNumber;
   deltaSecondOption: BigNumber;
   deltaStep: BigNumber;
@@ -223,8 +225,9 @@ function behavesLikeRibbonOptionsVault(params: {
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
   let assetContract: Contract;
+  let collateralContract: Contract;
   let decimalDiff: BigNumber;
-  let collateralPricerSigner: SignerWithAddress;
+  let collateralPricerSigner: Contract;
 
   // Variables
   let defaultOtokenAddress: string;
@@ -254,6 +257,7 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle,
         settlementPrice,
         collateralPricerSigner,
+        ownerSigner.address,
         await getCurrentOptionExpiry()
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
@@ -335,8 +339,10 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
-      vaultLifecycleLib = await VaultLifecycle.deploy();
+      const VaultLifecycleYearn = await ethers.getContractFactory(
+        "VaultLifecycleYearn"
+      );
+      vaultLifecycleLib = await VaultLifecycleYearn.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -391,14 +397,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
       vault = (
         await deployProxy(
-          "RibbonThetaVaultYearn",
+          "RibbonThetaYearnVault",
           adminSigner,
           initializeTypes,
           initializeArgs,
           deployArgs,
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleLib.address,
             },
           }
         )
@@ -494,8 +500,20 @@ function behavesLikeRibbonOptionsVault(params: {
         depositAsset
       );
 
+      collateralContract = await getContractAt(
+        params.collateralContractName,
+        collateralAsset
+      );
+
       decimalDiff = BigNumber.from(10).pow(
         18 - parseInt((await assetContract.decimals()).toString())
+      );
+
+      await setAssetPricer(collateralAsset, params.collateralPricer);
+
+      collateralPricerSigner = await getAssetPricer(
+        params.collateralPricer,
+        ownerSigner
       );
 
       // If mintable token, then mine the token
@@ -520,13 +538,6 @@ function behavesLikeRibbonOptionsVault(params: {
       }
     });
 
-    await setAssetPricer(collateralAsset, params.collateralPricer);
-
-    collateralPricerSigner = await getAssetPricer(
-      params.collateralPricer,
-      userSigner
-    );
-
     after(async () => {
       await time.revertToSnapShot(initSnapshotId);
     });
@@ -536,7 +547,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async function () {
         const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaVaultYearn",
+          "RibbonThetaYearnVault",
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
@@ -1934,6 +1945,7 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           settlementPriceITM,
           collateralPricerSigner,
+          ownerSigner.address,
           await getCurrentOptionExpiry()
         );
 
@@ -2086,6 +2098,7 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           settlementPriceOTM,
           collateralPricerSigner,
+          ownerSigner.address,
           await getCurrentOptionExpiry()
         );
 
@@ -2306,6 +2319,7 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           settlementPriceITM,
           collateralPricerSigner,
+          ownerSigner.address,
           await getCurrentOptionExpiry()
         );
 
@@ -2701,6 +2715,7 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           firstOptionStrike,
           collateralPricerSigner,
+          ownerSigner.address,
           await getCurrentOptionExpiry()
         );
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
