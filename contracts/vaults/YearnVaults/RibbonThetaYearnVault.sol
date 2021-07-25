@@ -193,11 +193,28 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         require(receiptAmount >= amount, "Exceed amount");
 
         if (!keepWrapped) {
-            _withdrawYieldAndBaseToken(feeRecipient, amount);
+            VaultLifecycleYearn.withdrawYieldAndBaseToken(
+                WETH,
+                vaultParams.asset,
+                address(collateralToken),
+                feeRecipient,
+                amount
+            );
         } else {
             // Unwraps necessary amount of yield token
-            _unwrapYieldToken(amount);
-            transferAsset(msg.sender, amount);
+            VaultLifecycleYearn.unwrapYieldToken(
+                amount,
+                vaultParams.asset,
+                address(collateralToken),
+                YEARN_WITHDRAWAL_BUFFER,
+                YEARN_WITHDRAWAL_SLIPPAGE
+            );
+            VaultLifecycleYearn.transferAsset(
+                WETH,
+                vaultParams.asset,
+                msg.sender,
+                amount
+            );
         }
 
         // Subtraction underflow checks already ensure it is smaller than uint104
@@ -205,7 +222,12 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
-        transferAsset(msg.sender, amount);
+        VaultLifecycleYearn.transferAsset(
+            WETH,
+            vaultParams.asset,
+            msg.sender,
+            amount
+        );
     }
 
     /************************************************
@@ -286,7 +308,9 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
             newOption,
             wdiv(
                 lockedBalance,
-                collateralToken.pricePerShare().mul(_decimalShift())
+                collateralToken.pricePerShare().mul(
+                    VaultLifecycleYearn.decimalShift(address(collateralToken))
+                )
             )
         );
 
@@ -332,7 +356,10 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         }
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        _wrapToYieldToken();
+        VaultLifecycleYearn.wrapToYieldToken(
+            vaultParams.asset,
+            address(collateralToken)
+        );
     }
 
     /**
