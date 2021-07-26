@@ -305,9 +305,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
-            // No deposits allowed until the next round
-            require(!depositReceipt.processed, "Processed");
-
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
             depositAmount = newAmount;
         }
@@ -371,7 +368,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
-        depositReceipts[msg.sender].processed = true;
         depositReceipts[msg.sender].unredeemedShares = uint128(
             uint256(unredeemedShares).sub(shares)
         );
@@ -391,7 +387,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
-        require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
         uint104 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
@@ -425,18 +420,19 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // This caches the `round` variable used in shareBalances
         uint16 currentRound = vaultState.round;
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
+        bool topup = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
+        uint withdrawalShares = uint(withdrawal.shares);
+
         if (topup) {
-            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
-            require(increasedShares < type(uint128).max, "Overflow");
+            uint256 increasedShares = withdrawalShares.add(shares);
+            ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (!withdrawal.initiated) {
-            withdrawals[msg.sender].initiated = true;
+        } else if (withdrawalShares == 0) {
             withdrawals[msg.sender].shares = shares;
             withdrawals[msg.sender].round = currentRound;
         } else {
@@ -456,28 +452,31 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
     function completeWithdraw() external nonReentrant {
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        require(withdrawal.initiated, "Not initiated");
+        uint16 withdrawalRound = withdrawal.round;
+        uint withdrawalShares = withdrawal.shares;
+
+        require(withdrawalShares > 0, "Not initiated");
         require(withdrawal.round < vaultState.round, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].initiated = false;
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
         );
 
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
-                withdrawal.shares,
-                roundPricePerShare[withdrawal.round],
+                withdrawalShares,
+                roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
             );
 
-        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
-        _burn(address(this), withdrawal.shares);
+        _burn(address(this), withdrawalShares);
 
         require(withdrawAmount > 0, "!withdrawAmount");
         transferAsset(msg.sender, withdrawAmount);
