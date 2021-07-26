@@ -677,29 +677,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!asset");
       });
 
-      it("reverts when decimals is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            [
-              isPut,
-              0,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!tokenDecimals");
-      });
-
       it("reverts when minimumSupply is 0", async function () {
         await expect(
           testVault.initialize(
@@ -1235,7 +1212,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const receipt = await res.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 685000);
-        // console.log("commitAndClose", receipt.gasUsed.toNumber());
+        console.log(params.name, "commitAndClose", receipt.gasUsed.toNumber());
       });
     });
 
