@@ -424,8 +424,8 @@ library VaultLifecycle {
         pure
         returns (uint256)
     {
-        // dayOfWeek = 1 (monday) - 7 (sunday)
-        uint256 dayOfWeek = ((currentExpiry / 86400) + 4) % 7;
+        // dayOfWeek = 0 (sunday) - 6 (saturday)
+        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
         uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
         uint256 friday8am =
             nextFriday - (nextFriday % (24 hours)) + (8 hours);
