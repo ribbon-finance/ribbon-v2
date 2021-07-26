@@ -36,18 +36,6 @@ library GnosisAuction {
                 auctionDetails.gnosisEasyAuction
             );
 
-        if (
-            IERC20(auctionDetails.oTokenAddress).allowance(
-                address(this),
-                auctionDetails.gnosisEasyAuction
-            ) > 0
-        ) {
-            IERC20(auctionDetails.oTokenAddress).safeApprove(
-                auctionDetails.gnosisEasyAuction,
-                0
-            );
-        }
-
         IERC20(auctionDetails.oTokenAddress).safeApprove(
             auctionDetails.gnosisEasyAuction,
             IERC20(auctionDetails.oTokenAddress).balanceOf(address(this))
