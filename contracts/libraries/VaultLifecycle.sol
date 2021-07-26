@@ -34,8 +34,8 @@ library VaultLifecycle {
 
     function commitAndClose(
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
-        Vault.VaultState calldata vaultState
+        Vault.VaultParams storage vaultParams,
+        Vault.VaultState storage vaultState
     )
         external
         returns (
@@ -59,28 +59,24 @@ library VaultLifecycle {
         IStrikeSelection selection =
             IStrikeSelection(vaultParams.strikeSelection);
 
+        bool isPut = vaultParams.isPut;
+        address underlying = vaultParams.underlying;
+        address asset = vaultParams.asset;
+
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, vaultParams.isPut);
+            : selection.getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         otokenAddress = getOrDeployOtoken(
-            closeParams.OTOKEN_FACTORY,
-            vaultParams.underlying,
-            closeParams.USDC,
-            vaultParams.asset,
+            closeParams,
+            underlying,
+            asset,
             strikePrice,
             expiry,
-            vaultParams.isPut
-        );
-
-        verifyOtoken(
-            otokenAddress,
-            vaultParams,
-            closeParams.USDC,
-            closeParams.delay
+            isPut
         );
 
         premium = GnosisAuction.getOTokenPremium(
@@ -92,28 +88,10 @@ library VaultLifecycle {
         require(premium > 0, "!premium");
     }
 
-    function verifyOtoken(
-        address otokenAddress,
-        Vault.VaultParams calldata vaultParams,
-        address USDC,
-        uint256 delay
-    ) private view {
+    function verifyOtoken(address otokenAddress, uint256 delay) private view {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
-        require(
-            otoken.underlyingAsset() == vaultParams.underlying,
-            "Wrong underlyingAsset"
-        );
-        require(
-            otoken.collateralAsset() == vaultParams.asset,
-            "Wrong collateralAsset"
-        );
-
-        // we just assume all options use USDC as the strike
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
-
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
@@ -150,8 +128,6 @@ library VaultLifecycle {
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
-        // TODO: We need to use the pps of the round they scheduled the withdrawal
-        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
         uint256 queuedWithdrawAmount =
             newSupply > 0
                 ? uint256(vaultState.queuedWithdrawShares)
@@ -366,20 +342,19 @@ library VaultLifecycle {
     }
 
     function getOrDeployOtoken(
-        address otokenFactory,
+        CloseParams calldata closeParams,
         address underlying,
-        address strikeAsset,
         address collateralAsset,
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(otokenFactory);
+        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
 
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                strikeAsset,
+                closeParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -393,12 +368,15 @@ library VaultLifecycle {
         address otoken =
             factory.createOtoken(
                 underlying,
-                strikeAsset,
+                closeParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
             );
+
+        verifyOtoken(otoken, closeParams.delay);
+
         return otoken;
     }
 
