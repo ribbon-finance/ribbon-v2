@@ -79,6 +79,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _yearnRegistry is the address of the yearn registry from token to vault token
      */
     constructor(
         address _weth,
@@ -86,14 +87,16 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _yearnRegistry
     )
         RibbonVault(
             _weth,
             _usdc,
             _gammaController,
             _marginPool,
-            _gnosisEasyAuction
+            _gnosisEasyAuction,
+            _yearnRegistry
         )
     {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
@@ -114,7 +117,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         address _strikeSelection,
         uint32 _premiumDiscount,
         uint256 _auctionDuration,
-        address _yearnRegistry,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -124,7 +126,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
             _performanceFee,
             tokenName,
             tokenSymbol,
-            _yearnRegistry,
             _vaultParams
         );
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");

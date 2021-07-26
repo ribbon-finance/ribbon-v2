@@ -375,7 +375,6 @@ function behavesLikeRibbonOptionsVault(params: {
         strikeSelection.address,
         premiumDiscount,
         auctionDuration,
-        YEARN_REGISTRY_ADDRESS,
         [
           isPut,
           tokenDecimals,
@@ -393,6 +392,7 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER,
         MARGIN_POOL,
         GNOSIS_EASY_AUCTION,
+        YEARN_REGISTRY_ADDRESS,
       ];
 
       vault = (
@@ -621,7 +621,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -647,7 +646,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -673,7 +671,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -699,7 +696,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -725,7 +721,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -751,7 +746,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               0,
@@ -777,7 +771,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -803,7 +796,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            YEARN_REGISTRY_ADDRESS,
             [
               isPut,
               tokenDecimals,

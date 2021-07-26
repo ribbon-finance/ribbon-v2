@@ -58,6 +58,9 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
+    // Yearn registry contract
+    address public immutable YEARN_REGISTRY;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -100,26 +103,29 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-
+     * @param _yearnRegistry is the address of the yearn registry from token to vault token
      */
     constructor(
         address _weth,
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _yearnRegistry
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_yearnRegistry != address(0), "!_yearnRegistry");
 
         WETH = _weth;
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+        YEARN_REGISTRY = _yearnRegistry;
     }
 
     /**
@@ -132,7 +138,6 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         uint256 _performanceFee,
         string memory tokenName,
         string memory tokenSymbol,
-        address _yearnRegistry,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
         VaultLifecycleYearn.verifyConstructorParams(
@@ -154,11 +159,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         managementFee = _managementFee.div(uint256(365).div(7));
         vaultParams = _vaultParams;
 
-        require(_yearnRegistry != address(0), "!yearnRegistry");
-        address collateralAddr =
-            IYearnRegistry(_yearnRegistry).latestVault(_vaultParams.asset);
-        require(collateralAddr != address(0), "!collateralToken");
-        collateralToken = IYearnVault(collateralAddr);
+        _upgradeYearnVault();
 
         vaultState.round = 1;
     }
@@ -598,6 +599,28 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
             );
             emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
         }
+    }
+
+    /*
+      Upgrades the vault to point to the latest yearn vault for the asset token
+    */
+    function upgradeYearnVault() external onlyOwner {
+        // Unwrap old yvUSDC
+        VaultLifecycleYearn.unwrapYieldToken(
+            collateralToken.balanceOf(address(this)),
+            vaultParams.asset,
+            address(collateralToken),
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
+        _upgradeYearnVault();
+    }
+
+    function _upgradeYearnVault() internal {
+        address collateralAddr =
+            IYearnRegistry(YEARN_REGISTRY).latestVault(vaultParams.asset);
+        require(collateralAddr != address(0), "!collateralToken");
+        collateralToken = IYearnVault(collateralAddr);
     }
 
     /************************************************
