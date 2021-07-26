@@ -60,7 +60,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     event Deposit(address indexed account, uint256 amount, uint256 round);
 
-    event InitiateWithdraw(address account, uint256 shares, uint16 round);
+    event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
 
@@ -419,7 +419,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         }
 
         // This caches the `round` variable used in shareBalances
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         bool topup = withdrawal.round == currentRound;
@@ -434,7 +434,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
             withdrawals[msg.sender].shares = uint128(increasedShares);
         } else if (withdrawalShares == 0) {
             withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = currentRound;
+            withdrawals[msg.sender].round = uint16(currentRound);
         } else {
             // If we have an old withdrawal, we revert
             // The user has to process the withdrawal
@@ -635,12 +635,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = vaultState.round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = vaultState.round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = PLACEHOLDER_UINT;
+            require(roundPricePerShare[uint16(index)] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            roundPricePerShare[uint16(index)] = PLACEHOLDER_UINT;
         }
     }
 
