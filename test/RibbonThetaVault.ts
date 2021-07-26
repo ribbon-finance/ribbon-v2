@@ -1857,8 +1857,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, params.depositAmount, 1);
 
-        const { processed, round, amount, unredeemedShares } =
-          await vault.depositReceipts(user);
+        const { round, amount, unredeemedShares } = await vault.depositReceipts(
+          user
+        );
 
         assert.equal(round, 1);
         assert.bnEqual(amount, BigNumber.from(0));
