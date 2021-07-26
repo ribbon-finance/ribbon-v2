@@ -457,14 +457,13 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 withdrawalShares = withdrawal.shares;
         uint256 pricePerShare = roundPricePerShare[withdrawal.round];
 
-        // Optimization: instead of checking withdrawal.initiated, we check that the shares is not 0
+        // This checks if there is a withdrawal
         require(withdrawalShares > 0, "Not initiated");
 
         // Optimization: instead of checking withdrawal.round < round, we check that the pricePerShare is already set
         require(pricePerShare > PLACEHOLDER_UINT, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
-        withdrawals[msg.sender].initiated = false;
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
             uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
