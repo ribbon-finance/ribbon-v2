@@ -8,18 +8,14 @@ import {
     OptionsDeltaVaultStorageV1
 } from "./OptionsVaultStorage.sol";
 
-abstract contract OptionsVaultYearnStorageV1 is OptionsVaultStorageV1 {
-    // Yearn vault contract
-    IYearnVault public collateralToken;
-}
-
 abstract contract OptionsThetaYearnVaultStorageV1 is
     OptionsThetaVaultStorageV1
 {}
 
-abstract contract OptionsDeltaYearnVaultStorageV1 is
-    OptionsDeltaVaultStorageV1
-{}
+abstract contract OptionsVaultYearnStorageV1 is OptionsVaultStorageV1 {
+    // Yearn vault contract
+    IYearnVault public collateralToken;
+}
 
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of OptionsVaultStorage
@@ -31,8 +27,4 @@ abstract contract OptionsVaultYearnStorage is OptionsVaultYearnStorageV1 {
 
 abstract contract OptionsThetaYearnVaultStorage is
     OptionsThetaYearnVaultStorageV1
-{}
-
-abstract contract OptionsDeltaYearnVaultStorage is
-    OptionsDeltaYearnVaultStorageV1
 {}
