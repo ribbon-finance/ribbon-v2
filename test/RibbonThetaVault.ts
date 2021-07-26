@@ -1211,8 +1211,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 685000);
-        console.log(params.name, "commitAndClose", receipt.gasUsed.toNumber());
+        assert.isAtMost(receipt.gasUsed.toNumber(), 675000);
+        // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
 
