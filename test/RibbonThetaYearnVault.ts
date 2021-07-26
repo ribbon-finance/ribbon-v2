@@ -3023,6 +3023,23 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#upgradeYearnVault", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not owner", async function () {
+        await expect(
+          vault.connect(userSigner).upgradeYearnVault()
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("should unwrap the old yearn token", async function () {
+        let balanceBefore = await assetContract.balanceOf(vault.address);
+        await vault.connect(ownerSigner).upgradeYearnVault();
+        let balanceAfter = await assetContract.balanceOf(vault.address);
+        assert.bnAbove(balanceAfter, balanceBefore);
+      });
+    });
+
     describe("#setStrikePrice", () => {
       time.revertToSnapshotAfterEach();
 
