@@ -527,7 +527,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(BigNumber.from(365).div(7)).toString()
+          managementFee.div(365).div(7)
         );
         assert.equal(
           (await vault.performanceFee()).toString(),
@@ -752,7 +752,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("returns the management fee", async function () {
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(BigNumber.from(365).div(7)).toString()
+          managementFee.div(365).div(7).toString()
         );
       });
     });
@@ -807,7 +807,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .setManagementFee(BigNumber.from("1000000").toString());
         assert.equal(
           (await vault.managementFee()).toString(),
-          BigNumber.from("1000000").mul(7).div(365).toString()
+          BigNumber.from("1000000").div(365).div(7).toString()
         );
       });
     });
@@ -815,10 +815,9 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#setPerformanceFee", () => {
       time.revertToSnapshotAfterTest();
 
-      it("reverts when setting 0 to setPerformanceFee", async function () {
-        await expect(
-          vault.connect(ownerSigner).setPerformanceFee("0")
-        ).to.be.revertedWith("Invalid performance fee");
+      it("setPerformanceFee to 0", async function () {
+        await vault.connect(ownerSigner).setPerformanceFee(0);
+        assert.bnEqual(await vault.performanceFee(), BigNumber.from(0));
       });
 
       it("reverts when not owner call", async function () {
@@ -881,7 +880,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 90100);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 90200);
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
@@ -1861,7 +1860,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const { processed, round, amount, unredeemedShares } =
           await vault.depositReceipts(user);
 
-        assert.isTrue(processed);
         assert.equal(round, 1);
         assert.bnEqual(amount, BigNumber.from(0));
         assert.bnEqual(unredeemedShares, BigNumber.from(0));
@@ -1967,12 +1965,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(owner, params.depositAmount, 1);
 
         const {
-          processed: processed1,
           round: round1,
           amount: amount1,
           unredeemedShares: unredeemedShares1,
         } = await vault.depositReceipts(owner);
-        assert.isTrue(processed1);
         assert.equal(round1, 1);
         assert.bnEqual(amount1, BigNumber.from(0));
         assert.bnEqual(unredeemedShares1, BigNumber.from(0));
@@ -1986,12 +1982,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, expectedMintAmountAfterLoss, 2);
 
         const {
-          processed: processed2,
           round: round2,
           amount: amount2,
           unredeemedShares: unredeemedShares2,
         } = await vault.depositReceipts(user);
-        assert.isTrue(processed2);
         assert.equal(round2, 2);
         assert.bnEqual(amount2, BigNumber.from(0));
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
@@ -2055,13 +2049,11 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, redeemAmount, 1);
 
         const {
-          processed: processed1,
           round: round1,
           amount: amount1,
           unredeemedShares: unredeemedShares1,
         } = await vault.depositReceipts(user);
 
-        assert.isTrue(processed1);
         assert.equal(round1, 1);
         assert.bnEqual(amount1, BigNumber.from(0));
         assert.bnEqual(unredeemedShares1, depositAmount.sub(redeemAmount));
@@ -2073,13 +2065,11 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, depositAmount.sub(redeemAmount), 1);
 
         const {
-          processed: processed2,
           round: round2,
           amount: amount2,
           unredeemedShares: unredeemedShares2,
         } = await vault.depositReceipts(user);
 
-        assert.isTrue(processed2);
         assert.equal(round2, 1);
         assert.bnEqual(amount2, BigNumber.from(0));
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
@@ -2121,7 +2111,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.withdrawInstantly(depositAmount.add(1))
-        ).to.be.revertedWith("Processed");
+        ).to.be.revertedWith("Invalid round");
       });
 
       it("reverts when withdrawing next round", async function () {

@@ -173,7 +173,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.mul(7).div(365);
+        managementFee = _managementFee.div(365).div(7);
         vaultParams = _vaultParams;
 
         vaultState.round = 1;
@@ -217,7 +217,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.mul(7).div(365);
+        managementFee = newManagementFee.div(365).div(7);
     }
 
     /**
@@ -604,15 +604,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 numOTokensToBurn =
             IERC20(optionState.currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
-        uint256 assetBalanceBeforeBurn =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-        VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        uint256 assetBalanceAfterBurn =
-            IERC20(vaultParams.asset).balanceOf(address(this));
+
+        uint256 collateralReturned =
+            VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(
-                assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
-            )
+            uint256(vaultState.lockedAmount).sub(collateralReturned)
         );
     }
 
@@ -668,17 +665,13 @@ contract RibbonThetaVault is OptionsVaultStorage {
             currentLockedBalance.sub(vaultState.totalPending) > prevLockedAmount
         ) {
             uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? currentLockedBalance
-                        .sub(vaultState.totalPending)
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * 10**6)
-                    : 0;
+                currentLockedBalance
+                    .sub(vaultState.totalPending)
+                    .sub(prevLockedAmount)
+                    .mul(performanceFee)
+                    .div(100 * 10**6);
             uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
-                    : 0;
+                currentLockedBalance.mul(managementFee).div(100 * 10**6);
 
             vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
         }
