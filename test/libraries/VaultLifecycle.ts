@@ -38,6 +38,26 @@ describe("VaultLifecycle", () => {
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
+    it("gets the first Friday, given the day of week is Sunday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      // The block we're hardcoded to is a Friday so we add 1 day to get to Sunday
+      const sunday = currentTime.add(2, "days");
+
+      const expectedFriday = moment(sunday)
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(8); // needs to be 8am UTC
+
+      const nextFriday = await lifecycle.getNextFriday(sunday.unix());
+      const fridayDate = moment.unix(nextFriday);
+      assert.equal(fridayDate.weekday(), 5);
+
+      assert.isTrue(fridayDate.isSame(expectedFriday));
+    });
+
     it("gets the first Friday, given the day of week is Thursday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
