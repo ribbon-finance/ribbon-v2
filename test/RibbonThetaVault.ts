@@ -2481,6 +2481,20 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnLt(actualWithdrawAmount, depositAmount);
         assert.bnEqual(actualWithdrawAmount, withdrawAmount);
       });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await rollToSecondOption(firstOption.strikePrice);
+
+        const tx = await vault.completeWithdraw({ gasPrice });
+        const receipt = await tx.wait();
+
+        assert.isAtMost(receipt.gasUsed.toNumber(), 62800);
+        // console.log(
+        //   params.name,
+        //   "completeWithdraw",
+        //   receipt.gasUsed.toNumber()
+        // );
+      });
     });
 
     describe("#setStrikePrice", () => {
