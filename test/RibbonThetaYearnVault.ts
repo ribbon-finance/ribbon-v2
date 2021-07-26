@@ -7,7 +7,6 @@ import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  CHAINLINK_WBTC_PRICER,
   CHAINLINK_WETH_PRICER,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
@@ -35,7 +34,7 @@ import {
   bidForOToken,
   decodeOrder,
 } from "./helpers/utils";
-import { wmul, wdiv } from "./helpers/math";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
