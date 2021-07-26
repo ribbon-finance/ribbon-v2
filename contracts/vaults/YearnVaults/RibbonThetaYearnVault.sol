@@ -6,13 +6,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "../../vendor/CustomSafeERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {
-    OptionsThetaYearnVaultStorage
-} from "../../storage/OptionsVaultYearnStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
+import {
+    OptionsThetaYearnVaultStorage
+} from "../../storage/OptionsVaultYearnStorage.sol";
 
 contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     using SafeERC20 for IERC20;
@@ -40,18 +40,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         address indexed options,
         uint256 withdrawAmount,
         address manager
-    );
-
-    event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
-
-    event PremiumDiscountSet(
-        uint256 premiumDiscount,
-        uint256 newPremiumDiscount
-    );
-
-    event AuctionDurationSet(
-        uint256 auctionDuration,
-        uint256 newAuctionDuration
     );
 
     event InstantWithdraw(
@@ -155,8 +143,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
             "Invalid discount"
         );
 
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
-
         premiumDiscount = newPremiumDiscount;
     }
 
@@ -166,8 +152,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      */
     function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
         require(newAuctionDuration >= 1 hours, "Invalid auction duration");
-
-        emit AuctionDurationSet(auctionDuration, newAuctionDuration);
 
         auctionDuration = newAuctionDuration;
     }
@@ -268,8 +252,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
                 address(collateralToken)
             );
 
-        emit NewOptionStrikeSelected(strikePrice, delta);
-
         ShareMath.assertUint104(premium);
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
@@ -307,7 +289,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            wdiv(
+            VaultLifecycleYearn.dswdiv(
                 lockedBalance,
                 collateralToken.pricePerShare().mul(
                     VaultLifecycleYearn.decimalShift(address(collateralToken))
