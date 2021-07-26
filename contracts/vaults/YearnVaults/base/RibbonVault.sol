@@ -13,7 +13,6 @@ import {
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
-import {DSMath} from "../../../vendor/DSMath.sol";
 import {IOtoken} from "../../../interfaces/GammaInterface.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 import {IGnosisAuction} from "../../../interfaces/IGnosisAuction.sol";
@@ -22,7 +21,7 @@ import {
     IOptionsPremiumPricer
 } from "../../../interfaces/IRibbon.sol";
 
-contract RibbonVault is OptionsVaultYearnStorage, DSMath {
+contract RibbonVault is OptionsVaultYearnStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -88,6 +87,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
 
     event CollectVaultFees(
         uint256 performanceFee,
+        uint256 managementFee,
         uint256 vaultFee,
         uint256 round
     );
@@ -260,7 +260,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
         require(amount > 0, "!amount");
 
         uint256 collateralToAssetBalance =
-            wmul(
+            VaultLifecycleYearn.dsmul(
                 amount,
                 collateralToken.pricePerShare().mul(
                     VaultLifecycleYearn.decimalShift(address(collateralToken))
@@ -597,7 +597,12 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
                 feeRecipient,
                 vaultFee
             );
-            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
+            emit CollectVaultFees(
+                performanceFee,
+                managementFee,
+                vaultFee,
+                vaultState.round
+            );
         }
     }
 
@@ -700,7 +705,7 @@ contract RibbonVault is OptionsVaultYearnStorage, DSMath {
             uint256(vaultState.lockedAmount)
                 .add(IERC20(vaultParams.asset).balanceOf(address(this)))
                 .add(
-                wdiv(
+                VaultLifecycleYearn.dswdiv(
                     collateralToken.balanceOf(address(this)),
                     collateralToken.pricePerShare().mul(
                         VaultLifecycleYearn.decimalShift(
