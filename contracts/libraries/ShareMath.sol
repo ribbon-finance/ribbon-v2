@@ -54,7 +54,7 @@ library ShareMath {
      */
     function getSharesFromReceipt(
         Vault.DepositReceipt memory depositReceipt,
-        uint16 currentRound,
+        uint256 currentRound,
         uint256 pps,
         uint8 decimals
     ) internal pure returns (uint128 unredeemedShares) {

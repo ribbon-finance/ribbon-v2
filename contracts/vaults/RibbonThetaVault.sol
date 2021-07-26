@@ -58,7 +58,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *  EVENTS
      ***********************************************/
 
-    event Deposit(address indexed account, uint256 amount, uint16 round);
+    event Deposit(address indexed account, uint256 amount, uint256 round);
 
     event InitiateWithdraw(address account, uint256 shares, uint16 round);
 
@@ -280,7 +280,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
         require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
@@ -313,7 +313,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         depositReceipts[msg.sender] = Vault.DepositReceipt({
             processed: false,
-            round: currentRound,
+            round: uint16(currentRound),
             amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
         });
