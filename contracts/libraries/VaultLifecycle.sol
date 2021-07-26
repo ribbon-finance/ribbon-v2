@@ -18,10 +18,11 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {SupportsNonCompliantERC20} from "../libraries/SupportsNonCompliantERC20.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
+    using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -187,13 +188,11 @@ library VaultLifecycle {
 
             if (mintAmount > scaleBy && collateralDecimals > 8) {
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-                require(mintAmount > 0, "depositAmount < 10**8");
             }
         }
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(marginPool, 0);
         collateralToken.safeApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
