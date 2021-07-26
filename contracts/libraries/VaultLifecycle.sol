@@ -395,12 +395,12 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
+        require(performanceFee < 10**8, "performanceFee >= 100%");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
         require(_vaultParams.asset != address(0), "!asset");
         require(_vaultParams.underlying != address(0), "!underlying");
-        require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.strikeSelection != address(0), "!strikeSelection");
         require(
@@ -426,13 +426,13 @@ library VaultLifecycle {
     {
         // dayOfWeek = 1 (monday) - 7 (sunday)
         uint256 dayOfWeek = ((currentExpiry / 86400) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 86400;
+        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
         uint256 friday8am =
-            nextFriday - (nextFriday % (60 * 60 * 24)) + (8 * 60 * 60);
+            nextFriday - (nextFriday % (24 hours)) + (8 hours);
 
         // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
         if (currentExpiry >= friday8am) {
-            friday8am += 86400 * 7;
+            friday8am += 7 days;
         }
         return friday8am;
     }
