@@ -27,7 +27,6 @@ import {
 import {
   deployProxy,
   setupOracle,
-  setOpynOracleExpiryPrice,
   setOpynOracleExpiryPriceYearn,
   setAssetPricer,
   getAssetPricer,
@@ -2993,7 +2992,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.completeWithdraw(true, { gasPrice });
         const receipt = await tx.wait();
-        const gasFee = receipt.gasUsed.mul(gasPrice);
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
