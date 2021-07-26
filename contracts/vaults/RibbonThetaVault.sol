@@ -426,7 +426,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
-        uint withdrawalShares = uint(withdrawal.shares);
+        uint256 withdrawalShares = uint256(withdrawal.shares);
 
         if (topup) {
             uint256 increasedShares = withdrawalShares.add(shares);
@@ -454,11 +454,14 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function completeWithdraw() external nonReentrant {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        uint16 withdrawalRound = withdrawal.round;
-        uint withdrawalShares = withdrawal.shares;
+        uint256 withdrawalShares = withdrawal.shares;
+        uint256 pricePerShare = roundPricePerShare[withdrawal.round];
 
+        // Optimization: instead of checking withdrawal.initiated, we check that the shares is not 0
         require(withdrawalShares > 0, "Not initiated");
-        require(withdrawal.round < vaultState.round, "Round not closed");
+
+        // Optimization: instead of checking withdrawal.round < round, we check that the pricePerShare is already set
+        require(pricePerShare > PLACEHOLDER_UINT, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].initiated = false;
@@ -470,7 +473,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                roundPricePerShare[withdrawalRound],
+                pricePerShare,
                 vaultParams.decimals
             );
 
