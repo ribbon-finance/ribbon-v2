@@ -11,16 +11,12 @@ import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {Vault} from "../libraries/Vault.sol";
-import {StrikeOverride} from "../libraries/StrikeOverride.sol";
 
 abstract contract OptionsVaultStorageV1 is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
     ERC20Upgradeable
 {
-    // Mapping to store the scheduled withdrawals (address => withdrawAmount)
-    mapping(address => uint256) public scheduledWithdrawals;
-
     /// @notice Stores the user's pending deposit for the round
     mapping(address => Vault.DepositReceipt) public depositReceipts;
 

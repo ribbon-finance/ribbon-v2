@@ -86,8 +86,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
 
-    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
-
     event PremiumDiscountSet(
         uint256 premiumDiscount,
         uint256 newPremiumDiscount
@@ -175,7 +173,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.div(uint256(365).div(7));
+        managementFee = _managementFee.mul(7).div(365);
         vaultParams = _vaultParams;
 
         vaultState.round = 1;
@@ -214,17 +212,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(
-            newManagementFee > 0 && newManagementFee < 100 * 10**6,
-            "Invalid management fee"
-        );
+        require(newManagementFee < 100 * 10**6, "Invalid management fee");
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = uint16(
-            uint256(newManagementFee).div(uint256(365).div(7))
-        );
+        managementFee = newManagementFee.mul(7).div(365);
     }
 
     /**
@@ -232,10 +225,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(
-            newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
-            "Invalid performance fee"
-        );
+        require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
 
@@ -247,6 +237,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param newCap is the new cap for deposits
      */
     function setCap(uint104 newCap) external onlyOwner {
+        require(newCap > 0, "!newCap");
         uint256 oldCap = vaultParams.cap;
         vaultParams.cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
@@ -257,7 +248,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
+     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the asset is not WETH.
      */
     function depositETH() external payable nonReentrant {
         require(vaultParams.asset == WETH, "!WETH");
@@ -292,7 +283,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint16 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(totalWithDepositedAmount < vaultParams.cap, "Exceed cap");
+        require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= vaultParams.minimumSupply,
             "Insufficient balance"
@@ -311,23 +302,22 @@ contract RibbonThetaVault is OptionsVaultStorage {
                 vaultParams.decimals
             );
 
-        uint104 depositAmount = uint104(amount);
+        uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             // No deposits allowed until the next round
             require(!depositReceipt.processed, "Processed");
 
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            ShareMath.assertUint104(newAmount);
-            depositAmount = uint104(newAmount);
-        } else {
-            ShareMath.assertUint104(amount);
+            depositAmount = newAmount;
         }
+
+        ShareMath.assertUint104(depositAmount);
 
         depositReceipts[msg.sender] = Vault.DepositReceipt({
             processed: false,
             round: currentRound,
-            amount: depositAmount,
+            amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
         });
 
