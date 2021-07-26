@@ -18,7 +18,9 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SupportsNonCompliantERC20} from "../libraries/SupportsNonCompliantERC20.sol";
+import {
+    SupportsNonCompliantERC20
+} from "../libraries/SupportsNonCompliantERC20.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -427,8 +429,7 @@ library VaultLifecycle {
         // dayOfWeek = 0 (sunday) - 6 (saturday)
         uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
         uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
-        uint256 friday8am =
-            nextFriday - (nextFriday % (24 hours)) + (8 hours);
+        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
 
         // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
         if (currentExpiry >= friday8am) {
