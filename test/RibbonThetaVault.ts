@@ -790,10 +790,9 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#setManagementFee", () => {
       time.revertToSnapshotAfterTest();
 
-      it("reverts when setting 0 to setManagementFee", async function () {
-        await expect(
-          vault.connect(ownerSigner).setManagementFee("0")
-        ).to.be.revertedWith("Invalid management fee");
+      it("setManagementFee to 0", async function () {
+        await vault.connect(ownerSigner).setManagementFee(0);
+        assert.bnEqual(await vault.managementFee(), BigNumber.from(0));
       });
 
       it("reverts when not owner call", async function () {
@@ -808,7 +807,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .setManagementFee(BigNumber.from("1000000").toString());
         assert.equal(
           (await vault.managementFee()).toString(),
-          BigNumber.from("1000000").div(BigNumber.from(365).div(7)).toString()
+          BigNumber.from("1000000").mul(7).div(365).toString()
         );
       });
     });
