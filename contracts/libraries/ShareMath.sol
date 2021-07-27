@@ -87,6 +87,6 @@ library ShareMath {
     }
 
     function assertUint128(uint256 num) internal pure {
-        require(num <= type(uint104).max, ">U128");
+        require(num <= type(uint128).max, ">U128");
     }
 }
