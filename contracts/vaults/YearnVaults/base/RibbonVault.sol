@@ -6,20 +6,13 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "../../../vendor/CustomSafeERC20.sol";
 import {IYearnRegistry, IYearnVault} from "../../../interfaces/IYearn.sol";
-import {GnosisAuction} from "../../../libraries/GnosisAuction.sol";
 import {
     OptionsVaultYearnStorage
 } from "../../../storage/OptionsVaultYearnStorage.sol";
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
-import {IOtoken} from "../../../interfaces/GammaInterface.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
-import {IGnosisAuction} from "../../../interfaces/IGnosisAuction.sol";
-import {
-    IStrikeSelection,
-    IOptionsPremiumPricer
-} from "../../../interfaces/IRibbon.sol";
 
 contract RibbonVault is OptionsVaultYearnStorage {
     using SafeERC20 for IERC20;
