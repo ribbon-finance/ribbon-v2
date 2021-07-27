@@ -3,21 +3,17 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "../../vendor/CustomSafeERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
-import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     OptionsThetaYearnVaultStorage
 } from "../../storage/OptionsVaultYearnStorage.sol";
 
 contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
-    using SafeERC20 for IERC20;
     using SafeMath for uint256;
-    using ShareMath for Vault.DepositReceipt;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
@@ -248,7 +244,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
                 address(collateralToken)
             );
 
-        ShareMath.assertUint104(premium);
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
