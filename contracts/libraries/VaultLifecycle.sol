@@ -181,9 +181,7 @@ library VaultLifecycle {
             mintAmount = depositAmount
                 .mul(OTOKEN_DECIMALS)
                 .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(
-                oToken.strikePrice().mul(10**(18 - (8 - collateralDecimals)))
-            );
+                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
             uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
