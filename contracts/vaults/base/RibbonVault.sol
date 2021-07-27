@@ -358,7 +358,6 @@ contract RibbonVault is OptionsVaultStorage {
         // This checks if there is a withdrawal
         require(withdrawalShares > 0, "Not initiated");
 
-        // Optimization: instead of checking withdrawal.round < round, we check that the pricePerShare is already set
         require(withdrawalRound < vaultState.round, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
