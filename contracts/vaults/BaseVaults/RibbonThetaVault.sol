@@ -135,7 +135,9 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        vaultState.lastLockedAmount = type(uint104).max;
+        vaultState.lastLockedAmount = uint104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
     }
 
     /************************************************

@@ -123,6 +123,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
         optionAllocationPct = _optionAllocationPct;
+        vaultState.lastLockedAmount = uint104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
     }
 
     /**
