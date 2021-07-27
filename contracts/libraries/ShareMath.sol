@@ -18,11 +18,11 @@ library ShareMath {
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(pps > 1, "Invalid pps");
+        require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
         uint256 shares =
             uint256(underlyingAmount).mul(10**uint256(decimals)).div(pps);
-        require(shares < type(uint104).max, "Overflow");
+        assertUint104(shares);
 
         return uint104(shares);
     }
@@ -35,11 +35,11 @@ library ShareMath {
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(pps > 1, "Invalid pps");
+        require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
         uint256 underlyingAmount =
             uint256(shares).mul(pps).div(10**uint256(decimals));
-        require(shares < type(uint104).max, "Overflow");
+        assertUint104(shares);
 
         return underlyingAmount;
     }
@@ -47,11 +47,14 @@ library ShareMath {
     /**
      * @notice Returns the shares unredeemed by the user given their DepositReceipt
      * @param depositReceipt is the user's deposit receipt
+     * @param currentRound is the `round` stored on the vault
+     * @param pps is the price in underlying per share
+     * @param decimals is the number of decimals the underlying/shares use
      * @return unredeemedShares is the user's virtual balance of shares that are owed
      */
     function getSharesFromReceipt(
         Vault.DepositReceipt memory depositReceipt,
-        uint16 currentRound,
+        uint256 currentRound,
         uint256 pps,
         uint8 decimals
     ) internal pure returns (uint128 unredeemedShares) {
@@ -63,11 +66,11 @@ library ShareMath {
             uint256 sharesFromRound =
                 underlyingToShares(depositReceipt.amount, pps, decimals);
 
-            require(sharesFromRound < type(uint104).max, "Overflow");
+            assertUint104(sharesFromRound);
 
             uint256 unredeemedShares256 =
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
-            require(unredeemedShares256 < type(uint128).max, "Overflow");
+            assertUint128(unredeemedShares256);
 
             unredeemedShares = uint128(unredeemedShares256);
         } else {
@@ -80,10 +83,10 @@ library ShareMath {
      ***********************************************/
 
     function assertUint104(uint256 num) internal pure {
-        require(num < type(uint104).max, ">U104");
+        require(num <= type(uint104).max, ">U104");
     }
 
     function assertUint128(uint256 num) internal pure {
-        require(num < type(uint104).max, ">U128");
+        require(num <= type(uint128).max, ">U128");
     }
 }
