@@ -292,7 +292,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
-        auctionDetails.manager = owner();
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);

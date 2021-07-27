@@ -165,8 +165,6 @@ library VaultLifecycle {
                 )
                 : 0;
 
-        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
-
         return (
             currentBalance.sub(queuedWithdrawAmount),
             newPricePerShare,
