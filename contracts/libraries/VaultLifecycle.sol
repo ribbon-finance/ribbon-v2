@@ -380,7 +380,7 @@ library VaultLifecycle {
         return otoken;
     }
 
-    function startAuction(GnosisAuction.AuctionDetails memory auctionDetails)
+    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
         external
     {
         GnosisAuction.startAuction(auctionDetails);
