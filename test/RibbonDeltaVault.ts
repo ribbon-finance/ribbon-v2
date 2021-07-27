@@ -2430,8 +2430,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Transfer")
           .withArgs(vault.address, user, depositAmount);
 
-        const { initiated, round, shares } = await vault.withdrawals(user);
-        assert.isTrue(initiated);
+        const { round, shares } = await vault.withdrawals(user);
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
@@ -2465,8 +2464,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
         assert.bnEqual(await vault.balanceOf(vault.address), depositAmount);
 
-        const { initiated, round, shares } = await vault.withdrawals(user);
-        assert.isTrue(initiated);
+        const { round, shares } = await vault.withdrawals(user);
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
@@ -2495,8 +2493,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Transfer")
           .withArgs(user, vault.address, depositAmount.div(2));
 
-        const { initiated, round, shares } = await vault.withdrawals(user);
-        assert.isTrue(initiated);
+        const { round, shares } = await vault.withdrawals(user);
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
@@ -2616,8 +2613,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .withArgs(vault.address, user, withdrawAmount);
         }
 
-        const { initiated, shares, round } = await vault.withdrawals(user);
-        assert.isFalse(initiated);
+        const { shares, round } = await vault.withdrawals(user);
         assert.equal(shares, 0);
         assert.equal(round, 2);
 

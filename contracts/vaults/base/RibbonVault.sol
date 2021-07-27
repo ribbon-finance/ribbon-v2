@@ -353,13 +353,13 @@ contract RibbonVault is OptionsVaultStorage {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
-        uint256 pricePerShare = roundPricePerShare[withdrawal.round];
+        uint256 withdrawalRound = withdrawal.round;
 
         // This checks if there is a withdrawal
         require(withdrawalShares > 0, "Not initiated");
 
         // Optimization: instead of checking withdrawal.round < round, we check that the pricePerShare is already set
-        require(pricePerShare > PLACEHOLDER_UINT, "Round not closed");
+        require(withdrawalRound < vaultState.round, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].shares = 0;
@@ -370,7 +370,7 @@ contract RibbonVault is OptionsVaultStorage {
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                pricePerShare,
+                roundPricePerShare[uint16(withdrawalRound)],
                 vaultParams.decimals
             );
 
