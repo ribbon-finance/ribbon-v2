@@ -253,30 +253,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
     }
 
     /**
-     * @notice Deposits the `collateralToken` into the contract and mint vault shares.
-     * @param amount is the amount of `collateralToken` to deposit
-     */
-    function depositYieldToken(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
-
-        uint256 collateralToAssetBalance =
-            VaultLifecycleYearn.dsmul(
-                amount,
-                collateralToken.pricePerShare().mul(
-                    VaultLifecycleYearn.decimalShift(address(collateralToken))
-                )
-            );
-
-        _deposit(collateralToAssetBalance);
-
-        IERC20(address(collateralToken)).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-    }
-
-    /**
      * @notice Mints the vault shares to the msg.sender
      * @param amount is the amount of `asset` deposited
      */
@@ -542,6 +518,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
         vaultState.totalPending = 0;
         vaultState.round = currentRound + 1;
+        vaultState.lockedAmount = uint104(lockedBalance);
 
         _mint(address(this), mintShares);
 
