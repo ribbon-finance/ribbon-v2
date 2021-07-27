@@ -39,6 +39,8 @@ moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 60 * 60; // 1 hour
 const gasPrice = parseUnits("1", "gwei");
+const FEE_SCALING = BigNumber.from(10).pow(6);
+const WEEKS_PER_YEAR = 52142857;
 
 const PERIOD = 43200; // 12 hours
 
@@ -676,7 +678,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(365).div(7).toString()
+          managementFee.mul(FEE_SCALING).div(WEEKS_PER_YEAR).toString()
         );
         assert.equal(
           (await vault.performanceFee()).toString(),
@@ -931,7 +933,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("returns the management fee", async function () {
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(BigNumber.from(365).div(7)).toString()
+          managementFee.mul(FEE_SCALING).div(WEEKS_PER_YEAR).toString()
         );
       });
     });
@@ -969,10 +971,9 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#setManagementFee", () => {
       time.revertToSnapshotAfterTest();
 
-      it("reverts when setting 0 to setManagementFee", async function () {
-        await expect(
-          vault.connect(ownerSigner).setManagementFee("0")
-        ).to.be.revertedWith("Invalid m. fee");
+      it("setManagementFee to 0", async function () {
+        await vault.connect(ownerSigner).setManagementFee(0);
+        assert.bnEqual(await vault.managementFee(), BigNumber.from(0));
       });
 
       it("reverts when not owner call", async function () {
@@ -987,7 +988,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .setManagementFee(BigNumber.from("1000000").toString());
         assert.equal(
           (await vault.managementFee()).toString(),
-          BigNumber.from("1000000").div(BigNumber.from(365).div(7)).toString()
+          BigNumber.from("1000000")
+            .mul(FEE_SCALING)
+            .div(WEEKS_PER_YEAR)
+            .toString()
         );
       });
     });
@@ -995,10 +999,9 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#setPerformanceFee", () => {
       time.revertToSnapshotAfterTest();
 
-      it("reverts when setting 0 to setPerformanceFee", async function () {
-        await expect(
-          vault.connect(ownerSigner).setPerformanceFee("0")
-        ).to.be.revertedWith("Invalid p. fee");
+      it("setPerformanceFee to 0", async function () {
+        await vault.connect(ownerSigner).setPerformanceFee(0);
+        assert.bnEqual(await vault.performanceFee(), BigNumber.from(0));
       });
 
       it("reverts when not owner call", async function () {
