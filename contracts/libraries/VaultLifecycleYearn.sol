@@ -516,7 +516,7 @@ library VaultLifecycleYearn {
         address collateralToken,
         address recipient,
         uint256 amount
-    ) internal returns (uint256 withdrawAmount) {
+    ) external returns (uint256 withdrawAmount) {
         uint256 pricePerYearnShare =
             IYearnVault(collateralToken).pricePerShare();
         withdrawAmount = dswdiv(
@@ -609,7 +609,7 @@ library VaultLifecycleYearn {
         address collateralToken,
         uint256 yearnWithdrawalBuffer,
         uint256 yearnWithdrawalSlippage
-    ) internal {
+    ) external {
         uint256 assetBalance = IERC20(asset).balanceOf(address(this));
         IYearnVault collateral = IYearnVault(collateralToken);
 
@@ -636,7 +636,7 @@ library VaultLifecycleYearn {
      * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
      */
-    function wrapToYieldToken(address asset, address collateralToken) internal {
+    function wrapToYieldToken(address asset, address collateralToken) external {
         uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
 
         IERC20(asset).safeApprove(collateralToken, amountToWrap);
@@ -661,7 +661,7 @@ library VaultLifecycleYearn {
         address asset,
         address payable recipient,
         uint256 amount
-    ) internal {
+    ) public {
         if (asset == weth) {
             IWETH(weth).withdraw(amount);
             (bool success, ) = recipient.call{value: amount}("");
@@ -676,7 +676,7 @@ library VaultLifecycleYearn {
      * @param collateralToken is the address of the collateral token
      */
     function decimalShift(address collateralToken)
-        internal
+        public
         view
         returns (uint256)
     {
