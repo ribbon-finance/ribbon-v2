@@ -1291,7 +1291,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 945000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1045000);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -2793,7 +2793,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ? firstOptionStrike.sub(100000000000)
           : firstOptionStrike.add(100000000000);
 
-        console.log(settlementPriceITM.toString());
+        // console.log(settlementPriceITM.toString());
 
         await rollToSecondOption(settlementPriceITM);
 
