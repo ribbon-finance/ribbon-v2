@@ -37,6 +37,10 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
+    // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
+    // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
+    uint256 private constant WEEKS_PER_YEAR = 52142857;
+
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -135,7 +139,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.div(365).div(7);
+        managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
         vaultState.lastLockedAmount = uint104(
             IERC20(vaultParams.asset).balanceOf(address(this))
@@ -167,7 +171,7 @@ contract RibbonVault is OptionsVaultStorage {
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.div(365).div(7);
+        managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
     }
 
     /**
