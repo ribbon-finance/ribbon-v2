@@ -112,37 +112,6 @@ describe("RibbonThetaVault", () => {
   });
 
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon WBTC Theta Vault (Put)`,
-    tokenName: "Ribbon BTC Theta Vault Put",
-    tokenSymbol: "rWBTC-THETA-P",
-    asset: WBTC_ADDRESS,
-    assetContractName: "IERC20",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    chainlinkPricer: CHAINLINK_WBTC_PRICER,
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("1000"),
-    tokenDecimals: 6,
-    depositAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    initialSharePrice: BigNumber.from("10").pow("6").mul("2").toString(),
-    expectedMintAmount: BigNumber.from("370370"),
-    auctionDuration: 21600,
-    isPut: true,
-    gasLimits: {
-      depositWorstCase: 115000,
-      depositBestCase: 98000,
-    },
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Theta Vault (Put) `,
     tokenName: "Ribbon ETH Theta Vault Put",
     tokenSymbol: "rETH-THETA-P",
