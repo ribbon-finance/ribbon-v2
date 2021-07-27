@@ -58,9 +58,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
      *  EVENTS
      ***********************************************/
 
-    event Deposit(address indexed account, uint256 amount, uint16 round);
+    event Deposit(address indexed account, uint256 amount, uint256 round);
 
-    event InitiateWithdraw(address account, uint256 shares, uint16 round);
+    event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
     event Withdraw(address indexed account, uint256 amount, uint256 share);
 
@@ -85,8 +85,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
     );
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
-
-    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
     event PremiumDiscountSet(
         uint256 premiumDiscount,
@@ -175,7 +173,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.div(uint256(365).div(7));
+        managementFee = _managementFee.div(365).div(7);
         vaultParams = _vaultParams;
 
         vaultState.round = 1;
@@ -214,17 +212,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(
-            newManagementFee > 0 && newManagementFee < 100 * 10**6,
-            "Invalid management fee"
-        );
+        require(newManagementFee < 100 * 10**6, "Invalid management fee");
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = uint16(
-            uint256(newManagementFee).div(uint256(365).div(7))
-        );
+        managementFee = newManagementFee.div(365).div(7);
     }
 
     /**
@@ -232,10 +225,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(
-            newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
-            "Invalid performance fee"
-        );
+        require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
 
@@ -247,6 +237,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param newCap is the new cap for deposits
      */
     function setCap(uint104 newCap) external onlyOwner {
+        require(newCap > 0, "!newCap");
         uint256 oldCap = vaultParams.cap;
         vaultParams.cap = newCap;
         emit CapSet(oldCap, newCap, msg.sender);
@@ -257,7 +248,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
+     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the asset is not WETH.
      */
     function depositETH() external payable nonReentrant {
         require(vaultParams.asset == WETH, "!WETH");
@@ -289,10 +280,10 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @param amount is the amount of `asset` deposited
      */
     function _deposit(uint256 amount) private {
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(totalWithDepositedAmount < vaultParams.cap, "Exceed cap");
+        require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= vaultParams.minimumSupply,
             "Insufficient balance"
@@ -311,23 +302,19 @@ contract RibbonThetaVault is OptionsVaultStorage {
                 vaultParams.decimals
             );
 
-        uint104 depositAmount = uint104(amount);
+        uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
-            // No deposits allowed until the next round
-            require(!depositReceipt.processed, "Processed");
-
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            ShareMath.assertUint104(newAmount);
-            depositAmount = uint104(newAmount);
-        } else {
-            ShareMath.assertUint104(amount);
+            depositAmount = newAmount;
         }
+
+        ShareMath.assertUint104(depositAmount);
 
         depositReceipts[msg.sender] = Vault.DepositReceipt({
             processed: false,
-            round: currentRound,
-            amount: depositAmount,
+            round: uint16(currentRound),
+            amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
         });
 
@@ -381,7 +368,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
-        depositReceipts[msg.sender].processed = true;
         depositReceipts[msg.sender].unredeemedShares = uint128(
             uint256(unredeemedShares).sub(shares)
         );
@@ -401,7 +387,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
-        require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
         uint104 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
@@ -434,21 +419,22 @@ contract RibbonThetaVault is OptionsVaultStorage {
         }
 
         // This caches the `round` variable used in shareBalances
-        uint16 currentRound = vaultState.round;
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        uint256 currentRound = vaultState.round;
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
+        bool topup = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
+        uint256 withdrawalShares = uint256(withdrawal.shares);
+
         if (topup) {
-            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
-            require(increasedShares < type(uint128).max, "Overflow");
+            uint256 increasedShares = withdrawalShares.add(shares);
+            ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (!withdrawal.initiated) {
-            withdrawals[msg.sender].initiated = true;
+        } else if (withdrawalShares == 0) {
             withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = currentRound;
+            withdrawals[msg.sender].round = uint16(currentRound);
         } else {
             // If we have an old withdrawal, we revert
             // The user has to process the withdrawal
@@ -466,28 +452,33 @@ contract RibbonThetaVault is OptionsVaultStorage {
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
     function completeWithdraw() external nonReentrant {
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        require(withdrawal.initiated, "Not initiated");
-        require(withdrawal.round < vaultState.round, "Round not closed");
+        uint256 withdrawalShares = withdrawal.shares;
+        uint256 pricePerShare = roundPricePerShare[withdrawal.round];
+
+        // This checks if there is a withdrawal
+        require(withdrawalShares > 0, "Not initiated");
+
+        // Optimization: instead of checking withdrawal.round < round, we check that the pricePerShare is already set
+        require(pricePerShare > PLACEHOLDER_UINT, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
-        withdrawals[msg.sender].initiated = false;
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
         );
 
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
-                withdrawal.shares,
-                roundPricePerShare[withdrawal.round],
+                withdrawalShares,
+                pricePerShare,
                 vaultParams.decimals
             );
 
-        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
-        _burn(address(this), withdrawal.shares);
+        _burn(address(this), withdrawalShares);
 
         require(withdrawAmount > 0, "!withdrawAmount");
         transferAsset(msg.sender, withdrawAmount);
@@ -523,7 +514,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
         vaultState.currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
@@ -613,15 +603,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint256 numOTokensToBurn =
             IERC20(optionState.currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
-        uint256 assetBalanceBeforeBurn =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-        VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        uint256 assetBalanceAfterBurn =
-            IERC20(vaultParams.asset).balanceOf(address(this));
+
+        uint256 collateralReturned =
+            VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(
-                assetBalanceAfterBurn.sub(assetBalanceBeforeBurn)
-            )
+            uint256(vaultState.lockedAmount).sub(collateralReturned)
         );
     }
 
@@ -648,12 +635,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = vaultState.round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = vaultState.round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = PLACEHOLDER_UINT;
+            require(roundPricePerShare[uint16(index)] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
+            roundPricePerShare[uint16(index)] = PLACEHOLDER_UINT;
         }
     }
 
@@ -677,17 +664,13 @@ contract RibbonThetaVault is OptionsVaultStorage {
             currentLockedBalance.sub(vaultState.totalPending) > prevLockedAmount
         ) {
             uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? currentLockedBalance
-                        .sub(vaultState.totalPending)
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * 10**6)
-                    : 0;
+                currentLockedBalance
+                    .sub(vaultState.totalPending)
+                    .sub(prevLockedAmount)
+                    .mul(performanceFee)
+                    .div(100 * 10**6);
             uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
-                    : 0;
+                currentLockedBalance.mul(managementFee).div(100 * 10**6);
 
             vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
         }

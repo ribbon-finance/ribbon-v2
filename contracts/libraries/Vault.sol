@@ -9,7 +9,6 @@ library Vault {
         uint8 decimals;
         // Asset used in Theta Vault
         address asset;
-        // Logic contract used to select strike prices
         // Underlying asset of the options sold by vault
         address underlying;
         // Minimum supply of the vault shares issued, for ETH it's 10**10
@@ -38,7 +37,7 @@ library Vault {
         //  Current round number. `round` represents the number of `period`s elapsed.
         uint16 round;
         // Premium discount on options we are selling (thousandths place: 000 - 999)
-        uint32 premiumDiscount;
+        uint16 premiumDiscount;
         // Current oToken premium
         uint104 currentOtokenPremium;
         // Amount that is currently locked for selling options
@@ -66,8 +65,6 @@ library Vault {
     }
 
     struct Withdrawal {
-        // Flag for marking an initialized withdrawal
-        bool initiated;
         // Maximum of 65535 rounds. Assuming 1 round is 7 days, maximum is 1256 years.
         uint16 round;
         // Number of shares withdrawn
