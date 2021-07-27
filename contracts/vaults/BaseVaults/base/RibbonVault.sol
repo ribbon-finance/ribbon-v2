@@ -252,10 +252,9 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
-     * @notice Used for vault -> vault deposits on the user's behalf
-     * @param amount is the amount of `asset` to deposit
-     * @param creditor is the address that can claim/withdraw deposited amount
+     * @notice Mints the vault shares to the creditor
+     * @param amount is the amount of `asset` deposited
+     * @param creditor is the address to receieve the deposit
      */
     function _depositFor(uint256 amount, address creditor) private {
         uint256 currentRound = vaultState.round;
