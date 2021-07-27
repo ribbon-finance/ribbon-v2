@@ -337,9 +337,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const VaultLifecycleYearn = await ethers.getContractFactory(
-        "VaultLifecycleYearn"
-      );
+      const VaultLifecycleYearn = await ethers.getContractFactory("VaultLifecycleYearn");
       vaultLifecycleLib = await VaultLifecycleYearn.deploy();
 
       gnosisAuction = await getContractAt(
@@ -390,7 +388,7 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER,
         MARGIN_POOL,
         GNOSIS_EASY_AUCTION,
-        YEARN_REGISTRY_ADDRESS,
+        YEARN_REGISTRY_ADDRESS
       ];
 
       vault = (
@@ -3036,7 +3034,10 @@ function behavesLikeRibbonOptionsVault(params: {
         let balanceBefore = await assetContract.balanceOf(vault.address);
         await vault.connect(ownerSigner).upgradeYearnVault();
         let balanceAfter = await assetContract.balanceOf(vault.address);
-        assert.bnAbove(balanceAfter, balanceBefore);
+        assert.bnGt(
+          balanceAfter,
+          balanceBefore
+        );
       });
     });
 
