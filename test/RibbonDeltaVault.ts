@@ -676,7 +676,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(BigNumber.from(365).div(7)).toString()
+          managementFee.div(365).div(7).toString()
         );
         assert.equal(
           (await vault.performanceFee()).toString(),
@@ -828,30 +828,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ]
           )
         ).to.be.revertedWith("!asset");
-      });
-
-      it("reverts when decimals is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            thetaVault.address,
-            optionAllocationPct,
-            [
-              isPut,
-              0,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-              initialSharePrice,
-            ]
-          )
-        ).to.be.revertedWith("!tokenDecimals");
       });
 
       it("reverts when minimumSupply is 0", async function () {
