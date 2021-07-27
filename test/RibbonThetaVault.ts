@@ -41,6 +41,8 @@ moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 60 * 60; // 1 hour
 const gasPrice = parseUnits("1", "gwei");
+const FEE_SCALING = BigNumber.from(10).pow(6);
+const WEEKS_PER_YEAR = 52142857;
 
 const PERIOD = 43200; // 12 hours
 
@@ -562,7 +564,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(365).div(7)
+          managementFee.mul(FEE_SCALING).div(WEEKS_PER_YEAR).toString()
         );
         assert.equal(
           (await vault.performanceFee()).toString(),
@@ -812,7 +814,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("returns the management fee", async function () {
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.div(365).div(7).toString()
+          managementFee.mul(FEE_SCALING).div(WEEKS_PER_YEAR).toString()
         );
       });
     });
@@ -876,7 +878,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .setManagementFee(BigNumber.from("1000000").toString());
         assert.equal(
           (await vault.managementFee()).toString(),
-          BigNumber.from("1000000").div(365).div(7).toString()
+          BigNumber.from(1000000)
+            .mul(FEE_SCALING)
+            .div(WEEKS_PER_YEAR)
+            .toString()
         );
       });
     });
