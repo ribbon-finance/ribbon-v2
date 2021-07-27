@@ -175,6 +175,9 @@ contract RibbonThetaVault is OptionsVaultStorage {
         performanceFee = _performanceFee;
         managementFee = _managementFee.div(365).div(7);
         vaultParams = _vaultParams;
+        vaultState.lastLockedAmount = uint104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
 
         vaultState.round = 1;
     }
@@ -526,7 +529,12 @@ contract RibbonThetaVault is OptionsVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
+
+        uint104 lockedAmount = vaultState.lockedAmount;
+        vaultState.lastLockedAmount = lockedAmount > 0
+            ? lockedAmount
+            : vaultState.lastLockedAmount;
+
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
