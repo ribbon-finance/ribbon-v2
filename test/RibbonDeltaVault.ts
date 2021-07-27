@@ -1064,7 +1064,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 91100);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 91500);
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());

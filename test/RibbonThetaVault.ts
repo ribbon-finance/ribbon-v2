@@ -975,7 +975,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 90200);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 91500);
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
@@ -1291,7 +1291,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 675000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 945000);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -1912,7 +1912,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(ownerSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 835000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 850000);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2619,7 +2619,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 62800);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 64000);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
