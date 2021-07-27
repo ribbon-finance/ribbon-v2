@@ -127,6 +127,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
+        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /************************************************
@@ -265,7 +266,11 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
+
+        uint104 lockedAmount = vaultState.lockedAmount;
+        vaultState.lastLockedAmount = lockedAmount > 0
+            ? lockedAmount
+            : vaultState.lastLockedAmount;
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
