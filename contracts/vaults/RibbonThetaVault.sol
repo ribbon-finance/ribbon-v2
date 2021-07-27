@@ -178,8 +178,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
 
         uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
-
-        require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
 
         uint104 receiptAmount = depositReceipt.amount;
@@ -187,6 +185,9 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
 
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
+        vaultState.totalPending = uint128(
+            uint256(vaultState.totalPending).sub(amount)
+        );
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
@@ -244,7 +245,12 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
+
+        uint104 lockedAmount = vaultState.lockedAmount;
+        vaultState.lastLockedAmount = lockedAmount > 0
+            ? lockedAmount
+            : vaultState.lastLockedAmount;
+
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
@@ -289,7 +295,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
-        auctionDetails.manager = owner();
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
