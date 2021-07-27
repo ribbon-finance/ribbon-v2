@@ -2629,7 +2629,11 @@ function behavesLikeRibbonOptionsVault(params: {
         const { queuedWithdrawShares: endQueuedShares } =
           await vault.vaultState();
 
-        assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
+        assert.bnEqual(endQueuedShares, BigNumber.from(0));
+        assert.bnEqual(
+          startQueuedShares.sub(endQueuedShares),
+          expectedShareBalance
+        );
 
         let actualWithdrawAmount: BigNumber;
         if (collateralAsset === WETH_ADDRESS) {
