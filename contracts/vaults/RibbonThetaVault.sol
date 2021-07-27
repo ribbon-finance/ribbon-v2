@@ -178,8 +178,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
 
         uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
-
-        require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
 
         uint104 receiptAmount = depositReceipt.amount;
