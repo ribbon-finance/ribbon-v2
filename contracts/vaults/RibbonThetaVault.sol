@@ -245,7 +245,12 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = vaultState.lockedAmount;
+
+        uint104 lockedAmount = vaultState.lockedAmount;
+        vaultState.lastLockedAmount = lockedAmount > 0
+            ? lockedAmount
+            : vaultState.lastLockedAmount;
+
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
