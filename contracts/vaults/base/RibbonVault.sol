@@ -289,7 +289,6 @@ contract RibbonVault is OptionsVaultStorage {
         ShareMath.assertUint104(depositAmount);
 
         depositReceipts[creditor] = Vault.DepositReceipt({
-            processed: false,
             round: uint16(currentRound),
             amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
