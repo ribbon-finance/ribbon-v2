@@ -74,7 +74,7 @@ contract RibbonThetaVault is OptionsVaultStorage {
         uint16 round
     );
 
-    event Redeem(address indexed account, uint256 share, uint16 round);
+    event Redeem(address indexed account, uint256 share, uint256 round);
 
     event OpenShort(
         address indexed options,
@@ -319,7 +319,6 @@ contract RibbonThetaVault is OptionsVaultStorage {
         ShareMath.assertUint104(depositAmount);
 
         depositReceipts[msg.sender] = Vault.DepositReceipt({
-            processed: false,
             round: uint16(currentRound),
             amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
@@ -354,18 +353,18 @@ contract RibbonThetaVault is OptionsVaultStorage {
     function _redeem(uint256 shares, bool isMax) internal {
         ShareMath.assertUint104(shares);
 
-        Vault.DepositReceipt memory depositReceipt =
+        Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        uint16 currentRound = vaultState.round;
-        require(depositReceipt.round < currentRound, "Round not closed");
+        uint256 currentRound = vaultState.round;
+        uint256 receiptRound = depositReceipt.round;
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[depositReceipt.round],
+                roundPricePerShare[uint16(receiptRound)],
                 vaultParams.decimals
             );
 
@@ -373,13 +372,18 @@ contract RibbonThetaVault is OptionsVaultStorage {
         require(shares > 0, "!shares");
         require(shares <= unredeemedShares, "Exceeds available");
 
-        // This zeroes out any pending amount from depositReceipt
-        depositReceipts[msg.sender].amount = 0;
+        // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
+        // we debit from the unredeemedShares, but leave the amount field intact
+        // If the round has past, with no new deposits, we just zero it out for new deposits.
+        depositReceipts[msg.sender].amount = receiptRound < currentRound
+            ? 0
+            : depositReceipt.amount;
+
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            uint256(unredeemedShares).sub(shares)
+            unredeemedShares.sub(shares)
         );
 
-        emit Redeem(msg.sender, shares, depositReceipt.round);
+        emit Redeem(msg.sender, shares, receiptRound);
 
         _transfer(address(this), msg.sender, shares);
     }
