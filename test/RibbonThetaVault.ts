@@ -1985,6 +1985,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
+        const expectedShareBalance = params.depositAmount
+          .mul(BigNumber.from(10).pow(await vault.decimals()))
+          .div(params.initialSharePrice);
+
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount.mul(2));
@@ -1999,7 +2003,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx)
           .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 2);
+          .withArgs(user, expectedShareBalance, 2);
       });
 
       it("is able to redeem deposit at correct pricePerShare after closing short in the money", async function () {
@@ -2458,6 +2462,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("can initiate a withdrawal when there is a pending deposit", async function () {
+        const expectedShareBalance = params.depositAmount
+          .mul(BigNumber.from(10).pow(await vault.decimals()))
+          .div(params.initialSharePrice);
+
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount.mul(2));
@@ -2467,11 +2475,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(depositAmount);
 
-        const tx = await vault.initiateWithdraw(depositAmount);
+        const tx = await vault.initiateWithdraw(expectedShareBalance);
 
         await expect(tx)
           .to.emit(vault, "Redeem")
-          .withArgs(user, depositAmount, 2);
+          .withArgs(user, expectedShareBalance, 2);
       });
 
       it("reverts when there is insufficient balance over multiple calls", async function () {
