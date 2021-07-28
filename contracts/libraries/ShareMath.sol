@@ -58,10 +58,7 @@ library ShareMath {
         uint256 pps,
         uint8 decimals
     ) internal pure returns (uint128 unredeemedShares) {
-        if (
-            depositReceipt.round > 0 &&
-            depositReceipt.round < currentRound
-        ) {
+        if (depositReceipt.round > 0 && depositReceipt.round < currentRound) {
             uint256 sharesFromRound =
                 underlyingToShares(depositReceipt.amount, pps, decimals);
 
