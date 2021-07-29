@@ -181,17 +181,11 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
         // Unwraps necessary amount of yield token
-        VaultLifecycleYearn.unwrapYieldToken(
-            amount,
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
-            YEARN_WITHDRAWAL_SLIPPAGE
-        );
-        VaultLifecycleYearn.transferAsset(
+        VaultLifecycleYearn.withdrawYieldAndBaseToken(
             WETH,
             vaultParams.asset,
-            msg.sender,
+            address(collateralToken),
+            feeRecipient,
             amount
         );
     }
