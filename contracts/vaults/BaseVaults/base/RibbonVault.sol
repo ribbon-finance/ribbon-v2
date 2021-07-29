@@ -509,34 +509,21 @@ contract RibbonVault is OptionsVaultStorage {
         internal
         returns (uint256 vaultFee)
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 lockedBalanceSansPending =
-            currentLockedBalance.sub(vaultState.totalPending);
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (lockedBalanceSansPending > prevLockedAmount) {
-            uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? lockedBalanceSansPending
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * 10**6)
-                    : 0;
-            uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
-                    : 0;
-
-            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
-        }
+        (uint256 performanceFeeInAsset, , uint256 totalFee) =
+            VaultLifecycle.getVaultFees(
+                vaultState,
+                currentLockedBalance,
+                performanceFee,
+                managementFee
+            );
 
         if (vaultFee > 0) {
             transferAsset(payable(feeRecipient), vaultFee);
-            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
+            emit CollectVaultFees(
+                performanceFeeInAsset,
+                totalFee,
+                vaultState.round
+            );
         }
     }
 

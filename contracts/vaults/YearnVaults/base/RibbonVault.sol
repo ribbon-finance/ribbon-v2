@@ -538,31 +538,17 @@ contract RibbonVault is OptionsVaultYearnStorage {
         internal
         returns (uint256 vaultFee)
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (
-            currentLockedBalance.sub(vaultState.totalPending) > prevLockedAmount
-        ) {
-            uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? currentLockedBalance
-                        .sub(vaultState.totalPending)
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * 10**6)
-                    : 0;
-            uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
-                    : 0;
-
-            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
-        }
+        (
+            uint256 performanceFeeInAsset,
+            uint256 managementFeeInAsset,
+            uint256 totalFee
+        ) =
+            VaultLifecycleYearn.getVaultFees(
+                vaultState,
+                currentLockedBalance,
+                performanceFee,
+                managementFee
+            );
 
         if (vaultFee > 0) {
             VaultLifecycleYearn.withdrawYieldAndBaseToken(
@@ -573,9 +559,9 @@ contract RibbonVault is OptionsVaultYearnStorage {
                 vaultFee
             );
             emit CollectVaultFees(
-                performanceFee,
-                managementFee,
-                vaultFee,
+                performanceFeeInAsset,
+                managementFeeInAsset,
+                totalFee,
                 vaultState.round
             );
         }

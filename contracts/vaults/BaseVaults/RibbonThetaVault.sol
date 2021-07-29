@@ -178,7 +178,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     function withdrawInstantly(uint256 amount) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
-        
+
         uint256 currentRound = vaultState.round;
 
         require(amount > 0, "!amount");
