@@ -65,12 +65,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
     event Redeem(address indexed account, uint256 share, uint256 round);
 
-    event Withdraw(
-        address account,
-        bool keepWrapped,
-        uint256 amount,
-        uint256 shares
-    );
+    event Withdraw(address account, uint256 amount, uint256 shares);
 
     event CollectVaultFees(
         uint256 performanceFee,
@@ -320,7 +315,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
-    function completeWithdraw(bool keepWrapped) external nonReentrant {
+    function completeWithdraw() external nonReentrant {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -343,38 +338,17 @@ contract RibbonVault is OptionsVaultYearnStorage {
                 roundPricePerShare[uint16(withdrawalRound)],
                 vaultParams.decimals
             );
-        if (!keepWrapped) {
-            withdrawAmount = VaultLifecycleYearn.withdrawYieldAndBaseToken(
-                WETH,
-                vaultParams.asset,
-                address(collateralToken),
-                msg.sender,
-                withdrawAmount
-            );
-        } else {
-            VaultLifecycleYearn.unwrapYieldToken(
-                withdrawAmount,
-                vaultParams.asset,
-                address(collateralToken),
-                YEARN_WITHDRAWAL_BUFFER,
-                YEARN_WITHDRAWAL_SLIPPAGE
-            );
-            VaultLifecycleYearn.transferAsset(
-                WETH,
-                vaultParams.asset,
-                msg.sender,
-                withdrawAmount
-            );
-        }
+        withdrawAmount = VaultLifecycleYearn.withdrawYieldAndBaseToken(
+            WETH,
+            vaultParams.asset,
+            address(collateralToken),
+            msg.sender,
+            withdrawAmount
+        );
 
         require(withdrawAmount > 0, "!withdrawAmount");
 
-        emit Withdraw(
-            msg.sender,
-            keepWrapped,
-            withdrawAmount,
-            withdrawal.shares
-        );
+        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
 
         _burn(address(this), withdrawal.shares);
     }
