@@ -33,8 +33,6 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint256 public constant delay = 1 hours;
 
-    uint256 public constant period = 7 days;
-
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
     // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
@@ -64,12 +62,6 @@ contract RibbonVault is OptionsVaultStorage {
     event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
     event Redeem(address indexed account, uint256 share, uint256 round);
-
-    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
-
-    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
-
-    event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     event Withdraw(address account, uint256 amount, uint256 shares);
 
@@ -168,8 +160,6 @@ contract RibbonVault is OptionsVaultStorage {
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(newManagementFee < 100 * 10**6, "Invalid management fee");
 
-        emit ManagementFeeSet(managementFee, newManagementFee);
-
         // We are dividing annualized management fee by num weeks in a year
         managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
     }
@@ -180,9 +170,6 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
-
-        emit PerformanceFeeSet(performanceFee, newPerformanceFee);
-
         performanceFee = newPerformanceFee;
     }
 
@@ -192,9 +179,7 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function setCap(uint104 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
-        uint256 oldCap = vaultParams.cap;
         vaultParams.cap = newCap;
-        emit CapSet(oldCap, newCap, msg.sender);
     }
 
     /************************************************

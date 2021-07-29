@@ -28,8 +28,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
     uint256 public constant delay = 1 hours;
 
-    uint256 public constant period = 7 days;
-
     uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
 
     uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
@@ -66,12 +64,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
     event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
     event Redeem(address indexed account, uint256 share, uint256 round);
-
-    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
-
-    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
-
-    event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     event Withdraw(
         address account,
@@ -178,9 +170,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(newManagementFee < 100 * 10**6, "Invalid management fee");
-
-        emit ManagementFeeSet(managementFee, newManagementFee);
-
         // We are dividing annualized management fee by num weeks in a year
         managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
     }
@@ -191,9 +180,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
-
-        emit PerformanceFeeSet(performanceFee, newPerformanceFee);
-
         performanceFee = newPerformanceFee;
     }
 
@@ -202,9 +188,8 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @param newCap is the new cap for deposits
      */
     function setCap(uint104 newCap) external onlyOwner {
-        uint256 oldCap = vaultParams.cap;
+        require(newCap > 0, "!newCap");
         vaultParams.cap = newCap;
-        emit CapSet(oldCap, newCap, msg.sender);
     }
 
     /************************************************
