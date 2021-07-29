@@ -338,10 +338,17 @@ contract RibbonVault is OptionsVaultYearnStorage {
                 roundPricePerShare[uint16(withdrawalRound)],
                 vaultParams.decimals
             );
-        withdrawAmount = VaultLifecycleYearn.withdrawYieldAndBaseToken(
-            WETH,
+
+        VaultLifecycleYearn.unwrapYieldToken(
+            withdrawAmount,
             vaultParams.asset,
             address(collateralToken),
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
+        VaultLifecycleYearn.transferAsset(
+            WETH,
+            vaultParams.asset,
             msg.sender,
             withdrawAmount
         );
