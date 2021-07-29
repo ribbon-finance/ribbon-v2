@@ -33,9 +33,11 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint256 public constant delay = 1 hours;
 
-    uint256 public constant period = 7 days;
-
     uint128 internal constant PLACEHOLDER_UINT = 1;
+
+    // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
+    // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
+    uint256 private constant WEEKS_PER_YEAR = 52142857;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
@@ -55,21 +57,13 @@ contract RibbonVault is OptionsVaultStorage {
      *  EVENTS
      ***********************************************/
 
-    event Deposit(address indexed account, uint256 amount, uint16 round);
+    event Deposit(address indexed account, uint256 amount, uint256 round);
 
-    event Redeem(address indexed account, uint256 share, uint16 round);
+    event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
-    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
-
-    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
-
-    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
-
-    event CapSet(uint256 oldCap, uint256 newCap, address manager);
+    event Redeem(address indexed account, uint256 share, uint256 round);
 
     event Withdraw(address account, uint256 amount, uint256 shares);
-
-    event InitiateWithdraw(address account, uint256 shares, uint16 round);
 
     event CollectVaultFees(
         uint256 performanceFee,
@@ -137,8 +131,11 @@ contract RibbonVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.div(uint256(365).div(7));
+        managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
+        vaultState.lastLockedAmount = uint104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
 
         vaultState.round = 1;
     }
@@ -161,17 +158,10 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(
-            newManagementFee > 0 && newManagementFee < 100 * 10**6,
-            "Invalid m. fee"
-        );
-
-        emit ManagementFeeSet(managementFee, newManagementFee);
+        require(newManagementFee < 100 * 10**6, "Invalid management fee");
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = uint16(
-            uint256(newManagementFee).div(uint256(365).div(7))
-        );
+        managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
     }
 
     /**
@@ -179,13 +169,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(
-            newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
-            "Invalid p. fee"
-        );
-
-        emit PerformanceFeeSet(performanceFee, newPerformanceFee);
-
+        require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
         performanceFee = newPerformanceFee;
     }
 
@@ -194,9 +178,8 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newCap is the new cap for deposits
      */
     function setCap(uint104 newCap) external onlyOwner {
-        uint256 oldCap = vaultParams.cap;
+        require(newCap > 0, "!newCap");
         vaultParams.cap = newCap;
-        emit CapSet(oldCap, newCap, msg.sender);
     }
 
     /************************************************
@@ -204,7 +187,7 @@ contract RibbonVault is OptionsVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
+     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the asset is not WETH.
      */
     function depositETH() external payable nonReentrant {
         require(vaultParams.asset == WETH, "!WETH");
@@ -230,14 +213,17 @@ contract RibbonVault is OptionsVaultStorage {
             amount
         );
     }
-        
+
     /**
      * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
      * @notice Used for vault -> vault deposits on the user's behalf
      * @param amount is the amount of `asset` to deposit
      * @param creditor is the address that can claim/withdraw deposited amount
      */
-    function depositFor(uint256 amount, address creditor) external nonReentrant {
+    function depositFor(uint256 amount, address creditor)
+        external
+        nonReentrant
+    {
         require(amount > 0, "!amount");
         require(creditor != address(0));
 
@@ -253,13 +239,13 @@ contract RibbonVault is OptionsVaultStorage {
     /**
      * @notice Mints the vault shares to the creditor
      * @param amount is the amount of `asset` deposited
-     * @param creditor is the address to receieve the deposit 
+     * @param creditor is the address to receieve the deposit
      */
     function _depositFor(uint256 amount, address creditor) private {
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(totalWithDepositedAmount < vaultParams.cap, "Exceed cap");
+        require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= vaultParams.minimumSupply,
             "Insufficient balance"
@@ -267,8 +253,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         emit Deposit(creditor, amount, currentRound);
 
-        Vault.DepositReceipt memory depositReceipt =
-            depositReceipts[creditor];
+        Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint128 unredeemedShares =
@@ -278,23 +263,18 @@ contract RibbonVault is OptionsVaultStorage {
                 vaultParams.decimals
             );
 
-        uint104 depositAmount = uint104(amount);
+        uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
-            // No deposits allowed until the next round
-            require(!depositReceipt.processed, "Processed");
-
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            ShareMath.assertUint104(newAmount);
-            depositAmount = uint104(newAmount);
-        } else {
-            ShareMath.assertUint104(amount);
+            depositAmount = newAmount;
         }
 
+        ShareMath.assertUint104(depositAmount);
+
         depositReceipts[creditor] = Vault.DepositReceipt({
-            processed: false,
-            round: currentRound,
-            amount: depositAmount,
+            round: uint16(currentRound),
+            amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
         });
 
@@ -320,21 +300,22 @@ contract RibbonVault is OptionsVaultStorage {
         }
 
         // This caches the `round` variable used in shareBalances
-        uint16 currentRound = vaultState.round;
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        uint256 currentRound = vaultState.round;
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
+        bool topup = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
+        uint256 withdrawalShares = uint256(withdrawal.shares);
+
         if (topup) {
-            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
-            require(increasedShares < type(uint128).max, "Overflow");
+            uint256 increasedShares = withdrawalShares.add(shares);
+            ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (!withdrawal.initiated) {
-            withdrawals[msg.sender].initiated = true;
+        } else if (withdrawalShares == 0) {
             withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = currentRound;
+            withdrawals[msg.sender].round = uint16(currentRound);
         } else {
             // If we have an old withdrawal, we revert
             // The user has to process the withdrawal
@@ -352,28 +333,32 @@ contract RibbonVault is OptionsVaultStorage {
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
     function completeWithdraw() external nonReentrant {
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        require(withdrawal.initiated, "Not initiated");
-        require(withdrawal.round < vaultState.round, "Round not closed");
+        uint256 withdrawalShares = withdrawal.shares;
+        uint256 withdrawalRound = withdrawal.round;
+
+        // This checks if there is a withdrawal
+        require(withdrawalShares > 0, "Not initiated");
+
+        require(withdrawalRound < vaultState.round, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
-        withdrawals[msg.sender].initiated = false;
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
         );
 
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
-                withdrawal.shares,
-                roundPricePerShare[withdrawal.round],
+                withdrawalShares,
+                roundPricePerShare[uint16(withdrawalRound)],
                 vaultParams.decimals
             );
 
-        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
-        _burn(address(this), withdrawal.shares);
+        _burn(address(this), withdrawalShares);
 
         require(withdrawAmount > 0, "!withdrawAmount");
         transferAsset(msg.sender, withdrawAmount);
@@ -403,18 +388,18 @@ contract RibbonVault is OptionsVaultStorage {
     function _redeem(uint256 shares, bool isMax) internal {
         ShareMath.assertUint104(shares);
 
-        Vault.DepositReceipt memory depositReceipt =
+        Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        uint16 currentRound = vaultState.round;
-        require(depositReceipt.round < currentRound, "Round not closed");
+        uint256 currentRound = vaultState.round;
+        uint256 receiptRound = depositReceipt.round;
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[depositReceipt.round],
+                roundPricePerShare[uint16(receiptRound)],
                 vaultParams.decimals
             );
 
@@ -422,14 +407,18 @@ contract RibbonVault is OptionsVaultStorage {
         require(shares > 0, "!shares");
         require(shares <= unredeemedShares, "Exceeds available");
 
-        // This zeroes out any pending amount from depositReceipt
-        depositReceipts[msg.sender].amount = 0;
-        depositReceipts[msg.sender].processed = true;
+        // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
+        // we debit from the unredeemedShares, but leave the amount field intact
+        // If the round has past, with no new deposits, we just zero it out for new deposits.
+        depositReceipts[msg.sender].amount = receiptRound < currentRound
+            ? 0
+            : depositReceipt.amount;
+
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            uint256(unredeemedShares).sub(shares)
+            unredeemedShares.sub(shares)
         );
 
-        emit Redeem(msg.sender, shares, depositReceipt.round);
+        emit Redeem(msg.sender, shares, receiptRound);
 
         _transfer(address(this), msg.sender, shares);
     }
@@ -470,13 +459,13 @@ contract RibbonVault is OptionsVaultStorage {
 
         (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
             VaultLifecycle.rollover(
-                totalSupply(), 
+                totalSupply(),
                 vaultParams.asset,
                 vaultParams.decimals,
                 vaultParams.initialSharePrice,
                 uint256(vaultState.totalPending),
                 vaultState.queuedWithdrawShares
-        );
+            );
 
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
@@ -505,34 +494,21 @@ contract RibbonVault is OptionsVaultStorage {
         internal
         returns (uint256 vaultFee)
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 lockedBalanceSansPending =
-            currentLockedBalance.sub(vaultState.totalPending);
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (lockedBalanceSansPending > prevLockedAmount) {
-            uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? lockedBalanceSansPending
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * 10**6)
-                    : 0;
-            uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
-                    : 0;
-
-            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
-        }
+        (uint256 performanceFeeInAsset, , uint256 totalFee) =
+            VaultLifecycle.getVaultFees(
+                vaultState,
+                currentLockedBalance,
+                performanceFee,
+                managementFee
+            );
 
         if (vaultFee > 0) {
             transferAsset(payable(feeRecipient), vaultFee);
-            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
+            emit CollectVaultFees(
+                performanceFeeInAsset,
+                totalFee,
+                vaultState.round
+            );
         }
     }
 

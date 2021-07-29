@@ -29,7 +29,7 @@ contract StrikeSelection is DSMath, Ownable {
     // (ex: 100 * 10 ** assetOracleDecimals means we will move at increments of 100 points)
     uint256 public step;
     // multiplier to shift asset prices
-    uint256 private assetOracleMultiplier;
+    uint256 private immutable assetOracleMultiplier;
 
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
@@ -92,7 +92,10 @@ contract StrikeSelection is DSMath, Ownable {
         //   with certain margin of error
         //        return strike price
 
-        uint256 strike = assetPrice.sub(assetPrice % step);
+        uint256 strike =
+            isPut
+                ? assetPrice.sub(assetPrice % step)
+                : assetPrice.add(step - (assetPrice % step));
         uint256 targetDelta = isPut ? uint256(10000).sub(delta) : delta;
         uint256 prevDelta = 10000;
 
@@ -133,8 +136,6 @@ contract StrikeSelection is DSMath, Ownable {
 
             prevDelta = currDelta;
         }
-
-        return (0, 0);
     }
 
     /**
@@ -157,7 +158,7 @@ contract StrikeSelection is DSMath, Ownable {
 
         // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
         // for calls and lower strike price for puts for deltas
-        finalDelta = min(lowerBoundDiff, upperBoundDiff) == lowerBoundDiff
+        finalDelta = lowerBoundDiff <= upperBoundDiff
             ? (isPut ? prevDelta : currDelta)
             : (isPut ? currDelta : prevDelta);
     }
