@@ -156,12 +156,8 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
-     * @param keepWrapped is whether to withdraw in the yield token
      */
-    function withdrawInstantly(uint256 amount, bool keepWrapped)
-        external
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 amount) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -179,36 +175,19 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
             uint256(vaultState.totalPending).sub(amount)
         );
 
-        if (!keepWrapped) {
-            VaultLifecycleYearn.withdrawYieldAndBaseToken(
-                WETH,
-                vaultParams.asset,
-                address(collateralToken),
-                feeRecipient,
-                amount
-            );
-        } else {
-            // Unwraps necessary amount of yield token
-            VaultLifecycleYearn.unwrapYieldToken(
-                amount,
-                vaultParams.asset,
-                address(collateralToken),
-                YEARN_WITHDRAWAL_BUFFER,
-                YEARN_WITHDRAWAL_SLIPPAGE
-            );
-            VaultLifecycleYearn.transferAsset(
-                WETH,
-                vaultParams.asset,
-                msg.sender,
-                amount
-            );
-        }
-
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
+        // Unwraps necessary amount of yield token
+        VaultLifecycleYearn.unwrapYieldToken(
+            amount,
+            vaultParams.asset,
+            address(collateralToken),
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
         VaultLifecycleYearn.transferAsset(
             WETH,
             vaultParams.asset,
