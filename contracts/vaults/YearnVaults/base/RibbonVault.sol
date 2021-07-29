@@ -619,7 +619,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             return (balanceOf(account), 0);
         }
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
