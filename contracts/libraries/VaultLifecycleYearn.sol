@@ -3,8 +3,8 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
@@ -20,10 +20,12 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycleYearn {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+    using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -132,7 +134,7 @@ library VaultLifecycleYearn {
         Vault.VaultState calldata vaultState
     )
         external
-        view
+        pure
         returns (
             uint256 newLockedAmount,
             uint256 newPricePerShare,
@@ -185,16 +187,13 @@ library VaultLifecycleYearn {
             (controller.getAccountVaultCounter(address(this))).add(1);
 
         IOtoken oToken = IOtoken(oTokenAddress);
-        uint256 strikePrice = oToken.strikePrice();
-        bool isPut = oToken.isPut();
         address collateralAsset = oToken.collateralAsset();
-        IERC20 collateralToken = IERC20(collateralAsset);
 
         uint256 collateralDecimals =
             uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
-        if (isPut) {
+        if (oToken.isPut()) {
             // For minting puts, there will be instances where the full depositAmount will not be used for minting.
             // This is because of an issue with precision.
             //
@@ -209,24 +208,22 @@ library VaultLifecycleYearn {
             // To test this behavior, we can console.log
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
-            mintAmount = dswdiv(
-                depositAmount.mul(OTOKEN_DECIMALS),
-                strikePrice.mul(10**10) // we need to scale strikePrice to wad
-            )
-                .div(10**collateralDecimals);
+            mintAmount = depositAmount
+                .mul(OTOKEN_DECIMALS)
+                .mul(DSWAD) // we use 10**18 to give extra precision
+                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
             uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
 
             if (mintAmount > scaleBy && collateralDecimals > 8) {
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-                require(mintAmount > 0, "depositAmount < 10**8");
             }
         }
 
         // double approve to fix non-compliant ERC20s
-        collateralToken.safeApprove(marginPool, 0);
-        collateralToken.safeApprove(marginPool, depositAmount);
+        IERC20 collateralToken = IERC20(collateralAsset);
+        collateralToken.doubleApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);

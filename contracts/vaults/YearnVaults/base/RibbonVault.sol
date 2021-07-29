@@ -61,7 +61,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
     event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
-    event Redeem(address indexed account, uint256 share, uint16 round);
+    event Redeem(address indexed account, uint256 share, uint256 round);
 
     event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
 
@@ -222,7 +222,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         require(vaultParams.asset == WETH, "!WETH");
         require(msg.value > 0, "!value");
 
-        _deposit(msg.value);
+        _depositFor(msg.value, msg.sender);
 
         IWETH(WETH).deposit{value: msg.value}();
     }
@@ -234,7 +234,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _deposit(amount);
+        _depositFor(amount, msg.sender);
 
         IERC20(vaultParams.asset).safeTransferFrom(
             msg.sender,
@@ -244,23 +244,23 @@ contract RibbonVault is OptionsVaultYearnStorage {
     }
 
     /**
-     * @notice Mints the vault shares to the msg.sender
+     * @notice Mints the vault shares to the creditor
      * @param amount is the amount of `asset` deposited
+     * @param creditor is the address to receieve the deposit
      */
-    function _deposit(uint256 amount) private {
-        uint16 currentRound = vaultState.round;
+    function _depositFor(uint256 amount, address creditor) private {
+        uint256 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
-        require(totalWithDepositedAmount < vaultParams.cap, "Exceed cap");
+        require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= vaultParams.minimumSupply,
             "Insufficient balance"
         );
 
-        emit Deposit(msg.sender, amount, currentRound);
+        emit Deposit(creditor, amount, currentRound);
 
-        Vault.DepositReceipt memory depositReceipt =
-            depositReceipts[msg.sender];
+        Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint128 unredeemedShares =
@@ -270,23 +270,18 @@ contract RibbonVault is OptionsVaultYearnStorage {
                 vaultParams.decimals
             );
 
-        uint104 depositAmount = uint104(amount);
+        uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
-            // No deposits allowed until the next round
-            require(!depositReceipt.processed, "Processed");
-
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
-            ShareMath.assertUint104(newAmount);
-            depositAmount = uint104(newAmount);
-        } else {
-            ShareMath.assertUint104(amount);
+            depositAmount = newAmount;
         }
 
-        depositReceipts[msg.sender] = Vault.DepositReceipt({
-            processed: false,
-            round: currentRound,
-            amount: depositAmount,
+        ShareMath.assertUint104(depositAmount);
+
+        depositReceipts[creditor] = Vault.DepositReceipt({
+            round: uint16(currentRound),
+            amount: uint104(depositAmount),
             unredeemedShares: unredeemedShares
         });
 
@@ -424,21 +419,26 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @param shares is the number of shares to redeem, could be 0 when isMax=true
      * @param isMax is flag for when callers do a max redemption
      */
+    /**
+     * @notice Redeems shares that are owed to the account
+     * @param shares is the number of shares to redeem, could be 0 when isMax=true
+     * @param isMax is flag for when callers do a max redemption
+     */
     function _redeem(uint256 shares, bool isMax) internal {
         ShareMath.assertUint104(shares);
 
-        Vault.DepositReceipt memory depositReceipt =
+        Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        uint16 currentRound = vaultState.round;
-        require(depositReceipt.round < currentRound, "Round not closed");
+        uint256 currentRound = vaultState.round;
+        uint256 receiptRound = depositReceipt.round;
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[depositReceipt.round],
+                roundPricePerShare[uint16(receiptRound)],
                 vaultParams.decimals
             );
 
@@ -446,14 +446,18 @@ contract RibbonVault is OptionsVaultYearnStorage {
         require(shares > 0, "!shares");
         require(shares <= unredeemedShares, "Exceeds available");
 
-        // This zeroes out any pending amount from depositReceipt
-        depositReceipts[msg.sender].amount = 0;
-        depositReceipts[msg.sender].processed = true;
+        // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
+        // we debit from the unredeemedShares, but leave the amount field intact
+        // If the round has past, with no new deposits, we just zero it out for new deposits.
+        depositReceipts[msg.sender].amount = receiptRound < currentRound
+            ? 0
+            : depositReceipt.amount;
+
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            uint256(unredeemedShares).sub(shares)
+            unredeemedShares.sub(shares)
         );
 
-        emit Redeem(msg.sender, shares, depositReceipt.round);
+        emit Redeem(msg.sender, shares, receiptRound);
 
         _transfer(address(this), msg.sender, shares);
     }

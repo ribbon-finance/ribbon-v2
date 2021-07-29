@@ -4,7 +4,6 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {
     IStrikeSelection,
@@ -18,9 +17,7 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {
-    SupportsNonCompliantERC20
-} from "../libraries/SupportsNonCompliantERC20.sol";
+import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -201,7 +198,7 @@ library VaultLifecycle {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(marginPool, depositAmount);
+        collateralToken.doubleApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
