@@ -3,17 +3,21 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "../../vendor/CustomSafeERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     OptionsThetaYearnVaultStorage
 } from "../../storage/OptionsVaultYearnStorage.sol";
 
 contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
+    using SafeERC20 for IERC20;
     using SafeMath for uint256;
+    using ShareMath for Vault.DepositReceipt;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
@@ -41,7 +45,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
-        uint256 round
+        uint16 round
     );
 
     event InitiateGnosisAuction(
@@ -156,40 +160,54 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
+     * @param keepWrapped is whether to withdraw in the yield token
      */
-    function withdrawInstantly(uint256 amount) external nonReentrant {
+    function withdrawInstantly(uint256 amount, bool keepWrapped)
+        external
+        nonReentrant
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint256 currentRound = vaultState.round;
-
+        uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
+
+        require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
 
-        uint256 receiptAmount = depositReceipt.amount;
+        uint104 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
 
-        // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(receiptAmount.sub(amount));
-        vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).sub(amount)
-        );
+        if (!keepWrapped) {
+            VaultLifecycleYearn.withdrawYieldAndBaseToken(
+                WETH,
+                vaultParams.asset,
+                address(collateralToken),
+                feeRecipient,
+                amount
+            );
+        } else {
+            // Unwraps necessary amount of yield token
+            VaultLifecycleYearn.unwrapYieldToken(
+                amount,
+                vaultParams.asset,
+                address(collateralToken),
+                YEARN_WITHDRAWAL_BUFFER,
+                YEARN_WITHDRAWAL_SLIPPAGE
+            );
+            VaultLifecycleYearn.transferAsset(
+                WETH,
+                vaultParams.asset,
+                msg.sender,
+                amount
+            );
+        }
 
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
-<<<<<<< HEAD
-=======
-        VaultLifecycleYearn.unwrapYieldToken(
-            amount,
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
-            YEARN_WITHDRAWAL_SLIPPAGE
-        );
->>>>>>> 34757ebc2785f7e637668228d610b12770fe3215
         VaultLifecycleYearn.transferAsset(
             WETH,
             vaultParams.asset,
@@ -219,7 +237,12 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
                 overriddenStrikePrice: overriddenStrikePrice
             });
 
-        (address otokenAddress, uint256 premium, , ) =
+        (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        ) =
             VaultLifecycleYearn.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
@@ -230,6 +253,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
                 address(collateralToken)
             );
 
+        ShareMath.assertUint104(premium);
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
@@ -261,6 +285,8 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      */
     function rollToNextOption() external nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
+
+        vaultState.lockedAmount = uint104(lockedBalance);
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
@@ -294,6 +320,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
+        auctionDetails.manager = owner();
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycleYearn.startAuction(auctionDetails);

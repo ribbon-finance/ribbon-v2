@@ -3,8 +3,8 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
@@ -20,12 +20,10 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycleYearn {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -134,7 +132,7 @@ library VaultLifecycleYearn {
         Vault.VaultState calldata vaultState
     )
         external
-        pure
+        view
         returns (
             uint256 newLockedAmount,
             uint256 newPricePerShare,
@@ -187,13 +185,16 @@ library VaultLifecycleYearn {
             (controller.getAccountVaultCounter(address(this))).add(1);
 
         IOtoken oToken = IOtoken(oTokenAddress);
+        uint256 strikePrice = oToken.strikePrice();
+        bool isPut = oToken.isPut();
         address collateralAsset = oToken.collateralAsset();
+        IERC20 collateralToken = IERC20(collateralAsset);
 
         uint256 collateralDecimals =
             uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
-        if (oToken.isPut()) {
+        if (isPut) {
             // For minting puts, there will be instances where the full depositAmount will not be used for minting.
             // This is because of an issue with precision.
             //
@@ -208,22 +209,24 @@ library VaultLifecycleYearn {
             // To test this behavior, we can console.log
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
-            mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
+            mintAmount = dswdiv(
+                depositAmount.mul(OTOKEN_DECIMALS),
+                strikePrice.mul(10**10) // we need to scale strikePrice to wad
+            )
+                .div(10**collateralDecimals);
         } else {
             mintAmount = depositAmount;
             uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
 
             if (mintAmount > scaleBy && collateralDecimals > 8) {
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+                require(mintAmount > 0, "depositAmount < 10**8");
             }
         }
 
         // double approve to fix non-compliant ERC20s
-        IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.doubleApprove(marginPool, depositAmount);
+        collateralToken.safeApprove(marginPool, 0);
+        collateralToken.safeApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -513,7 +516,7 @@ library VaultLifecycleYearn {
         address collateralToken,
         address recipient,
         uint256 amount
-    ) external returns (uint256 withdrawAmount) {
+    ) internal returns (uint256 withdrawAmount) {
         uint256 pricePerYearnShare =
             IYearnVault(collateralToken).pricePerShare();
         withdrawAmount = dswdiv(
@@ -606,7 +609,7 @@ library VaultLifecycleYearn {
         address collateralToken,
         uint256 yearnWithdrawalBuffer,
         uint256 yearnWithdrawalSlippage
-    ) external {
+    ) internal {
         uint256 assetBalance = IERC20(asset).balanceOf(address(this));
         IYearnVault collateral = IYearnVault(collateralToken);
 
@@ -633,7 +636,7 @@ library VaultLifecycleYearn {
      * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
      */
-    function wrapToYieldToken(address asset, address collateralToken) external {
+    function wrapToYieldToken(address asset, address collateralToken) internal {
         uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
 
         IERC20(asset).safeApprove(collateralToken, amountToWrap);
@@ -644,42 +647,6 @@ library VaultLifecycleYearn {
         // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
         // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
         IYearnVault(collateralToken).deposit(amountToWrap, address(this));
-    }
-
-    function getVaultFees(
-        Vault.VaultState storage vaultState,
-        uint256 currentLockedBalance,
-        uint256 performanceFeePercent,
-        uint256 managementFeePercent
-    )
-        external
-        view
-        returns (
-            uint256 performanceFee,
-            uint256 managementFee,
-            uint256 totalFee
-        )
-    {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
-            performanceFee = currentLockedBalance
-                .sub(totalPending)
-                .sub(prevLockedAmount)
-                .mul(performanceFeePercent)
-                .div(100 * 10**6);
-            managementFee = currentLockedBalance.mul(managementFeePercent).div(
-                100 * 10**6
-            );
-
-            totalFee = performanceFee.add(managementFee);
-        }
     }
 
     /**
@@ -694,7 +661,7 @@ library VaultLifecycleYearn {
         address asset,
         address payable recipient,
         uint256 amount
-    ) public {
+    ) internal {
         if (asset == weth) {
             IWETH(weth).withdraw(amount);
             (bool success, ) = recipient.call{value: amount}("");
@@ -709,7 +676,7 @@ library VaultLifecycleYearn {
      * @param collateralToken is the address of the collateral token
      */
     function decimalShift(address collateralToken)
-        public
+        internal
         view
         returns (uint256)
     {
