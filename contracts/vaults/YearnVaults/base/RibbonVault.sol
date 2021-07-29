@@ -57,11 +57,11 @@ contract RibbonVault is OptionsVaultYearnStorage {
      *  EVENTS
      ***********************************************/
 
-    event Deposit(address indexed account, uint256 amount, uint16 round);
+    event Deposit(address indexed account, uint256 amount, uint256 round);
+
+    event InitiateWithdraw(address account, uint256 shares, uint256 round);
 
     event Redeem(address indexed account, uint256 share, uint16 round);
-
-    event WithdrawalFeeSet(uint256 oldFee, uint256 newFee);
 
     event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
 
@@ -75,8 +75,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
         uint256 amount,
         uint256 shares
     );
-
-    event InitiateWithdraw(address account, uint256 shares, uint16 round);
 
     event CollectVaultFees(
         uint256 performanceFee,
@@ -314,21 +312,22 @@ contract RibbonVault is OptionsVaultYearnStorage {
         }
 
         // This caches the `round` variable used in shareBalances
-        uint16 currentRound = vaultState.round;
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        uint256 currentRound = vaultState.round;
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        bool topup = withdrawal.initiated && withdrawal.round == currentRound;
+        bool topup = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
+        uint256 withdrawalShares = uint256(withdrawal.shares);
+
         if (topup) {
-            uint256 increasedShares = uint256(withdrawal.shares).add(shares);
-            require(increasedShares < type(uint128).max, "Overflow");
+            uint256 increasedShares = withdrawalShares.add(shares);
+            ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (!withdrawal.initiated) {
-            withdrawals[msg.sender].initiated = true;
+        } else if (withdrawalShares == 0) {
             withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = currentRound;
+            withdrawals[msg.sender].round = uint16(currentRound);
         } else {
             // If we have an old withdrawal, we revert
             // The user has to process the withdrawal
@@ -344,28 +343,30 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
-     * @param keepWrapped is whether to withdraw in the yield token
      */
     function completeWithdraw(bool keepWrapped) external nonReentrant {
-        Vault.Withdrawal memory withdrawal = withdrawals[msg.sender];
+        Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        require(withdrawal.initiated, "Not initiated");
-        require(withdrawal.round < vaultState.round, "Round not closed");
+        uint256 withdrawalShares = withdrawal.shares;
+        uint256 withdrawalRound = withdrawal.round;
+
+        // This checks if there is a withdrawal
+        require(withdrawalShares > 0, "Not initiated");
+
+        require(withdrawalRound < vaultState.round, "Round not closed");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
-        withdrawals[msg.sender].initiated = false;
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).sub(withdrawal.shares)
+            uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
         );
 
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
-                withdrawal.shares,
-                roundPricePerShare[withdrawal.round],
+                withdrawalShares,
+                roundPricePerShare[uint16(withdrawalRound)],
                 vaultParams.decimals
             );
-
         if (!keepWrapped) {
             withdrawAmount = VaultLifecycleYearn.withdrawYieldAndBaseToken(
                 WETH,
