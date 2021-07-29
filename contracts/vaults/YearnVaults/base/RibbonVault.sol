@@ -611,7 +611,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
     */
     function upgradeYearnVault() external onlyOwner {
         // Unwrap old yvUSDC
-        VaultLifecycleYearn.unwrapYieldToken(t
+        VaultLifecycleYearn.unwrapYieldToken(
             collateralToken.balanceOf(address(this)),
             vaultParams.asset,
             address(collateralToken),

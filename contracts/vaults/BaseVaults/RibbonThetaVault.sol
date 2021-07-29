@@ -56,7 +56,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
-        uint256 round
+        uint16 round
     );
 
     event InitiateGnosisAuction(
@@ -179,19 +179,17 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint256 currentRound = vaultState.round;
-
+        uint16 currentRound = vaultState.round;
         require(amount > 0, "!amount");
+
+        require(!depositReceipt.processed, "Processed");
         require(depositReceipt.round == currentRound, "Invalid round");
 
-        uint256 receiptAmount = depositReceipt.amount;
+        uint104 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(receiptAmount.sub(amount));
-        vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).sub(amount)
-        );
+        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
@@ -297,6 +295,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
+        auctionDetails.manager = owner();
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);

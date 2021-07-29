@@ -36,6 +36,7 @@ library GnosisAuction {
         address asset;
         uint256 assetDecimals;
         uint256 oTokenPremium;
+        address manager;
         uint256 duration;
     }
 
@@ -57,6 +58,18 @@ library GnosisAuction {
     {
         uint256 oTokenSellAmount =
             getOTokenSellAmount(auctionDetails.oTokenAddress);
+
+        if (
+            IERC20(auctionDetails.oTokenAddress).allowance(
+                address(this),
+                auctionDetails.gnosisEasyAuction
+            ) > 0
+        ) {
+            IERC20(auctionDetails.oTokenAddress).safeApprove(
+                auctionDetails.gnosisEasyAuction,
+                0
+            );
+        }
 
         IERC20(auctionDetails.oTokenAddress).safeApprove(
             auctionDetails.gnosisEasyAuction,
@@ -105,7 +118,7 @@ library GnosisAuction {
             auctionDetails.oTokenAddress,
             auctionDetails.asset,
             auctionID,
-            msg.sender
+            auctionDetails.manager
         );
     }
 

@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {
     IStrikeSelection,
@@ -17,11 +18,10 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
-    using SupportsNonCompliantERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -37,8 +37,8 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
-        Vault.VaultState storage vaultState
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
     )
         external
         returns (
@@ -51,7 +51,7 @@ library VaultLifecycle {
         uint256 expiry;
 
         // uninitialized state
-        if (closeParams.currentOption == address(0)) {
+        if (closeParams.currentOption <= address(1)) {
             expiry = getNextFriday(block.timestamp);
         } else {
             expiry = getNextFriday(
@@ -61,24 +61,28 @@ library VaultLifecycle {
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
-        bool isPut = vaultParams.isPut;
-        address underlying = vaultParams.underlying;
-        address asset = vaultParams.asset;
-
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, isPut);
+            : selection.getStrikePrice(expiry, vaultParams.isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         otokenAddress = getOrDeployOtoken(
-            closeParams,
-            underlying,
-            asset,
+            closeParams.OTOKEN_FACTORY,
+            vaultParams.underlying,
+            closeParams.USDC,
+            vaultParams.asset,
             strikePrice,
             expiry,
-            isPut
+            vaultParams.isPut
+        );
+
+        verifyOtoken(
+            otokenAddress,
+            vaultParams,
+            closeParams.USDC,
+            closeParams.delay
         );
 
         premium = GnosisAuction.getOTokenPremium(
@@ -90,10 +94,28 @@ library VaultLifecycle {
         require(premium > 0, "!premium");
     }
 
-    function verifyOtoken(address otokenAddress, uint256 delay) private view {
+    function verifyOtoken(
+        address otokenAddress,
+        Vault.VaultParams calldata vaultParams,
+        address USDC,
+        uint256 delay
+    ) private view {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == vaultParams.asset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
@@ -134,12 +156,16 @@ library VaultLifecycle {
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
+        // TODO: We need to use the pps of the round they scheduled the withdrawal
+        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
         uint256 queuedWithdrawAmount =
             newSupply > 0
                 ? uint256(queuedWithdrawShares).mul(currentBalance).div(
                     newSupply
                 )
                 : 0;
+
+        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
         return (
             currentBalance.sub(queuedWithdrawAmount),
@@ -162,13 +188,16 @@ library VaultLifecycle {
             (controller.getAccountVaultCounter(address(this))).add(1);
 
         IOtoken oToken = IOtoken(oTokenAddress);
+        uint256 strikePrice = oToken.strikePrice();
+        bool isPut = oToken.isPut();
         address collateralAsset = oToken.collateralAsset();
+        IERC20 collateralToken = IERC20(collateralAsset);
 
         uint256 collateralDecimals =
             uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
-        if (oToken.isPut()) {
+        if (isPut) {
             // For minting puts, there will be instances where the full depositAmount will not be used for minting.
             // This is because of an issue with precision.
             //
@@ -183,22 +212,24 @@ library VaultLifecycle {
             // To test this behavior, we can console.log
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
-            mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
+            mintAmount = dswdiv(
+                depositAmount.mul(OTOKEN_DECIMALS),
+                strikePrice.mul(10**10) // we need to scale strikePrice to wad
+            )
+                .div(10**collateralDecimals);
         } else {
             mintAmount = depositAmount;
             uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
 
             if (mintAmount > scaleBy && collateralDecimals > 8) {
                 mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+                require(mintAmount > 0, "depositAmount < 10**8");
             }
         }
 
         // double approve to fix non-compliant ERC20s
-        IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.doubleApprove(marginPool, depositAmount);
+        collateralToken.safeApprove(marginPool, 0);
+        collateralToken.safeApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -385,56 +416,21 @@ library VaultLifecycle {
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
-    function getVaultFees(
-        Vault.VaultState storage vaultState,
-        uint256 currentLockedBalance,
-        uint256 performanceFeePercent,
-        uint256 managementFeePercent
-    )
-        external
-        view
-        returns (
-            uint256 performanceFee,
-            uint256 managementFee,
-            uint256 totalFee
-        )
-    {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
-            performanceFee = currentLockedBalance
-                .sub(totalPending)
-                .sub(prevLockedAmount)
-                .mul(performanceFeePercent)
-                .div(100 * 10**6);
-            managementFee = currentLockedBalance.mul(managementFeePercent).div(
-                100 * 10**6
-            );
-
-            totalFee = performanceFee.add(managementFee);
-        }
-    }
-
     function getOrDeployOtoken(
-        CloseParams calldata closeParams,
+        address otokenFactory,
         address underlying,
+        address strikeAsset,
         address collateralAsset,
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
+        IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                closeParams.USDC,
+                strikeAsset,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -448,15 +444,12 @@ library VaultLifecycle {
         address otoken =
             factory.createOtoken(
                 underlying,
-                closeParams.USDC,
+                strikeAsset,
                 collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
             );
-
-        verifyOtoken(otoken, closeParams.delay);
-
         return otoken;
     }
 
@@ -501,12 +494,12 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
-        require(performanceFee < 10**8, "performanceFee >= 100%");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
         require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
+
+        require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
         require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
@@ -514,27 +507,24 @@ library VaultLifecycle {
 
     /**
      * @notice Gets the next options expiry timestamp
-     * @param currentExpiry is the expiry timestamp of the current option
-     * Reference: https://codereview.stackexchange.com/a/33532
-     * Examples:
-     * getNextFriday(week 1 thursday) -> week 1 friday
-     * getNextFriday(week 1 friday) -> week 2 friday
-     * getNextFriday(week 1 saturday) -> week 2 friday
      */
     function getNextFriday(uint256 currentExpiry)
         internal
         pure
         returns (uint256)
     {
-        // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
-        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
+        uint256 nextWeek = currentExpiry + 86400 * 7;
+        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
 
-        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (currentExpiry >= friday8am) {
-            friday8am += 7 days;
+        uint256 friday;
+        if (dayOfWeek > 5) {
+            friday = nextWeek - 86400 * (dayOfWeek - 5);
+        } else {
+            friday = nextWeek + 86400 * (5 - dayOfWeek);
         }
+
+        uint256 friday8am =
+            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
     }
 
