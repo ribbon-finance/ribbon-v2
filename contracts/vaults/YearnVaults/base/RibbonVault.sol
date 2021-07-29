@@ -36,6 +36,10 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
+    // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
+    // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
+    uint256 private constant WEEKS_PER_YEAR = 52142857;
+
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -147,7 +151,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.div(uint256(365).div(7));
+        managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
 
         _upgradeYearnVault();
@@ -173,17 +177,12 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(
-            newManagementFee > 0 && newManagementFee < 100 * 10**6,
-            "Invalid management fee"
-        );
+        require(newManagementFee < 100 * 10**6, "Invalid management fee");
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = uint16(
-            uint256(newManagementFee).div(uint256(365).div(7))
-        );
+        managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
     }
 
     /**
@@ -191,10 +190,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(
-            newPerformanceFee > 0 && newPerformanceFee < 100 * 10**6,
-            "Invalid performance fee"
-        );
+        require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
 
