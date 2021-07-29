@@ -149,8 +149,8 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
         isPut
       );
 
-      console.log(deltaAtUnderlying.toString());
-      console.log(targetDelta.toString());
+      // console.log(deltaAtUnderlying.toString());
+      // console.log(targetDelta.toString());
 
       assert.equal(
         strikePrice.toString(),
