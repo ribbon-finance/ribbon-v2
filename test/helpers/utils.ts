@@ -145,7 +145,7 @@ export async function whitelistProduct(
     value: parseEther("0.5"),
   });
 
-  await whitelist.connect(ownerSigner).whitelistCollateral(underlying);
+  await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
 
   await whitelist
     .connect(ownerSigner)

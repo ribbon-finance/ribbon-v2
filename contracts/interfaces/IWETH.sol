@@ -24,4 +24,6 @@ interface IWETH {
         address recipient,
         uint256 amount
     ) external returns (bool);
+
+    function decimals() external view returns (uint256);
 }
