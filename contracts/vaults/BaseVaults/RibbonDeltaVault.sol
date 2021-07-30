@@ -6,15 +6,15 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {DSMath} from "../vendor/DSMath.sol";
-import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
-import {Vault} from "../libraries/Vault.sol";
-import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../libraries/ShareMath.sol";
+import {DSMath} from "../../vendor/DSMath.sol";
+import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {OptionsDeltaVaultStorage} from "../../storage/OptionsVaultStorage.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
 
 contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     using SafeERC20 for IERC20;
@@ -123,6 +123,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
         optionAllocationPct = _optionAllocationPct;
+        vaultState.lastLockedAmount = uint104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
     }
 
     /**
