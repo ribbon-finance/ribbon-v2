@@ -1156,6 +1156,56 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#depositFor", () => {
+      time.revertToSnapshotAfterEach();
+
+      before(async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+      });
+
+      it("reverts when amount == 0", async function () {
+        await expect(vault.depositFor(0, owner)).to.be.revertedWith("!amount");
+      });
+
+      it("reverts when creditor is 0x0", async function () {
+        await expect(
+          vault.depositFor(depositAmount, constants.AddressZero)
+        ).to.be.revertedWith("!creditor");
+      });
+
+      it("deposits on behalf of creditor", async function () {
+        const collateralERC20 = await getContractAt("IERC20", collateralAsset);
+
+        const tx = await vault.depositFor(depositAmount, owner);
+
+        await expect(tx)
+          .to.emit(collateralERC20, "Transfer")
+          .withArgs(user, vault.address, depositAmount);
+
+        const {
+          round: roundUser,
+          amount: amountUser,
+          unredeemedShares: unredeemedSharesUser,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(roundUser, 0);
+        assert.equal(amountUser, 0);
+        assert.equal(unredeemedSharesUser, 0);
+
+        const {
+          round: roundOwner,
+          amount: amountOwner,
+          unredeemedShares: unredeemedSharesOwner,
+        } = await vault.depositReceipts(owner);
+
+        assert.equal(roundOwner, 1);
+        assert.bnEqual(amountOwner, depositAmount);
+        assert.equal(unredeemedSharesOwner, 0);
+      });
+    });
+
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
