@@ -28,19 +28,6 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
   const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
   before(async function () {
-    // Reset block
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.TEST_URI,
-            blockNumber: 12529250,
-          },
-        },
-      ],
-    });
-
     [signer, signer2] = await ethers.getSigners();
     const ManualVolOracle = await getContractFactory(
       ManualVolOracle_ABI,
