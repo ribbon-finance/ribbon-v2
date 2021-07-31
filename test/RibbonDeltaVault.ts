@@ -349,19 +349,6 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     before(async function () {
-      // Reset block
-      await network.provider.request({
-        method: "hardhat_reset",
-        params: [
-          {
-            forking: {
-              jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 12529250,
-            },
-          },
-        ],
-      });
-
       initSnapshotId = await time.takeSnapshot();
 
       [adminSigner, ownerSigner, userSigner, feeRecipientSigner] =
