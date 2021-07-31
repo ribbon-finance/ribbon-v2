@@ -2,6 +2,7 @@ import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
+import * as time from "../helpers/time";
 
 moment.tz.setDefault("UTC");
 
@@ -18,12 +19,14 @@ describe("VaultLifecycle", () => {
   });
 
   describe("getNextFriday", () => {
+    time.revertToSnapshotAfterEach();
+
     it("gets the first Friday, given the day of week is Saturday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
-      // The block we're hardcoded to is a Friday so we add 1 day to get to Saturday
-      const saturday = currentTime.add(1, "days");
+      // The block we're hardcoded to is a Saturday
+      const saturday = currentTime;
 
       const expectedFriday = moment(saturday)
         .startOf("isoWeek")
@@ -42,8 +45,8 @@ describe("VaultLifecycle", () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
-      // The block we're hardcoded to is a Friday so we add 1 day to get to Sunday
-      const sunday = currentTime.add(2, "days");
+      // The block we're hardcoded to is a Saturday so we add +1 day to get to Sunday
+      const sunday = currentTime.add(1, "days");
 
       const expectedFriday = moment(sunday)
         .startOf("isoWeek")
@@ -62,8 +65,8 @@ describe("VaultLifecycle", () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
-      // The block we're hardcoded to is a Friday so we subtract 1 day to get to Thursday
-      const thursday = currentTime.add(-1, "days");
+      // The block we're hardcoded to is a Saturday so we subtract 3 days to get to Thursday
+      const thursday = currentTime.subtract(3, "days");
 
       const expectedFriday = moment(thursday)
         .startOf("isoWeek")
@@ -81,7 +84,11 @@ describe("VaultLifecycle", () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
-      const thisFriday = currentTime.hours(8).minutes(0).seconds(0); // set to 8am UTc
+      const thisFriday = currentTime
+        .subtract(1, "days")
+        .hours(8)
+        .minutes(0)
+        .seconds(0); // set to 8am UTc
 
       const expectedFriday = moment(thisFriday)
         .startOf("isoWeek")
@@ -100,9 +107,13 @@ describe("VaultLifecycle", () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
-      const thisFriday = moment(currentTime);
+      const thisFriday = moment(currentTime)
+        .subtract(1, "days")
+        .hours(9)
+        .minutes(0)
+        .seconds(0); // set to 8am U
 
-      const expectedFriday = currentTime
+      const expectedFriday = moment(currentTime)
         .startOf("isoWeek")
         .add(1, "week")
         .day("friday")
