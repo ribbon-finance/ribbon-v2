@@ -1,4 +1,4 @@
-import { network, ethers } from "hardhat";
+import { ethers } from "hardhat";
 import { assert, expect } from "chai";
 import { Contract } from "@ethersproject/contracts";
 import moment from "moment-timezone";
