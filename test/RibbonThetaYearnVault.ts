@@ -1295,6 +1295,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
+
     describe("#burnRemainingOTokens", () => {
       time.revertToSnapshotAfterEach(async function () {
         await assetContract.approve(vault.address, depositAmount);
@@ -2703,6 +2704,8 @@ function behavesLikeRibbonOptionsVault(params: {
           collateralPricerSigner,
           await getCurrentOptionExpiry()
         );
+
+        await vault.connect(ownerSigner).commitAndClose();
 
         let balanceBefore = await assetContract.balanceOf(vault.address);
         await vault.connect(ownerSigner).upgradeYearnVault();
