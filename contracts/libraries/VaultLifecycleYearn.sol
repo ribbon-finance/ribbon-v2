@@ -653,9 +653,6 @@ library VaultLifecycleYearn {
         if (amountToWrap > 0) {
             IERC20(asset).safeApprove(collateralToken, amountToWrap);
 
-            // console.log("wrapToYieldToken");
-            // console.log(amountToWrap);
-
             // there is a slight imprecision with regards to calculating back from yearn token -> underlying
             // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
             // at that point in time.
