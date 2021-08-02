@@ -91,10 +91,15 @@ library VaultLifecycleYearn {
             closeParams.delay
         );
 
-        premium = GnosisAuction.getOTokenPremium(
-            otokenAddress,
-            optionsPremiumPricer,
-            premiumDiscount
+        premium = dswmul(
+            GnosisAuction.getOTokenPremium(
+                otokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount
+            ),
+            IYearnVault(collateralAsset).pricePerShare().mul(
+                decimalShift(collateralAsset)
+            )
         );
 
         require(premium > 0, "!premium");
