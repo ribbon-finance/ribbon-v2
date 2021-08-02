@@ -123,7 +123,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        vaultState.lastLockedAmount = uint104(totalBalance());
+        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /************************************************
@@ -148,7 +148,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @param newAuctionDuration is the auction duration
      */
     function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(newAuctionDuration >= 1 hours, "Invalid auction duration");
+        require(newAuctionDuration >= 1 hours, "!newAuctionDuration");
 
         auctionDuration = newAuctionDuration;
     }
@@ -258,19 +258,28 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      */
     function rollToNextOption() external nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
-
         emit OpenShort(newOption, lockedBalance, msg.sender);
+
+        // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+        // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+        // at that point in time.
+        // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+        // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
+        // similarly with usdc, if I deposit 100 usdc we will get 100 usdc  - (1 * 10 ** collateralToken decimals) = 99 usdc
+        uint256 collateralDecimals = collateralToken.decimals();
 
         VaultLifecycleYearn.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            VaultLifecycleYearn.dswdiv(
+            VaultLifecycleYearn
+                .dswdiv(
                 lockedBalance,
                 collateralToken.pricePerShare().mul(
                     VaultLifecycleYearn.decimalShift(address(collateralToken))
                 )
             )
+                .sub(collateralDecimals == 18 ? 1 : 10**collateralDecimals)
         );
 
         startAuction();
@@ -300,14 +309,13 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyOwner nonReentrant {
-        uint256 numOTokensToBurn =
-            IERC20(optionState.currentOption).balanceOf(address(this));
-        if (numOTokensToBurn > 0) {
-            uint256 unlockedAssedAmount =
-                VaultLifecycleYearn.burnOtokens(
-                    GAMMA_CONTROLLER,
-                    numOTokensToBurn
-                );
+        uint256 unlockedAssedAmount =
+            VaultLifecycleYearn.burnOtokens(
+                GAMMA_CONTROLLER,
+                optionState.currentOption
+            );
+
+        if (unlockedAssedAmount > 0) {
             vaultState.lockedAmount = uint104(
                 uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
             );

@@ -206,19 +206,23 @@ export async function setOpynOracleExpiryPriceYearn(
   underlyingOracle: Contract,
   underlyingSettlePrice: BigNumber,
   collateralPricer: Contract,
-  owner: string,
   expiry: BigNumber
 ) {
-  const ownerSigner = await ethers.provider.getSigner(owner);
-
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  const res = await underlyingOracle
-    .connect(ownerSigner)
-    .setExpiryPrice(underlyingAsset, expiry, underlyingSettlePrice);
+  const res = await underlyingOracle.setExpiryPrice(
+    underlyingAsset,
+    expiry,
+    underlyingSettlePrice
+  );
   await res.wait();
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
   const res2 = await collateralPricer
-    .connect(ownerSigner)
+    .connect(oracleOwnerSigner)
     .setExpiryPriceInOracle(expiry);
   const receipt = await res2.wait();
 

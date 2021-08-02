@@ -322,7 +322,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         uint256 withdrawalRound = withdrawal.round;
 
         // This checks if there is a withdrawal
-        require(withdrawalShares > 0, "Not initiated");
+        require(withdrawalShares > 0, "!initiated");
 
         require(withdrawalRound < vaultState.round, "Round not closed");
 
@@ -453,7 +453,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      */
     function _rollToNextOption() internal returns (address, uint256) {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "Not ready");
+        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
@@ -628,7 +628,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             uint256(vaultState.lockedAmount)
                 .add(IERC20(vaultParams.asset).balanceOf(address(this)))
                 .add(
-                VaultLifecycleYearn.dswdiv(
+                VaultLifecycleYearn.dswmul(
                     collateralToken.balanceOf(address(this)),
                     collateralToken.pricePerShare().mul(
                         VaultLifecycleYearn.decimalShift(
