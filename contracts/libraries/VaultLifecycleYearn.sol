@@ -650,14 +650,16 @@ library VaultLifecycleYearn {
     function wrapToYieldToken(address asset, address collateralToken) external {
         uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
 
-        IERC20(asset).safeApprove(collateralToken, amountToWrap);
+        if (amountToWrap > 0) {
+            IERC20(asset).safeApprove(collateralToken, amountToWrap);
 
-        // there is a slight imprecision with regards to calculating back from yearn token -> underlying
-        // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
-        // at that point in time.
-        // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
-        // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
-        IYearnVault(collateralToken).deposit(amountToWrap, address(this));
+            // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+            // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+            // at that point in time.
+            // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+            // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
+            IYearnVault(collateralToken).deposit(amountToWrap, address(this));
+        }
     }
 
     function getVaultFees(
