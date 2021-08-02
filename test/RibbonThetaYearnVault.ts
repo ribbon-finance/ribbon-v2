@@ -200,8 +200,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let adminSigner: SignerWithAddress,
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
-    feeRecipientSigner: SignerWithAddress,
-    counterpartySigner: SignerWithAddress;
+    feeRecipientSigner: SignerWithAddress;
 
   // Parameters
   let tokenName = params.tokenName;
@@ -298,13 +297,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [
-        adminSigner,
-        ownerSigner,
-        userSigner,
-        feeRecipientSigner,
-        counterpartySigner,
-      ] = await ethers.getSigners();
+      [adminSigner, ownerSigner, userSigner, feeRecipientSigner] =
+        await ethers.getSigners();
       owner = ownerSigner.address;
       user = userSigner.address;
       owner = ownerSigner.address;
@@ -594,6 +588,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ] = await vault.vaultParams();
         assert.equal(await decimals, tokenDecimals);
         assert.equal(decimals, tokenDecimals);
+        assert.equal(initialSharePrice, params.initialSharePrice);
         assert.equal(assetFromContract, depositAsset);
         assert.equal(collateralAsset, await vault.collateralToken());
         assert.equal(underlying, asset);
@@ -2695,6 +2690,19 @@ function behavesLikeRibbonOptionsVault(params: {
         await gnosisAuction
           .connect(userSigner)
           .settleAuction((await gnosisAuction.auctionCounter()).toString());
+
+        const settlementPriceOTM = isPut
+          ? firstOptionStrike.add(10000000000)
+          : firstOptionStrike.sub(10000000000);
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPriceYearn(
+          params.asset,
+          oracle,
+          settlementPriceOTM,
+          collateralPricerSigner,
+          await getCurrentOptionExpiry()
+        );
 
         let balanceBefore = await assetContract.balanceOf(vault.address);
         await vault.connect(ownerSigner).upgradeYearnVault();
