@@ -102,7 +102,6 @@ library VaultLifecycle {
         uint256 currentSupply,
         address asset,
         uint8 decimals,
-        uint256 initialSharePrice,
         uint256 pendingAmount,
         uint128 queuedWithdrawShares
     )
@@ -122,8 +121,7 @@ library VaultLifecycle {
         newPricePerShare = getPPS(
             currentSupply,
             roundStartBalance,
-            singleShare,
-            initialSharePrice
+            singleShare
         );
 
         // After closing the short, if the options expire in-the-money
@@ -509,7 +507,6 @@ library VaultLifecycle {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
-        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
     }
 
     /**
@@ -541,12 +538,11 @@ library VaultLifecycle {
     function getPPS(
         uint256 currentSupply,
         uint256 roundStartBalance,
-        uint256 singleShare,
-        uint256 initialSharePrice
+        uint256 singleShare
     ) internal pure returns (uint256 newPricePerShare) {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : initialSharePrice;
+            : singleShare;
     }
 
     /***

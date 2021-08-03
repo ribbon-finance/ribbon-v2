@@ -15,8 +15,6 @@ library Vault {
         uint56 minimumSupply;
         // Vault cap
         uint104 cap;
-        // If migrating from existing vault, allows for smooth migration
-        uint256 initialSharePrice;
     }
 
     struct OptionState {
