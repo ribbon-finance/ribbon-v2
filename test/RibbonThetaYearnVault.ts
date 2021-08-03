@@ -34,7 +34,7 @@ import {
   bidForOToken,
   decodeOrder,
 } from "./helpers/utils";
-import { wmul, wdiv } from "./helpers/math";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 
@@ -1429,10 +1429,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
-        const startMarginBalance = await collateralContract.balanceOf(
-          MARGIN_POOL
-        );
-
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
