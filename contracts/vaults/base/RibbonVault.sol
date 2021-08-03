@@ -545,7 +545,6 @@ contract RibbonVault is
                 totalSupply(),
                 vaultParams.asset,
                 vaultParams.decimals,
-                vaultParams.initialSharePrice,
                 uint256(vaultState.totalPending),
                 vaultState.queuedWithdrawShares
             );

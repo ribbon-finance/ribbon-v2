@@ -634,7 +634,6 @@ library VaultLifecycle {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
-        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
     }
 
     /**
