@@ -90,6 +90,36 @@ export async function mintAndApprove(
   );
 }
 
+export async function getAssetPricer(pricer: string, signer: Signer) {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [pricer],
+  });
+
+  const ownerSigner = await provider.getSigner(pricer);
+
+  const pricerContract = await ethers.getContractAt("IYearnPricer", pricer);
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+  await forceSend.connect(signer).go(pricer, { value: parseEther("0.5") });
+
+  return await pricerContract.connect(ownerSigner);
+}
+
+export async function setAssetPricer(asset: string, pricer: string) {
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+
+  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE);
+
+  await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
+}
+
 export async function whitelistProduct(
   underlying: string,
   strike: string,
@@ -115,7 +145,7 @@ export async function whitelistProduct(
     value: parseEther("0.5"),
   });
 
-  await whitelist.connect(ownerSigner).whitelistCollateral(underlying);
+  await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
 
   await whitelist
     .connect(ownerSigner)
@@ -168,6 +198,35 @@ export async function setOpynOracleExpiryPrice(
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
+  await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+}
+
+export async function setOpynOracleExpiryPriceYearn(
+  underlyingAsset: string,
+  underlyingOracle: Contract,
+  underlyingSettlePrice: BigNumber,
+  collateralPricer: Contract,
+  expiry: BigNumber
+) {
+  await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
+
+  const res = await underlyingOracle.setExpiryPrice(
+    underlyingAsset,
+    expiry,
+    underlyingSettlePrice
+  );
+  await res.wait();
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [ORACLE_OWNER],
+  });
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
+  const res2 = await collateralPricer
+    .connect(oracleOwnerSigner)
+    .setExpiryPriceInOracle(expiry);
+  const receipt = await res2.wait();
+
+  const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
   await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
 }
 

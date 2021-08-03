@@ -6,15 +6,15 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {DSMath} from "../vendor/DSMath.sol";
-import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
-import {Vault} from "../libraries/Vault.sol";
-import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../libraries/ShareMath.sol";
+import {DSMath} from "../../vendor/DSMath.sol";
+import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {OptionsDeltaVaultStorage} from "../../storage/OptionsVaultStorage.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
 
 contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     using SafeERC20 for IERC20;
@@ -123,6 +123,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
         optionAllocationPct = _optionAllocationPct;
+        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /**
@@ -133,11 +134,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * depending on the gnosis auction outcome. Finally it will change at the end of the week
      * if the oTokens are ITM
      */
-    modifier updatePPS(bool isWithdraw) {
-        if (!isWithdraw) {
-            _;
-        }
-
+    function updatePPS(bool isWithdraw) internal {
         if (
             !isWithdraw ||
             roundPricePerShare[vaultState.round] <= PLACEHOLDER_UINT
@@ -154,10 +151,6 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                 singleShare,
                 vaultParams.initialSharePrice
             );
-        }
-
-        if (isWithdraw) {
-            _;
         }
     }
 
@@ -191,12 +184,10 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param share is the amount of shares to withdraw
      */
-    function withdrawInstantly(uint256 share)
-        external
-        updatePPS(true)
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 share) external nonReentrant {
         require(share > 0, "!shares");
+
+        updatePPS(true);
 
         uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
 
@@ -240,12 +231,15 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Closes the existing long position for the vault.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner updatePPS(true) nonReentrant {
+    function commitAndClose() external onlyOwner nonReentrant {
         address oldOption = optionState.currentOption;
 
         address counterpartyNextOption =
             counterpartyThetaVault.optionState().nextOption;
         require(counterpartyNextOption != address(0), "!thetavaultclosed");
+
+        updatePPS(true);
+
         optionState.nextOption = counterpartyNextOption;
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
@@ -272,7 +266,6 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     function rollToNextOption(uint256 optionPremium)
         external
         onlyOwner
-        updatePPS(false)
         nonReentrant
     {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
@@ -299,18 +292,21 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         auctionSellOrder.buyAmount = uint96(buyAmount);
         auctionSellOrder.userId = userId;
 
+        updatePPS(false);
+
         emit OpenLong(newOption, buyAmount, sellAmount, msg.sender);
     }
 
     /**
      * @notice Claims the delta vault's oTokens from latest auction
      */
-    function claimAuctionOtokens() external updatePPS(false) nonReentrant {
+    function claimAuctionOtokens() external nonReentrant {
         VaultLifecycle.claimAuctionOtokens(
             auctionSellOrder,
             GNOSIS_EASY_AUCTION,
             address(counterpartyThetaVault)
         );
+        updatePPS(false);
     }
 
     /**
