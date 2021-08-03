@@ -346,6 +346,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             YEARN_WITHDRAWAL_BUFFER,
             YEARN_WITHDRAWAL_SLIPPAGE
         );
+
         VaultLifecycleYearn.transferAsset(
             WETH,
             vaultParams.asset,
@@ -355,9 +356,9 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
         require(withdrawAmount > 0, "!withdrawAmount");
 
-        emit Withdraw(msg.sender, withdrawAmount, withdrawal.shares);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
-        _burn(address(this), withdrawal.shares);
+        _burn(address(this), withdrawalShares);
     }
 
     /**
@@ -450,7 +451,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
      * @return newOption is the new option address
-     * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
+     * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
     function _rollToNextOption() internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
@@ -458,7 +459,12 @@ contract RibbonVault is OptionsVaultYearnStorage {
         address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
-        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
+        (
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount,
+            uint256 newPricePerShare,
+            uint256 mintShares
+        ) =
             VaultLifecycleYearn.rollover(
                 totalSupply(),
                 totalBalance(),
@@ -488,7 +494,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             address(collateralToken)
         );
 
-        return (newOption, lockedBalance);
+        return (newOption, queuedWithdrawAmount);
     }
 
     /*
@@ -498,12 +504,12 @@ contract RibbonVault is OptionsVaultYearnStorage {
      */
     function _collectVaultFees(uint256 currentLockedBalance)
         internal
-        returns (uint256 vaultFee)
+        returns (uint256)
     {
         (
             uint256 performanceFeeInAsset,
             uint256 managementFeeInAsset,
-            uint256 totalFee
+            uint256 vaultFee
         ) =
             VaultLifecycleYearn.getVaultFees(
                 vaultState,
@@ -523,10 +529,12 @@ contract RibbonVault is OptionsVaultYearnStorage {
             emit CollectVaultFees(
                 performanceFeeInAsset,
                 managementFeeInAsset,
-                totalFee,
+                vaultFee,
                 vaultState.round
             );
         }
+
+        return vaultFee;
     }
 
     /*

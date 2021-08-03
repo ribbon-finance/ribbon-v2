@@ -142,6 +142,7 @@ library VaultLifecycleYearn {
         pure
         returns (
             uint256 newLockedAmount,
+            uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         )
@@ -175,7 +176,12 @@ library VaultLifecycleYearn {
 
         uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
-        return (balanceSansQueued, newPricePerShare, _mintShares);
+        return (
+            balanceSansQueued,
+            queuedWithdrawAmount,
+            newPricePerShare,
+            _mintShares
+        );
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
@@ -631,9 +637,10 @@ library VaultLifecycleYearn {
             );
 
         if (amountToUnwrap > 0) {
-            amountToUnwrap = amountToUnwrap.add(
-                amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000)
-            );
+            amountToUnwrap = amountToUnwrap
+                .add(amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000))
+                .sub(1);
+
             collateral.withdraw(
                 amountToUnwrap,
                 address(this),
@@ -673,7 +680,7 @@ library VaultLifecycleYearn {
         returns (
             uint256 performanceFee,
             uint256 managementFee,
-            uint256 totalFee
+            uint256 vaultFee
         )
     {
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
@@ -694,7 +701,7 @@ library VaultLifecycleYearn {
                 100 * 10**6
             );
 
-            totalFee = performanceFee.add(managementFee);
+            vaultFee = performanceFee.add(managementFee);
         }
     }
 

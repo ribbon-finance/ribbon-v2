@@ -257,29 +257,41 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external nonReentrant {
-        (address newOption, uint256 lockedBalance) = _rollToNextOption();
-        emit OpenShort(newOption, lockedBalance, msg.sender);
+        (address newOption, uint256 queuedWithdrawAmount) = _rollToNextOption();
 
+        // Locked balance denominated in `collateralToken`
         // there is a slight imprecision with regards to calculating back from yearn token -> underlying
         // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
         // at that point in time.
         // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
         // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
-        // similarly with usdc, if I deposit 100 usdc we will get 100 usdc  - (1 * 10 ** collateralToken decimals) = 99 usdc
-        uint256 collateralDecimals = collateralToken.decimals();
+
+        // We are subtracting `collateralAsset` balance by queuedWithdrawAmount denominated in `collateralAsset` plus
+        // a buffer for withdrawals taking into account slippage from yearn vault
+
+        uint256 lockedBalance =
+            collateralToken.balanceOf(address(this)).sub(
+                VaultLifecycleYearn.dswdiv(
+                    queuedWithdrawAmount.add(
+                        queuedWithdrawAmount.mul(YEARN_WITHDRAWAL_BUFFER).div(
+                            10000
+                        )
+                    ),
+                    collateralToken.pricePerShare().mul(
+                        VaultLifecycleYearn.decimalShift(
+                            address(collateralToken)
+                        )
+                    )
+                )
+            );
+
+        emit OpenShort(newOption, lockedBalance, msg.sender);
 
         VaultLifecycleYearn.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            VaultLifecycleYearn
-                .dswdiv(
-                lockedBalance,
-                collateralToken.pricePerShare().mul(
-                    VaultLifecycleYearn.decimalShift(address(collateralToken))
-                )
-            )
-                .sub(collateralDecimals == 18 ? 1 : 10**collateralDecimals)
+            lockedBalance
         );
 
         startAuction();
