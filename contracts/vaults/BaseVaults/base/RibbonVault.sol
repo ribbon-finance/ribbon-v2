@@ -492,9 +492,9 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function _collectVaultFees(uint256 currentLockedBalance)
         internal
-        returns (uint256 vaultFee)
+        returns (uint256)
     {
-        (uint256 performanceFeeInAsset, , uint256 totalFee) =
+        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
             VaultLifecycle.getVaultFees(
                 vaultState,
                 currentLockedBalance,
@@ -506,10 +506,12 @@ contract RibbonVault is OptionsVaultStorage {
             transferAsset(payable(feeRecipient), vaultFee);
             emit CollectVaultFees(
                 performanceFeeInAsset,
-                totalFee,
+                vaultFee,
                 vaultState.round
             );
         }
+
+        return vaultFee;
     }
 
     /**

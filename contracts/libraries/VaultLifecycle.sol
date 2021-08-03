@@ -396,7 +396,7 @@ library VaultLifecycle {
         returns (
             uint256 performanceFee,
             uint256 managementFee,
-            uint256 totalFee
+            uint256 vaultFee
         )
     {
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
@@ -417,7 +417,7 @@ library VaultLifecycle {
                 100 * 10**6
             );
 
-            totalFee = performanceFee.add(managementFee);
+            vaultFee = performanceFee.add(managementFee);
         }
     }
 

@@ -69,7 +69,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
     event CollectVaultFees(
         uint256 performanceFee,
-        uint256 managementFee,
         uint256 vaultFee,
         uint256 round
     );
@@ -506,11 +505,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         internal
         returns (uint256)
     {
-        (
-            uint256 performanceFeeInAsset,
-            uint256 managementFeeInAsset,
-            uint256 vaultFee
-        ) =
+        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
             VaultLifecycleYearn.getVaultFees(
                 vaultState,
                 currentLockedBalance,
@@ -528,7 +523,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
             );
             emit CollectVaultFees(
                 performanceFeeInAsset,
-                managementFeeInAsset,
                 vaultFee,
                 vaultState.round
             );
