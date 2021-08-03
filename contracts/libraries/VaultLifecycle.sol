@@ -106,7 +106,6 @@ library VaultLifecycle {
         uint256 currentSupply,
         address asset,
         uint8 decimals,
-        uint256,
         uint256 pendingAmount,
         uint128 queuedWithdrawShares
     )
@@ -482,7 +481,6 @@ library VaultLifecycle {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
-        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
     }
 
     /**
