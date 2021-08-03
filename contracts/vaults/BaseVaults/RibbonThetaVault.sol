@@ -6,11 +6,11 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsThetaVaultStorage} from "../storage/OptionsVaultStorage.sol";
-import {Vault} from "../libraries/Vault.sol";
-import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../libraries/ShareMath.sol";
+import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {OptionsThetaVaultStorage} from "../../storage/OptionsVaultStorage.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
@@ -56,7 +56,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
-        uint16 round
+        uint256 round
     );
 
     event InitiateGnosisAuction(
@@ -135,6 +135,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
+        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /************************************************
@@ -176,15 +177,16 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
+
         require(amount > 0, "!amount");
         require(depositReceipt.round == currentRound, "Invalid round");
 
-        uint104 receiptAmount = depositReceipt.amount;
+        uint256 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
+        depositReceipt.amount = uint104(receiptAmount.sub(amount));
         vaultState.totalPending = uint128(
             uint256(vaultState.totalPending).sub(amount)
         );
@@ -245,12 +247,10 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
-
         uint104 lockedAmount = vaultState.lockedAmount;
         vaultState.lastLockedAmount = lockedAmount > 0
             ? lockedAmount
             : vaultState.lastLockedAmount;
-
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {

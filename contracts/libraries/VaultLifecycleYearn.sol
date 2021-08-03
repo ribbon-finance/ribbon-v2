@@ -3,8 +3,11 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
+import {IYearnVault} from "../interfaces/IYearn.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -19,8 +22,9 @@ import {
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
-library VaultLifecycle {
+library VaultLifecycleYearn {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
@@ -37,8 +41,9 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
-        Vault.VaultState storage vaultState
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState,
+        address collateralAsset
     )
         external
         returns (
@@ -61,69 +66,96 @@ library VaultLifecycle {
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
-        bool isPut = vaultParams.isPut;
-        address underlying = vaultParams.underlying;
-        address asset = vaultParams.asset;
-
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, isPut);
+            : selection.getStrikePrice(expiry, vaultParams.isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         otokenAddress = getOrDeployOtoken(
-            closeParams,
-            underlying,
-            asset,
+            closeParams.OTOKEN_FACTORY,
+            vaultParams.underlying,
+            closeParams.USDC,
+            collateralAsset,
             strikePrice,
             expiry,
-            isPut
+            vaultParams.isPut
         );
 
-        premium = GnosisAuction.getOTokenPremium(
+        verifyOtoken(
             otokenAddress,
-            optionsPremiumPricer,
-            premiumDiscount
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
+
+        premium = dswmul(
+            GnosisAuction.getOTokenPremium(
+                otokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount
+            ),
+            IYearnVault(collateralAsset).pricePerShare().mul(
+                decimalShift(collateralAsset)
+            )
         );
 
         require(premium > 0, "!premium");
     }
 
-    function verifyOtoken(address otokenAddress, uint256 delay) private view {
+    function verifyOtoken(
+        address otokenAddress,
+        Vault.VaultParams calldata vaultParams,
+        address collateralAsset,
+        address USDC,
+        uint256 delay
+    ) private view {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == collateralAsset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
 
     function rollover(
         uint256 currentSupply,
-        address asset,
-        uint8 decimals,
-        uint256 initialSharePrice,
-        uint256 pendingAmount,
-        uint128 queuedWithdrawShares
+        uint256 currentBalance,
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
     )
         external
-        view
+        pure
         returns (
             uint256 newLockedAmount,
+            uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         )
     {
-        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
+        uint256 pendingAmount = uint256(vaultState.totalPending);
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**uint256(decimals);
+        uint256 singleShare = 10**uint256(vaultParams.decimals);
 
         newPricePerShare = getPPS(
             currentSupply,
             roundStartBalance,
-            singleShare,
-            initialSharePrice
+            singleShare
         );
 
         // After closing the short, if the options expire in-the-money
@@ -133,16 +165,20 @@ library VaultLifecycle {
             pendingAmount.mul(singleShare).div(newPricePerShare);
 
         uint256 newSupply = currentSupply.add(_mintShares);
-
+        // TODO: We need to use the pps of the round they scheduled the withdrawal
+        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? uint256(queuedWithdrawShares).mul(currentBalance).div(
-                    newSupply
-                )
+                ? uint256(vaultState.queuedWithdrawShares)
+                    .mul(currentBalance)
+                    .div(newSupply)
                 : 0;
 
+        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
+
         return (
-            currentBalance.sub(queuedWithdrawAmount),
+            balanceSansQueued,
+            queuedWithdrawAmount,
             newPricePerShare,
             _mintShares
         );
@@ -332,10 +368,17 @@ library VaultLifecycle {
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
      */
-    function burnOtokens(address gammaController, uint256 amount)
+    function burnOtokens(address gammaController, address currentOption)
         external
         returns (uint256)
     {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+
+        if (numOTokensToBurn < 0) {
+            return 0;
+        }
+
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -362,7 +405,7 @@ library VaultLifecycle {
             address(this), // address to transfer to
             address(vault.shortOtokens[0]), // otoken address
             vaultID, // vaultId
-            amount, // amount
+            numOTokensToBurn, // amount
             0, //index
             "" //data
         );
@@ -373,7 +416,9 @@ library VaultLifecycle {
             address(this), // address to transfer to
             address(collateralToken), // withdrawn asset
             vaultID, // vaultId
-            vault.collateralAmounts[0].mul(amount).div(vault.shortAmounts[0]), // amount
+            vault.collateralAmounts[0].mul(numOTokensToBurn).div(
+                vault.shortAmounts[0]
+            ), // amount
             0, //index
             "" //data
         );
@@ -385,56 +430,21 @@ library VaultLifecycle {
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
-    function getVaultFees(
-        Vault.VaultState storage vaultState,
-        uint256 currentLockedBalance,
-        uint256 performanceFeePercent,
-        uint256 managementFeePercent
-    )
-        external
-        view
-        returns (
-            uint256 performanceFee,
-            uint256 managementFee,
-            uint256 vaultFee
-        )
-    {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
-            performanceFee = currentLockedBalance
-                .sub(totalPending)
-                .sub(prevLockedAmount)
-                .mul(performanceFeePercent)
-                .div(100 * 10**6);
-            managementFee = currentLockedBalance.mul(managementFeePercent).div(
-                100 * 10**6
-            );
-
-            vaultFee = performanceFee.add(managementFee);
-        }
-    }
-
     function getOrDeployOtoken(
-        CloseParams calldata closeParams,
+        address otokenFactory,
         address underlying,
+        address strikeAsset,
         address collateralAsset,
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
+        IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                closeParams.USDC,
+                strikeAsset,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -448,15 +458,12 @@ library VaultLifecycle {
         address otoken =
             factory.createOtoken(
                 underlying,
-                closeParams.USDC,
+                strikeAsset,
                 collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
             );
-
-        verifyOtoken(otoken, closeParams.delay);
-
         return otoken;
     }
 
@@ -501,52 +508,269 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
-        require(performanceFee < 10**8, "performanceFee >= 100%");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
         require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
+
+        require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
-        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
+    }
+
+    /**
+     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param amount is the withdraw amount in `asset`
+     * @return withdrawAmount is the withdraw amount in `collateralToken`
+     */
+    function withdrawYieldAndBaseToken(
+        address weth,
+        address asset,
+        address collateralToken,
+        address recipient,
+        uint256 amount
+    ) external returns (uint256 withdrawAmount) {
+        uint256 pricePerYearnShare =
+            IYearnVault(collateralToken).pricePerShare();
+        withdrawAmount = dswdiv(
+            amount,
+            pricePerYearnShare.mul(decimalShift(collateralToken))
+        );
+        uint256 yieldTokenBalance =
+            withdrawYieldToken(collateralToken, recipient, withdrawAmount);
+
+        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
+        // transfers the rest in `asset`
+        if (withdrawAmount > yieldTokenBalance) {
+            withdrawBaseToken(
+                weth,
+                asset,
+                collateralToken,
+                recipient,
+                withdrawAmount,
+                yieldTokenBalance,
+                pricePerYearnShare
+            );
+        }
+    }
+
+    /**
+     * @notice Withdraws yvWETH from vault
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     */
+    function withdrawYieldToken(
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount
+    ) internal returns (uint256 yieldTokenBalance) {
+        IERC20 collateral = IERC20(collateralToken);
+
+        yieldTokenBalance = collateral.balanceOf(address(this));
+        uint256 yieldTokensToWithdraw =
+            dsmin(yieldTokenBalance, withdrawAmount);
+        if (yieldTokensToWithdraw > 0) {
+            collateral.safeTransfer(recipient, yieldTokensToWithdraw);
+        }
+    }
+
+    /**
+     * @notice Withdraws `asset` from vault
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
+     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
+     */
+    function withdrawBaseToken(
+        address weth,
+        address asset,
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount,
+        uint256 yieldTokenBalance,
+        uint256 pricePerYearnShare
+    ) internal {
+        uint256 underlyingTokensToWithdraw =
+            dsmul(
+                withdrawAmount.sub(yieldTokenBalance),
+                pricePerYearnShare.mul(decimalShift(collateralToken))
+            );
+        transferAsset(
+            weth,
+            asset,
+            payable(recipient),
+            underlyingTokensToWithdraw
+        );
+    }
+
+    /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to vault
+     * @param amount is the amount of `asset` to withdraw
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param yearnWithdrawalBuffer is the buffer for withdrawals from yearn vault
+     * @param yearnWithdrawalSlippage is the slippage for withdrawals from yearn vault
+     */
+    function unwrapYieldToken(
+        uint256 amount,
+        address asset,
+        address collateralToken,
+        uint256 yearnWithdrawalBuffer,
+        uint256 yearnWithdrawalSlippage
+    ) external {
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        IYearnVault collateral = IYearnVault(collateralToken);
+
+        uint256 amountToUnwrap =
+            dswdiv(
+                dsmax(assetBalance, amount).sub(assetBalance),
+                collateral.pricePerShare().mul(decimalShift(collateralToken))
+            );
+
+        if (amountToUnwrap > 0) {
+            amountToUnwrap = amountToUnwrap
+                .add(amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000))
+                .sub(1);
+
+            collateral.withdraw(
+                amountToUnwrap,
+                address(this),
+                yearnWithdrawalSlippage
+            );
+        }
+    }
+
+    /**
+     * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     */
+    function wrapToYieldToken(address asset, address collateralToken) external {
+        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
+
+        if (amountToWrap > 0) {
+            IERC20(asset).safeApprove(collateralToken, amountToWrap);
+
+            // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+            // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+            // at that point in time.
+            // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+            // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
+            IYearnVault(collateralToken).deposit(amountToWrap, address(this));
+        }
+    }
+
+    function getVaultFees(
+        Vault.VaultState storage vaultState,
+        uint256 currentLockedBalance,
+        uint256 performanceFeePercent,
+        uint256 managementFeePercent
+    )
+        external
+        view
+        returns (
+            uint256 performanceFee,
+            uint256 managementFee,
+            uint256 vaultFee
+        )
+    {
+        uint256 prevLockedAmount = vaultState.lastLockedAmount;
+        uint256 totalPending = vaultState.totalPending;
+
+        // Take performance fee and management fee ONLY if difference between
+        // last week and this week's vault deposits, taking into account pending
+        // deposits and withdrawals, is positive. If it is negative, last week's
+        // option expired ITM past breakeven, and the vault took a loss so we
+        // do not collect performance fee for last week
+        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
+            performanceFee = currentLockedBalance
+                .sub(totalPending)
+                .sub(prevLockedAmount)
+                .mul(performanceFeePercent)
+                .div(100 * 10**6);
+            managementFee = currentLockedBalance.mul(managementFeePercent).div(
+                100 * 10**6
+            );
+
+            vaultFee = performanceFee.add(managementFee);
+        }
+    }
+
+    /**
+     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param recipient is the receiving address
+     * @param amount is the transfer amount
+     */
+    function transferAsset(
+        address weth,
+        address asset,
+        address payable recipient,
+        uint256 amount
+    ) public {
+        if (asset == weth) {
+            IWETH(weth).withdraw(amount);
+            (bool success, ) = recipient.call{value: amount}("");
+            require(success, "!success");
+            return;
+        }
+        IERC20(asset).safeTransfer(recipient, amount);
+    }
+
+    /**
+     * @notice Returns the decimal shift between 18 decimals and asset tokens
+     * @param collateralToken is the address of the collateral token
+     */
+    function decimalShift(address collateralToken)
+        public
+        view
+        returns (uint256)
+    {
+        return
+            10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
     }
 
     /**
      * @notice Gets the next options expiry timestamp
-     * @param currentExpiry is the expiry timestamp of the current option
-     * Reference: https://codereview.stackexchange.com/a/33532
-     * Examples:
-     * getNextFriday(week 1 thursday) -> week 1 friday
-     * getNextFriday(week 1 friday) -> week 2 friday
-     * getNextFriday(week 1 saturday) -> week 2 friday
      */
     function getNextFriday(uint256 currentExpiry)
         internal
         pure
         returns (uint256)
     {
-        // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
-        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
+        uint256 nextWeek = currentExpiry + 86400 * 7;
+        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
 
-        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (currentExpiry >= friday8am) {
-            friday8am += 7 days;
+        uint256 friday;
+        if (dayOfWeek > 5) {
+            friday = nextWeek - 86400 * (dayOfWeek - 5);
+        } else {
+            friday = nextWeek + 86400 * (5 - dayOfWeek);
         }
+
+        uint256 friday8am =
+            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
     }
 
     function getPPS(
         uint256 currentSupply,
         uint256 roundStartBalance,
-        uint256 singleShare,
-        uint256 initialSharePrice
+        uint256 singleShare
     ) internal pure returns (uint256 newPricePerShare) {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : initialSharePrice;
+            : singleShare;
     }
 
     /***
@@ -555,16 +779,29 @@ library VaultLifecycle {
 
     uint256 constant DSWAD = 10**18;
 
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
+    function dsadd(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "ds-math-add-overflow");
     }
 
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
+    function dsmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
     }
 
     //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
+    function dswmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        z = dsadd(dsmul(x, y), DSWAD / 2) / DSWAD;
+    }
+
+    //rounds to zero if x*y < WAD / 2
+    function dswdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = dsadd(dsmul(x, DSWAD), y / 2) / y;
+    }
+
+    function dsmin(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        return x <= y ? x : y;
+    }
+
+    function dsmax(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        return x >= y ? x : y;
     }
 }

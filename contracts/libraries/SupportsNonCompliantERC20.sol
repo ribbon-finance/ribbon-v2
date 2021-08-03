@@ -6,7 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 library SupportsNonCompliantERC20 {
     address constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
 
-    function safeApprove(
+    function doubleApprove(
         IERC20 token,
         address spender,
         uint256 amount
