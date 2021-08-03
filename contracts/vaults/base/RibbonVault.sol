@@ -475,7 +475,6 @@ contract RibbonVault is OptionsVaultStorage {
                 totalSupply(),
                 vaultParams.asset,
                 vaultParams.decimals,
-                vaultParams.initialSharePrice,
                 uint256(vaultState.totalPending),
                 vaultState.queuedWithdrawShares
             );
