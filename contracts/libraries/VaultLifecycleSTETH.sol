@@ -8,7 +8,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
 import {ICRV} from "../interfaces/ICRV.sol";
-import {IWETH} from "../interfaces/IWETH.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -495,17 +494,13 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
-     * @param weth is the weth address
-     * @param asset is the vault asset address
+     * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param amount is the withdraw amount in `asset`
      * @return withdrawAmount is the withdraw amount in `collateralToken`
      */
     function withdrawYieldAndBaseToken(
-        address weth,
-        address asset,
         address collateralToken,
         address recipient,
         uint256 amount
@@ -515,12 +510,10 @@ library VaultLifecycleSTETH {
         uint256 yieldTokenBalance =
             withdrawYieldToken(collateralToken, recipient, withdrawAmount);
 
-        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
+        // If there is not enough stETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
         if (withdrawAmount > yieldTokenBalance) {
             withdrawBaseToken(
-                weth,
-                asset,
                 collateralToken,
                 recipient,
                 withdrawAmount,
@@ -530,7 +523,7 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Withdraws yvWETH from vault
+     * @notice Withdraws stETH from vault
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
@@ -552,16 +545,12 @@ library VaultLifecycleSTETH {
 
     /**
      * @notice Withdraws `asset` from vault
-     * @param weth is the weth address
-     * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
+     * @param yieldTokenBalance is the collateral token (stETH) balance of the vault
      */
     function withdrawBaseToken(
-        address weth,
-        address asset,
         address collateralToken,
         address recipient,
         uint256 withdrawAmount,
@@ -572,27 +561,24 @@ library VaultLifecycleSTETH {
                 withdrawAmount.sub(yieldTokenBalance)
             );
 
-        transferAsset(
-            weth,
-            asset,
-            payable(recipient),
-            underlyingTokensToWithdraw
-        );
+        transferAsset(payable(recipient), underlyingTokensToWithdraw);
     }
 
     /**
      * @notice Unwraps the necessary amount of the yield-bearing yearn token
      *         and transfers amount to vault
      * @param amount is the amount of `asset` to withdraw
-     * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
+     * @param crvPool is the address of the steth <-> eth pool on curve
+     * @param crvPoolSlippage is the slippage for the steth <-> eth pool on curve
      */
     function unwrapYieldToken(
         uint256 amount,
-        address asset,
-        address collateralToken
+        address collateralToken,
+        address crvPool,
+        uint256 crvPoolSlippage
     ) external {
-        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        uint256 assetBalance = address(this).balance;
 
         uint256 amountToUnwrap =
             IWSTETH(collateralToken).getWstETHByStETH(
@@ -602,9 +588,18 @@ library VaultLifecycleSTETH {
         if (amountToUnwrap > 0) {
             IWSTETH wsteth = IWSTETH(collateralToken);
             // Unrap to stETH
-            wsteth.unwrap(wsteth.balanceOf(address(this)));
+            wsteth.unwrap(amountToUnwrap);
+
+            ICRV crv = ICRV(crvPool);
 
             // CRV SWAP HERE from steth -> eth
+            // 0 = ETH, 1 = STETH
+            uint256 minETHOut =
+                crv.get_dy(1, 0, amountToUnwrap).mul(
+                    uint256(256).sub(crvPoolSlippage).div(100)
+                );
+
+            crv.exchange(1, 0, amountToUnwrap, minETHOut);
         }
     }
 
@@ -660,24 +655,12 @@ library VaultLifecycleSTETH {
 
     /**
      * @notice Helper function to make either an ETH transfer or ERC20 transfer
-     * @param weth is the weth address
-     * @param asset is the vault asset address
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
-    function transferAsset(
-        address weth,
-        address asset,
-        address payable recipient,
-        uint256 amount
-    ) public {
-        if (asset == weth) {
-            IWETH(weth).withdraw(amount);
-            (bool success, ) = recipient.call{value: amount}("");
-            require(success, "!success");
-            return;
-        }
-        IERC20(asset).safeTransfer(recipient, amount);
+    function transferAsset(address payable recipient, uint256 amount) public {
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "!success");
     }
 
     /**
