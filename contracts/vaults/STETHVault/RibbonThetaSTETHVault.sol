@@ -313,7 +313,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         }
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(address(collateralToken));
+        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
     }
 
     /**

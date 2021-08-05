@@ -7,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 import {ICRV} from "../interfaces/ICRV.sol";
 import {
     IStrikeSelection,
@@ -600,10 +601,19 @@ library VaultLifecycleSTETH {
 
     /**
      * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
+     * @param weth is the address of weth
      * @param collateralToken is the address of the collateral token
      */
-    function wrapToYieldToken(address collateralToken) external {
+    function wrapToYieldToken(address weth, address collateralToken) external {
         ISTETH steth = ISTETH(IWSTETH(collateralToken).stETH());
+
+        // Unwrap all weth premiums transferred to contract
+        IWETH weth = IWETH(weth);
+        uint256 wethBalance = weth.balanceOf(address(this));
+        if (wethBalance > 0) {
+            weth.withdraw(wethBalance);
+        }
+
         if (address(this).balance > 0) {
             // Send eth to Lido, recieve steth
             steth.submit{value: address(this).balance}(address(this));
