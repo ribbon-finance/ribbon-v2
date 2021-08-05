@@ -29,7 +29,7 @@ interface IYearnVault {
         view
         returns (uint256);
 
-    function transferFrom(
+    function safeTransferFrom(
         address sender,
         address recipient,
         uint256 amount
