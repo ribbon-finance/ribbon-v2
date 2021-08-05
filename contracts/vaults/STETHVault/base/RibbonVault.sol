@@ -32,9 +32,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
 
-    // 1% pool slippage
-    uint256 public constant CRV_POOL_SLIPPAGE = 1;
-
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
     // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
@@ -239,7 +236,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
                 vaultParams.decimals
             );
 
-        uint256 depositAmount = uint104(amount);
+        uint256 depositAmount = amount;
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
@@ -307,8 +304,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
 
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      */
-    function completeWithdraw() external nonReentrant {
+    function completeWithdraw(uint256 minETHOut) external nonReentrant {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -336,7 +334,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
             withdrawAmount,
             address(collateralToken),
             STETH_ETH_CRV_POOL,
-            CRV_POOL_SLIPPAGE
+            minETHOut
         );
 
         VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
