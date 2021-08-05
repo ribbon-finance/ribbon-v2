@@ -6,6 +6,7 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "../../../vendor/CustomSafeERC20.sol";
 import {IWSTETH} from "../../../interfaces/ISTETH.sol";
+import {IWETH} from "../../../interfaces/IWETH.sol";
 import {
     OptionsVaultSTETHStorage
 } from "../../../storage/OptionsVaultSTETHStorage.sol";
@@ -595,16 +596,18 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
+        uint256 ethBalance =
+            IWETH(WETH).balanceOf(address(this)).add(address(this).balance);
+
         uint256 wstethToeth =
             collateralToken.getStETHByWstETH(
                 collateralToken.balanceOf(address(this)).add(
                     IERC20(collateralToken.stETH()).balanceOf(address(this))
                 )
             );
+
         return
-            uint256(vaultState.lockedAmount).add(address(this).balance).add(
-                wstethToeth
-            );
+            uint256(vaultState.lockedAmount).add(ethBalance).add(wstethToeth);
     }
 
     /**
