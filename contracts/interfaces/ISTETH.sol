@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 
-interface ISTETH {
-    function pricePerShare() external view returns (uint256);
+interface IWSTETH {
+    function getStETHByWstETH(uint256 _amount) external view returns (uint256);
 
-    function deposit(uint256 _amount, address _recipient)
-        external
-        returns (uint256);
+    function getWstETHByStETH(uint256 _amount) external view returns (uint256);
 
-    function withdraw(
-        uint256 _maxShares,
-        address _recipient,
-        uint256 _maxLoss
-    ) external returns (uint256);
+    function stEthPerToken() external view returns (uint256);
 
-    function withdraw(uint256 _maxShares) external returns (uint256);
+    function tokensPerStEth() external view returns (uint256);
+
+    function stETH() external view returns (address);
+
+    function wrap(uint256 _amount) external returns (uint256);
+
+    function unwrap(uint256 _amount) external returns (uint256);
 
     function approve(address _recipient, uint256 _amount)
         external
@@ -40,10 +40,48 @@ interface ISTETH {
     function decimals() external view returns (uint256);
 }
 
-interface IYearnRegistry {
-    function latestVault(address token) external returns (address);
-}
+interface ISTETH {
+    function getBufferedEther(uint256 _amount) external view returns (uint256);
 
-interface IYearnPricer {
-    function setExpiryPriceInOracle(uint256 _expiryTimestamp) external;
+    function getPooledEthByShares(uint256 _amount)
+        external
+        view
+        returns (uint256);
+
+    function getSharesByPooledEth(uint256 _amount)
+        external
+        view
+        returns (uint256);
+
+    function submit(address _referralAddress)
+        external
+        payable
+        returns (uint256);
+
+    function withdraw(uint256 _amount, bytes32 _pubkeyHash)
+        external
+        returns (uint256);
+
+    function approve(address _recipient, uint256 _amount)
+        external
+        returns (bool);
+
+    function balanceOf(address account) external view returns (uint256);
+
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
+
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+
+    function decimals() external view returns (uint256);
 }

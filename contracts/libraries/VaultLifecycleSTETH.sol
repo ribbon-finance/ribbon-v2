@@ -6,7 +6,8 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
-import {ISTETH} from "../interfaces/ISTETH.sol";
+import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
+import {ICRV} from "../interfaces/ICRV.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {
     IStrikeSelection,
@@ -69,7 +70,7 @@ library VaultLifecycleSTETH {
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, vaultParams.isPut);
+            : selection.getStrikePrice(expiry, false);
 
         require(strikePrice != 0, "!strikePrice");
 
@@ -79,8 +80,7 @@ library VaultLifecycleSTETH {
             closeParams.USDC,
             collateralAsset,
             strikePrice,
-            expiry,
-            vaultParams.isPut
+            expiry
         );
 
         verifyOtoken(
@@ -97,9 +97,7 @@ library VaultLifecycleSTETH {
                 optionsPremiumPricer,
                 premiumDiscount
             ),
-            ISTETH(collateralAsset).pricePerShare().mul(
-                decimalShift(collateralAsset)
-            )
+            IWSTETH(collateralAsset).stEthPerToken()
         );
 
         require(premium > 0, "!premium");
@@ -115,7 +113,7 @@ library VaultLifecycleSTETH {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(otoken.isPut() == false, "Type mismatch");
         require(
             otoken.underlyingAsset() == vaultParams.underlying,
             "Wrong underlyingAsset"
@@ -204,32 +202,11 @@ library VaultLifecycleSTETH {
             uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
-        if (oToken.isPut()) {
-            // For minting puts, there will be instances where the full depositAmount will not be used for minting.
-            // This is because of an issue with precision.
-            //
-            // For ETH put options, we are calculating the mintAmount (10**8 decimals) using
-            // the depositAmount (10**18 decimals), which will result in truncation of decimals when scaling down.
-            // As a result, there will be tiny amounts of dust left behind in the Opyn vault when minting put otokens.
-            //
-            // For simplicity's sake, we do not refund the dust back to the address(this) on minting otokens.
-            // We retain the dust in the vault so the calling contract can withdraw the
-            // actual locked amount + dust at settlement.
-            //
-            // To test this behavior, we can console.log
-            // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
-            // to see how much dust (or excess collateral) is left behind.
-            mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
-        } else {
-            mintAmount = depositAmount;
-            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
+        mintAmount = depositAmount;
+        uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
 
-            if (mintAmount > scaleBy && collateralDecimals > 8) {
-                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-            }
+        if (mintAmount > scaleBy && collateralDecimals > 8) {
+            mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
         }
 
         // double approve to fix non-compliant ERC20s
@@ -436,8 +413,7 @@ library VaultLifecycleSTETH {
         address strikeAsset,
         address collateralAsset,
         uint256 strikePrice,
-        uint256 expiry,
-        bool isPut
+        uint256 expiry
     ) internal returns (address) {
         IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
@@ -448,7 +424,7 @@ library VaultLifecycleSTETH {
                 collateralAsset,
                 strikePrice,
                 expiry,
-                isPut
+                false
             );
 
         if (otokenFromFactory != address(0)) {
@@ -462,7 +438,7 @@ library VaultLifecycleSTETH {
                 collateralAsset,
                 strikePrice,
                 expiry,
-                isPut
+                false
             );
         return otoken;
     }
@@ -534,11 +510,8 @@ library VaultLifecycleSTETH {
         address recipient,
         uint256 amount
     ) external returns (uint256 withdrawAmount) {
-        uint256 pricePerYearnShare = ISTETH(collateralToken).pricePerShare();
-        withdrawAmount = dswdiv(
-            amount,
-            pricePerYearnShare.mul(decimalShift(collateralToken))
-        );
+        withdrawAmount = IWSTETH(collateralToken).getWstETHByStETH(amount);
+
         uint256 yieldTokenBalance =
             withdrawYieldToken(collateralToken, recipient, withdrawAmount);
 
@@ -551,8 +524,7 @@ library VaultLifecycleSTETH {
                 collateralToken,
                 recipient,
                 withdrawAmount,
-                yieldTokenBalance,
-                pricePerYearnShare
+                yieldTokenBalance
             );
         }
     }
@@ -586,7 +558,6 @@ library VaultLifecycleSTETH {
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
      * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
-     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
      */
     function withdrawBaseToken(
         address weth,
@@ -594,14 +565,13 @@ library VaultLifecycleSTETH {
         address collateralToken,
         address recipient,
         uint256 withdrawAmount,
-        uint256 yieldTokenBalance,
-        uint256 pricePerYearnShare
+        uint256 yieldTokenBalance
     ) internal {
         uint256 underlyingTokensToWithdraw =
-            dsmul(
-                withdrawAmount.sub(yieldTokenBalance),
-                pricePerYearnShare.mul(decimalShift(collateralToken))
+            IWSTETH(collateralToken).getStETHByWstETH(
+                withdrawAmount.sub(yieldTokenBalance)
             );
+
         transferAsset(
             weth,
             asset,
@@ -623,36 +593,32 @@ library VaultLifecycleSTETH {
         address collateralToken
     ) external {
         uint256 assetBalance = IERC20(asset).balanceOf(address(this));
-        ISTETH collateral = ISTETH(collateralToken);
 
         uint256 amountToUnwrap =
-            dswdiv(
-                dsmax(assetBalance, amount).sub(assetBalance),
-                collateral.pricePerShare().mul(decimalShift(collateralToken))
+            IWSTETH(collateralToken).getWstETHByStETH(
+                dsmax(assetBalance, amount).sub(assetBalance)
             );
 
         if (amountToUnwrap > 0) {
-            collateral.withdraw(amountToUnwrap);
+            IWSTETH wsteth = IWSTETH(collateralToken);
+            // Unrap to stETH
+            wsteth.unwrap(wsteth.balanceOf(address(this)));
+
+            // CRV SWAP HERE from steth -> eth
         }
     }
 
     /**
      * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
-     * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
      */
-    function wrapToYieldToken(address asset, address collateralToken) external {
-        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
-
-        if (amountToWrap > 0) {
-            IERC20(asset).safeApprove(collateralToken, amountToWrap);
-
-            // there is a slight imprecision with regards to calculating back from yearn token -> underlying
-            // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
-            // at that point in time.
-            // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
-            // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
-            ISTETH(collateralToken).deposit(amountToWrap, address(this));
+    function wrapToYieldToken(address collateralToken) external {
+        ISTETH steth = ISTETH(IWSTETH(collateralToken).stETH());
+        if (address(this).balance > 0) {
+            // Send eth to Lido, recieve steth
+            steth.submit{value: address(this).balance}(address(this));
+            // Wrap to wstETH
+            IWSTETH(collateralToken).wrap(steth.balanceOf(address(this)));
         }
     }
 
@@ -712,19 +678,6 @@ library VaultLifecycleSTETH {
             return;
         }
         IERC20(asset).safeTransfer(recipient, amount);
-    }
-
-    /**
-     * @notice Returns the decimal shift between 18 decimals and asset tokens
-     * @param collateralToken is the address of the collateral token
-     */
-    function decimalShift(address collateralToken)
-        public
-        view
-        returns (uint256)
-    {
-        return
-            10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
     }
 
     /**

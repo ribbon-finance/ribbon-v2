@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "../../../vendor/CustomSafeERC20.sol";
-import {ISTETH} from "../../../interfaces/ISTETH.sol";
+import {IWSTETH} from "../../../interfaces/ISTETH.sol";
 import {
     OptionsVaultSTETHStorage
 } from "../../../storage/OptionsVaultSTETHStorage.sol";
@@ -48,6 +48,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
+    // Curve stETH / ETH stables pool
+    address public immutable STETH_ETH_CRV_POOL;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -77,7 +80,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _steth is the steth address
+     * @param _wsteth is the wsteth address
+     * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
         address _weth,
@@ -85,22 +89,25 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _steth
+        address _wsteth,
+        address _crvPool
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
-        require(_steth != address(0), "!_steth");
+        require(_wsteth != address(0), "!_wsteth");
+        require(_crvPool != address(0), "!_crvPool");
 
         WETH = _weth;
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+        STETH_ETH_CRV_POOL = _crvPool;
 
-        collateralToken = ISTETH(_steth);
+        collateralToken = IWSTETH(_wsteth);
     }
 
     /**
@@ -478,10 +485,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         _mint(address(this), mintShares);
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(
-            vaultParams.asset,
-            address(collateralToken)
-        );
+        VaultLifecycleSTETH.wrapToYieldToken(address(collateralToken));
 
         return (newOption, queuedWithdrawAmount);
     }
@@ -594,10 +598,16 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
+        uint256 wstethToeth =
+            collateralToken.getStETHByWstETH(
+                collateralToken.balanceOf(address(this)).add(
+                    IERC20(collateralToken.stETH()).balanceOf(address(this))
+                )
+            );
         return
             uint256(vaultState.lockedAmount)
                 .add(IERC20(vaultParams.asset).balanceOf(address(this)))
-                .add(VaultLifecycleSTETH.dswmul(0, 1));
+                .add(wstethToeth);
     }
 
     /**

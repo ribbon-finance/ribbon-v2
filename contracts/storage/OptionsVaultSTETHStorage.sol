@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 
-import {ISTETH} from "../interfaces/ISTETH.sol";
+import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
 import {
     OptionsVaultStorageV1,
     OptionsThetaVaultStorageV1,
@@ -13,8 +13,8 @@ abstract contract OptionsThetaSTETHVaultStorageV1 is
 {}
 
 abstract contract OptionsVaultSTETHStorageV1 is OptionsVaultStorageV1 {
-    // stETH vault contract
-    ISTETH public collateralToken;
+    // wstETH vault contract
+    IWSTETH public collateralToken;
 }
 
 // We are following Compound's method of upgrading new contract implementations
