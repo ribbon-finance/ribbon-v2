@@ -12,7 +12,6 @@ import {
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycleSTETH} from "../../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
-import {IWETH} from "../../../interfaces/IWETH.sol";
 
 contract RibbonVault is OptionsVaultSTETHStorage {
     using SafeERC20 for IERC20;
@@ -23,7 +22,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
-    address public immutable WETH;
     address public immutable USDC;
 
     uint256 public constant delay = 1 hours;
@@ -33,6 +31,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
     // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
+
+    // 1% pool slippage
+    uint256 public constant CRV_POOL_SLIPPAGE = 1;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
@@ -75,7 +76,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
 
     /**
      * @notice Initializes the contract with immutable variables
-     * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -84,7 +84,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
-        address _weth,
         address _usdc,
         address _gammaController,
         address _marginPool,
@@ -92,15 +91,14 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         address _wsteth,
         address _crvPool
     ) {
-        require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
         require(_wsteth != address(0), "!_wsteth");
         require(_crvPool != address(0), "!_crvPool");
 
-        WETH = _weth;
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
@@ -190,27 +188,24 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
+     * @notice Deposits ETH into the contract and mint vault shares.
      */
     function depositETH() external payable nonReentrant {
-        require(vaultParams.asset == WETH, "!WETH");
         require(msg.value > 0, "!value");
 
         _depositFor(msg.value, msg.sender);
-
-        IWETH(WETH).deposit{value: msg.value}();
     }
 
     /**
-     * @notice Deposits the `asset` into the contract and mint vault shares.
-     * @param amount is the amount of `asset` to deposit
+     * @notice Deposits the `collateralAsset` into the contract and mint vault shares.
+     * @param amount is the amount of `collateralAsset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _depositFor(amount, msg.sender);
+        _depositFor(collateralToken.getStETHByWstETH(amount), msg.sender);
 
-        IERC20(vaultParams.asset).safeTransferFrom(
+        IERC20(collateralToken.stETH()).safeTransferFrom(
             msg.sender,
             address(this),
             amount
@@ -339,16 +334,12 @@ contract RibbonVault is OptionsVaultSTETHStorage {
 
         VaultLifecycleSTETH.unwrapYieldToken(
             withdrawAmount,
-            vaultParams.asset,
-            address(collateralToken)
+            address(collateralToken),
+            STETH_ETH_CRV_POOL,
+            CRV_POOL_SLIPPAGE
         );
 
-        VaultLifecycleSTETH.transferAsset(
-            WETH,
-            vaultParams.asset,
-            msg.sender,
-            withdrawAmount
-        );
+        VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
 
         require(withdrawAmount > 0, "!withdrawAmount");
 
@@ -509,8 +500,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
 
         if (vaultFee > 0) {
             VaultLifecycleSTETH.withdrawYieldAndBaseToken(
-                WETH,
-                vaultParams.asset,
                 address(collateralToken),
                 feeRecipient,
                 vaultFee
@@ -605,9 +594,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
                 )
             );
         return
-            uint256(vaultState.lockedAmount)
-                .add(IERC20(vaultParams.asset).balanceOf(address(this)))
-                .add(wstethToeth);
+            uint256(vaultState.lockedAmount).add(address(this).balance).add(
+                wstethToeth
+            );
     }
 
     /**

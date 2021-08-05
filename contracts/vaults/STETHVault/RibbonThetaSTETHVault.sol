@@ -57,7 +57,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
 
     /**
      * @notice Initializes the contract with immutable variables
-     * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
@@ -67,7 +66,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
-        address _weth,
         address _usdc,
         address _oTokenFactory,
         address _gammaController,
@@ -77,7 +75,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         address _crvPool
     )
         RibbonVault(
-            _weth,
             _usdc,
             _gammaController,
             _marginPool,
@@ -185,15 +182,11 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
 
         VaultLifecycleSTETH.unwrapYieldToken(
             amount,
-            vaultParams.asset,
-            address(collateralToken)
+            address(collateralToken),
+            STETH_ETH_CRV_POOL,
+            CRV_POOL_SLIPPAGE
         );
-        VaultLifecycleSTETH.transferAsset(
-            WETH,
-            vaultParams.asset,
-            msg.sender,
-            amount
-        );
+        VaultLifecycleSTETH.transferAsset(msg.sender, amount);
     }
 
     /************************************************
