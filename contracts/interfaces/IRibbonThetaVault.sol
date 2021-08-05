@@ -16,8 +16,6 @@ library Vault {
         uint56 minimumSupply;
         // Vault cap
         uint104 cap;
-        // Round 1 asset/share price
-        uint256 initialSharePrice;
     }
 
     struct OptionState {
