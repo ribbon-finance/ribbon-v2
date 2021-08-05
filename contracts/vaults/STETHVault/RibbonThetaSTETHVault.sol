@@ -63,7 +63,8 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _steth is the steth address
+     * @param _wsteth is the wsteth address
+     * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
         address _weth,
@@ -72,8 +73,8 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _yearnRegistry,
-        address _steth
+        address _wsteth,
+        address _crvPool
     )
         RibbonVault(
             _weth,
@@ -81,7 +82,8 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
-            _steth
+            _wsteth,
+            _crvPool
         )
     {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
@@ -262,7 +264,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
 
         uint256 lockedBalance =
             collateralToken.balanceOf(address(this)).sub(
-                VaultLifecycleSTETH.dswdiv(queuedWithdrawAmount, 0)
+                collateralToken.getWstETHByStETH(queuedWithdrawAmount)
             );
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
@@ -314,10 +316,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         }
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(
-            vaultParams.asset,
-            address(collateralToken)
-        );
+        VaultLifecycleSTETH.wrapToYieldToken(address(collateralToken));
     }
 
     /**
