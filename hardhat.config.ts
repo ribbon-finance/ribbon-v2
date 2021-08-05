@@ -1,7 +1,9 @@
+import { task } from "hardhat/config";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-contract-sizer";
 import "hardhat-log-remover";
 import "solidity-coverage";
+import deployThetaVault from "./scripts/deploy/deployThetaVault";
 
 require("dotenv").config();
 
@@ -29,8 +31,15 @@ export default {
         blockNumber: 12570201,
       },
     },
+    rinkeby: {
+      url: process.env.RINKEBY_URI,
+    },
   },
   mocha: {
     timeout: 500000,
   },
 };
+
+task("deployThetaVault", "Deploys Theta Vault")
+  .addParam("underlying", "Underlying")
+  .setAction(deployThetaVault);
