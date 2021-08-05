@@ -23,6 +23,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      ***********************************************/
 
     address public immutable USDC;
+    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public immutable LDO = 0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32;
 
     uint256 public constant delay = 1 hours;
 
@@ -474,7 +476,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         _mint(address(this), mintShares);
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(address(collateralToken));
+        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
         return (newOption, queuedWithdrawAmount);
     }
@@ -510,6 +512,14 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         }
 
         return vaultFee;
+    }
+
+    /*
+     * @notice Transfers LDO rewards to feeRecipient
+     */
+    function sendLDORewards() external {
+        IERC20 ldo = IERC20(LDO);
+        ldo.safeTransfer(feeRecipient, ldo.balanceOf(address(this)));
     }
 
     /************************************************
