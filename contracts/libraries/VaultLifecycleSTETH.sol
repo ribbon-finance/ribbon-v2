@@ -570,13 +570,13 @@ library VaultLifecycleSTETH {
      * @param amount is the amount of `asset` to withdraw
      * @param collateralToken is the address of the collateral token
      * @param crvPool is the address of the steth <-> eth pool on curve
-     * @param crvPoolSlippage is the slippage for the steth <-> eth pool on curve
+     * @param minETHOut is the min eth to recieve
      */
     function unwrapYieldToken(
         uint256 amount,
         address collateralToken,
         address crvPool,
-        uint256 crvPoolSlippage
+        uint256 minETHOut
     ) external {
         uint256 assetBalance = address(this).balance;
 
@@ -594,11 +594,6 @@ library VaultLifecycleSTETH {
 
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
-            uint256 minETHOut =
-                crv.get_dy(1, 0, amountToUnwrap).mul(
-                    uint256(256).sub(crvPoolSlippage).div(100)
-                );
-
             crv.exchange(1, 0, amountToUnwrap, minETHOut);
         }
     }

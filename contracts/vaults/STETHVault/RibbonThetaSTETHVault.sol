@@ -156,8 +156,12 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
+     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      */
-    function withdrawInstantly(uint256 amount) external nonReentrant {
+    function withdrawInstantly(uint256 amount, uint256 minETHOut)
+        external
+        nonReentrant
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -184,7 +188,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
             amount,
             address(collateralToken),
             STETH_ETH_CRV_POOL,
-            CRV_POOL_SLIPPAGE
+            minETHOut
         );
         VaultLifecycleSTETH.transferAsset(msg.sender, amount);
     }
