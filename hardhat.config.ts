@@ -2,6 +2,8 @@ import { task } from "hardhat/config";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-contract-sizer";
 import "hardhat-log-remover";
+import "hardhat-deploy";
+import "@nomiclabs/hardhat-ethers";
 import "solidity-coverage";
 import deployThetaVault from "./scripts/deploy/deployThetaVault";
 
