@@ -200,7 +200,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @notice Deposits the `collateralAsset` into the contract and mint vault shares.
      * @param amount is the amount of `collateralAsset` to deposit
      */
-    function deposit(uint256 amount) external nonReentrant {
+    function depositYieldToken(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
         _depositFor(collateralToken.getStETHByWstETH(amount), msg.sender);
