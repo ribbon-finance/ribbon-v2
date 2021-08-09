@@ -223,7 +223,11 @@ contract RibbonVault is OptionsVaultYearnStorage {
 
         _depositFor(amountInAsset, msg.sender);
 
-        collateralToken.safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(address(collateralToken)).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
     }
 
     /**
