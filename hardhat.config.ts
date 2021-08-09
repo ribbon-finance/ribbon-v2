@@ -5,6 +5,7 @@ import "hardhat-log-remover";
 import "hardhat-deploy";
 import "@nomiclabs/hardhat-ethers";
 import "solidity-coverage";
+import exportDeployments from "./scripts/tasks/exportDeployments";
 
 require("dotenv").config();
 
@@ -69,3 +70,5 @@ export default {
     timeout: 500000,
   },
 };
+
+task("export-deployments", "Exports deployments into JSON", exportDeployments);
