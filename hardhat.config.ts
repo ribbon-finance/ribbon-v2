@@ -5,7 +5,6 @@ import "hardhat-log-remover";
 import "hardhat-deploy";
 import "@nomiclabs/hardhat-ethers";
 import "solidity-coverage";
-import deployThetaVault from "./scripts/deploy/deployThetaVault";
 
 require("dotenv").config();
 
@@ -15,6 +14,10 @@ process.env.TEST_MNEMONIC =
 export default {
   accounts: {
     mnemonic: process.env.TEST_MNEMONIC,
+  },
+  paths: {
+    deploy: "scripts/deploy",
+    deployments: "deployments",
   },
   solidity: {
     version: "0.7.3",
@@ -35,13 +38,29 @@ export default {
     },
     rinkeby: {
       url: process.env.RINKEBY_URI,
+      accounts: {
+        mnemonic: process.env.RINKEBY_MNEMONIC,
+      },
+    },
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+      1: 0,
+      4: "0x56b7713abAd486E87Bb9e3ea5e47628881C472F2",
+    },
+    owner: {
+      default: 0,
+      1: 0,
+      4: "0x56b7713abAd486E87Bb9e3ea5e47628881C472F2",
+    },
+    feeRecipient: {
+      default: 0,
+      1: 0,
+      4: "0x56b7713abAd486E87Bb9e3ea5e47628881C472F2",
     },
   },
   mocha: {
     timeout: 500000,
   },
 };
-
-task("deployThetaVault", "Deploys Theta Vault")
-  .addParam("underlying", "Underlying")
-  .setAction(deployThetaVault);
