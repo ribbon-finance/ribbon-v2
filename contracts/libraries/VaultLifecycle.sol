@@ -498,7 +498,6 @@ library VaultLifecycle {
     ) external pure {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee > 0, "!performanceFee");
         require(performanceFee < 10**8, "performanceFee >= 100%");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");

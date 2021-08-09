@@ -52,12 +52,17 @@ export default {
     owner: {
       default: 0,
       1: 0,
-      42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
+      42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
+    },
+    admin: {
+      default: 0,
+      1: 0,
+      42: "0x50378505679B9e7247ffe89EAa1b136131Ea8362",
     },
     feeRecipient: {
       default: 0,
       1: 0,
-      42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
+      42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
     },
   },
   mocha: {
