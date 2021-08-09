@@ -32,12 +32,11 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log("01 - Deploying ETH Theta Vault on", network.name);
 
+  const isMainnet = network.name === "mainnet";
   const manualVolOracle = await deployments.get("ManualVolOracle");
 
-  const underlyingOracle =
-    network.name === "mainnet" ? MAINNET_ETH_ORACLE : KOVAN_ETH_ORACLE;
-  const stablesOracle =
-    network.name === "mainnet" ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
+  const underlyingOracle = isMainnet ? MAINNET_ETH_ORACLE : KOVAN_ETH_ORACLE;
+  const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
 
   const pricerDeployment = await deploy("OptionsPremiumPricerETH", {
     from: deployer,
@@ -63,11 +62,11 @@ const main = async ({
     contract: "RibbonThetaVault",
     from: deployer,
     args: [
-      network.name === "mainnet" ? WETH_ADDRESS : KOVAN_WETH,
-      network.name === "mainnet" ? USDC_ADDRESS : KOVAN_USDC,
-      network.name === "mainnet" ? OTOKEN_FACTORY : OTOKEN_FACTORY_KOVAN,
-      network.name === "mainnet" ? GAMMA_CONTROLLER : GAMMA_CONTROLLER_KOVAN,
-      network.name === "mainnet" ? MARGIN_POOL : MARGIN_POOL_KOVAN,
+      isMainnet ? WETH_ADDRESS : KOVAN_WETH,
+      isMainnet ? USDC_ADDRESS : KOVAN_USDC,
+      isMainnet ? OTOKEN_FACTORY : OTOKEN_FACTORY_KOVAN,
+      isMainnet ? GAMMA_CONTROLLER : GAMMA_CONTROLLER_KOVAN,
+      isMainnet ? MARGIN_POOL : MARGIN_POOL_KOVAN,
     ],
   });
 };
