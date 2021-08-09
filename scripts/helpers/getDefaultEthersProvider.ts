@@ -24,7 +24,13 @@ export const getDefaultProvider = (network: Networks = "kovan") => {
   return provider;
 };
 
-export const getDefaultSigner = (path: string, network: Networks = "kovan") => {
+export const getDefaultSigner = ({
+  path = "m/44'/60'/0'/0/0",
+  network = "kovan",
+}: {
+  path?: string;
+  network?: Networks;
+}) => {
   let mnemonic: string;
 
   switch (network) {

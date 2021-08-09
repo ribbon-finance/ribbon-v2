@@ -15,6 +15,13 @@ export const Y_USDC_ADDRESS = "0x5f18C75AbDAe578b483E5F43f12a39cF75b973a9";
 export const WBTC_OWNER_ADDRESS = "0xCA06411bd7a7296d7dbdd0050DFc846E95fEBEB7";
 export const USDC_OWNER_ADDRESS = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
 
+/**8
+ * Chainlink Oracles
+ */
+
+export const MAINNET_USDC_ORACLE = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
+export const RINKEBY_USDC_ORACLE = "0xa24de01df22b63d23Ebc1882a5E3d4ec0d907bFB";
+
 /**
  * Yearn Pricers / Reference contracts
  */
