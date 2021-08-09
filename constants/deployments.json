@@ -1,10 +1,10 @@
 {
     "kovan": {
-        "ManualVolOracle": "0xea71AE08261bb5CAbDC6AAE1EfcbC281AA93e044",
-        "OptionsPremiumPricerETH": "0x0Ae551B8f66e59bdbd4c80f6a97DA2af44C6d65f",
-        "RibbonThetaVaultETHCall": "0x8683eaDf97f6D3a5562efc1835300da6C39B4b10",
-        "RibbonThetaVaultETHCallLogic": "0xD2816A510fd83115Ab1CcE625eAB245b79d09D51",
-        "StrikeSelectionETH": "0xEf0763A2A310f94Ec09057Ab5DBDE3C524CE60C4",
-        "VaultLifecycle": "0xa2A554E2CaEF2dcd8AAE3206dce0EAd078Ae72E3"
+        "ManualVolOracle": "0xd6a9Fc03cCF55C4d99495D213e794F26C05BEb3A",
+        "OptionsPremiumPricerETH": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D",
+        "RibbonThetaVaultETHCall": "0xd6685dB2CD02D7ce7e4F35DADCE2E734D1498291",
+        "RibbonThetaVaultETHCallLogic": "0xEc0406912798C63da72e53a0C42eFFDB95318F07",
+        "StrikeSelectionETH": "0x10bCd2bc7b18836F07fC75879b4CF7cF6b9CC13e",
+        "VaultLifecycle": "0x9bCF7E35E8B852de70ddB993BC461d1f4624e5AC"
     }
 }

@@ -36,6 +36,8 @@
   "scripts": {
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
+    "deploy": "npx hardhat deploy",
+    "etherscan-verify": "npx hardhat etherscan-verify",
     "prepare": "husky install",
     "prettier:sol": "yarn prettier --write contracts/*",
     "lint:test": "eslint 'test/**/*.ts'",
