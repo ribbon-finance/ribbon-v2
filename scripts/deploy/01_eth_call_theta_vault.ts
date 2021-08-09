@@ -19,28 +19,32 @@ const RINKEBY_ETH_ORACLE = "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e";
 const STRIKE_STEP = 100;
 const STRIKE_DELTA = 1000; // 0.1d
 
-const deployThetaVault = async (hre: HardhatRuntimeEnvironment) => {
-  console.log("Deploying ETH Theta Vault on", hre.network.name);
+const deployThetaVault = async ({
+  network,
+  ethers,
+  deployments,
+  getNamedAccounts,
+}: HardhatRuntimeEnvironment) => {
+  const { deploy } = deployments;
+  console.log("Deploying ETH Theta Vault on", network.name);
 
-  const signer = getDefaultSigner({ network: hre.network.name as Networks });
-  console.log("Deploying with", signer.address);
+  const { deployer, owner } = await getNamedAccounts();
+  console.log("Deploying with", deployer);
 
-  const StrikeSelection = await hre.ethers.getContractFactory(
-    "StrikeSelection",
-    signer
-  );
-  const ManualVolOracle = await hre.ethers.getContractFactory(
-    ManualVolOracle_ABI,
-    ManualVolOracle_BYTECODE,
-    signer
-  );
-  const OptionsPremiumPricer = await hre.ethers.getContractFactory(
-    OptionsPremiumPricer_ABI,
-    OptionsPremiumPricer_BYTECODE,
-    signer
-  );
-
-  const volOracle = await ManualVolOracle.deploy(signer.address);
+  // const StrikeSelection = await hre.ethers.getContractFactory(
+  //   "StrikeSelection",
+  //   signer
+  // );
+  // const ManualVolOracle = await hre.ethers.getContractFactory(
+  //   ManualVolOracle_ABI,
+  //   ManualVolOracle_BYTECODE,
+  //   signer
+  // );
+  // const OptionsPremiumPricer = await hre.ethers.getContractFactory(
+  //   OptionsPremiumPricer_ABI,
+  //   OptionsPremiumPricer_BYTECODE,
+  //   signer
+  // );
 
   // const optionsPremiumPricer = await OptionsPremiumPricer.deploy(
   //   ETH_USDC_POOL,
