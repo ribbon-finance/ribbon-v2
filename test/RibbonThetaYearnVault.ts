@@ -992,7 +992,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("tops up existing deposit", async function () {
         const startBalance = await collateralContract.balanceOf(user);
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
 
         let depositAmountInAsset = wmul(
           depositAmount,
