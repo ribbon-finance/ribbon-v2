@@ -1147,12 +1147,6 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
-      it("reverts when not called with owner", async function () {
-        await expect(
-          vault.connect(userSigner).commitAndClose({ from: user })
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-
       it("sets the next option and closes existing short", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
