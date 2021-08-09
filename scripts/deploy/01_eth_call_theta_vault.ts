@@ -1,63 +1,63 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
-  getDefaultSigner,
-  Networks,
-} from "../helpers/getDefaultEthersProvider";
-import {
   WETH_ADDRESS,
-  ManualVolOracle_BYTECODE,
   OptionsPremiumPricer_BYTECODE,
   MAINNET_USDC_ORACLE,
+  KOVAN_USDC_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
-import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 
 const ETH_USDC_POOL = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
 const MAINNET_ETH_ORACLE = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
-const RINKEBY_ETH_ORACLE = "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e";
+const KOVAN_ETH_ORACLE = "0x0c15Ab9A0DB086e062194c273CC79f41597Bbf13";
+const KOVAN_WETH = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 
 const STRIKE_STEP = 100;
 const STRIKE_DELTA = 1000; // 0.1d
 
-const deployThetaVault = async ({
+const main = async ({
   network,
-  ethers,
   deployments,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
-  console.log("Deploying ETH Theta Vault on", network.name);
+  const { deployer } = await getNamedAccounts();
+  console.log("01 - Deploying ETH Theta Vault on", network.name);
 
-  const { deployer, owner } = await getNamedAccounts();
-  console.log("Deploying with", deployer);
+  const manualVolOracle = await deployments.get("ManualVolOracle");
 
-  // const StrikeSelection = await hre.ethers.getContractFactory(
-  //   "StrikeSelection",
-  //   signer
-  // );
-  // const ManualVolOracle = await hre.ethers.getContractFactory(
-  //   ManualVolOracle_ABI,
-  //   ManualVolOracle_BYTECODE,
-  //   signer
-  // );
-  // const OptionsPremiumPricer = await hre.ethers.getContractFactory(
-  //   OptionsPremiumPricer_ABI,
-  //   OptionsPremiumPricer_BYTECODE,
-  //   signer
-  // );
+  const underlyingOracle =
+    network.name === "mainnet" ? MAINNET_ETH_ORACLE : KOVAN_ETH_ORACLE;
+  const stablesOracle =
+    network.name === "mainnet" ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
 
-  // const optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-  //   ETH_USDC_POOL,
-  //   volOracle.address,
-  //   MAINNET_ETH_ORACLE,
-  //   MAINNET_USDC_ORACLE
-  // );
+  const pricerDeployment = await deploy("OptionsPremiumPricerETH", {
+    from: deployer,
+    contract: {
+      abi: OptionsPremiumPricer_ABI,
+      bytecode: OptionsPremiumPricer_BYTECODE,
+    },
+    args: [
+      ETH_USDC_POOL,
+      manualVolOracle.address,
+      underlyingOracle,
+      stablesOracle,
+    ],
+  });
 
-  // const strikeSelection = await StrikeSelection.deploy(
-  //   optionsPremiumPricer.address,
-  //   STRIKE_DELTA,
-  //   STRIKE_STEP
-  // );
+  await deploy("StrikeSelectionETH", {
+    contract: "StrikeSelection",
+    from: deployer,
+    args: [pricerDeployment.address, STRIKE_DELTA, STRIKE_STEP],
+  });
+
+  // await deploy("RibbonThetaVaultETHCallLogic", {
+  //   contract: "RibbonThetaVault",
+  //   from: deployer,
+  //   args: [WETH_ADDRESS],
+  // });
 };
+main.tags = ["ETHCallThetaVault"];
+main.dependencies = ["ManualVolOracle"];
 
-export default deployThetaVault;
+export default main;

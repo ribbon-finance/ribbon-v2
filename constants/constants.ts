@@ -20,7 +20,7 @@ export const USDC_OWNER_ADDRESS = "0x47ac0fb4f2d84898e4d9e7b4dab3c24507a6d503";
  */
 
 export const MAINNET_USDC_ORACLE = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
-export const RINKEBY_USDC_ORACLE = "0xa24de01df22b63d23Ebc1882a5E3d4ec0d907bFB";
+export const KOVAN_USDC_ORACLE = "0x9211c6b3BF41A10F78539810Cf5c64e1BB78Ec60";
 
 /**
  * Yearn Pricers / Reference contracts

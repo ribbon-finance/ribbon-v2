@@ -36,10 +36,10 @@ export default {
         blockNumber: 12570201,
       },
     },
-    rinkeby: {
-      url: process.env.RINKEBY_URI,
+    kovan: {
+      url: process.env.KOVAN_URI,
       accounts: {
-        mnemonic: process.env.RINKEBY_MNEMONIC,
+        mnemonic: process.env.KOVAN_MNEMONIC,
       },
     },
   },
@@ -47,17 +47,17 @@ export default {
     deployer: {
       default: 0,
       1: 0,
-      4: "0x56b7713abAd486E87Bb9e3ea5e47628881C472F2",
+      42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
     },
     owner: {
       default: 0,
       1: 0,
-      4: "0x56b7713abAd486E87Bb9e3ea5e47628881C472F2",
+      42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
     },
     feeRecipient: {
       default: 0,
       1: 0,
-      4: "0x56b7713abAd486E87Bb9e3ea5e47628881C472F2",
+      42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
     },
   },
   mocha: {
