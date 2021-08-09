@@ -29,7 +29,7 @@ import {
   mintToken,
   closeAuctionAndClaim,
 } from "./helpers/utils";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
 const { provider, getContractAt, getContractFactory } = ethers;
