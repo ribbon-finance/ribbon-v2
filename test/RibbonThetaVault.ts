@@ -20,7 +20,7 @@ import {
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 import {
   deployProxy,
   setupOracle,
@@ -31,7 +31,7 @@ import {
   decodeOrder,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
 const { provider, getContractAt, getContractFactory } = ethers;
