@@ -69,6 +69,9 @@ export default {
   mocha: {
     timeout: 500000,
   },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
 };
 
 task("export-deployments", "Exports deployments into JSON", exportDeployments);
