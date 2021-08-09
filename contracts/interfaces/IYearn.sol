@@ -29,12 +29,6 @@ interface IYearnVault {
         view
         returns (uint256);
 
-    function safeTransferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
-
     function decimals() external view returns (uint256);
 }
 
