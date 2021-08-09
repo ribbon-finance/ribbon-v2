@@ -11,6 +11,7 @@ import {
   GAMMA_CONTROLLER_KOVAN,
   MARGIN_POOL,
   MARGIN_POOL_KOVAN,
+  GNOSIS_EASY_AUCTION,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 
@@ -58,6 +59,11 @@ const main = async ({
     args: [pricerDeployment.address, STRIKE_DELTA, STRIKE_STEP],
   });
 
+  const lifecycleDeployment = await deploy("VaultLifecycle", {
+    contract: "VaultLifecycle",
+    from: deployer,
+  });
+
   await deploy("RibbonThetaVaultETHCallLogic", {
     contract: "RibbonThetaVault",
     from: deployer,
@@ -67,7 +73,11 @@ const main = async ({
       isMainnet ? OTOKEN_FACTORY : OTOKEN_FACTORY_KOVAN,
       isMainnet ? GAMMA_CONTROLLER : GAMMA_CONTROLLER_KOVAN,
       isMainnet ? MARGIN_POOL : MARGIN_POOL_KOVAN,
+      isMainnet ? GNOSIS_EASY_AUCTION : GNOSIS_EASY_AUCTION,
     ],
+    libraries: {
+      VaultLifecycle: lifecycleDeployment.address,
+    },
   });
 };
 main.tags = ["ETHCallThetaVault"];
