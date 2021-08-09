@@ -27,10 +27,13 @@ const STRIKE_DELTA = 1000; // 0.1d
 const main = async ({
   network,
   deployments,
+  ethers,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
+  const { BigNumber } = ethers;
+  const { parseEther } = ethers.utils;
   const { deploy } = deployments;
-  const { deployer } = await getNamedAccounts();
+  const { deployer, owner, admin, feeRecipient } = await getNamedAccounts();
   console.log("01 - Deploying ETH Theta Vault on", network.name);
 
   const isMainnet = network.name === "mainnet";
@@ -39,7 +42,7 @@ const main = async ({
   const underlyingOracle = isMainnet ? MAINNET_ETH_ORACLE : KOVAN_ETH_ORACLE;
   const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
 
-  const pricerDeployment = await deploy("OptionsPremiumPricerETH", {
+  const pricer = await deploy("OptionsPremiumPricerETH", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricer_ABI,
@@ -53,22 +56,24 @@ const main = async ({
     ],
   });
 
-  await deploy("StrikeSelectionETH", {
+  const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "StrikeSelection",
     from: deployer,
-    args: [pricerDeployment.address, STRIKE_DELTA, STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP],
   });
 
-  const lifecycleDeployment = await deploy("VaultLifecycle", {
+  const lifecycle = await deploy("VaultLifecycle", {
     contract: "VaultLifecycle",
     from: deployer,
   });
 
-  await deploy("RibbonThetaVaultETHCallLogic", {
+  const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
+
+  const logicDeployment = await deploy("RibbonThetaVaultETHCallLogic", {
     contract: "RibbonThetaVault",
     from: deployer,
     args: [
-      isMainnet ? WETH_ADDRESS : KOVAN_WETH,
+      weth,
       isMainnet ? USDC_ADDRESS : KOVAN_USDC,
       isMainnet ? OTOKEN_FACTORY : OTOKEN_FACTORY_KOVAN,
       isMainnet ? GAMMA_CONTROLLER : GAMMA_CONTROLLER_KOVAN,
@@ -76,11 +81,48 @@ const main = async ({
       isMainnet ? GNOSIS_EASY_AUCTION : GNOSIS_EASY_AUCTION,
     ],
     libraries: {
-      VaultLifecycle: lifecycleDeployment.address,
+      VaultLifecycle: lifecycle.address,
     },
   });
+
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
+    libraries: {
+      VaultLifecycle: lifecycle.address,
+    },
+  });
+
+  const initArgs = [
+    owner,
+    feeRecipient,
+    0,
+    0,
+    "Ribbon ETH Theta Vault",
+    "rETH-THETA",
+    pricer.address,
+    strikeSelection.address,
+    50, //5% discount
+    3600, // 1 hour auction duration
+    {
+      isPut: false,
+      decimals: 18,
+      asset: weth,
+      underlying: weth,
+      minimumSupply: BigNumber.from(10).pow(10),
+      cap: parseEther("1000"),
+    },
+  ];
+  const initData = RibbonThetaVault.interface.encodeFunctionData(
+    "initialize",
+    initArgs
+  );
+
+  await deploy("RibbonThetaVaultETHCall", {
+    contract: "AdminUpgradeabilityProxy",
+    from: deployer,
+    args: [logicDeployment.address, admin, initData],
+  });
 };
-main.tags = ["ETHCallThetaVault"];
+main.tags = ["RibbonThetaVaultETHCall"];
 main.dependencies = ["ManualVolOracle"];
 
 export default main;
