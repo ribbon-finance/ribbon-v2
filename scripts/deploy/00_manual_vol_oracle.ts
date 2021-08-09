@@ -8,10 +8,9 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
-  console.log("Deploying ManualVolOracle on", network.name);
+  console.log("00 - Deploying ManualVolOracle on", network.name);
 
   const { deployer, owner } = await getNamedAccounts();
-  console.log("Deploying with", deployer);
 
   await deploy("ManualVolOracle", {
     from: deployer,
@@ -22,6 +21,6 @@ const main = async ({
     args: [owner],
   });
 };
-main.tags = "ManualVolOracle";
+main.tags = ["ManualVolOracle"];
 
 export default main;

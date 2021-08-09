@@ -20,7 +20,7 @@ import {
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 import {
   deployProxy,
   setupOracle,
