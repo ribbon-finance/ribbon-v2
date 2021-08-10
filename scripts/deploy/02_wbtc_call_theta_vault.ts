@@ -12,6 +12,7 @@ import {
   MARGIN_POOL_KOVAN,
   GNOSIS_EASY_AUCTION,
   WBTC_ADDRESS,
+  EASY_AUCTION_KOVAN,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 
@@ -79,7 +80,7 @@ const main = async ({
       isMainnet ? OTOKEN_FACTORY : OTOKEN_FACTORY_KOVAN,
       isMainnet ? GAMMA_CONTROLLER : GAMMA_CONTROLLER_KOVAN,
       isMainnet ? MARGIN_POOL : MARGIN_POOL_KOVAN,
-      isMainnet ? GNOSIS_EASY_AUCTION : GNOSIS_EASY_AUCTION,
+      isMainnet ? GNOSIS_EASY_AUCTION : EASY_AUCTION_KOVAN,
     ],
     libraries: {
       VaultLifecycle: lifecycle.address,
