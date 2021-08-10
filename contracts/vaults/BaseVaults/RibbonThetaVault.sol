@@ -204,7 +204,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner nonReentrant {
+    function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
         VaultLifecycle.CloseParams memory closeParams =
@@ -263,7 +263,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external nonReentrant {
+    function rollToNextOption() external onlyOwner nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
         vaultState.lockedAmount = uint104(lockedBalance);

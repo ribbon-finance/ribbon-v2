@@ -10,8 +10,8 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
-} from "../helpers/constants";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+} from "../../constants/constants";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
 

@@ -3,13 +3,13 @@ import { assert, expect } from "chai";
 import { Contract } from "@ethersproject/contracts";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import {
   OptionsPremiumPricer_BYTECODE,
   ManualVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 const { getContractFactory } = ethers;
 
 describe("StrikeSelectionE2E-ManualVolOracle", () => {
