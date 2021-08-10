@@ -1,6 +1,6 @@
 {
   "devDependencies": {
-    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
     "@nomiclabs/hardhat-waffle": "^2.0.0",
     "@types/chai": "^4.2.18",
     "@types/mocha": "^8.2.2",
@@ -15,6 +15,7 @@
     "ethers": "^5.0.0",
     "hardhat": "^2.4.3-rc.0",
     "hardhat-contract-sizer": "^2.0.3",
+    "hardhat-deploy": "^0.8.11",
     "hardhat-log-remover": "^2.0.2",
     "husky": "^6.0.0",
     "lint-staged": "^11.0.0",
@@ -35,6 +36,8 @@
   "scripts": {
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
+    "deploy": "npx hardhat deploy",
+    "etherscan-verify": "npx hardhat etherscan-verify",
     "prepare": "husky install",
     "prettier:sol": "yarn prettier --write contracts/*",
     "lint:test": "eslint 'test/**/*.ts'",
@@ -78,6 +81,7 @@
     "cron": "^1.8.2",
     "discord.js": "^12.5.3",
     "dotenv": "^10.0.0",
+    "json-stable-stringify": "^1.0.1",
     "moment-timezone": "^0.5.33"
   },
   "mocha": {

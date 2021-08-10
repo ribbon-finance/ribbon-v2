@@ -3,7 +3,7 @@ import { assert, expect } from "chai";
 import { Contract } from "@ethersproject/contracts";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 
 const { getContractFactory } = ethers;
 
