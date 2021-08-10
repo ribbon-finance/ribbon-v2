@@ -20,7 +20,7 @@ import {
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 import {
   deployProxy,
   setupOracle,
@@ -31,7 +31,7 @@ import {
   decodeOrder,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
 const { provider, getContractAt, getContractFactory } = ethers;
@@ -743,31 +743,6 @@ function behavesLikeRibbonOptionsVault(params: {
           )
         ).to.be.revertedWith("!minimumSupply");
       });
-
-      it("reverts when performanceFee is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            "0",
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!performanceFee");
-      });
     });
 
     describe("#name", () => {
@@ -1171,12 +1146,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
-
-      it("reverts when not called with owner", async function () {
-        await expect(
-          vault.connect(userSigner).commitAndClose({ from: user })
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
 
       it("sets the next option and closes existing short", async function () {
         await assetContract.approve(vault.address, depositAmount);

@@ -35,10 +35,14 @@ jobs:
         run: yarn compile
         env:
           TEST_URI: ${{ secrets.TEST_URI }}
+          KOVAN_URI: ${{ secrets.TEST_URI }}
+          KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           CI: true
       - run: yarn test
         env:
           TEST_URI: ${{ secrets.TEST_URI }}
+          KOVAN_URI: ${{ secrets.TEST_URI }}
+          KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           CI: true
   coverage:
     runs-on: ubuntu-latest
@@ -72,11 +76,15 @@ jobs:
         run: yarn compile
         env:
           TEST_URI: ${{ secrets.TEST_URI }}
+          KOVAN_URI: ${{ secrets.TEST_URI }}
+          KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           CI: true
       - name: Coverage
         run: yarn coverage
         env:
           TEST_URI: ${{ secrets.TEST_URI }}
+          KOVAN_URI: ${{ secrets.TEST_URI }}
+          KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           CI: true
       - name: Coveralls
         uses: coverallsapp/github-action@master

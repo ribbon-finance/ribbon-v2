@@ -22,7 +22,7 @@ import {
   YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 import {
   deployProxy,
   setupOracle,
@@ -35,7 +35,7 @@ import {
   decodeOrder,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
 const { provider, getContractAt, getContractFactory } = ethers;
@@ -753,31 +753,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ]
           )
         ).to.be.revertedWith("!minimumSupply");
-      });
-
-      it("reverts when performanceFee is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            "0",
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!performanceFee");
       });
     });
 
