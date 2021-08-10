@@ -12,14 +12,12 @@ import {
   MARGIN_POOL,
   OTOKEN_FACTORY,
   USDC_ADDRESS,
-  Y_USDC_ADDRESS,
-  USDC_OWNER_ADDRESS,
+  STETH_ADDRESS,
+  WSTETH_ADDRESS,
+  STETH_ETH_CRV_POOL,
   WETH_ADDRESS,
-  Y_WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
-  YEARN_WETH_PRICER,
-  YEARN_USDC_PRICER,
-  YEARN_REGISTRY_ADDRESS,
+  STETH_PRICER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
 } from "./helpers/constants";
@@ -59,16 +57,16 @@ const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
 describe("RibbonThetaSTETHVault", () => {
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
+    name: `Ribbon ETH Theta Vault - stETH (Call)`,
+    tokenName: "Ribbon ETH Theta Vault stETH",
+    tokenSymbol: "rSTETH-THETA",
     asset: WETH_ADDRESS,
     assetContractName: "IWETH",
-    collateralContractName: "IYearnVault",
+    collateralContractName: "IWSTETH",
     strikeAsset: USDC_ADDRESS,
-    collateralAsset: Y_WETH_ADDRESS,
+    collateralAsset: WSTETH_ADDRESS,
     depositAsset: WETH_ADDRESS,
-    collateralPricer: YEARN_WETH_PRICER,
+    collateralPricer: STETH_PRICER,
     underlyingPricer: CHAINLINK_WETH_PRICER,
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
@@ -85,39 +83,6 @@ describe("RibbonThetaSTETHVault", () => {
     gasLimits: {
       depositWorstCase: 140390,
       depositBestCase: 122555,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Yearn Theta Vault (Put)`,
-    tokenName: "Ribbon ETH Yearn Theta Vault (Put)",
-    tokenSymbol: "ryvUSDC-ETH-P-THETA",
-    asset: WETH_ADDRESS,
-    assetContractName: "IWETH",
-    collateralContractName: "IYearnVault",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: Y_USDC_ADDRESS,
-    depositAsset: USDC_ADDRESS,
-    collateralPricer: YEARN_USDC_PRICER,
-    underlyingPricer: CHAINLINK_WETH_PRICER,
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
-    depositAmount: BigNumber.from("1000000000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("52379588695"),
-    auctionDuration: 21600,
-    tokenDecimals: 6,
-    isPut: true,
-    gasLimits: {
-      depositWorstCase: 151608,
-      depositBestCase: 130681,
-    },
-    mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
     },
   });
 });
@@ -1020,7 +985,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     }
 
-    describe("#deposit", () => {
+    describe("#depositYieldToken", () => {
       time.revertToSnapshotAfterEach();
 
       beforeEach(async function () {
