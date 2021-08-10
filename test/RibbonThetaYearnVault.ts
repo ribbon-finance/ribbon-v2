@@ -114,7 +114,7 @@ describe("RibbonThetaYearnVault", () => {
     isPut: true,
     gasLimits: {
       depositWorstCase: 154055,
-      depositBestCase: 130681,
+      depositBestCase: 137098,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
