@@ -1,18 +1,15 @@
 {
-  "kovan": {
-    "vaults": {},
-    "univ3pools": {}
-  },
-  "mainnet": {
-    "vaults": {
-      "ethcall": "0x0fabaf48bbf864a3947bdd0ba9d764791a60467a",
-      "wbtccall": "0x8b5876f5B0Bf64056A89Aa7e97511644758c3E8c",
-      "ethput": "0x16772a7f4a3ca291c21b8ace76f9332ddffbb5ef",
-      "ethput-yearn": "0x8FE74471F198E426e96bE65f40EeD1F8BA96e54f"
-    },
-    "univ3pools": {
-      "wethusdc": "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
-      "wbtcusdc": "0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35"
+    "kovan": {
+        "ManualVolOracle": "0xd6a9Fc03cCF55C4d99495D213e794F26C05BEb3A",
+        "OptionsPremiumPricerETH": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D",
+        "OptionsPremiumPricerWBTC": "0x947398a2C3f5dD6983bb935FEBFcF076C870e23e",
+        "RibbonThetaVaultETHCall": "0xF77FE1e54bc308C88CBacf3670EB54ce4A41226E",
+        "RibbonThetaVaultETHCallLogic": "0xEc0406912798C63da72e53a0C42eFFDB95318F07",
+        "RibbonThetaVaultETHPut": "0xEC1c50724CF7a618C6cdA6CFEa5c9064AFc98E84",
+        "RibbonThetaVaultETHPutLogic": "0x4868D8F0E8898E62520781E53023515B45805aD6",
+        "RibbonThetaVaultWBTCCall": "0x0E24525cCb27d20354a34652f43cF707D8F0Cc97",
+        "RibbonThetaVaultWBTCCallLogic": "0x64EeB01A825c8004FACbbF3291fBDe3aBE5315A8",
+        "StrikeSelectionETH": "0xaAA24915AfFab8A83af74D5A1472F4fE7AD08D71",
+        "VaultLifecycle": "0x9bCF7E35E8B852de70ddB993BC461d1f4624e5AC"
     }
-  }
 }
