@@ -253,7 +253,6 @@ describe("E2E-RibbonThetaVault", () => {
           assert.equal(await otoken.collateralAsset(), assetContract.address);
           assert.equal(await otoken.underlyingAsset(), underlying);
           assert.equal(await otoken.strikeAsset(), usdc);
-          assert.equal(await otoken.strikeAsset(), usdc);
 
           const underlyingSpotPrice = await pricerContract.getUnderlyingPrice();
           const strikePrice = await otoken.strikePrice();
