@@ -3,10 +3,18 @@ import { parseEther } from "@ethersproject/units";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { expect } from "chai";
 import { Contract } from "ethers";
-import { parseUnits } from "ethers/lib/utils";
+import { formatUnits, parseUnits } from "ethers/lib/utils";
 import hre from "hardhat";
-import { KOVAN_WETH, WETH_ADDRESS } from "../../constants/constants";
+import moment from "moment-timezone";
+import {
+  KOVAN_USDC,
+  KOVAN_WETH,
+  USDC_ADDRESS,
+  WETH_ADDRESS,
+} from "../../constants/constants";
 import { assert } from "../helpers/assertions";
+
+moment.tz.setDefault("UTC");
 
 const { deployments, ethers } = hre;
 
@@ -17,11 +25,13 @@ let ownerSigner: SignerWithAddress;
 let feeRecipient: string;
 
 const weth = hre.network.name === "mainnet" ? WETH_ADDRESS : KOVAN_WETH;
+const usdc = hre.network.name === "mainnet" ? USDC_ADDRESS : KOVAN_USDC;
 
 describe("E2E-RibbonThetaVault", () => {
   behavesLikeRibbonThetaVault({
     deploymentName: "RibbonThetaVaultETHCall",
     depositAmount: parseEther("0.0001"),
+    isPut: false,
   });
 
   before(async () => {
@@ -40,9 +50,11 @@ describe("E2E-RibbonThetaVault", () => {
   function behavesLikeRibbonThetaVault({
     deploymentName,
     depositAmount,
+    isPut,
   }: {
     deploymentName: string;
     depositAmount: BigNumber;
+    isPut: boolean;
   }) {
     describe(deploymentName, () => {
       let vault: Contract;
@@ -50,6 +62,7 @@ describe("E2E-RibbonThetaVault", () => {
       let underlying: string;
       let pricer: string;
       let strikeSelection: string;
+      let pricerContract: Contract;
 
       before(async () => {
         const { address } = await deployments.get(deploymentName);
@@ -68,7 +81,7 @@ describe("E2E-RibbonThetaVault", () => {
           "OptionsPremiumPricerETH"
         );
 
-        const pricerContract = await ethers.getContractAt(
+        pricerContract = await ethers.getContractAt(
           pricerABI,
           pricer,
           ownerSigner
@@ -85,7 +98,10 @@ describe("E2E-RibbonThetaVault", () => {
 
         const annualizedVol = await volOracle.annualizedVol(poolAddress);
         if (annualizedVol.isZero()) {
-          const setTx = await volOracle.setAnnualizedVol(parseUnits("1", 8));
+          const setTx = await volOracle.setAnnualizedVol(
+            poolAddress,
+            parseUnits("1", 8)
+          );
           await setTx.wait();
         }
       });
@@ -196,11 +212,61 @@ describe("E2E-RibbonThetaVault", () => {
 
       describe("commitAndClose", () => {
         it("commits and close prior position", async () => {
-          await vault.commitAndClose();
+          const { timestamp } = await ethers.provider.getBlock("latest");
+          const commitTx = await vault.commitAndClose();
+          const receipt = await commitTx.wait();
+          console.log(`commitAndClose took ${receipt.gasUsed} gas`);
+
+          let thisFriday: number;
+
+          if (moment(new Date()).weekday() >= 5) {
+            thisFriday = moment(new Date())
+              .startOf("isoWeek")
+              .add(1, "week")
+              .day("friday")
+              .hour(8)
+              .minutes(0)
+              .seconds(0)
+              .milliseconds(0)
+              .unix();
+          } else {
+            thisFriday = moment(new Date())
+              .startOf("isoWeek")
+              .day("friday")
+              .hour(8)
+              .minutes(0)
+              .seconds(0)
+              .milliseconds(0)
+              .unix();
+          }
+
+          const { currentOption, nextOption, nextOptionReadyAt } =
+            await vault.optionState();
+          assert.notEqual(nextOption, ethers.constants.AddressZero);
+          assert.equal(currentOption, ethers.constants.AddressZero);
+          assert.isAtLeast(nextOptionReadyAt, timestamp + 3600);
+
+          const otoken = await ethers.getContractAt("IOtoken", nextOption);
+
+          assert.equal(await otoken.expiryTimestamp(), thisFriday);
+          assert.equal(await otoken.isPut(), isPut);
+          assert.equal(await otoken.collateralAsset(), assetContract.address);
+          assert.equal(await otoken.underlyingAsset(), underlying);
+          assert.equal(await otoken.strikeAsset(), usdc);
+          assert.equal(await otoken.strikeAsset(), usdc);
+
+          const underlyingSpotPrice = await pricerContract.getUnderlyingPrice();
+          const strikePrice = await otoken.strikePrice();
+          const strikePriceStr = formatUnits(strikePrice, 8);
+          console.log(`Selected strike price ${strikePriceStr}`);
+
+          if (isPut) {
+            assert.bnLt(strikePrice, underlyingSpotPrice);
+          } else {
+            assert.bnGt(strikePrice, underlyingSpotPrice);
+          }
         });
       });
     });
-
-    describe("withdrawInstantly", () => {});
   }
 });
