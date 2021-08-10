@@ -31,11 +31,9 @@ describe("E2E-RibbonThetaVault", () => {
   }) {
     describe(deploymentName, () => {
       let vault: Contract;
-      let vaultAddress: string;
 
       before(async () => {
         const { address } = await deployments.get(deploymentName);
-        vaultAddress = address;
         vault = await ethers.getContractAt(
           "RibbonThetaVault",
           address,
