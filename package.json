@@ -34,7 +34,8 @@
     "underscore": "1.12.1"
   },
   "scripts": {
-    "test": "npx hardhat test",
+    "test": "npx hardhat test test/*.ts test/libraries/*.ts",
+    "test:e2e": "npx hardhat test test/e2e/*.ts",
     "compile": "npx hardhat compile",
     "deploy": "npx hardhat deploy",
     "etherscan-verify": "npx hardhat etherscan-verify",
@@ -49,7 +50,7 @@
     "lint:sol": "solhint -f table contracts/**/*.sol",
     "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\"",
     "clean-logs": "yarn run hardhat remove-logs",
-    "coverage": "yarn run hardhat coverage"
+    "coverage": "yarn run hardhat coverage --testfiles 'test/!e2e'"
   },
   "husky": {
     "hooks": {

@@ -68,8 +68,6 @@ export default {
   },
   mocha: {
     timeout: 500000,
-    grep: /E2E-RibbonThetaVault/,
-    invert: true,
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
