@@ -1,15 +1,15 @@
 {
     "kovan": {
-        "ManualVolOracle": "0xf891f1B38C37F57E3dD4514aA9ABb1a5af8F6Ac3",
-        "OptionsPremiumPricerETH": "0x9c5Ee466089775aA86E362C681790eA45210617A",
-        "OptionsPremiumPricerWBTC": "0x0e4bAaD32bE001204836717F5a86bC1A6cec8eB0",
-        "RibbonThetaVaultETHCall": "0xc98f274a12EE4f5cd0f3Bb14466a342285F2a027",
-        "RibbonThetaVaultETHCallLogic": "0x7E6d4498C4c489562D7a0507c71CAf2CC7760dED",
-        "RibbonThetaVaultETHPut": "0x960Ac4C7DC98AE4a21A1167f7573A555A5976490",
-        "RibbonThetaVaultETHPutLogic": "0xFe9f39f6085E3a2D15a34a2dD6292A6E4CA73278",
-        "RibbonThetaVaultWBTCCall": "0xEe3BB894AF9114DAaa2F49F4cA5797c27615e7E9",
-        "RibbonThetaVaultWBTCCallLogic": "0xb53AAE38830e5F3Bce5091C8Cd80315ecA2E29b9",
-        "StrikeSelectionETH": "0xC2Aa232857732E20F970eE9C7735C315cC404c63",
-        "VaultLifecycle": "0xC2511e883B6dBfE2920369a53C433BEe0AaBEc39"
+        "ManualVolOracle": "0x93ad31E0f7C496B310Dc852f0e8a69E71C5a2864",
+        "OptionsPremiumPricerETH": "0x8C3c0b906A5b7bb896788BC8a19F9FC34eb4Ef38",
+        "OptionsPremiumPricerWBTC": "0x378C0152EdD6f79C74677F3E9251Eaee03B61861",
+        "RibbonThetaVaultETHCall": "0x35ABa03473793e878a6bb1B62426Bf9aCaa13C9C",
+        "RibbonThetaVaultETHCallLogic": "0xC7149F47D79314c02f5Ab852566854483342c1BC",
+        "RibbonThetaVaultETHPut": "0xD713F75652E687ff4522413d064c001598c45937",
+        "RibbonThetaVaultETHPutLogic": "0x5c92a8efd4aA4d75CfF0Db345E98c3AA8D50b0F3",
+        "RibbonThetaVaultWBTCCall": "0xe6f1559AcEE5063a5474ef319248Ab9E3fD54d7e",
+        "RibbonThetaVaultWBTCCallLogic": "0xdEab40DDB12E66FE85d5f0EE9B1B31Ea061eEb9A",
+        "StrikeSelectionETH": "0x5A40353F52497034C50C68c97579B3d9A406d994",
+        "VaultLifecycle": "0xDC2b9975D027C8b4C8C48F008582193692187bF3"
     }
 }
