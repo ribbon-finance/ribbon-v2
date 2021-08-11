@@ -306,10 +306,10 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const VaultLifecycleYearn = await ethers.getContractFactory(
-        "VaultLifecycleYearn"
+      const VaultLifecycleSTETH = await ethers.getContractFactory(
+        "VaultLifecycleSTETH"
       );
-      vaultLifecycleLib = await VaultLifecycleYearn.deploy();
+      vaultLifecycleLib = await VaultLifecycleSTETH.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -366,14 +366,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
       vault = (
         await deployProxy(
-          "RibbonThetaYearnVault",
+          "RibbonThetaSTETHVault",
           adminSigner,
           initializeTypes,
           initializeArgs,
           deployArgs,
           {
             libraries: {
-              VaultLifecycleYearn: vaultLifecycleLib.address,
+              VaultLifecycleSTETH: vaultLifecycleLib.address,
             },
           }
         )
@@ -519,10 +519,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async function () {
         const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaYearnVault",
+          "RibbonThetaSTETHVault",
           {
             libraries: {
-              VaultLifecycleYearn: vaultLifecycleLib.address,
+              VaultLifecycleSTETH: vaultLifecycleLib.address,
             },
           }
         );
@@ -2593,58 +2593,6 @@ function behavesLikeRibbonOptionsVault(params: {
         //   "completeWithdraw",
         //   receipt.gasUsed.toNumber()
         // );
-      });
-    });
-
-    describe("#upgradeYearnVault", () => {
-      let oracle: Contract;
-      const depositAmount = params.depositAmount;
-
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(params.depositAsset, vault, depositAmount);
-
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
-      });
-
-      it("should revert if not owner", async function () {
-        await expect(
-          vault.connect(userSigner).upgradeYearnVault()
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-
-      it("should unwrap the old yearn token", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(ownerSigner).rollToNextOption();
-
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + auctionDuration
-        );
-
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction((await gnosisAuction.auctionCounter()).toString());
-
-        const settlementPriceOTM = isPut
-          ? firstOptionStrike.add(10000000000)
-          : firstOptionStrike.sub(10000000000);
-
-        // withdraw 100% because it's OTM
-        await setOpynOracleExpiryPriceYearn(
-          params.asset,
-          oracle,
-          settlementPriceOTM,
-          collateralPricerSigner,
-          await getCurrentOptionExpiry()
-        );
-
-        await vault.connect(ownerSigner).commitAndClose();
-
-        let balanceBefore = await assetContract.balanceOf(vault.address);
-        await vault.connect(ownerSigner).upgradeYearnVault();
-        let balanceAfter = await assetContract.balanceOf(vault.address);
-
-        assert.bnGt(balanceAfter, balanceBefore);
       });
     });
 
