@@ -7,6 +7,8 @@ import { formatUnits, parseUnits } from "ethers/lib/utils";
 import hre from "hardhat";
 import moment from "moment-timezone";
 import {
+  EASY_AUCTION_KOVAN,
+  GNOSIS_EASY_AUCTION,
   KOVAN_USDC,
   KOVAN_WETH,
   USDC_ADDRESS,
@@ -26,6 +28,8 @@ let feeRecipient: string;
 
 const weth = hre.network.name === "mainnet" ? WETH_ADDRESS : KOVAN_WETH;
 const usdc = hre.network.name === "mainnet" ? USDC_ADDRESS : KOVAN_USDC;
+const auctionAddress =
+  hre.network.name === "mainnet" ? GNOSIS_EASY_AUCTION : EASY_AUCTION_KOVAN;
 
 describe("E2E-RibbonThetaVault", () => {
   behavesLikeRibbonThetaVault({
@@ -133,9 +137,9 @@ describe("E2E-RibbonThetaVault", () => {
 
           await depositIntoVault(vault);
 
-          const { round, amount, unredeemedShares } =
-            await vault.depositReceipts(user);
-          assert.equal(round, 1);
+          const { amount, unredeemedShares } = await vault.depositReceipts(
+            user
+          );
           assert.bnEqual(amount, beforeAmount.add(depositAmount));
           assert.equal(unredeemedShares, 0);
         });
@@ -159,9 +163,9 @@ describe("E2E-RibbonThetaVault", () => {
           });
           const receipt = await withdrawTx.wait();
 
-          const { round, amount, unredeemedShares } =
-            await vault.depositReceipts(user);
-          assert.equal(round, 1);
+          const { amount, unredeemedShares } = await vault.depositReceipts(
+            user
+          );
           assert.bnEqual(amount, beforeAmount.sub(depositAmount));
           assert.equal(unredeemedShares, 0);
 
@@ -212,6 +216,12 @@ describe("E2E-RibbonThetaVault", () => {
 
       describe("commitAndClose", () => {
         it("commits and close prior position", async () => {
+          const { nextOption: beforeNextOption } = await vault.optionState();
+          // We need to skip the commitAndClose test because it has already been committed
+          if (beforeNextOption !== ethers.constants.AddressZero) {
+            return;
+          }
+
           const { timestamp } = await ethers.provider.getBlock("latest");
           const commitTx = await vault.commitAndClose();
           const receipt = await commitTx.wait();
@@ -264,6 +274,63 @@ describe("E2E-RibbonThetaVault", () => {
           } else {
             assert.bnGt(strikePrice, underlyingSpotPrice);
           }
+        });
+      });
+
+      describe("rollToNextOption", () => {
+        it("rolls funds to next option", async () => {
+          const { nextOption: beforeNextOption } = await vault.optionState();
+          // We need to skip the rollToNextOption test because it has already been rolled
+          if (beforeNextOption === ethers.constants.AddressZero) {
+            return;
+          }
+
+          try {
+            await vault.connect(userSigner).rollToNextOption();
+          } catch (e) {
+            expect(e).to.be.an("error");
+          }
+
+          const tx = await vault.connect(ownerSigner).rollToNextOption();
+          const receipt = await tx.wait();
+          console.log(`rollToNextOption took ${receipt.gasUsed} gas`);
+
+          const { currentOption, nextOption, nextOptionReadyAt } =
+            await vault.optionState();
+
+          assert.equal(nextOption, ethers.constants.AddressZero);
+          assert.notEqual(currentOption, ethers.constants.AddressZero);
+          assert.isAtLeast(nextOptionReadyAt, 1);
+
+          // Check auction parameters
+          const auctionID = await vault.optionAuctionID();
+          const auction = await ethers.getContractAt(
+            "IGnosisAuction",
+            auctionAddress
+          );
+          const {
+            auctioningToken,
+            biddingToken,
+            auctionEndDate,
+            minimumBiddingAmountPerOrder,
+          } = await auction.auctionData(auctionID);
+          assert.equal(auctioningToken, currentOption);
+          assert.equal(biddingToken, assetContract.address);
+          console.log(
+            `Auction ends at: ${moment.unix(auctionEndDate).toString()}`
+          );
+          console.log(`Minimum bid amount: ${minimumBiddingAmountPerOrder}`);
+
+          // 100% should be transferred into Opyn
+          assert.isTrue(
+            (await assetContract.balanceOf(vault.address)).isZero()
+          );
+
+          const otoken = await ethers.getContractAt("IERC20", currentOption);
+          assert.bnGt(
+            await otoken.balanceOf(auctionAddress),
+            BigNumber.from(0)
+          );
         });
       });
     });
