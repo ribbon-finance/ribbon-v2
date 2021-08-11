@@ -59,30 +59,33 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _wsteth is the wsteth address
+     * @param _ldo is the LDO contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _wsteth is the wsteth address
      * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
         address _weth,
         address _usdc,
+        address _wsteth,
+        address _ldo,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _wsteth,
         address _crvPool
     )
         RibbonVault(
             _weth,
             _usdc,
+            _wsteth,
+            _ldo,
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
-            _wsteth,
             _crvPool
         )
     {

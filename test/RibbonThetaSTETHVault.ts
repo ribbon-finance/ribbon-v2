@@ -1,4 +1,4 @@
-import { ethers, network } from "hardhat";
+import hre, { ethers, network } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
@@ -14,6 +14,7 @@ import {
   USDC_ADDRESS,
   STETH_ADDRESS,
   WSTETH_ADDRESS,
+  LDO_ADDRESS,
   STETH_ETH_CRV_POOL,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
@@ -65,6 +66,7 @@ describe("RibbonThetaSTETHVault", () => {
     collateralContractName: "IWSTETH",
     strikeAsset: USDC_ADDRESS,
     collateralAsset: WSTETH_ADDRESS,
+    intermediaryAsset: STETH_ADDRESS,
     depositAsset: WETH_ADDRESS,
     collateralPricer: STETH_PRICER,
     underlyingPricer: CHAINLINK_WETH_PRICER,
@@ -77,6 +79,7 @@ describe("RibbonThetaSTETHVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
+    crvSlippage: BigNumber.from("10"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -105,6 +108,7 @@ type Option = {
  * @param {string} params.collateralContractName - Name of collateral asset contract
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
+ * @param {string} params.intermediaryAsset - Address of asset used as intermediary
  * @param {string} params.depositAsset - Address of asset used for deposits (unwrapped version of collateral asset)
  * @param {string} params.collateralPricer - Address of collateral pricer
  * @param {string} params.underlyingPricer - Address of underlying pricer
@@ -120,6 +124,7 @@ type Option = {
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
+ * @param {BigNumber} params.crvSlippage - Slippage for steth -> eth swap
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -133,6 +138,7 @@ function behavesLikeRibbonOptionsVault(params: {
   depositAsset: string;
   strikeAsset: string;
   collateralAsset: string;
+  intermediaryAsset: string;
   collateralPricer: string;
   underlyingPricer: string;
   deltaFirstOption: BigNumber;
@@ -145,6 +151,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
+  crvSlippage: BigNumber;
   isPut: boolean;
   gasLimits: {
     depositWorstCase: number;
@@ -171,10 +178,12 @@ function behavesLikeRibbonOptionsVault(params: {
   let asset = params.asset;
   let depositAsset = params.depositAsset;
   let collateralAsset = params.collateralAsset;
+  let intermediaryAsset = params.intermediaryAsset;
   let depositAmount = params.depositAmount;
   let premiumDiscount = params.premiumDiscount;
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
+  let crvSlippage = params.crvSlippage;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
@@ -346,11 +355,13 @@ function behavesLikeRibbonOptionsVault(params: {
       const deployArgs = [
         WETH_ADDRESS,
         USDC_ADDRESS,
+        WSTETH_ADDRESS,
+        LDO_ADDRESS,
         OTOKEN_FACTORY,
         GAMMA_CONTROLLER,
         MARGIN_POOL,
         GNOSIS_EASY_AUCTION,
-        YEARN_REGISTRY_ADDRESS,
+        STETH_ETH_CRV_POOL,
       ];
 
       vault = (
@@ -466,7 +477,7 @@ function behavesLikeRibbonOptionsVault(params: {
             firstOptionExpiry,
             params.isPut
           ),
-          (await collateralContract.pricePerShare()).mul(decimalDiff)
+          await collateralContract.stEthPerToken()
         )
       );
 
@@ -518,11 +529,13 @@ function behavesLikeRibbonOptionsVault(params: {
         testVault = await RibbonThetaVault.deploy(
           WETH_ADDRESS,
           USDC_ADDRESS,
+          WSTETH_ADDRESS,
+          LDO_ADDRESS,
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
           MARGIN_POOL,
           GNOSIS_EASY_AUCTION,
-          YEARN_REGISTRY_ADDRESS
+          STETH_ETH_CRV_POOL
         );
       });
 
@@ -987,33 +1000,27 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#depositYieldToken", () => {
       time.revertToSnapshotAfterEach();
-      let pricePerShare;
+      let depositAmountInAsset;
 
       beforeEach(async function () {
         const addressToDeposit = [userSigner, ownerSigner, adminSigner];
 
         await setupYieldToken(
           addressToDeposit,
-          assetContract,
-          collateralAsset,
+          intermediaryAsset,
           vault,
           params.depositAsset == WETH_ADDRESS
             ? parseEther("7")
             : depositAmount.mul(3)
         );
 
-        pricePerShare = BigNumber.from(
-          (await collateralContract.pricePerShare()).toString()
+        depositAmountInAsset = BigNumber.from(
+          (await collateralContract.getStETHByWstETH(depositAmount)).toString()
         );
       });
 
       it("creates a pending deposit", async function () {
         const startBalance = await collateralContract.balanceOf(user);
-
-        let depositAmountInAsset = wmul(
-          depositAmount,
-          pricePerShare.mul(decimalDiff)
-        );
 
         const res = await vault.depositYieldToken(depositAmount);
 
@@ -1035,11 +1042,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("tops up existing deposit", async function () {
         const startBalance = await collateralContract.balanceOf(user);
-
-        let depositAmountInAsset = wmul(
-          depositAmount,
-          pricePerShare.mul(decimalDiff)
-        );
 
         await vault.depositYieldToken(depositAmount);
 
@@ -1107,21 +1109,13 @@ function behavesLikeRibbonOptionsVault(params: {
           vault
             .connect(userSigner)
             .depositYieldToken(
-              wdiv(
-                BigNumber.from(minimumSupply),
-                pricePerShare.mul(decimalDiff)
-              ).sub(1)
+              (await collateralContract.getStETHByWstETH(minimumSupply)).sub(1)
             )
         ).to.be.revertedWith("Insufficient balance");
       });
 
       it("updates the previous deposit receipt", async function () {
         await vault.depositYieldToken(params.depositAmount);
-
-        let depositAmountInAsset = wmul(
-          depositAmount,
-          pricePerShare.mul(decimalDiff)
-        );
 
         const {
           round: round1,
@@ -1217,8 +1211,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ? BigNumber.from("250000000000")
             : BigNumber.from("4050000000000");
 
-        let pricePerShare = await collateralContract.pricePerShare();
-
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
         assert.equal((await vault.lastStrikeOverride()).toString(), "1");
@@ -1254,7 +1246,7 @@ function behavesLikeRibbonOptionsVault(params: {
             )
               .mul(await vault.premiumDiscount())
               .div(1000),
-            pricePerShare.mul(decimalDiff)
+            await collateralContract.stEthPerToken()
           )
         );
       });
@@ -1500,7 +1492,7 @@ function behavesLikeRibbonOptionsVault(params: {
           )
             .mul(await vault.premiumDiscount())
             .div(1000),
-          (await collateralContract.pricePerShare()).mul(decimalDiff)
+          await collateralContract.stEthPerToken()
         );
 
         assert.equal(
@@ -2166,7 +2158,15 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#withdrawInstantly", () => {
-      time.revertToSnapshotAfterEach();
+      let minETHOut: BigNumberish;
+
+      time.revertToSnapshotAfterEach(async function () {
+        const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
+        minETHOut = await crv
+          .get_dy(1, 0, depositAmount)
+          .mul(crvSlippage.add(100))
+          .div(100);
+      });
 
       it("reverts with 0 amount", async function () {
         await assetContract
@@ -2174,7 +2174,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
+        await expect(vault.withdrawInstantly(0, 0)).to.be.revertedWith(
+          "!amount"
+        );
       });
 
       it("reverts when withdrawing more than available", async function () {
@@ -2184,7 +2186,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.deposit(depositAmount);
 
         await expect(
-          vault.withdrawInstantly(depositAmount.add(1))
+          vault.withdrawInstantly(depositAmount.add(1), 0)
         ).to.be.revertedWith("Exceed amount");
       });
 
@@ -2199,7 +2201,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.maxRedeem();
 
         await expect(
-          vault.withdrawInstantly(depositAmount.add(1))
+          vault.withdrawInstantly(depositAmount.add(1), 0)
         ).to.be.revertedWith("Invalid round");
       });
 
@@ -2212,7 +2214,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await expect(
-          vault.withdrawInstantly(depositAmount.add(1))
+          vault.withdrawInstantly(depositAmount.add(1), 0)
         ).to.be.revertedWith("Invalid round");
       });
 
@@ -2230,7 +2232,7 @@ function behavesLikeRibbonOptionsVault(params: {
           startBalance = await assetContract.balanceOf(user);
         }
 
-        const tx = await vault.withdrawInstantly(depositAmount, {
+        const tx = await vault.withdrawInstantly(depositAmount, minETHOut, {
           gasPrice,
         });
         const receipt = await tx.wait();
@@ -2465,6 +2467,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#completeWithdraw", () => {
+      let minETHOut: BigNumberish;
+
       time.revertToSnapshotAfterEach(async () => {
         await assetContract
           .connect(userSigner)
@@ -2485,16 +2489,22 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await vault.initiateWithdraw(depositAmount);
+
+        const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
+        minETHOut = await crv
+          .get_dy(1, 0, depositAmount)
+          .mul(crvSlippage.add(100))
+          .div(100);
       });
 
       it("reverts when not initiated", async function () {
         await expect(
-          vault.connect(ownerSigner).completeWithdraw()
+          vault.connect(ownerSigner).completeWithdraw(0)
         ).to.be.revertedWith("!initiated");
       });
 
       it("reverts when round not closed", async function () {
-        await expect(vault.completeWithdraw()).to.be.revertedWith(
+        await expect(vault.completeWithdraw(0)).to.be.revertedWith(
           "Round not closed"
         );
       });
@@ -2502,7 +2512,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when calling completeWithdraw twice", async function () {
         await rollToSecondOption(firstOptionStrike);
 
-        await vault.completeWithdraw();
+        await vault.completeWithdraw(0);
 
         await expect(vault.completeWithdraw()).to.be.revertedWith("!initiated");
       });
@@ -2530,7 +2540,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const { queuedWithdrawShares: startQueuedShares } =
           await vault.vaultState();
 
-        const tx = await vault.completeWithdraw({ gasPrice });
+        const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
         const receipt = await tx.wait();
         const gasFee = receipt.gasUsed.mul(gasPrice);
 
@@ -2574,7 +2584,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await rollToSecondOption(firstOption.strikePrice);
 
-        const tx = await vault.completeWithdraw({ gasPrice });
+        const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
         const receipt = await tx.wait();
 
         assert.isAtMost(receipt.gasUsed.toNumber(), 159946);
@@ -2685,6 +2695,32 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.deposit(depositAmount)).to.be.revertedWith(
           "Exceed cap"
         );
+      });
+    });
+
+    describe.skip("#sendLDORewards", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should send LDO rewards to feeRecipient", async function () {
+        const LDO_HOLDER = "0xca06411bd7a7296d7dbdd0050dfc846e95febeb7";
+        await hre.network.provider.request({
+          method: "hardhat_impersonateAccount",
+          params: [LDO_HOLDER],
+        });
+        const ldoHolder = await ethers.provider.getSigner(LDO_HOLDER);
+
+        const ldo = await ethers.getContractAt("IERC20", LDO_ADDRESS);
+
+        await ldo.connect(ldoHolder).transfer(vault.address, depositAmount);
+
+        let startBalance = await ldo.balanceOf(vault.address);
+
+        await vault.sendLDORewards();
+
+        let endBalance = await ldo.balanceOf(vault.address);
+
+        assert.equal(startBalance.sub(endBalance), depositAmount);
+        assert.equal(await ldo.balanceOf(feeRecipient), depositAmount);
       });
     });
 
@@ -2862,6 +2898,21 @@ async function depositIntoVault(
     await vault.depositETH({ value: amount });
   } else {
     await vault.deposit(amount);
+  }
+}
+
+async function setupYieldToken(
+  addressToDeposit: SignerWithAddress[],
+  collateralAsset: string,
+  vault: Contract,
+  amount: BigNumberish
+) {
+  for (let i = 0; i < addressToDeposit.length; i++) {
+    const steth = (await getContractAt("ISTETH", collateralAsset)).connect(
+      addressToDeposit[i]
+    );
+
+    await steth.submit(vault.address, { value: amount });
   }
 }
 

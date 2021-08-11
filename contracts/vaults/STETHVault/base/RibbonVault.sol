@@ -25,7 +25,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
 
     address public immutable USDC;
     address public immutable WETH;
-    address public immutable LDO = 0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32;
+    address public immutable LDO;
 
     uint256 public constant delay = 1 hours;
 
@@ -78,32 +78,36 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _wsteth is the wsteth address
+     * @param _ldo is the LDO contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _wsteth is the wsteth address
      * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
         address _weth,
         address _usdc,
+        address _ldo,
+        address _wsteth,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _wsteth,
         address _crvPool
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+        require(_wsteth != address(0), "!_wsteth");
+        require(_ldo != address(0), "!_ldo");
 
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
-        require(_wsteth != address(0), "!_wsteth");
         require(_crvPool != address(0), "!_crvPool");
 
         WETH = _weth;
         USDC = _usdc;
+        LDO = _ldo;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
@@ -522,11 +526,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     /*
      * @notice Transfers LDO rewards to feeRecipient
      */
-    function sendLDORewards()
-        external
-    {
-      IERC20 ldo = IERC20(LDO);
-      ldo.safeTransfer(feeRecipient, ldo.balanceOf(address(this)));
+    function sendLDORewards() external {
+        IERC20 ldo = IERC20(LDO);
+        ldo.safeTransfer(feeRecipient, ldo.balanceOf(address(this)));
     }
 
     /************************************************
@@ -602,7 +604,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-      uint256 ethBalance = IWETH(WETH).balanceOf(address(this)).add(address(this).balance);
+        uint256 ethBalance =
+            IWETH(WETH).balanceOf(address(this)).add(address(this).balance);
 
         uint256 wstethToeth =
             collateralToken.getStETHByWstETH(
@@ -612,9 +615,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
             );
 
         return
-            uint256(vaultState.lockedAmount).add(ethBalance).add(
-                wstethToeth
-            );
+            uint256(vaultState.lockedAmount).add(ethBalance).add(wstethToeth);
     }
 
     /**
