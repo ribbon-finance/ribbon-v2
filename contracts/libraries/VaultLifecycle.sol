@@ -37,7 +37,7 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState
     )
         external
@@ -93,7 +93,7 @@ library VaultLifecycle {
 
     function verifyOtoken(
         address otokenAddress,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         address collateralAsset,
         address USDC,
         uint256 delay
@@ -441,7 +441,7 @@ library VaultLifecycle {
 
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
