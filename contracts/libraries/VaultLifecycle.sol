@@ -37,7 +37,7 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
+        Vault.VaultParams calldata vaultParams,
         Vault.VaultState storage vaultState
     )
         external
