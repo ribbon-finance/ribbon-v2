@@ -605,7 +605,9 @@ library VaultLifecycleSTETH {
      * @param collateralToken is the address of the collateral token
      */
     function wrapToYieldToken(address weth, address collateralToken) external {
-        ISTETH steth = ISTETH(IWSTETH(collateralToken).stETH());
+        IWSTETH collateral = IWSTETH(collateralToken);
+        address steth = collateral.stETH();
+        IERC20 stethToken = IERC20(steth);
 
         // Unwrap all weth premiums transferred to contract
         IWETH weth = IWETH(weth);
@@ -616,9 +618,12 @@ library VaultLifecycleSTETH {
 
         if (address(this).balance > 0) {
             // Send eth to Lido, recieve steth
-            steth.submit{value: address(this).balance}(address(this));
+            ISTETH(steth).submit{value: address(this).balance}(address(this));
+            uint256 stethBalance = stethToken.balanceOf(address(this));
+            // approve wrap
+            stethToken.doubleApprove(collateralToken, stethBalance);
             // Wrap to wstETH
-            IWSTETH(collateralToken).wrap(steth.balanceOf(address(this)));
+            collateral.wrap(stethBalance);
         }
     }
 

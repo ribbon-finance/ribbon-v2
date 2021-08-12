@@ -78,7 +78,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _wsteth is the wsteth address
      * @param _ldo is the LDO contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -89,7 +88,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         address _weth,
         address _usdc,
         address _ldo,
-        address _wsteth,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
@@ -97,7 +95,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
-        require(_wsteth != address(0), "!_wsteth");
         require(_ldo != address(0), "!_ldo");
 
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
@@ -112,8 +109,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
         STETH_ETH_CRV_POOL = _crvPool;
-
-        collateralToken = IWSTETH(_wsteth);
     }
 
     /**
@@ -124,6 +119,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
+        address _wsteth,
         string memory tokenName,
         string memory tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -137,6 +133,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
             _vaultParams
         );
 
+        require(_wsteth != address(0), "!_wsteth");
+
         __ReentrancyGuard_init();
         __ERC20_init(tokenName, tokenSymbol);
         __Ownable_init();
@@ -146,6 +144,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         performanceFee = _performanceFee;
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
+
+        collateralToken = IWSTETH(_wsteth);
 
         vaultState.round = 1;
     }
@@ -201,7 +201,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     function depositETH() external payable nonReentrant {
         require(msg.value > 0, "!value");
 
-        _depositFor(msg.value, msg.sender);
+        _depositFor(msg.value, msg.sender, true);
     }
 
     /**
@@ -211,7 +211,11 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     function depositYieldToken(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _depositFor(collateralToken.getStETHByWstETH(amount), msg.sender);
+        _depositFor(
+            collateralToken.getStETHByWstETH(amount),
+            msg.sender,
+            false
+        );
 
         IERC20(collateralToken.stETH()).safeTransferFrom(
             msg.sender,
@@ -224,10 +228,16 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @notice Mints the vault shares to the creditor
      * @param amount is the amount of `asset` deposited
      * @param creditor is the address to receieve the deposit
+     * @param isETH is whether this is a depositETH call
      */
-    function _depositFor(uint256 amount, address creditor) private {
+    function _depositFor(
+        uint256 amount,
+        address creditor,
+        bool isETH
+    ) private {
         uint256 currentRound = vaultState.round;
-        uint256 totalWithDepositedAmount = totalBalance().add(amount);
+        uint256 totalWithDepositedAmount =
+            isETH ? totalBalance() : totalBalance().add(amount);
 
         require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
