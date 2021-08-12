@@ -333,6 +333,42 @@ describe("E2E-RibbonThetaVault", () => {
           );
         });
       });
+
+      describe("GnosisAuction.settleAuction", () => {
+        it("settles the auction", async () => {
+          const auctionID = await vault.optionAuctionID();
+          const auction = await ethers.getContractAt(
+            "IGnosisAuction",
+            auctionAddress,
+            userSigner
+          );
+          const tx = await auction.settleAuction(auctionID);
+          await tx.wait();
+
+          const { currentOption } = await vault.optionState();
+          const otoken = await ethers.getContractAt("IERC20", currentOption);
+
+          assert.bnEqual(
+            await otoken.balanceOf(auctionAddress),
+            BigNumber.from(0)
+          );
+        });
+      });
+
+      describe("burnRemainingOTokens", () => {
+        it("burns the remaining otokens", async () => {
+          const tx = await vault.connect(ownerSigner).burnRemainingOTokens();
+          await tx.wait();
+
+          const { currentOption } = await vault.optionState();
+          const otoken = await ethers.getContractAt("IERC20", currentOption);
+
+          assert.bnEqual(
+            await otoken.balanceOf(vault.address),
+            BigNumber.from(0)
+          );
+        });
+      });
     });
   }
 });
