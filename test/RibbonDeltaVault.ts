@@ -412,20 +412,6 @@ function behavesLikeRibbonOptionsVault(params: {
         GNOSIS_EASY_AUCTION
       );
 
-      const thetaVaultInitializeTypes = [
-        "address",
-        "address",
-        "string",
-        "string",
-        "string",
-        "string",
-        "address",
-        "address",
-        "string",
-        "string",
-        "Tuple",
-      ];
-
       const thetaVaultInitializeArgs = [
         owner,
         feeRecipient,
