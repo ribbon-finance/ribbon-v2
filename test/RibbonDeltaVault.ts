@@ -460,7 +460,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await deployProxy(
           "RibbonThetaVault",
           adminSigner,
-          thetaVaultInitializeTypes,
           thetaVaultInitializeArgs,
           thetaVaultDeployArgs,
           {
@@ -470,18 +469,6 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         )
       ).connect(userSigner);
-
-      const initializeTypes = [
-        "address",
-        "address",
-        "string",
-        "string",
-        "string",
-        "string",
-        "address",
-        "string",
-        "Tuple",
-      ];
 
       const initializeArgs = [
         owner,
@@ -514,7 +501,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await deployProxy(
           "RibbonDeltaVault",
           adminSigner,
-          initializeTypes,
           initializeArgs,
           deployArgs,
           {
