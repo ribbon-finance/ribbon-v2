@@ -15,6 +15,7 @@ import {
   WETH_ADDRESS,
 } from "../../constants/constants";
 import { assert } from "../helpers/assertions";
+import { getGasPrice as getGasPriceFromEtherscan } from "../../scripts/helpers/getGasPrice";
 
 moment.tz.setDefault("UTC");
 
@@ -31,11 +32,31 @@ const usdc = hre.network.name === "mainnet" ? USDC_ADDRESS : KOVAN_USDC;
 const auctionAddress =
   hre.network.name === "mainnet" ? GNOSIS_EASY_AUCTION : EASY_AUCTION_KOVAN;
 
+const getGasPrice = async () => {
+  if (hre.network.name === "mainnet") {
+    return await getGasPriceFromEtherscan();
+  }
+  return parseUnits("1", "gwei");
+};
+
 describe("E2E-RibbonThetaVault", () => {
   behavesLikeRibbonThetaVault({
     deploymentName: "RibbonThetaVaultETHCall",
     depositAmount: parseEther("0.0001"),
     isPut: false,
+  });
+
+  behavesLikeRibbonThetaVault({
+    deploymentName: "RibbonThetaVaultWBTCCall",
+    // depositAmount: parseEther("0.0001"),
+    depositAmount: parseUnits("0.0001", 8),
+    isPut: false,
+  });
+
+  behavesLikeRibbonThetaVault({
+    deploymentName: "RibbonThetaVaultETHPut",
+    depositAmount: parseUnits("0.1", 6),
+    isPut: true,
   });
 
   before(async () => {
@@ -116,11 +137,14 @@ describe("E2E-RibbonThetaVault", () => {
 
         const approveTx = await assetContract.approve(
           vault.address,
-          depositAmount
+          depositAmount,
+          { gasPrice: await getGasPrice() }
         );
         await approveTx.wait();
 
-        const depositTx = await vault.deposit(depositAmount);
+        const depositTx = await vault.deposit(depositAmount, {
+          gasPrice: await getGasPrice(),
+        });
         await depositTx.wait();
 
         assert.bnEqual(
@@ -157,7 +181,8 @@ describe("E2E-RibbonThetaVault", () => {
             beforeBalance = await assetContract.balanceOf(user);
           }
 
-          const gasPrice = parseUnits("1", "gwei");
+          const gasPrice = await getGasPrice();
+
           const withdrawTx = await vault.withdrawInstantly(depositAmount, {
             gasPrice,
           });
