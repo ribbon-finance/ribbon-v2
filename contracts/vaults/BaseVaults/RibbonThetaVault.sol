@@ -135,7 +135,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        lastLockedAmount = type(256).max;
+        lastLockedAmount = type(uint256).max;
     }
 
     /************************************************
@@ -212,7 +212,15 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
                 currentOption: oldOption,
                 delay: delay,
                 lastStrikeOverride: lastStrikeOverride,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                round: round
+            });
+
+        VaultLifecycle.VaultDetails memory vaultDetails =
+            VaultLifecycle.VaultDetails({
+                isPut: isPut,
+                underlying: underlying,
+                asset: asset
             });
 
         (
@@ -226,8 +234,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
                 optionsPremiumPricer,
                 premiumDiscount,
                 closeParams,
-                vaultParams,
-                vaultState
+                vaultDetails
             );
 
         emit NewOptionStrikeSelected(strikePrice, delta);
@@ -245,9 +252,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         currentOption = address(0);
-        lastLockedAmount = lockedAmount > 0
-            ? lockedAmount
-            : lastLockedAmount;
+        lastLockedAmount = lockedAmount > 0 ? lockedAmount : lastLockedAmount;
         lockedAmount = 0;
 
         if (oldOption != address(0)) {

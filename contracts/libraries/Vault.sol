@@ -2,6 +2,21 @@
 pragma solidity ^0.7.3;
 
 library Vault {
+    struct VaultParams {
+        // Option type the vault is selling
+        bool isPut;
+        // Token decimals for vault shares
+        uint8 decimals;
+        // Asset used in Theta / Delta Vault
+        address asset;
+        // Underlying asset of the options sold by vault
+        address underlying;
+        // Minimum supply of the vault shares issued, for ETH it's 10**10
+        uint56 minimumSupply;
+        // Vault cap
+        uint104 cap;
+    }
+
     struct DepositReceipt {
         // Maximum of 65535 rounds. Assuming 1 round is 7 days, maximum is 1256 years.
         uint16 round;

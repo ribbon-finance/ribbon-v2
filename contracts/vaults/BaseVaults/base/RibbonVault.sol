@@ -210,11 +210,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         _depositFor(amount, msg.sender);
 
-        IERC20(asset).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -234,11 +230,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         _depositFor(amount, creditor);
 
-        IERC20(_asset).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -265,7 +257,7 @@ contract RibbonVault is OptionsVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
-                decimals
+                _decimals
             );
 
         uint256 depositAmount = uint104(amount);
@@ -283,9 +275,7 @@ contract RibbonVault is OptionsVaultStorage {
             unredeemedShares: unredeemedShares
         });
 
-        totalPending = uint128(
-            uint256(totalPending).add(amount)
-        );
+        totalPending = uint128(uint256(totalPending).add(amount));
     }
 
     /**
@@ -358,7 +348,7 @@ contract RibbonVault is OptionsVaultStorage {
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
                 roundPricePerShare[uint16(withdrawalRound)],
-                decimals
+                _decimals
             );
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
@@ -405,7 +395,7 @@ contract RibbonVault is OptionsVaultStorage {
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[uint16(receiptRound)],
-                decimals
+                _decimals
             );
 
         shares = isMax ? unredeemedShares : shares;
@@ -441,9 +431,9 @@ contract RibbonVault is OptionsVaultStorage {
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
@@ -466,8 +456,8 @@ contract RibbonVault is OptionsVaultStorage {
             VaultLifecycle.rollover(
                 totalSupply(),
                 asset,
-                decimals,
-                uint256(totalPending),
+                _decimals,
+                totalPending,
                 queuedWithdrawShares
             );
 
@@ -475,7 +465,7 @@ contract RibbonVault is OptionsVaultStorage {
         nextOption = address(0);
 
         // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = round;
+        uint256 currentRound = round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
@@ -509,11 +499,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         if (vaultFee > 0) {
             transferAsset(payable(feeRecipient), vaultFee);
-            emit CollectVaultFees(
-                performanceFeeInAsset,
-                vaultFee,
-                round
-            );
+            emit CollectVaultFees(performanceFeeInAsset, vaultFee, round);
         }
 
         return vaultFee;
@@ -551,9 +537,7 @@ contract RibbonVault is OptionsVaultStorage {
         uint256 dec = _decimals;
         uint256 numShares = shares(account);
         uint256 pps =
-            totalBalance().sub(totalPending).mul(10**dec).div(
-                totalSupply()
-            );
+            totalBalance().sub(totalPending).mul(10**dec).div(totalSupply());
         return ShareMath.sharesToUnderlying(numShares, pps, dec);
     }
 
@@ -599,8 +583,7 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function pricePerShare() external view returns (uint256) {
         uint256 balance = totalBalance().sub(totalPending);
-        return
-            (10**uint256(_decimals)).mul(balance).div(totalSupply());
+        return (10**uint256(_decimals)).mul(balance).div(totalSupply());
     }
 
     /**
@@ -609,9 +592,7 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function totalBalance() public view returns (uint256) {
         return
-            uint256(lockedAmount).add(
-                IERC20(asset).balanceOf(address(this))
-            );
+            uint256(lockedAmount).add(IERC20(asset).balanceOf(address(this)));
     }
 
     /**
