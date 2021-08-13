@@ -29,11 +29,48 @@ abstract contract OptionsVaultStorageV1 is
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
 
-    Vault.VaultParams public vaultParams;
+    /**
+     * Vault params
+     */
 
-    Vault.VaultState public vaultState;
+    bool public isPut;
 
-    Vault.OptionState public optionState;
+    uint256 public _decimals;
+
+    address public asset;
+
+    address public underlying;
+
+    uint256 public minimumSupply;
+
+    uint256 public cap;
+    
+    /**
+     * Option state
+     */
+
+    address public nextOption;
+
+    address public currentOption;
+
+    uint256 public nextOptionReadyAt;
+
+    /**
+     * Vault state
+     */
+    uint256 public round;
+
+    uint256 public lockedAmount;
+    
+    uint256 public lastLockedAmount;
+
+    uint256 public totalPending;
+
+    uint256 public queuedWithdrawShares;
+
+    /**
+     * Fee state
+     */
 
     address public feeRecipient;
 

@@ -135,7 +135,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        vaultState.lastLockedAmount = type(uint104).max;
+        lastLockedAmount = type(256).max;
     }
 
     /************************************************
@@ -177,7 +177,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint256 currentRound = vaultState.round;
+        uint256 currentRound = round;
 
         require(amount > 0, "!amount");
         require(depositReceipt.round == currentRound, "Invalid round");
@@ -187,9 +187,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
 
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(receiptAmount.sub(amount));
-        vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).sub(amount)
-        );
+        totalPending = totalPending.sub(amount);
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
@@ -205,7 +203,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose() external nonReentrant {
-        address oldOption = optionState.currentOption;
+        address oldOption = currentOption;
 
         VaultLifecycle.CloseParams memory closeParams =
             VaultLifecycle.CloseParams({
@@ -236,8 +234,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
 
         ShareMath.assertUint104(premium);
         currentOtokenPremium = uint104(premium);
-        optionState.nextOption = otokenAddress;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+        nextOption = otokenAddress;
+        nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
         _closeShort(oldOption);
     }
@@ -246,12 +244,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
-        optionState.currentOption = address(0);
-        uint104 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = lockedAmount > 0
+        currentOption = address(0);
+        lastLockedAmount = lockedAmount > 0
             ? lockedAmount
-            : vaultState.lastLockedAmount;
-        vaultState.lockedAmount = 0;
+            : lastLockedAmount;
+        lockedAmount = 0;
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
@@ -266,7 +263,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     function rollToNextOption() external onlyOwner nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
-        vaultState.lockedAmount = uint104(lockedBalance);
+        lockedAmount = uint104(lockedBalance);
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
@@ -290,10 +287,10 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
 
         require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-        auctionDetails.oTokenAddress = optionState.currentOption;
+        auctionDetails.oTokenAddress = currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = vaultParams.asset;
-        auctionDetails.assetDecimals = vaultParams.decimals;
+        auctionDetails.asset = asset;
+        auctionDetails.assetDecimals = _decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
@@ -305,13 +302,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function burnRemainingOTokens() external onlyOwner nonReentrant {
         uint256 numOTokensToBurn =
-            IERC20(optionState.currentOption).balanceOf(address(this));
+            IERC20(currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
         uint256 unlockedAssedAmount =
             VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
-        vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
-        );
+        lockedAmount = lockedAmount.sub(unlockedAssedAmount);
     }
 
     /**
@@ -325,6 +320,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
-        lastStrikeOverride = vaultState.round;
+        lastStrikeOverride = round;
     }
 }
