@@ -37,7 +37,7 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
+        Vault.VaultParams calldata vaultParams,
         Vault.VaultState storage vaultState
     )
         external
@@ -74,6 +74,7 @@ library VaultLifecycle {
 
         otokenAddress = getOrDeployOtoken(
             closeParams,
+            vaultParams,
             underlying,
             asset,
             strikePrice,
@@ -90,10 +91,29 @@ library VaultLifecycle {
         require(premium > 0, "!premium");
     }
 
-    function verifyOtoken(address otokenAddress, uint256 delay) private view {
+    function verifyOtoken(
+        address otokenAddress,
+        Vault.VaultParams calldata vaultParams,
+        address collateralAsset,
+        address USDC,
+        uint256 delay
+    ) private view {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == collateralAsset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
@@ -421,6 +441,7 @@ library VaultLifecycle {
 
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
+        Vault.VaultParams calldata vaultParams,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
@@ -453,7 +474,13 @@ library VaultLifecycle {
                 isPut
             );
 
-        verifyOtoken(otoken, closeParams.delay);
+        verifyOtoken(
+            otoken,
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
 
         return otoken;
     }
