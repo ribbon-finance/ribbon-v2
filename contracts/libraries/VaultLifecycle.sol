@@ -127,9 +127,9 @@ library VaultLifecycle {
     function rollover(
         uint256 currentSupply,
         address asset,
-        uint8 decimals,
+        uint256 decimals,
         uint256 pendingAmount,
-        uint128 queuedWithdrawShares
+        uint256 queuedWithdrawShares
     )
         external
         view
@@ -160,9 +160,7 @@ library VaultLifecycle {
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? uint256(queuedWithdrawShares).mul(currentBalance).div(
-                    newSupply
-                )
+                ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
                 : 0;
 
         return (
@@ -523,11 +521,9 @@ library VaultLifecycle {
         address owner,
         address feeRecipient,
         uint256 performanceFee,
-        uint256 minimumSupply,
-        uint256 cap,
         string calldata tokenName,
         string calldata tokenSymbol,
-        VaultDetails calldata _vaultDetails
+        Vault.VaultParams calldata vaultParams
     ) external pure {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
@@ -535,10 +531,10 @@ library VaultLifecycle {
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
-        require(_vaultDetails.asset != address(0), "!asset");
-        require(_vaultDetails.underlying != address(0), "!underlying");
-        require(minimumSupply > 0, "!minimumSupply");
-        require(cap > 0, "!cap");
+        require(vaultParams.asset != address(0), "!asset");
+        require(vaultParams.underlying != address(0), "!underlying");
+        require(vaultParams.minimumSupply > 0, "!minimumSupply");
+        require(vaultParams.cap > 0, "!cap");
     }
 
     /**

@@ -24,7 +24,7 @@ abstract contract OptionsVaultStorageV1 is
     /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
     /// This is used to determine the number of shares to be returned
     /// to a user with their DepositReceipt.depositAmount
-    mapping(uint16 => uint256) public roundPricePerShare;
+    mapping(uint256 => uint256) public roundPricePerShare;
 
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
@@ -44,7 +44,7 @@ abstract contract OptionsVaultStorageV1 is
     uint256 public minimumSupply;
 
     uint256 public cap;
-    
+
     /**
      * Option state
      */
@@ -61,7 +61,7 @@ abstract contract OptionsVaultStorageV1 is
     uint256 public round;
 
     uint256 public lockedAmount;
-    
+
     uint256 public lastLockedAmount;
 
     uint256 public totalPending;
@@ -85,13 +85,13 @@ abstract contract OptionsThetaVaultStorageV1 {
     // Logic contract used to select strike prices
     address public strikeSelection;
     // Premium discount on options we are selling (thousandths place: 000 - 999)
-    uint32 public premiumDiscount;
+    uint256 public premiumDiscount;
     // Current oToken premium
-    uint104 public currentOtokenPremium;
+    uint256 public currentOtokenPremium;
     // Last round id at which the strike was manually overridden
-    uint16 public lastStrikeOverride;
+    uint256 public lastStrikeOverride;
     // Price last overridden strike set to
-    uint128 public overriddenStrikePrice;
+    uint256 public overriddenStrikePrice;
     // Auction duration
     uint256 public auctionDuration;
     // Auction id of current option
@@ -104,7 +104,7 @@ abstract contract OptionsDeltaVaultStorageV1 {
     // % of funds to be used for weekly option purchase
     uint256 public optionAllocationPct;
     // Delta vault equivalent of lockedAmount
-    uint104 public balanceBeforePremium;
+    uint256 public balanceBeforePremium;
     // User Id of delta vault in latest gnosis auction
     Vault.AuctionSellOrder public auctionSellOrder;
 }
