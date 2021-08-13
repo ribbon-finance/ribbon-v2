@@ -36,8 +36,7 @@ library ShareMath {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        uint256 underlyingAmount = uint256(shares).mul(pps).div(10**decimals);
-        assertUint104(shares);
+        uint256 underlyingAmount = shares.mul(pps).div(10**decimals);
 
         return underlyingAmount;
     }
@@ -55,18 +54,15 @@ library ShareMath {
         uint256 currentRound,
         uint256 pps,
         uint256 decimals
-    ) internal pure returns (uint128 unredeemedShares) {
+    ) internal pure returns (uint256 unredeemedShares) {
         if (depositReceipt.round > 0 && depositReceipt.round < currentRound) {
             uint256 sharesFromRound =
                 underlyingToShares(depositReceipt.amount, pps, decimals);
 
-            assertUint104(sharesFromRound);
-
             uint256 unredeemedShares256 =
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
-            assertUint128(unredeemedShares256);
 
-            unredeemedShares = uint128(unredeemedShares256);
+            unredeemedShares = unredeemedShares256;
         } else {
             unredeemedShares = depositReceipt.unredeemedShares;
         }
