@@ -253,14 +253,14 @@ contract RibbonVault is OptionsVaultStorage {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 _decimals
             );
 
-        uint256 depositAmount = uint104(amount);
+        uint256 depositAmount = amount;
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
@@ -272,7 +272,7 @@ contract RibbonVault is OptionsVaultStorage {
         depositReceipts[creditor] = Vault.DepositReceipt({
             round: uint16(currentRound),
             amount: uint104(depositAmount),
-            unredeemedShares: unredeemedShares
+            unredeemedShares: uint128(unredeemedShares)
         });
 
         totalPending = uint128(uint256(totalPending).add(amount));
@@ -568,7 +568,7 @@ contract RibbonVault is OptionsVaultStorage {
             return (balanceOf(account), 0);
         }
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 round,
                 roundPricePerShare[depositReceipt.round],
