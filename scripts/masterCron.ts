@@ -60,6 +60,35 @@ const getTopOfPeriod = async (provider: any, period: number) => {
   return topOfPeriod;
 };
 
+async function getAnnualizedVol(underlying: string, resolution: string) {
+  const latestTimestamp = (await provider.getBlock("latest")).timestamp;
+
+  var msg = {
+    jsonrpc: "2.0",
+    id: 833,
+    method: "public/get_volatility_index_data",
+    params: {
+      currency: underlying,
+      // resolution is in minutes, we multiply by 60 to get seconds
+      start_timestamp: (latestTimestamp - resolution * 60).toString(),
+      end_timestamp: latestTimestamp.toString(),
+      resolution: resolution,
+    },
+  };
+  var ws = new WebSocket("wss://www.deribit.com/ws/api/v2");
+  ws.onmessage = function (e) {
+    let candles = e.data;
+    // indices for the timerange of the latest volatility value
+    // https://docs.deribit.com/?javascript#public-get_volatility_index_data
+    // open = 1, high = 2, low = 3, close = 4
+    // scale to 10 ** 8
+    return Math.floor(e.data[candles.length - 1][1] * 10 ** 8);
+  };
+  ws.onopen = function () {
+    ws.send(JSON.stringify(msg));
+  };
+}
+
 async function settleAuctionsAndClaim(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
@@ -208,15 +237,22 @@ async function updateManualVol() {
     provider
   );
 
+  // 1 min resolution
+  let dvolBTC = await getAnnualizedVol("BTC", "1");
+  let dvolETH = await getAnnualizedVol("ETH", "1");
+
   for (let univ3poolName in deployments[network].univ3pools) {
-    let dvol = 0;
     let newGasPrice = (await gas(network)).toString();
     const tx = await volOracle
       .connect(signer)
-      .setAnnualizedVol(deployments[network].univ3pools[univ3poolName], dvol, {
-        gasPrice: newGasPrice,
-        gasLimit: gasLimits["volOracleAnnualizedVol"],
-      });
+      .setAnnualizedVol(
+        deployments[network].univ3pools[univ3poolName],
+        univ3poolName.includes("btc") ? dvolBTC : dvolETH,
+        {
+          gasPrice: newGasPrice,
+          gasLimit: gasLimits["volOracleAnnualizedVol"],
+        }
+      );
     await log(`VolOracle-setAnnualizedVol()-(${univ3poolName}): ${tx.hash}`);
   }
 }
