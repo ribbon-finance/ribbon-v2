@@ -37,7 +37,7 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
+        Vault.VaultParams calldata vaultParams,
         Vault.VaultState storage vaultState
     )
         external
@@ -93,7 +93,7 @@ library VaultLifecycle {
 
     function verifyOtoken(
         address otokenAddress,
-        Vault.VaultParams storage vaultParams,
+        Vault.VaultParams calldata vaultParams,
         address collateralAsset,
         address USDC,
         uint256 delay
@@ -101,7 +101,7 @@ library VaultLifecycle {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == false, "Type mismatch");
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
         require(
             otoken.underlyingAsset() == vaultParams.underlying,
             "Wrong underlyingAsset"
@@ -441,7 +441,7 @@ library VaultLifecycle {
 
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
+        Vault.VaultParams calldata vaultParams,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
