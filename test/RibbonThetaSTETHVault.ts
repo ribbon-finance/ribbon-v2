@@ -2627,7 +2627,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe.skip("#sendLDORewards", () => {
+    describe("#sendLDORewards", () => {
       time.revertToSnapshotAfterEach();
 
       it("should send LDO rewards to feeRecipient", async function () {
