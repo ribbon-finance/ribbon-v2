@@ -50,7 +50,7 @@
     "lint:sol": "solhint -f table contracts/**/*.sol",
     "lint:sol:prettier": "prettier --write \"contracts/**/*.sol\"",
     "clean-logs": "yarn run hardhat remove-logs",
-    "coverage": "yarn run hardhat coverage --testfiles 'test/!e2e'"
+    "coverage": "yarn run hardhat coverage"
   },
   "husky": {
     "hooks": {
