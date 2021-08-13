@@ -19,7 +19,19 @@ describe("VaultLifecycle", () => {
   });
 
   describe("getNextFriday", () => {
-    time.revertToSnapshotAfterEach();
+    time.revertToSnapshotAfterEach(async () => {
+      const { timestamp } = await provider.getBlock("latest");
+
+      const currentTime = moment.unix(timestamp);
+
+      const nextFriday = moment(currentTime)
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(9); // needs to be 8am UTC
+
+      await time.increaseTo(nextFriday.unix());
+    });
 
     it("gets the first Friday, given the day of week is Saturday", async () => {
       const { timestamp } = await provider.getBlock("latest");
