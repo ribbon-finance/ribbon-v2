@@ -14,6 +14,8 @@ const KOVAN_WBTC = "0x50570256f0da172a1908207aAf0c80d4b279f303";
 
 const STRIKE_STEP = 1000;
 const STRIKE_DELTA = 1000; // 0.1d
+const PREMIUM_DISCOUNT = 950; // 0.95
+const AUCTION_DURATION = 3600; // 1 hour
 
 const main = async ({
   network,
@@ -72,8 +74,8 @@ const main = async ({
     "rBTC-THETA",
     pricer.address,
     strikeSelection.address,
-    50, // 5% discount
-    3600, // 1 hour auction duration
+    PREMIUM_DISCOUNT,
+    AUCTION_DURATION,
     {
       isPut: false,
       decimals: 8,

@@ -16,6 +16,8 @@ const KOVAN_USDC = "0x7e6edA50d1c833bE936492BF42C1BF376239E9e2";
 
 const STRIKE_STEP = 100;
 const STRIKE_DELTA = 1000; // 0.1d
+const PREMIUM_DISCOUNT = 950; // 0.95
+const AUCTION_DURATION = 3600; // 1 hour
 
 const main = async ({
   network,
@@ -76,8 +78,8 @@ const main = async ({
     "rUSDC-ETH-P-THETA",
     pricer.address,
     strikeSelection.address,
-    50, // 5% discount
-    3600, // 1 hour auction duration
+    PREMIUM_DISCOUNT,
+    AUCTION_DURATION,
     {
       isPut: false,
       decimals: 6,

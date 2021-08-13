@@ -14,6 +14,8 @@ const KOVAN_WETH = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 
 const STRIKE_STEP = 100;
 const STRIKE_DELTA = 1000; // 0.1d
+const PREMIUM_DISCOUNT = 950; // 0.95
+const AUCTION_DURATION = 3600; // 1 hour
 
 const main = async ({
   network,
@@ -73,8 +75,8 @@ const main = async ({
     "rETH-THETA",
     pricer.address,
     strikeSelection.address,
-    50, //5% discount
-    3600, // 1 hour auction duration
+    PREMIUM_DISCOUNT,
+    AUCTION_DURATION,
     {
       isPut: false,
       decimals: 18,
