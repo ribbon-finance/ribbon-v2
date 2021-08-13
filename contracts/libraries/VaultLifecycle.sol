@@ -24,12 +24,19 @@ library VaultLifecycle {
     using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
+        uint256 delay;
+        uint256 lastStrikeOverride;
+        uint256 overriddenStrikePrice;
+        uint256 round;
         address OTOKEN_FACTORY;
         address USDC;
         address currentOption;
-        uint256 delay;
-        uint16 lastStrikeOverride;
-        uint256 overriddenStrikePrice;
+    }
+
+    struct VaultDetails {
+        bool isPut;
+        address asset;
+        address underlying;
     }
 
     function commitAndClose(
@@ -37,8 +44,7 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
-        Vault.VaultState storage vaultState
+        VaultDetails calldata vaultDetails
     )
         external
         returns (
@@ -61,12 +67,12 @@ library VaultLifecycle {
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
-        bool isPut = vaultParams.isPut;
-        address underlying = vaultParams.underlying;
-        address asset = vaultParams.asset;
+        bool isPut = vaultDetails.isPut;
+        address underlying = vaultDetails.underlying;
+        address asset = vaultDetails.asset;
 
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
-            vaultState.round
+            closeParams.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, isPut);
 
@@ -74,7 +80,7 @@ library VaultLifecycle {
 
         otokenAddress = getOrDeployOtoken(
             closeParams,
-            vaultParams,
+            vaultDetails,
             underlying,
             asset,
             strikePrice,
@@ -93,7 +99,7 @@ library VaultLifecycle {
 
     function verifyOtoken(
         address otokenAddress,
-        Vault.VaultParams calldata vaultParams,
+        VaultDetails calldata vaultDetails,
         address collateralAsset,
         address USDC,
         uint256 delay
@@ -101,9 +107,9 @@ library VaultLifecycle {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(otoken.isPut() == vaultDetails.isPut, "Type mismatch");
         require(
-            otoken.underlyingAsset() == vaultParams.underlying,
+            otoken.underlyingAsset() == vaultDetails.underlying,
             "Wrong underlyingAsset"
         );
         require(
@@ -404,22 +410,20 @@ library VaultLifecycle {
     }
 
     function getVaultFees(
-        Vault.VaultState storage vaultState,
+        uint256 prevLockedAmount,
+        uint256 totalPending,
         uint256 currentLockedBalance,
         uint256 performanceFeePercent,
         uint256 managementFeePercent
     )
         external
-        view
+        pure
         returns (
             uint256 performanceFee,
             uint256 managementFee,
             uint256 vaultFee
         )
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
-
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
         // deposits and withdrawals, is positive. If it is negative, last week's
@@ -441,7 +445,7 @@ library VaultLifecycle {
 
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
+        VaultDetails calldata vaultDetails,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
@@ -476,7 +480,7 @@ library VaultLifecycle {
 
         verifyOtoken(
             otoken,
-            vaultParams,
+            vaultDetails,
             collateralAsset,
             closeParams.USDC,
             closeParams.delay
@@ -519,9 +523,11 @@ library VaultLifecycle {
         address owner,
         address feeRecipient,
         uint256 performanceFee,
+        uint256 minimumSupply,
+        uint256 cap,
         string calldata tokenName,
         string calldata tokenSymbol,
-        Vault.VaultParams calldata _vaultParams
+        VaultDetails calldata _vaultDetails
     ) external pure {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
@@ -529,10 +535,10 @@ library VaultLifecycle {
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
-        require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
-        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
-        require(_vaultParams.cap > 0, "!cap");
+        require(_vaultDetails.asset != address(0), "!asset");
+        require(_vaultDetails.underlying != address(0), "!underlying");
+        require(minimumSupply > 0, "!minimumSupply");
+        require(cap > 0, "!cap");
     }
 
     /**
