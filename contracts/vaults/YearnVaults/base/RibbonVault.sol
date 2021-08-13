@@ -191,18 +191,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the underlying is not WETH.
-     */
-    function depositETH() external payable nonReentrant {
-        require(vaultParams.asset == WETH, "!WETH");
-        require(msg.value > 0, "!value");
-
-        _depositFor(msg.value, msg.sender);
-
-        IWETH(WETH).deposit{value: msg.value}();
-    }
-
-    /**
      * @notice Deposits the `asset` into the contract and mint vault shares.
      * @param amount is the amount of `asset` to deposit
      */
@@ -212,6 +200,30 @@ contract RibbonVault is OptionsVaultYearnStorage {
         _depositFor(amount, msg.sender);
 
         IERC20(vaultParams.asset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+    }
+
+    /**
+     * @notice Deposits the `collateralToken` into the contract and mint vault shares.
+     * @param amount is the amount of `collateralToken` to deposit
+     */
+    function depositYieldToken(uint256 amount) external nonReentrant {
+        require(amount > 0, "!amount");
+
+        uint256 amountInAsset =
+            VaultLifecycleYearn.dswmul(
+                amount,
+                collateralToken.pricePerShare().mul(
+                    VaultLifecycleYearn.decimalShift(address(collateralToken))
+                )
+            );
+
+        _depositFor(amountInAsset, msg.sender);
+
+        IERC20(address(collateralToken)).safeTransferFrom(
             msg.sender,
             address(this),
             amount
