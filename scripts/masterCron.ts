@@ -14,6 +14,7 @@ import * as time from "../test/helpers/time";
 import {
   GNOSIS_EASY_AUCTION,
   VOL_ORACLE,
+  MANUAL_VOL_ORACLE,
   BYTES_ZERO,
 } from "../test/helpers/constants";
 import { encodeOrder } from "../test/helpers/utils";
@@ -37,6 +38,7 @@ const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
 
 let gasLimits = {
   volOracleCommit: 85000,
+  volOracleAnnualizedVol: 0,
   settleAuction: 0,
   claimAuctionOtokens: 0,
   commitAndClose: 0,
@@ -197,6 +199,28 @@ async function settleAuctionAndClaim() {
   );
 }
 
+async function updateManualVol() {
+  const volOracleArtifact = await hre.artifacts.readArtifact("VolOracle");
+
+  const volOracle = new ethers.Contract(
+    MANUAL_VOL_ORACLE,
+    volOracleArtifact.abi,
+    provider
+  );
+
+  for (let univ3poolName in deployments[network].univ3pools) {
+    let dvol = 0;
+    let newGasPrice = (await gas(network)).toString();
+    const tx = await volOracle
+      .connect(signer)
+      .setAnnualizedVol(deployments[network].univ3pools[univ3poolName], dvol, {
+        gasPrice: newGasPrice,
+        gasLimit: gasLimits["volOracleAnnualizedVol"],
+      });
+    await log(`VolOracle-setAnnualizedVol()-(${univ3poolName}): ${tx.hash}`);
+  }
+}
+
 async function updateVolatility() {
   const volOracleArtifact = await hre.artifacts.readArtifact("VolOracle");
 
@@ -244,6 +268,7 @@ async function run() {
     // 0 0 10 * * 5 = 10am UTC on Fridays.
     `0 0 ${COMMIT_START} * * 5`,
     async function () {
+      await updateManualVol();
       await commitAndClose();
     },
     null,
