@@ -208,9 +208,11 @@ contract RibbonVault is OptionsVaultStorage {
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
+        address _asset = asset;
+
         _depositFor(amount, msg.sender);
 
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(_asset).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -275,7 +277,7 @@ contract RibbonVault is OptionsVaultStorage {
             unredeemedShares: uint128(unredeemedShares)
         });
 
-        totalPending = uint128(uint256(totalPending).add(amount));
+        totalPending = totalPending.add(amount);
     }
 
     /**
