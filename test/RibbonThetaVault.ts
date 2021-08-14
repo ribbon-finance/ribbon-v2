@@ -275,8 +275,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const getNextOptionReadyAt = async () => {
-      const optionState = await vault.optionState();
-      return optionState.nextOptionReadyAt;
+      return await vault.nextOptionReadyAt();
     };
 
     const getCurrentOptionExpiry = async () => {
@@ -934,8 +933,8 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.isAtMost(receipt2.gasUsed.toNumber(), 91500);
 
           // Uncomment to measure precise gas numbers
-          // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
-          // console.log("Best case depositETH", receipt2.gasUsed.toNumber());
+          console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
+          console.log("Best case depositETH", receipt2.gasUsed.toNumber());
         });
 
         it("reverts when no value passed", async function () {
@@ -1065,8 +1064,8 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // Uncomment to log gas used
-        // console.log("Worst case deposit", receipt1.gasUsed.toNumber());
-        // console.log("Best case deposit", receipt2.gasUsed.toNumber());
+        console.log("Worst case deposit", receipt1.gasUsed.toNumber());
+        console.log("Best case deposit", receipt2.gasUsed.toNumber());
       });
 
       it("does not inflate the share tokens on initialization", async function () {
@@ -1230,7 +1229,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const receipt = await res.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 1049016);
-        // console.log("commitAndClose", receipt.gasUsed.toNumber());
+        console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
     describe("#burnRemainingOTokens", () => {
@@ -1851,7 +1850,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(ownerSigner).rollToNextOption();
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 854505);
-        // console.log("rollToNextOption", receipt.gasUsed.toNumber());
+        console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
 
@@ -2415,7 +2414,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 103700);
-        // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
+        console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
 
@@ -2531,11 +2530,11 @@ function behavesLikeRibbonOptionsVault(params: {
         const receipt = await tx.wait();
 
         assert.isAtMost(receipt.gasUsed.toNumber(), 64000);
-        // console.log(
-        //   params.name,
-        //   "completeWithdraw",
-        //   receipt.gasUsed.toNumber()
-        // );
+        console.log(
+          params.name,
+          "completeWithdraw",
+          receipt.gasUsed.toNumber()
+        );
       });
     });
 
