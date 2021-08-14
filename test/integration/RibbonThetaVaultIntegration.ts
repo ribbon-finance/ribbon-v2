@@ -39,7 +39,7 @@ const getGasPrice = async () => {
   return parseUnits("1", "gwei");
 };
 
-describe("E2E-RibbonThetaVault", () => {
+describe("Integration-RibbonThetaVault", () => {
   behavesLikeRibbonThetaVault({
     deploymentName: "RibbonThetaVaultETHCall",
     depositAmount: parseEther("0.0001"),
