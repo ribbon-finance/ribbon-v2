@@ -8,16 +8,19 @@ import {
   getDefaultSigner,
 } from "./helpers/getDefaultEthersProvider";
 import moment from "moment";
-import deployments from "../constants/deployments.json";
+import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import * as time from "../test/helpers/time";
 import {
   GNOSIS_EASY_AUCTION,
   VOL_ORACLE,
   MANUAL_VOL_ORACLE,
+  OTOKEN_FACTORY,
+  USDC_ADDRESS,
   BYTES_ZERO,
-} from "../test/helpers/constants";
+} from "../constants/constants";
 import { encodeOrder } from "../test/helpers/utils";
+import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 
 import { CronJob } from "cron";
 import Discord = require("discord.js");
@@ -59,6 +62,81 @@ const getTopOfPeriod = async (provider: any, period: number) => {
   let topOfPeriod = latestTimestamp - (latestTimestamp % period) + period;
   return topOfPeriod;
 };
+
+async function getStrikePrice(
+  vault: Contract,
+  vaultLifecycle: Contract,
+  strikeSelection: Contract,
+  ierc20ABI: any
+) {
+  let expiry;
+  let currentOption = (await vault.optionState()).currentOption;
+  if (currentOption == address(0)) {
+    expiry = await vaultLifecycle.getNextFriday(
+      (
+        await provider.getBlock("latest")
+      ).timestamp
+    );
+  } else {
+    expiry = await vaultLifecycle.getNextFriday(
+      await new ethers.Contract(
+        currentOption,
+        ierc20ABI,
+        provider
+      ).expiryTimestamp()
+    );
+  }
+
+  let isPut = (await vault.vaultParams()).isPut;
+
+  let strike = await strikeSelection.getStrikePrice(expiry, isPut);
+
+  return expiry, isPut, strike;
+}
+
+async function getOptionPremium(
+  vault: Contract,
+  vaultLifecycle: Contract,
+  gnosisAuction: Contract,
+  optionsPremiumPricer: Contract,
+  strikePrice: BigNumber,
+  expiry: BigNumber,
+  isPut: boolean
+) {
+  let currentOption = (await vault.optionState()).currentOption;
+  let delay = await vault.delay();
+
+  let closeParams = {
+    OTOKEN_FACTORY: OTOKEN_FACTORY,
+    USDC: USDC_ADDRESS,
+    currentOption: currentOption,
+    delay: delay,
+    lastStrikeOverride: 0,
+    overriddenStrikePrice: 0,
+  };
+
+  let otokenAddress = await vaultLifecycle.getOrDeployOtoken(
+    closeParams,
+    await vault.vaultState(),
+    (
+      await vault.vaultParams()
+    ).underlying,
+    (
+      await vault.vaultParams()
+    ).asset,
+    strikePrice,
+    expiry,
+    isPut
+  );
+
+  let premium = await gnosisAuction.getOTokenPremium(
+    otokenAddress,
+    optionsPremiumPricer.address,
+    await vault.premiumDiscount()
+  );
+
+  return premium;
+}
 
 async function getAnnualizedVol(underlying: string, resolution: string) {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp;
@@ -179,6 +257,70 @@ async function runTX(
   }
 }
 
+async function strikeForecasting() {
+  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const gnosisArtifact = await hre.artifacts.readArtifact("GnosisAuction");
+  const strikeSelectionArtifact = await hre.artifacts.readArtifact(
+    "StrikeSelection"
+  );
+  const vaultLifecycleArtifact = await hre.artifacts.readArtifact(
+    "VaultLifecycle"
+  );
+  const ierc20Artifact = await hre.artifacts.readArtifact("IERC20");
+
+  const gnosisLibrary = new ethers.Contract(
+    deployments[network].gnosisLibrary,
+    gnosisArtifact,
+    provider
+  );
+  const vaultLifecycleLibrary = new ethers.Contract(
+    deployments[network].vaultLifecycle,
+    vaultLifecycleArtifact,
+    provider
+  );
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifact,
+      provider
+    );
+
+    const strikeSelection = new ethers.Contract(
+      deployments[network].vaults[vaultName].strikeSelection,
+      strikeSelectionArtifact,
+      provider
+    );
+
+    const optionsPremiumPricer = new ethers.Contract(
+      deployments[network].vaults[vaultName].optionsPremiumPricer,
+      OptionsPremiumPricer_ABI,
+      provider
+    );
+
+    let [expiry, isPut, strike] = await getStrikePrice(
+      vault,
+      vaultLifecycle,
+      strikeSelection,
+      ierc20Artifact
+    );
+
+    let optionPremium = await getOptionPremium(
+      vault,
+      vaultLifecycle,
+      gnosisLibrary,
+      optionsPremiumPricer,
+      strike,
+      expiry,
+      isPut
+    );
+
+    await log(
+      `Expected strike price for ${vaultName}: ${strike.toString()} \n Expected premium: ${optionPremium.toString()}`
+    );
+  }
+}
+
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
 
@@ -294,11 +436,23 @@ async function run() {
 
   //Atlantic/Reykjavik corresponds to UTC
 
+  const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
   const COMMIT_START = 10; // 10 am UTC
   const VOL_PERIOD = 12 * 3600; // 12 hours
   const TIMELOCK_DELAY = 1; // 1 hour
   const AUCTION_LIFE_TIME_DELAY = 6; // 6 hours
   const AUCTION_SETTLE_BUFFER = 10; // 10 minutes
+
+  var futureStrikeForecasting = new CronJob(
+    // 0 0 9 * * 5 = 9am UTC on Fridays.
+    `0 0 ${COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE} * * 5`,
+    async function () {
+      await strikeForecasting();
+    },
+    null,
+    false,
+    "Atlantic/Reykjavik"
+  );
 
   var commitAndCloseJob = new CronJob(
     // 0 0 10 * * 5 = 10am UTC on Fridays.
