@@ -1,15 +1,23 @@
 {
     "kovan": {
-        "ManualVolOracle": "0xd6a9Fc03cCF55C4d99495D213e794F26C05BEb3A",
-        "OptionsPremiumPricerETH": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D",
-        "OptionsPremiumPricerWBTC": "0x947398a2C3f5dD6983bb935FEBFcF076C870e23e",
-        "RibbonThetaVaultETHCall": "0xF77FE1e54bc308C88CBacf3670EB54ce4A41226E",
-        "RibbonThetaVaultETHCallLogic": "0xEc0406912798C63da72e53a0C42eFFDB95318F07",
-        "RibbonThetaVaultETHPut": "0xEC1c50724CF7a618C6cdA6CFEa5c9064AFc98E84",
-        "RibbonThetaVaultETHPutLogic": "0x4868D8F0E8898E62520781E53023515B45805aD6",
-        "RibbonThetaVaultWBTCCall": "0x0E24525cCb27d20354a34652f43cF707D8F0Cc97",
-        "RibbonThetaVaultWBTCCallLogic": "0x64EeB01A825c8004FACbbF3291fBDe3aBE5315A8",
-        "StrikeSelectionETH": "0xaAA24915AfFab8A83af74D5A1472F4fE7AD08D71",
-        "VaultLifecycle": "0x9bCF7E35E8B852de70ddB993BC461d1f4624e5AC"
+        "ManualVolOracle": "0x6cD56377C7409693cf3D48e23B14EA72217bec22",
+        "OptionsPremiumPricerETH": "0x748F85AC6727EDc6b8120Fd7127a4Fb33d047d47",
+        "OptionsPremiumPricerWBTC": "0x36690d83a06971CD2F1f4A95052Ab0D5980e0FC8",
+        "RibbonThetaVaultETHCall": "0x6888cEaae27F1D66C4152082c186ed452E387FBB",
+        "RibbonThetaVaultETHPut": "0xc8B86C2dE51F124D99D783A11Be666E7c1Be2387",
+        "RibbonThetaVaultLogic": "0x739Ce06d2b435F81951fd5E4a5f67FD39E718b04",
+        "RibbonThetaVaultWBTCCall": "0xa6C65B92E24C72D5935396532c2536f0ca30654f",
+        "StrikeSelectionETH": "0xCf06D7a084739d869d3257F7190E6A75126F9e00",
+        "StrikeSelectionWBTC": "0x20D96F5754D39c75eA9094002DE2108e5F5d1329",
+        "VaultLifecycle": "0xe73ED716Af2C5fbB6b685009E11957f208507cf6"
+    },
+    "mainnet": {
+        "ManualVolOracle": "0xe24854968CDbCfa049ddd6F089b5C552D181eCC4",
+        "OptionsPremiumPricerETH": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C",
+        "OptionsPremiumPricerWBTC": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8",
+        "RibbonThetaVaultETHCall": "0x1EBEA9c79f0dE60209c8B386AA6EC8a8F21a89C0",
+        "RibbonThetaVaultLogic": "0xa0Db6c4C2906dE0158802BA8d98798d04f52B79A",
+        "StrikeSelectionETH": "0xf6e785185f9943DC0dB13392d5475769D2105911",
+        "VaultLifecycle": "0x5eE5db4480Db3B4cf08d871b737f0ce5785caA53"
     }
 }
