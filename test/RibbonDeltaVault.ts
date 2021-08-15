@@ -412,20 +412,6 @@ function behavesLikeRibbonOptionsVault(params: {
         GNOSIS_EASY_AUCTION
       );
 
-      const thetaVaultInitializeTypes = [
-        "address",
-        "address",
-        "string",
-        "string",
-        "string",
-        "string",
-        "address",
-        "address",
-        "string",
-        "string",
-        "Tuple",
-      ];
-
       const thetaVaultInitializeArgs = [
         owner,
         feeRecipient,
@@ -460,7 +446,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await deployProxy(
           "RibbonThetaVault",
           adminSigner,
-          thetaVaultInitializeTypes,
           thetaVaultInitializeArgs,
           thetaVaultDeployArgs,
           {
@@ -470,18 +455,6 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         )
       ).connect(userSigner);
-
-      const initializeTypes = [
-        "address",
-        "address",
-        "string",
-        "string",
-        "string",
-        "string",
-        "address",
-        "string",
-        "Tuple",
-      ];
 
       const initializeArgs = [
         owner,
@@ -514,7 +487,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await deployProxy(
           "RibbonDeltaVault",
           adminSigner,
-          initializeTypes,
           initializeArgs,
           deployArgs,
           {
