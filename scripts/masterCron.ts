@@ -42,12 +42,12 @@ const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
 
 let gasLimits = {
   volOracleCommit: 85000,
-  volOracleAnnualizedVol: 0,
-  settleAuction: 0,
-  claimAuctionOtokens: 0,
-  commitAndClose: 0,
-  rollToNextOption: 0,
-  burnRemainingOTokens: 0,
+  volOracleAnnualizedVol: 50000,
+  settleAuction: 200000,
+  claimAuctionOtokens: 200000,
+  commitAndClose: 1500000,
+  rollToNextOption: 1500000,
+  burnRemainingOTokens: 100000,
 };
 
 function sleep(ms: number) {
@@ -103,8 +103,8 @@ async function getStrikePrice(
 async function getOptionPremium(
   vault: Contract,
   vaultLifecycle: Contract,
-  gnosisAuction: Contract,
   optionsPremiumPricer: Contract,
+  oTokenABI: any,
   strikePrice: BigNumber,
   expiry: BigNumber,
   isPut: boolean
@@ -135,11 +135,17 @@ async function getOptionPremium(
     isPut
   );
 
-  let premium = await gnosisAuction.getOTokenPremium(
-    otokenAddress,
-    optionsPremiumPricer.address,
-    await vault.premiumDiscount()
-  );
+  let oToken = new ethers.Contract(otokenAddress, oTokenABI, provider);
+
+  let premium = (
+    await optionsPremiumPricer.getPremium(
+      await oToken.strikePrice(),
+      await oToken.expiryTimestamp(),
+      await oToken.isPut()
+    )
+  )
+    .mul(await vault.premiumDiscount())
+    .div(1000);
 
   return premium;
 }
@@ -147,7 +153,7 @@ async function getOptionPremium(
 async function getAnnualizedVol(underlying: string, resolution: string) {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp;
 
-  var msg = {
+  const msg = {
     jsonrpc: "2.0",
     id: 833,
     method: "public/get_volatility_index_data",
@@ -159,7 +165,7 @@ async function getAnnualizedVol(underlying: string, resolution: string) {
       resolution: resolution,
     },
   };
-  var ws = new WebSocket("wss://www.deribit.com/ws/api/v2");
+  const ws = new WebSocket("wss://www.deribit.com/ws/api/v2");
   ws.onmessage = function (e) {
     let candles = e.data;
     // indices for the timerange of the latest volatility value
@@ -275,12 +281,8 @@ async function strikeForecasting() {
   const stethArtifact = await hre.artifacts.readArtifact("IWSTETH");
   const yearnArtifact = await hre.artifacts.readArtifact("IYearnVault");
   const ierc20Artifact = await hre.artifacts.readArtifact("IERC20");
+  const oTokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
-  const gnosisLibrary = new ethers.Contract(
-    deployments[network].gnosisLibrary,
-    gnosisArtifact,
-    provider
-  );
   const vaultLifecycleLibrary = new ethers.Contract(
     deployments[network].vaultLifecycle,
     vaultLifecycleArtifact,
@@ -316,8 +318,8 @@ async function strikeForecasting() {
     let optionPremium = await getOptionPremium(
       vault,
       vaultLifecycle,
-      gnosisLibrary,
       optionsPremiumPricer,
+      oTokenArtifact,
       strike,
       expiry,
       isPut
