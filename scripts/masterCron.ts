@@ -10,6 +10,7 @@ import {
 import moment from "moment";
 import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
+import { wmul } from "../test/helpers/math";
 import * as time from "../test/helpers/time";
 import {
   GNOSIS_EASY_AUCTION,
@@ -61,6 +62,11 @@ const getTopOfPeriod = async (provider: any, period: number) => {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp;
   let topOfPeriod = latestTimestamp - (latestTimestamp % period) + period;
   return topOfPeriod;
+};
+
+const decimalShift = async (collateralAsset: Contract) => {
+  let decimals = await collateralAsset.decimals();
+  return BigNumber.from(10).pow(BigNumber.from(18).sub(decimals));
 };
 
 async function getStrikePrice(
@@ -266,6 +272,8 @@ async function strikeForecasting() {
   const vaultLifecycleArtifact = await hre.artifacts.readArtifact(
     "VaultLifecycle"
   );
+  const stethArtifact = await hre.artifacts.readArtifact("IWSTETH");
+  const yearnArtifact = await hre.artifacts.readArtifact("IYearnVault");
   const ierc20Artifact = await hre.artifacts.readArtifact("IERC20");
 
   const gnosisLibrary = new ethers.Contract(
@@ -314,6 +322,26 @@ async function strikeForecasting() {
       expiry,
       isPut
     );
+
+    // Adjust for yearn / steth
+    if (vaultName.includes("yearn")) {
+      const collateralToken = new ethers.Contract(
+        await vault.collateralToken(),
+        yearnArtifact,
+        provider
+      );
+      optionPremium = wmul(
+        optionPremium,
+        collateralToken.pricePerShare().mul(decimalShift(collateralToken))
+      );
+    } else if (vaultName.includes("steth")) {
+      const collateralToken = new ethers.Contract(
+        await vault.collateralToken(),
+        stethArtifact,
+        provider
+      );
+      optionPremium = wmul(optionPremium, collateralToken.stEthPerToken());
+    }
 
     await log(
       `Expected strike price for ${vaultName}: ${strike.toString()} \n Expected premium: ${optionPremium.toString()}`
