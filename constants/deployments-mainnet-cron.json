@@ -17,7 +17,6 @@
         "optionsPremiumPricer": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D"
       }
     },
-    "vaultLifecycle": "0x9bCF7E35E8B852de70ddB993BC461d1f4624e5AC",
     "univ3pools": {
       "wethusdc": "",
       "wbtcusdc": ""
@@ -42,7 +41,6 @@
         "optionsPremiumPricer": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C"
       }
     },
-    "vaultLifecycle": "0x5eE5db4480Db3B4cf08d871b737f0ce5785caA53",
     "univ3pools": {
       "wethusdc": "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
       "wbtcusdc": "0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35"

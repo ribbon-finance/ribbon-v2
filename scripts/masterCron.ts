@@ -21,7 +21,7 @@ import {
   BYTES_ZERO,
 } from "../constants/constants";
 import { encodeOrder } from "../test/helpers/utils";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 
 import { CronJob } from "cron";
 import Discord = require("discord.js");
@@ -69,27 +69,39 @@ const decimalShift = async (collateralAsset: Contract) => {
   return BigNumber.from(10).pow(BigNumber.from(18).sub(decimals));
 };
 
+const getNextFriday = (currentExpiry: number) => {
+  const DAY = 86400;
+  const HOUR = 3600;
+
+  let dayOfWeek = (currentExpiry / DAY + 4) % 7;
+  let nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * DAY;
+  let friday8am = nextFriday - (nextFriday % (24 * HOUR)) + 8 * HOUR;
+
+  // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
+  if (currentExpiry >= friday8am) {
+    friday8am += 7 * DAY;
+  }
+  return friday8am;
+};
+
 async function getStrikePrice(
   vault: Contract,
-  vaultLifecycle: Contract,
   strikeSelection: Contract,
   ierc20ABI: any
 ) {
   let expiry;
   let currentOption = (await vault.optionState()).currentOption;
-  if (currentOption == address(0)) {
-    expiry = await vaultLifecycle.getNextFriday(
-      (
-        await provider.getBlock("latest")
-      ).timestamp
-    );
+  if (currentOption == constants.AddressZero) {
+    expiry = await getNextFriday((await provider.getBlock("latest")).timestamp);
   } else {
-    expiry = await vaultLifecycle.getNextFriday(
-      await new ethers.Contract(
-        currentOption,
-        ierc20ABI,
-        provider
-      ).expiryTimestamp()
+    expiry = await getNextFriday(
+      (
+        await new ethers.Contract(
+          currentOption,
+          ierc20ABI,
+          provider
+        ).expiryTimestamp()
+      ).toNumber()
     );
   }
 
@@ -97,52 +109,18 @@ async function getStrikePrice(
 
   let strike = await strikeSelection.getStrikePrice(expiry, isPut);
 
-  return expiry, isPut, strike;
+  return [expiry, isPut, strike];
 }
 
 async function getOptionPremium(
   vault: Contract,
-  vaultLifecycle: Contract,
   optionsPremiumPricer: Contract,
-  oTokenABI: any,
   strikePrice: BigNumber,
   expiry: BigNumber,
   isPut: boolean
 ) {
-  let currentOption = (await vault.optionState()).currentOption;
-  let delay = await vault.delay();
-
-  let closeParams = {
-    OTOKEN_FACTORY: OTOKEN_FACTORY,
-    USDC: USDC_ADDRESS,
-    currentOption: currentOption,
-    delay: delay,
-    lastStrikeOverride: 0,
-    overriddenStrikePrice: 0,
-  };
-
-  let otokenAddress = await vaultLifecycle.getOrDeployOtoken(
-    closeParams,
-    await vault.vaultState(),
-    (
-      await vault.vaultParams()
-    ).underlying,
-    (
-      await vault.vaultParams()
-    ).asset,
-    strikePrice,
-    expiry,
-    isPut
-  );
-
-  let oToken = new ethers.Contract(otokenAddress, oTokenABI, provider);
-
   let premium = (
-    await optionsPremiumPricer.getPremium(
-      await oToken.strikePrice(),
-      await oToken.expiryTimestamp(),
-      await oToken.isPut()
-    )
+    await optionsPremiumPricer.getPremium(strikePrice, expiry, isPut)
   )
     .mul(await vault.premiumDiscount())
     .div(1000);
@@ -150,7 +128,7 @@ async function getOptionPremium(
   return premium;
 }
 
-async function getAnnualizedVol(underlying: string, resolution: string) {
+async function getAnnualizedVol(underlying: string, resolution: number) {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp;
 
   const msg = {
@@ -214,9 +192,11 @@ async function settleAuctionsAndClaim(
     }
 
     try {
-      await gnosisAuction.claimFromParticipantOrder(auctionID, [
-        encodeOrder(await vault.auctionSellOrder()),
-      ]);
+      const tx = await gnosisAuction
+        .connect(signer)
+        .claimFromParticipantOrder(auctionID, [
+          encodeOrder(await vault.auctionSellOrder()),
+        ]);
 
       await log(
         `GnosisAuction-claimFromParticipantOrder()-${auctionID}: ${tx.hash}`
@@ -281,24 +261,17 @@ async function strikeForecasting() {
   const stethArtifact = await hre.artifacts.readArtifact("IWSTETH");
   const yearnArtifact = await hre.artifacts.readArtifact("IYearnVault");
   const ierc20Artifact = await hre.artifacts.readArtifact("IERC20");
-  const oTokenArtifact = await hre.artifacts.readArtifact("IOtoken");
-
-  const vaultLifecycleLibrary = new ethers.Contract(
-    deployments[network].vaultLifecycle,
-    vaultLifecycleArtifact,
-    provider
-  );
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
-      vaultArtifact,
+      vaultArtifact.abi,
       provider
     );
 
     const strikeSelection = new ethers.Contract(
       deployments[network].vaults[vaultName].strikeSelection,
-      strikeSelectionArtifact,
+      strikeSelectionArtifact.abi,
       provider
     );
 
@@ -310,16 +283,13 @@ async function strikeForecasting() {
 
     let [expiry, isPut, strike] = await getStrikePrice(
       vault,
-      vaultLifecycle,
       strikeSelection,
       ierc20Artifact
     );
 
     let optionPremium = await getOptionPremium(
       vault,
-      vaultLifecycle,
       optionsPremiumPricer,
-      oTokenArtifact,
       strike,
       expiry,
       isPut
@@ -329,7 +299,7 @@ async function strikeForecasting() {
     if (vaultName.includes("yearn")) {
       const collateralToken = new ethers.Contract(
         await vault.collateralToken(),
-        yearnArtifact,
+        yearnArtifact.abi,
         provider
       );
       optionPremium = wmul(
@@ -339,7 +309,7 @@ async function strikeForecasting() {
     } else if (vaultName.includes("steth")) {
       const collateralToken = new ethers.Contract(
         await vault.collateralToken(),
-        stethArtifact,
+        stethArtifact.abi,
         provider
       );
       optionPremium = wmul(optionPremium, collateralToken.stEthPerToken());
@@ -410,8 +380,8 @@ async function updateManualVol() {
   );
 
   // 1 min resolution
-  let dvolBTC = await getAnnualizedVol("BTC", "1");
-  let dvolETH = await getAnnualizedVol("ETH", "1");
+  let dvolBTC = await getAnnualizedVol("BTC", 1);
+  let dvolETH = await getAnnualizedVol("ETH", 1);
 
   for (let univ3poolName in deployments[network].univ3pools) {
     let newGasPrice = (await gas(network)).toString();
@@ -544,10 +514,15 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
+  await strikeForecasting();
+
+  /*futureStrikeForecasting.start();
   commitAndCloseJob.start();
   rollToNextOptionJob.start();
-  settleAuctionAndClaimJob.start();
-  updateVolatilityJob.start();
+  settleAuctionAndClaimJob.start()*/
+
+  // Not commit()'ing for now
+  // updateVolatilityJob.start();
 }
 
 run();
