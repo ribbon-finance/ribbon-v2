@@ -349,7 +349,7 @@ async function strikeForecasting() {
       iOtokenArtifact.abi
     );
 
-    let [deribitDelta, deribitStrike] = await getDeribitStrikePrice(
+    let [deribitStrike, deribitDelta] = await getDeribitStrikePrice(
       strikeSelection,
       optionsPremiumPricer,
       vaultName.includes("BTC") ? "BTC" : "ETH",
