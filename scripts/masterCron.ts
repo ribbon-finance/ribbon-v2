@@ -87,7 +87,7 @@ const getNextFriday = (currentExpiry: number) => {
 async function getStrikePrice(
   vault: Contract,
   strikeSelection: Contract,
-  ierc20ABI: any
+  iOtokenABI: any
 ) {
   let expiry;
   let currentOption = (await vault.optionState()).currentOption;
@@ -95,21 +95,23 @@ async function getStrikePrice(
     expiry = await getNextFriday((await provider.getBlock("latest")).timestamp);
   } else {
     expiry = await getNextFriday(
-      (
-        await new ethers.Contract(
-          currentOption,
-          ierc20ABI,
-          provider
-        ).expiryTimestamp()
-      ).toNumber()
+      parseInt(
+        (
+          await new ethers.Contract(
+            currentOption,
+            iOtokenABI,
+            provider
+          ).expiryTimestamp()
+        ).toString()
+      )
     );
   }
 
   let isPut = (await vault.vaultParams()).isPut;
 
-  let strike = await strikeSelection.getStrikePrice(expiry, isPut);
+  let [strike, delta] = await strikeSelection.getStrikePrice(expiry, isPut);
 
-  return [expiry, isPut, strike];
+  return [expiry, delta, isPut, strike];
 }
 
 async function getOptionPremium(
@@ -260,7 +262,7 @@ async function strikeForecasting() {
   );
   const stethArtifact = await hre.artifacts.readArtifact("IWSTETH");
   const yearnArtifact = await hre.artifacts.readArtifact("IYearnVault");
-  const ierc20Artifact = await hre.artifacts.readArtifact("IERC20");
+  const iOtokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -281,10 +283,10 @@ async function strikeForecasting() {
       provider
     );
 
-    let [expiry, isPut, strike] = await getStrikePrice(
+    let [expiry, delta, isPut, strike] = await getStrikePrice(
       vault,
       strikeSelection,
-      ierc20Artifact
+      iOtokenArtifact.abi
     );
 
     let optionPremium = await getOptionPremium(
@@ -316,7 +318,9 @@ async function strikeForecasting() {
     }
 
     await log(
-      `Expected strike price for ${vaultName}: ${strike.toString()} \n Expected premium: ${optionPremium.toString()}`
+      `Expected strike price for ${vaultName}: ${strike.toString()} (${(
+        delta / 10000
+      ).toFixed(4)} delta). \nExpected premium: ${optionPremium.toString()}`
     );
   }
 }
