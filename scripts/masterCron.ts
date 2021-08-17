@@ -219,25 +219,26 @@ async function settleAuctionsAndClaim(
 ) {
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
-      deployments[network].vaults[vaultName],
+      deployments[network].vaults[vaultName].address,
       vaultArtifactAbi,
       provider
     );
     const auctionID = await vault.optionAuctionID();
     const auctionDetails = await gnosisAuction.auctionData(auctionID);
-    // If initialAuctionOrder is bytes32(0) auction has
-    // already been settled as gnosis does gas refunds
-    if (auctionDetails.initialAuctionOrder === BYTES_ZERO) {
-      continue;
-    }
-    let newGasPrice = (await gas(network)).toString();
-    try {
-      const tx = await gnosisAuction.connect(signer).settleAuction({
-        gasPrice: newGasPrice,
-        gasLimit: gasLimits["settleAuction"],
-      });
 
-      await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+    try {
+      // If initialAuctionOrder is bytes32(0) auction has
+      // already been settled as gnosis does gas refunds
+      if (auctionDetails.initialAuctionOrder != BYTES_ZERO) {
+        let newGasPrice = (await gas(network)).toString();
+
+        const tx = await gnosisAuction.connect(signer).settleAuction({
+          gasPrice: newGasPrice,
+          gasLimit: gasLimits["settleAuction"],
+        });
+
+        await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+      }
     } catch (error) {
       await log(
         `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
@@ -245,11 +246,15 @@ async function settleAuctionsAndClaim(
     }
 
     try {
+      let newGasPrice = (await gas(network)).toString();
+
       const tx = await gnosisAuction
         .connect(signer)
-        .claimFromParticipantOrder(auctionID, [
-          encodeOrder(await vault.auctionSellOrder()),
-        ]);
+        .claimFromParticipantOrder(
+          auctionID,
+          [encodeOrder(await vault.auctionSellOrder())],
+          { gasPrice: newGasPrice, gasLimit: gasLimits["claimAuctionOtokens"] }
+        );
 
       await log(
         `GnosisAuction-claimFromParticipantOrder()-${auctionID}: ${tx.hash}`
@@ -271,7 +276,7 @@ async function runTX(
 ) {
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
-      deployments[network].vaults[vaultName],
+      deployments[network].vaults[vaultName].address,
       vaultArtifactAbi,
       provider
     );
@@ -280,7 +285,7 @@ async function runTX(
     // someone already called new weeks rollToNextOption
     if (
       method === "rollToNextOption" &&
-      (await vault.currentOption()) === constants.AddressZero
+      (await vault.currentOption()) != constants.AddressZero
     ) {
       await log(`${method} (${vaultName}): skipped`);
       continue;
@@ -289,7 +294,7 @@ async function runTX(
     let newGasPrice = (await gas(network)).toString();
 
     try {
-      const tx = await vault.connect(signer)[`${method}()`]({
+      const tx = await vault.connect(signer)[`"${method}()"`]({
         gasPrice: newGasPrice,
         gasLimit: gasLimits[method],
       });
@@ -435,7 +440,7 @@ async function settleAuctionAndClaim() {
   // 3. settleAuction and claim
   await settleAuctionsAndClaim(
     gnosisAuction,
-    vaultArtifact,
+    vaultArtifact.abi,
     provider,
     signer,
     network
