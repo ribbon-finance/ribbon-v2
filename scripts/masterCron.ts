@@ -8,6 +8,7 @@ import {
   getDefaultSigner,
 } from "./helpers/getDefaultEthersProvider";
 import moment from "moment";
+import WebSocket from "ws";
 import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import { wmul } from "../test/helpers/math";
@@ -131,7 +132,8 @@ async function getOptionPremium(
 }
 
 async function getAnnualizedVol(underlying: string, resolution: number) {
-  const latestTimestamp = (await provider.getBlock("latest")).timestamp;
+  // in milliseconds
+  const latestTimestamp = (await provider.getBlock("latest")).timestamp * 1000;
 
   const msg = {
     jsonrpc: "2.0",
@@ -140,19 +142,20 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
     params: {
       currency: underlying,
       // resolution is in minutes, we multiply by 60 to get seconds
-      start_timestamp: (latestTimestamp - resolution * 60).toString(),
+      start_timestamp: (latestTimestamp - resolution * 1000).toString(),
       end_timestamp: latestTimestamp.toString(),
       resolution: resolution,
     },
   };
   const ws = new WebSocket("wss://www.deribit.com/ws/api/v2");
   ws.onmessage = function (e) {
-    let candles = e.data;
+    let candles = JSON.parse(e.data).result.data;
     // indices for the timerange of the latest volatility value
     // https://docs.deribit.com/?javascript#public-get_volatility_index_data
     // open = 1, high = 2, low = 3, close = 4
-    // scale to 10 ** 8
-    return Math.floor(e.data[candles.length - 1][1] * 10 ** 8);
+    let pricePoint = 4;
+    // scale to 10 ** 6
+    return candles[candles.length - 1][pricePoint] * 10 ** 6;
   };
   ws.onopen = function () {
     ws.send(JSON.stringify(msg));
@@ -331,7 +334,7 @@ async function strikeForecasting() {
     await log(
       `Expected strike price for ${vaultName}: ${strike.toString()} (${(
         delta / 10000
-      ).toFixed(4)} delta). \nExpected premium: ${(
+      ).toFixed(4)} delta) \nExpected premium: ${(
         optionPremium /
         10 ** assetDecimals
       ).toFixed(assetDecimals)} ${await asset.symbol()}`
@@ -532,12 +535,10 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  await strikeForecasting();
-
-  /*futureStrikeForecasting.start();
+  futureStrikeForecasting.start();
   commitAndCloseJob.start();
   rollToNextOptionJob.start();
-  settleAuctionAndClaimJob.start()*/
+  settleAuctionAndClaimJob.start();
 
   // Not commit()'ing for now
   // updateVolatilityJob.start();
