@@ -263,6 +263,9 @@ async function strikeForecasting() {
   const stethArtifact = await hre.artifacts.readArtifact("IWSTETH");
   const yearnArtifact = await hre.artifacts.readArtifact("IYearnVault");
   const iOtokenArtifact = await hre.artifacts.readArtifact("IOtoken");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -280,6 +283,12 @@ async function strikeForecasting() {
     const optionsPremiumPricer = new ethers.Contract(
       deployments[network].vaults[vaultName].optionsPremiumPricer,
       OptionsPremiumPricer_ABI,
+      provider
+    );
+
+    const asset = new ethers.Contract(
+      (await vault.vaultParams()).asset,
+      ierc20Artifact.abi,
       provider
     );
 
@@ -317,10 +326,15 @@ async function strikeForecasting() {
       optionPremium = wmul(optionPremium, collateralToken.stEthPerToken());
     }
 
+    let assetDecimals = await asset.decimals();
+
     await log(
       `Expected strike price for ${vaultName}: ${strike.toString()} (${(
         delta / 10000
-      ).toFixed(4)} delta). \nExpected premium: ${optionPremium.toString()}`
+      ).toFixed(4)} delta). \nExpected premium: ${(
+        optionPremium /
+        10 ** assetDecimals
+      ).toFixed(assetDecimals)} ${await asset.symbol()}`
     );
   }
 }
