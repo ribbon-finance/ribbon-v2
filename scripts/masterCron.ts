@@ -8,7 +8,7 @@ import {
   getDefaultSigner,
 } from "./helpers/getDefaultEthersProvider";
 import moment from "moment";
-import WebSocket from "ws";
+import got from "got";
 import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import { wmul } from "../test/helpers/math";
@@ -41,6 +41,9 @@ const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
 const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
 
+const HOUR = 3600;
+const DAY = 24 * HOUR;
+
 let gasLimits = {
   volOracleCommit: 85000,
   volOracleAnnualizedVol: 50000,
@@ -71,9 +74,6 @@ const decimalShift = async (collateralAsset: Contract) => {
 };
 
 const getNextFriday = (currentExpiry: number) => {
-  const DAY = 86400;
-  const HOUR = 3600;
-
   let dayOfWeek = (currentExpiry / DAY + 4) % 7;
   let nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * DAY;
   let friday8am = nextFriday - (nextFriday % (24 * HOUR)) + 8 * HOUR;
@@ -84,6 +84,66 @@ const getNextFriday = (currentExpiry: number) => {
   }
   return friday8am;
 };
+
+async function getDeribitDelta(instrumentName: string) {
+  // https://docs.deribit.com/?javascript#public-get_mark_price_history
+  var request = `https://www.deribit.com/api/v2/public/get_order_book?depth=1&instrument_name=${instrumentName}`;
+  const response = await got(request);
+  const delta = JSON.parse(response.body).result["greeks"]["delta"];
+  return delta;
+}
+
+async function getDeribitStrikePrice(
+  strikeSelection: Contract,
+  optionsPremiumPricer: Contract,
+  underlying: string,
+  isPut: boolean,
+  expiry: number
+) {
+  let delta = await strikeSelection.delta();
+  let spotPrice = parseInt(
+    (await optionsPremiumPricer.getUnderlyingPrice())
+      .div(BigNumber.from(10).pow(8))
+      .toString()
+  );
+
+  // in milliseconds
+  let expiryMargin = 3 * HOUR * 1000;
+
+  // https://docs.deribit.com/?shell#public-get_instrument
+  var request = `https://www.deribit.com/api/v2/public/get_instruments?currency=${underlying}&expired=false&kind=option`;
+  const response = await got(request);
+
+  let instruments = JSON.parse(response.body).result;
+
+  var bestStrike = 0;
+  var bestDelta = 1000000;
+  var bestDeltaDiff = 1000000;
+
+  for (const instrument of instruments) {
+    let intrumentName = instrument["instrument_name"];
+    // If the expiry is the same expiry as our option and is same type (put / call)
+    let sameOptionType =
+      isPut == (instrument["option_type"] === "put" ? true : false);
+    let sameExpiry =
+      Math.abs(expiry * 1000 - instrument["expiration_timestamp"]) <
+      expiryMargin;
+    let isOTM = instrument["strike"] > spotPrice;
+    if (sameOptionType && sameExpiry && isOTM) {
+      let currDelta = await getDeribitDelta(intrumentName);
+      let currDiff = Math.abs(currDelta * 10000 - delta);
+      // If the delta of the current instrument is closest to 0.1d
+      // so far we update the best strike
+      if (currDiff < bestDeltaDiff) {
+        bestDeltaDiff = currDiff;
+        bestDelta = currDelta;
+        bestStrike = instrument["strike"];
+      }
+    }
+  }
+
+  return [bestStrike, bestDelta];
+}
 
 async function getStrikePrice(
   vault: Contract,
@@ -112,7 +172,7 @@ async function getStrikePrice(
 
   let [strike, delta] = await strikeSelection.getStrikePrice(expiry, isPut);
 
-  return [expiry, delta, isPut, strike];
+  return [delta, strike, expiry, isPut];
 }
 
 async function getOptionPremium(
@@ -135,31 +195,19 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   // in milliseconds
   const latestTimestamp = (await provider.getBlock("latest")).timestamp * 1000;
 
-  const msg = {
-    jsonrpc: "2.0",
-    id: 833,
-    method: "public/get_volatility_index_data",
-    params: {
-      currency: underlying,
-      // resolution is in minutes, we multiply by 60 to get seconds
-      start_timestamp: (latestTimestamp - resolution * 1000).toString(),
-      end_timestamp: latestTimestamp.toString(),
-      resolution: resolution,
-    },
-  };
-  const ws = new WebSocket("wss://www.deribit.com/ws/api/v2");
-  ws.onmessage = function (e) {
-    let candles = JSON.parse(e.data).result.data;
-    // indices for the timerange of the latest volatility value
-    // https://docs.deribit.com/?javascript#public-get_volatility_index_data
-    // open = 1, high = 2, low = 3, close = 4
-    let pricePoint = 4;
-    // scale to 10 ** 6
-    return candles[candles.length - 1][pricePoint] * 10 ** 6;
-  };
-  ws.onopen = function () {
-    ws.send(JSON.stringify(msg));
-  };
+  let startTimestamp = (latestTimestamp - resolution * 1000).toString();
+  let endTimestamp = latestTimestamp.toString();
+
+  // https://docs.deribit.com/?javascript#public-get_volatility_index_data
+  var request = `https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${underlying}&end_timestamp=${endTimestamp}&resolution=${resolution}&start_timestamp=${startTimestamp}`;
+  const response = await got(request);
+
+  let candles = JSON.parse(response.body).result.data;
+  // indices for the timerange of the latest volatility value
+  // open = 1, high = 2, low = 3, close = 4
+  let pricePoint = 4;
+  // scale to 10 ** 6
+  return candles[candles.length - 1][pricePoint] * 10 ** 6;
 }
 
 async function settleAuctionsAndClaim(
@@ -295,10 +343,18 @@ async function strikeForecasting() {
       provider
     );
 
-    let [expiry, delta, isPut, strike] = await getStrikePrice(
+    let [delta, strike, expiry, isPut] = await getStrikePrice(
       vault,
       strikeSelection,
       iOtokenArtifact.abi
+    );
+
+    let [deribitDelta, deribitStrike] = await getDeribitStrikePrice(
+      strikeSelection,
+      optionsPremiumPricer,
+      vaultName.includes("BTC") ? "BTC" : "ETH",
+      isPut,
+      expiry
     );
 
     let optionPremium = await getOptionPremium(
@@ -332,12 +388,16 @@ async function strikeForecasting() {
     let assetDecimals = await asset.decimals();
 
     await log(
-      `Expected strike price for ${vaultName}: ${strike.toString()} (${(
-        delta / 10000
-      ).toFixed(4)} delta) \nExpected premium: ${(
+      `${vaultName}\nExpected strike price: $${strike.div(
+        BigNumber.from(10).pow(8)
+      )} (${(delta / 10000).toFixed(
+        4
+      )} delta) \nDeribit strike price: $${deribitStrike} (${deribitDelta} delta) \nExpected premium: ${(
         optionPremium /
         10 ** assetDecimals
-      ).toFixed(assetDecimals)} ${await asset.symbol()}`
+      ).toFixed(
+        assetDecimals
+      )} ${await asset.symbol()} \nExpected expiry: ${expiry.toString()}`
     );
   }
 }
@@ -400,7 +460,7 @@ async function updateManualVol() {
     provider
   );
 
-  // 1 min resolution
+  // 1 second resolution
   let dvolBTC = await getAnnualizedVol("BTC", 1);
   let dvolETH = await getAnnualizedVol("ETH", 1);
 

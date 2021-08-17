@@ -82,9 +82,9 @@
     "cron": "^1.8.2",
     "discord.js": "^12.5.3",
     "dotenv": "^10.0.0",
+    "got": "^11.8.2",
     "json-stable-stringify": "^1.0.1",
-    "moment-timezone": "^0.5.33",
-    "ws": "^8.1.0"
+    "moment-timezone": "^0.5.33"
   },
   "mocha": {
     "timeout": 20000
