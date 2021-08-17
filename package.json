@@ -29,9 +29,9 @@
     "typescript": "^4.2.4"
   },
   "resolutions": {
-    "elliptic": "6.5.4",
+    "elliptic": "6.5.3",
     "lodash": "4.17.20",
-    "underscore": "1.9.1"
+    "underscore": "1.12.1"
   },
   "scripts": {
     "test": "npx hardhat test test/*.ts test/libraries/*.ts",
