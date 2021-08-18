@@ -1,0 +1,49 @@
+{
+  "kovan": {
+    "vaults": {
+      "RibbonThetaVaultETHCall": {
+        "address": "0xF77FE1e54bc308C88CBacf3670EB54ce4A41226E",
+        "strikeSelection": "0xaAA24915AfFab8A83af74D5A1472F4fE7AD08D71",
+        "optionsPremiumPricer": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D"
+      },
+      "RibbonThetaVaultWBTCCall": {
+        "address": "0x0E24525cCb27d20354a34652f43cF707D8F0Cc97",
+        "strikeSelection": "",
+        "optionsPremiumPricer": "0x947398a2C3f5dD6983bb935FEBFcF076C870e23e"
+      },
+      "RibbonThetaVaultETHPut": {
+        "address": "0xEC1c50724CF7a618C6cdA6CFEa5c9064AFc98E84",
+        "strikeSelection": "0xaAA24915AfFab8A83af74D5A1472F4fE7AD08D71",
+        "optionsPremiumPricer": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D"
+      }
+    },
+    "univ3pools": {
+      "wethusdc": "",
+      "wbtcusdc": ""
+    }
+  },
+
+  "mainnet": {
+    "vaults": {
+      "RibbonThetaVaultETHCall": {
+        "address": "0x1EBEA9c79f0dE60209c8B386AA6EC8a8F21a89C0",
+        "strikeSelection": "0xf6e785185f9943DC0dB13392d5475769D2105911",
+        "optionsPremiumPricer": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C"
+      },
+      "RibbonThetaVaultWBTCCall": {
+        "address": "",
+        "strikeSelection": "",
+        "optionsPremiumPricer": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8"
+      },
+      "RibbonThetaVaultETHPut": {
+        "address": "",
+        "strikeSelection": "0xf6e785185f9943DC0dB13392d5475769D2105911",
+        "optionsPremiumPricer": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C"
+      }
+    },
+    "univ3pools": {
+      "wethusdc": "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
+      "wbtcusdc": "0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35"
+    }
+  }
+}

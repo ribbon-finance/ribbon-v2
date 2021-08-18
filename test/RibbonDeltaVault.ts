@@ -137,7 +137,7 @@ describe("RibbonDeltaVault", () => {
     auctionDuration: 21600,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 115000,
+      depositWorstCase: 117905,
       depositBestCase: 98000,
     },
     mintConfig: {
@@ -169,7 +169,7 @@ describe("RibbonDeltaVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 115000,
+      depositWorstCase: 117905,
       depositBestCase: 98000,
     },
     mintConfig: {
@@ -2219,7 +2219,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.withdrawInstantly(depositAmountAfterPremium);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 115000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 117905);
       });
     });
 
