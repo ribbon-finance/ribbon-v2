@@ -137,7 +137,7 @@ describe("RibbonDeltaVault", () => {
     auctionDuration: 21600,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 115000,
+      depositWorstCase: 117905,
       depositBestCase: 98000,
     },
     mintConfig: {
@@ -169,7 +169,7 @@ describe("RibbonDeltaVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 115000,
+      depositWorstCase: 117905,
       depositBestCase: 98000,
     },
     mintConfig: {
