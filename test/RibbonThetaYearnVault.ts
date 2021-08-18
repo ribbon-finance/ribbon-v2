@@ -114,7 +114,7 @@ describe("RibbonThetaYearnVault", () => {
     isPut: true,
     gasLimits: {
       depositWorstCase: 154121,
-      depositBestCase: 137098,
+      depositBestCase: 137164,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -2748,7 +2748,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 161888);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 170146);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
