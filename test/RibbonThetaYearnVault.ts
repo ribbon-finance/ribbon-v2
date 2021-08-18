@@ -1985,7 +1985,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(ownerSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1042850);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1063207);
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2681,7 +2681,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 159946);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 170146);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
