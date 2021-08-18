@@ -92,6 +92,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      */
     function initialize(
         address _owner,
+        address _keeper,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
@@ -105,6 +106,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     ) external initializer {
         baseInitialize(
             _owner,
+            _keeper,
             _feeRecipient,
             _managementFee,
             _performanceFee,
@@ -123,7 +125,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /************************************************
@@ -151,6 +152,30 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         require(newAuctionDuration >= 1 hours, "!newAuctionDuration");
 
         auctionDuration = newAuctionDuration;
+    }
+
+    /**
+     * @notice Sets the new strike selection contract
+     * @param newStrikeSelection is the address of the new strike selection contract
+     */
+    function setStrikeSelection(address newStrikeSelection) external onlyOwner {
+        require(newStrikeSelection != address(0), "!newStrikeSelection");
+        strikeSelection = newStrikeSelection;
+    }
+
+    /**
+     * @notice Sets the new options premium pricer contract
+     * @param newOptionsPremiumPricer is the address of the new strike selection contract
+     */
+    function setOptionsPremiumPricer(address newOptionsPremiumPricer)
+        external
+        onlyOwner
+    {
+        require(
+            newOptionsPremiumPricer != address(0),
+            "!newOptionsPremiumPricer"
+        );
+        optionsPremiumPricer = newOptionsPremiumPricer;
     }
 
     /**
@@ -203,7 +228,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner nonReentrant {
+    function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
         VaultLifecycleYearn.CloseParams memory closeParams =
@@ -256,7 +281,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external nonReentrant {
+    function rollToNextOption() external onlyKeeper nonReentrant {
         (address newOption, uint256 queuedWithdrawAmount) = _rollToNextOption();
 
         // Locked balance denominated in `collateralToken`
@@ -300,7 +325,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyOwner {
+    function startAuction() public onlyKeeper {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         uint256 currOtokenPremium = currentOtokenPremium;
@@ -320,7 +345,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
-    function burnRemainingOTokens() external onlyOwner nonReentrant {
+    function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssedAmount =
             VaultLifecycleYearn.burnOtokens(
                 GAMMA_CONTROLLER,

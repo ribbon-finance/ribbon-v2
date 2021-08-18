@@ -114,6 +114,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
      */
     function baseInitialize(
         address _owner,
+        address _keeper,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
@@ -123,6 +124,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
     ) internal initializer {
         VaultLifecycleYearn.verifyConstructorParams(
             _owner,
+            _keeper,
             _feeRecipient,
             _performanceFee,
             tokenName,
@@ -135,19 +137,39 @@ contract RibbonVault is OptionsVaultYearnStorage {
         __Ownable_init();
         transferOwnership(_owner);
 
+        keeper = _keeper;
+
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
+        vaultState.lastLockedAmount = type(uint104).max;
 
         _upgradeYearnVault();
 
         vaultState.round = 1;
     }
 
+    /**
+     * @dev Throws if called by any account other than the keeper.
+     */
+    modifier onlyKeeper() {
+        require(msg.sender == keeper, "!keeper");
+        _;
+    }
+
     /************************************************
      *  SETTERS
      ***********************************************/
+
+    /**
+     * @notice Sets the new keeper
+     * @param newKeeper is the address of the new keeper
+     */
+    function setNewKeeper(address newKeeper) external onlyOwner {
+        require(newKeeper != address(0), "!newKeeper");
+        keeper = newKeeper;
+    }
 
     /**
      * @notice Sets the new fee recipient
