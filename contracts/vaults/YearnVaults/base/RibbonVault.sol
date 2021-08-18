@@ -151,10 +151,10 @@ contract RibbonVault is OptionsVaultYearnStorage {
     }
 
     /**
-     * @dev Throws if called by any account other than the owner.
+     * @dev Throws if called by any account other than the keeper.
      */
     modifier onlyKeeper() {
-        require(keeper == msg.sender, "!keeper");
+        require(msg.sender == keeper, "!keeper");
         _;
     }
 

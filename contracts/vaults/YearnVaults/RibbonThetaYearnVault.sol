@@ -345,7 +345,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
-    function burnRemainingOTokens() external nonReentrant {
+    function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssedAmount =
             VaultLifecycleYearn.burnOtokens(
                 GAMMA_CONTROLLER,
