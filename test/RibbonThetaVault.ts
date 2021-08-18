@@ -302,16 +302,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [
-        adminSigner,
-        ownerSigner,
-        userSigner,
-        feeRecipientSigner,
-        counterpartySigner,
-      ] = await ethers.getSigners();
+      [adminSigner, ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
+        await ethers.getSigners();
       owner = ownerSigner.address;
+      keeper = keeperSigner.address;
       user = userSigner.address;
-      owner = ownerSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
@@ -657,7 +652,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!owner");
+        ).to.be.revertedWith("!keeper");
       });
 
       it("reverts when initializing with 0 feeRecipient", async function () {
@@ -1479,7 +1474,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // will revert when trying to roll immediately
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
 
         time.increaseTo(
@@ -1487,7 +1482,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
       });
 
@@ -1504,7 +1499,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(res)
           .to.emit(vault, "OpenShort")
-          .withArgs(defaultOtokenAddress, depositAmount, owner);
+          .withArgs(defaultOtokenAddress, depositAmount, keeper);
 
         const vaultState = await vault.vaultState();
 
@@ -1625,7 +1620,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1654,7 +1649,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         let bidMultiplier = 1;
 
@@ -1743,7 +1738,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(secondOptionAddress, currBalance.sub(vaultFees), owner);
+          .withArgs(secondOptionAddress, currBalance.sub(vaultFees), keeper);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1756,7 +1751,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // will revert when trying to roll immediately
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
 
         time.increaseTo(
@@ -1764,7 +1759,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
       });
 
@@ -1779,7 +1774,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1805,7 +1800,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmount, owner);
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         let bidMultiplier = 1;
 
@@ -1901,7 +1896,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             secondOptionAddress,
             depositAmount.add(auctionDetails[2]).sub(vaultFees),
-            owner
+            keeper
           );
 
         assert.equal(
@@ -1917,7 +1912,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!nextOption");
       });
 
@@ -1927,7 +1922,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 854505);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 863338);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2607,7 +2602,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 64000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 72939);
         // console.log(
         //   params.name,
         //   "completeWithdraw",

@@ -370,7 +370,6 @@ function behavesLikeRibbonOptionsVault(params: {
       owner = ownerSigner.address;
       keeper = keeperSigner.address;
       user = userSigner.address;
-      owner = ownerSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
@@ -1346,7 +1345,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(res)
           .to.emit(vault, "OpenLong")
-          .withArgs(defaultOtokenAddress, numOTokens, bidAmount, owner);
+          .withArgs(defaultOtokenAddress, numOTokens, bidAmount, keeper);
 
         assert.equal(
           (await vault.balanceBeforePremium()).toString(),
@@ -1416,7 +1415,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenLong")
-          .withArgs(firstOptionAddress, numOTokens, bidAmount, owner);
+          .withArgs(firstOptionAddress, numOTokens, bidAmount, keeper);
 
         // optionAllocationPct % of the vault's balance is allocated to long
         assert.bnEqual(
@@ -1466,7 +1465,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenLong")
-          .withArgs(firstOptionAddress, numOTokens, bidAmount, owner);
+          .withArgs(firstOptionAddress, numOTokens, bidAmount, keeper);
 
         // balance should be everything minus premium
         assert.equal(
@@ -1588,7 +1587,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(secondTx)
           .to.emit(vault, "OpenLong")
-          .withArgs(secondOptionAddress, newNumOTokens, newBidAmount, owner);
+          .withArgs(secondOptionAddress, newNumOTokens, newBidAmount, keeper);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1627,7 +1626,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenLong")
-          .withArgs(firstOptionAddress, numOTokens, bidAmount, owner);
+          .withArgs(firstOptionAddress, numOTokens, bidAmount, keeper);
 
         // balance should be everything minus premium
         assert.equal(
@@ -1750,7 +1749,7 @@ function behavesLikeRibbonOptionsVault(params: {
             secondOptionAddress,
             newNumOTokens,
             newBidAmount.sub(vaultFees),
-            owner
+            keeper
           );
 
         assert.bnEqual(
@@ -2276,7 +2275,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.withdrawInstantly(depositAmountAfterPremium);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 115000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 117905);
       });
     });
 
