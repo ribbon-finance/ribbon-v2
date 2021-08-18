@@ -104,6 +104,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function initialize(
         address _owner,
+        address _keeper,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
@@ -117,6 +118,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     ) external initializer {
         baseInitialize(
             _owner,
+            _keeper,
             _feeRecipient,
             _managementFee,
             _performanceFee,
@@ -135,7 +137,6 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /************************************************
@@ -167,6 +168,30 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         emit AuctionDurationSet(auctionDuration, newAuctionDuration);
 
         auctionDuration = newAuctionDuration;
+    }
+
+    /**
+     * @notice Sets the new strike selection contract
+     * @param newStrikeSelection is the address of the new strike selection contract
+     */
+    function setStrikeSelection(address newStrikeSelection) external onlyOwner {
+        require(newStrikeSelection != address(0), "!newStrikeSelection");
+        strikeSelection = newStrikeSelection;
+    }
+
+    /**
+     * @notice Sets the new options premium pricer contract
+     * @param newOptionsPremiumPricer is the address of the new strike selection contract
+     */
+    function setOptionsPremiumPricer(address newOptionsPremiumPricer)
+        external
+        onlyOwner
+    {
+        require(
+            newOptionsPremiumPricer != address(0),
+            "!newOptionsPremiumPricer"
+        );
+        optionsPremiumPricer = newOptionsPremiumPricer;
     }
 
     /**
@@ -263,7 +288,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external onlyOwner nonReentrant {
+    function rollToNextOption() external onlyKeeper nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
         vaultState.lockedAmount = uint104(lockedBalance);
@@ -283,7 +308,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyOwner {
+    function startAuction() public onlyKeeper {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         uint256 currOtokenPremium = currentOtokenPremium;
@@ -303,7 +328,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
-    function burnRemainingOTokens() external onlyOwner nonReentrant {
+    function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 numOTokensToBurn =
             IERC20(optionState.currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
