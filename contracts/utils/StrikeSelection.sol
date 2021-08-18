@@ -103,8 +103,8 @@ contract StrikeSelection is Ownable {
 
         uint256 strike =
             isPut
-                ? assetPrice.sub(assetPrice % step)
-                : assetPrice.add(step - (assetPrice % step));
+                ? assetPrice.sub(assetPrice % step).sub(step)
+                : assetPrice.add(step - (assetPrice % step)).add(step);
         uint256 targetDelta = isPut ? DELTA_MULTIPLIER.sub(delta) : delta;
         uint256 prevDelta = DELTA_MULTIPLIER;
 
