@@ -2219,7 +2219,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.withdrawInstantly(depositAmountAfterPremium);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 115000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 117905);
       });
     });
 
