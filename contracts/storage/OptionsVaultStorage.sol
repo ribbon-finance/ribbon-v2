@@ -37,6 +37,8 @@ abstract contract OptionsVaultStorageV1 is
 
     address public feeRecipient;
 
+    address public keeper;
+
     uint256 public performanceFee;
 
     uint256 public managementFee;
