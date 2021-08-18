@@ -210,7 +210,7 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   return candles[candles.length - 1][pricePoint] * 10 ** 6;
 }
 
-async function settleAuctionsAndClaim(
+async function settle(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
   provider: any,
@@ -229,7 +229,7 @@ async function settleAuctionsAndClaim(
     try {
       // If initialAuctionOrder is bytes32(0) auction has
       // already been settled as gnosis does gas refunds
-      if (auctionDetails.initialAuctionOrder != BYTES_ZERO) {
+      if (auctionDetails.initialAuctionOrder !== BYTES_ZERO) {
         let newGasPrice = (await gas(network)).toString();
 
         const tx = await gnosisAuction.connect(signer).settleAuction({
@@ -244,6 +244,30 @@ async function settleAuctionsAndClaim(
         `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
       );
     }
+  }
+}
+
+async function claimFromParticipantOrder(
+  gnosisAuction: Contract,
+  vaultArtifactAbi: any,
+  provider: any,
+  signer: Wallet,
+  network: string
+) {
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifactAbi,
+      provider
+    );
+
+    const thetaVault = new ethers.Contract(
+      await vault.counterpartyThetaVault(),
+      vaultArtifactAbi,
+      provider
+    );
+
+    const auctionID = await thetaVault.optionAuctionID();
 
     try {
       let newGasPrice = (await gas(network)).toString();
@@ -285,7 +309,7 @@ async function runTX(
     // someone already called new weeks rollToNextOption
     if (
       method === "rollToNextOption" &&
-      (await vault.currentOption()) != constants.AddressZero
+      (await vault.currentOption()) !== constants.AddressZero
     ) {
       await log(`${method} (${vaultName}): skipped`);
       continue;
@@ -427,7 +451,7 @@ async function rollToNextOption() {
   );
 }
 
-async function settleAuctionAndClaim() {
+async function settleAuctions() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
 
@@ -437,14 +461,8 @@ async function settleAuctionAndClaim() {
     provider
   );
 
-  // 3. settleAuction and claim
-  await settleAuctionsAndClaim(
-    gnosisAuction,
-    vaultArtifact.abi,
-    provider,
-    signer,
-    network
-  );
+  // 3. settleAuction
+  await settle(gnosisAuction, vaultArtifact.abi, provider, signer, network);
 
   // 4. burnRemainingOTokens
   await runTX(
@@ -562,12 +580,12 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  var settleAuctionAndClaimJob = new CronJob(
+  var settleAuctionJob = new CronJob(
     `0 ${AUCTION_SETTLE_BUFFER} ${
       COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
     } * * 5`,
     async function () {
-      await settleAuctionAndClaim();
+      await settleAuctions();
     },
     null,
     false,
@@ -600,10 +618,10 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  futureStrikeForecasting.start();
-  commitAndCloseJob.start();
-  rollToNextOptionJob.start();
-  settleAuctionAndClaimJob.start();
+  // futureStrikeForecasting.start();
+  // commitAndCloseJob.start();
+  // rollToNextOptionJob.start();
+  // settleAuctionJob.start();
 
   // Not commit()'ing for now
   // updateVolatilityJob.start();
