@@ -211,8 +211,7 @@ function behavesLikeRibbonOptionsVault(params: {
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
     keeperSigner: SignerWithAddress,
-    feeRecipientSigner: SignerWithAddress,
-    counterpartySigner: SignerWithAddress;
+    feeRecipientSigner: SignerWithAddress;
 
   // Parameters
   let tokenName = params.tokenName;
