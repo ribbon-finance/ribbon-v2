@@ -939,22 +939,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setNewKeeper", () => {
-      time.revertToSnapshotAfterTest();
-
-      it("set new keeper to owner", async function () {
-        assert.equal(await vault.keeper(), keeper);
-        await vault.connect(ownerSigner).setNewKeeper(owner);
-        assert.equal(await vault.keeper(), owner);
-      });
-
-      it("reverts when not owner call", async function () {
-        await expect(vault.setNewKeeper(owner)).to.be.revertedWith(
-          "caller is not the owner"
-        );
-      });
-    });
-
     describe("#setPerformanceFee", () => {
       time.revertToSnapshotAfterTest();
 
@@ -976,6 +960,22 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(
           (await vault.performanceFee()).toString(),
           BigNumber.from("1000000").toString()
+        );
+      });
+    });
+
+    describe("#setNewKeeper", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new keeper to owner", async function () {
+        assert.equal(await vault.keeper(), keeper);
+        await vault.connect(ownerSigner).setNewKeeper(owner);
+        assert.equal(await vault.keeper(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(vault.setNewKeeper(owner)).to.be.revertedWith(
+          "caller is not the owner"
         );
       });
     });
@@ -1296,6 +1296,12 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      });
+
+      it("reverts when not called with keeper", async function () {
+        await expect(
+          vault.connect(ownerSigner).rollToNextOption(optionPremium)
+        ).to.be.revertedWith("!keeper");
       });
 
       it("reverts when delay not passed", async function () {
