@@ -281,7 +281,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external nonReentrant {
+    function rollToNextOption() external onlyKeeper nonReentrant {
         (address newOption, uint256 queuedWithdrawAmount) = _rollToNextOption();
 
         // Locked balance denominated in `collateralToken`
