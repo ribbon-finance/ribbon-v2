@@ -16,8 +16,11 @@
         "OptionsPremiumPricerETH": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C",
         "OptionsPremiumPricerWBTC": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8",
         "RibbonThetaVaultETHCall": "0x1EBEA9c79f0dE60209c8B386AA6EC8a8F21a89C0",
-        "RibbonThetaVaultLogic": "0xa0Db6c4C2906dE0158802BA8d98798d04f52B79A",
+        "RibbonThetaVaultETHPut": "0x5C86c20d00aa8491Ad20974945d621e40c9E2B0c",
+        "RibbonThetaVaultLogic": "0xa9305E90A4f642370d5Bd4ac2EF13877BC9a94ED",
+        "RibbonThetaVaultWBTCCall": "0xA5b1170F2EB3c7e1eE1a4Ff6A60B3A018aE1c23D",
         "StrikeSelectionETH": "0xf6e785185f9943DC0dB13392d5475769D2105911",
-        "VaultLifecycle": "0x5eE5db4480Db3B4cf08d871b737f0ce5785caA53"
+        "StrikeSelectionWBTC": "0xf08d6a9c2C5a2Dc9B8645c5Ac0b529D4046D19aa",
+        "VaultLifecycle": "0xcf22032DA47998EA78082ABAB00BB49E8D990503"
     }
 }
