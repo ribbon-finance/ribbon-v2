@@ -245,12 +245,13 @@ function behavesLikeRibbonOptionsVault(params: {
   };
 }) {
   // Addresses
-  let owner: string, user: string, feeRecipient: string;
+  let owner: string, keeper: string, user: string, feeRecipient: string;
 
   // Signers
   let adminSigner: SignerWithAddress,
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
+    keeperSigner: SignerWithAddress,
     feeRecipientSigner: SignerWithAddress;
 
   // Parameters
@@ -299,9 +300,9 @@ function behavesLikeRibbonOptionsVault(params: {
       await time.increaseTo((await getNextOptionReadyAtTheta()) + 1);
       await vault.connect(ownerSigner).commitAndClose();
       await strikeSelection.setDelta(params.deltaFirstOption);
-      await thetaVault.connect(ownerSigner).rollToNextOption();
+      await thetaVault.connect(keeperSigner).rollToNextOption();
       await time.increaseTo((await getNextOptionReadyAt()) + 1);
-      await vault.connect(ownerSigner).rollToNextOption(optionPremium);
+      await vault.connect(keeperSigner).rollToNextOption(optionPremium);
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
@@ -317,9 +318,9 @@ function behavesLikeRibbonOptionsVault(params: {
       await thetaVault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAtTheta()) + 1);
       await vault.connect(ownerSigner).commitAndClose();
-      await thetaVault.connect(ownerSigner).rollToNextOption();
+      await thetaVault.connect(keeperSigner).rollToNextOption();
       await time.increaseTo((await getNextOptionReadyAt()) + 1);
-      await vault.connect(ownerSigner).rollToNextOption(optionPremium);
+      await vault.connect(keeperSigner).rollToNextOption(optionPremium);
     };
 
     const getNextOptionReadyAt = async () => {
@@ -339,7 +340,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await vault.connect(ownerSigner).commitAndClose();
 
-      await thetaVault.connect(ownerSigner).rollToNextOption();
+      await thetaVault.connect(keeperSigner).rollToNextOption();
     };
 
     const getCurrentOptionExpiry = async () => {
@@ -364,9 +365,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [adminSigner, ownerSigner, userSigner, feeRecipientSigner] =
+      [adminSigner, ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
         await ethers.getSigners();
       owner = ownerSigner.address;
+      keeper = keeperSigner.address;
       user = userSigner.address;
       owner = ownerSigner.address;
       feeRecipient = feeRecipientSigner.address;
@@ -414,6 +416,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       const thetaVaultInitializeArgs = [
         owner,
+        keeper,
         feeRecipient,
         managementFee,
         performanceFee,
@@ -458,6 +461,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       const initializeArgs = [
         owner,
+        keeper,
         feeRecipient,
         managementFee,
         performanceFee,
@@ -639,6 +643,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("initializes with correct values", async function () {
         assert.equal((await vault.cap()).toString(), parseEther("500"));
         assert.equal(await vault.owner(), owner);
+        assert.equal(await vault.keeper(), keeper);
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
@@ -678,6 +683,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -701,6 +707,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             constants.AddressZero,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -720,10 +727,35 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!owner");
       });
 
+      it("reverts when initializing with 0 keeper", async function () {
+        await expect(
+          testVault.initialize(
+            owner,
+            constants.AddressZero,
+            feeRecipient,
+            managementFee,
+            performanceFee,
+            tokenName,
+            tokenSymbol,
+            thetaVault.address,
+            optionAllocationPct,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              parseEther("500"),
+            ]
+          )
+        ).to.be.revertedWith("!keeper");
+      });
+
       it("reverts when initializing with 0 feeRecipient", async function () {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             constants.AddressZero,
             managementFee,
             performanceFee,
@@ -747,6 +779,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -770,6 +803,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -793,6 +827,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -900,6 +935,22 @@ function behavesLikeRibbonOptionsVault(params: {
             .mul(FEE_SCALING)
             .div(WEEKS_PER_YEAR)
             .toString()
+        );
+      });
+    });
+
+    describe("#setNewKeeper", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new keeper to owner", async function () {
+        assert.equal(await vault.keeper(), keeper);
+        await vault.connect(ownerSigner).setNewKeeper(owner);
+        assert.equal(await vault.keeper(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(vault.setNewKeeper(owner)).to.be.revertedWith(
+          "caller is not the owner"
         );
       });
     });
@@ -1252,13 +1303,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // will revert when trying to roll immediately
         await expect(
-          vault.connect(ownerSigner).rollToNextOption(optionPremium)
+          vault.connect(keeperSigner).rollToNextOption(optionPremium)
         ).to.be.revertedWith("!ready");
 
         await time.increaseTo((await getNextOptionReadyAt()) - 100);
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption(optionPremium)
+          vault.connect(keeperSigner).rollToNextOption(optionPremium)
         ).to.be.revertedWith("!ready");
       });
 
@@ -1282,7 +1333,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const res = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         await expect(res).to.not.emit(vault, "CloseLong");
@@ -1354,7 +1405,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         await expect(firstTx)
@@ -1401,7 +1452,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         assert.equal(await vault.currentOption(), firstOptionAddress);
@@ -1520,10 +1571,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(BigNumber.from(10).pow(8))
           .div(BigNumber.from(10).pow(tokenDecimals));
 
-        await thetaVault.connect(ownerSigner).rollToNextOption();
+        await thetaVault.connect(keeperSigner).rollToNextOption();
 
         const secondTx = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
@@ -1562,7 +1613,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         assert.equal(await vault.currentOption(), firstOptionAddress);
@@ -1668,10 +1719,10 @@ function behavesLikeRibbonOptionsVault(params: {
           vault
         );
 
-        await thetaVault.connect(ownerSigner).rollToNextOption();
+        await thetaVault.connect(keeperSigner).rollToNextOption();
 
         const secondTx = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         // Vault fees are 0 because vault is negative on the week
@@ -1707,13 +1758,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        await thetaVault.connect(ownerSigner).rollToNextOption();
+        await thetaVault.connect(keeperSigner).rollToNextOption();
         await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption(optionPremium.toString())
+          vault.connect(keeperSigner).rollToNextOption(optionPremium.toString())
         ).to.be.revertedWith("!nextOption");
       });
 
@@ -1721,9 +1772,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await thetaVault.connect(ownerSigner).commitAndClose();
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await thetaVault.connect(ownerSigner).rollToNextOption();
+        await thetaVault.connect(keeperSigner).rollToNextOption();
         const tx = await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 910000);
@@ -1749,7 +1800,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         await vault
-          .connect(ownerSigner)
+          .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
         await time.increaseTo(
@@ -1903,8 +1954,8 @@ function behavesLikeRibbonOptionsVault(params: {
         await thetaVault.connect(ownerSigner).commitAndClose();
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await thetaVault.connect(ownerSigner).rollToNextOption();
-        await vault.connect(ownerSigner).rollToNextOption(optionPremium);
+        await thetaVault.connect(keeperSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption(optionPremium);
         await time.increaseTo(
           (await time.now()).toNumber() +
             (await thetaVault.auctionDuration()).toNumber() +
@@ -1951,8 +2002,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(afterPps);
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await thetaVault.connect(ownerSigner).rollToNextOption();
-        await vault.connect(ownerSigner).rollToNextOption(optionPremium);
+        await thetaVault.connect(keeperSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption(optionPremium);
 
         assert.bnGt(afterBalance, beforeBalance);
         assert.bnGt(afterPps, beforePps);
