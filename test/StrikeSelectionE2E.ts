@@ -1,6 +1,6 @@
 import { network, ethers } from "hardhat";
 import { assert, expect } from "chai";
-import { Contract } from "@ethersproject/contracts";
+import { Contract } from "ethers";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
