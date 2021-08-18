@@ -1922,7 +1922,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 882977);
+
+        assert.isAtMost(receipt.gasUsed.toNumber(), 883246);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
