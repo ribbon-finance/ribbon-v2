@@ -90,6 +90,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      */
     function initialize(
         address _owner,
+        address _keeper,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
@@ -101,6 +102,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     ) external initializer {
         baseInitialize(
             _owner,
+            _keeper,
             _feeRecipient,
             _managementFee,
             _performanceFee,
@@ -123,7 +125,6 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
         optionAllocationPct = _optionAllocationPct;
-        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /**
@@ -230,7 +231,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Closes the existing long position for the vault.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner nonReentrant {
+    function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
         address counterpartyNextOption =
@@ -264,7 +265,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      */
     function rollToNextOption(uint256 optionPremium)
         external
-        onlyOwner
+        onlyKeeper
         nonReentrant
     {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();

@@ -517,6 +517,7 @@ library VaultLifecycle {
 
     function verifyConstructorParams(
         address owner,
+        address keeper,
         address feeRecipient,
         uint256 performanceFee,
         string calldata tokenName,
@@ -524,6 +525,7 @@ library VaultLifecycle {
         Vault.VaultParams calldata _vaultParams
     ) external pure {
         require(owner != address(0), "!owner");
+        require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee < 10**8, "performanceFee >= 100%");
         require(bytes(tokenName).length > 0, "!tokenName");
