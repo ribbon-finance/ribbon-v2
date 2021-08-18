@@ -1304,7 +1304,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
         if (params.collateralAsset === WETH_ADDRESS) {
-          const weth = assetContract.connect(counterpartySigner);
+          const weth = assetContract.connect(userSigner);
           await weth.deposit({ value: depositAmount });
           return;
         }
@@ -1922,7 +1922,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 863338);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 882977);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2602,7 +2602,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 72939);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 84153);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
