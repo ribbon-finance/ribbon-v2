@@ -34,7 +34,7 @@ import {
   decodeOrder,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
 const { provider, getContractAt, getContractFactory } = ethers;
@@ -75,7 +75,7 @@ describe("RibbonThetaSTETHVault", () => {
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("98918178"),
+    expectedMintAmount: BigNumber.from("96511604"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
@@ -257,7 +257,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 12991330,
+              blockNumber: 13056027,
             },
           },
         ],
@@ -315,21 +315,6 @@ function behavesLikeRibbonOptionsVault(params: {
         GNOSIS_EASY_AUCTION
       );
 
-      const initializeTypes = [
-        "address",
-        "address",
-        "address",
-        "string",
-        "string",
-        "string",
-        "string",
-        "address",
-        "address",
-        "string",
-        "string",
-        "Tuple",
-      ];
-
       const initializeArgs = [
         owner,
         keeper,
@@ -367,7 +352,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await deployProxy(
           "RibbonThetaSTETHVault",
           adminSigner,
-          initializeTypes,
           initializeArgs,
           deployArgs,
           {
@@ -1224,12 +1208,6 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
-      it("reverts when not called with owner", async function () {
-        await expect(
-          vault.connect(userSigner).commitAndClose({ from: user })
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-
       it("sets the next option and closes existing short", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(params.depositAsset, vault, depositAmount);
@@ -1316,7 +1294,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1066401);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1169985);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -1396,7 +1374,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterSettle = await collateralContract.balanceOf(
           vault.address
         );
-        vault.connect(keeper).burnRemainingOTokens();
+        vault.connect(keeperSigner).burnRemainingOTokens();
         const assetBalanceAfterBurn = await collateralContract.balanceOf(
           vault.address
         );
@@ -1602,9 +1580,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith("C31");
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
@@ -1774,9 +1750,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith("C31");
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -1936,7 +1910,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1042850);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1170178);
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -1966,7 +1940,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await depositIntoVault(params.depositAsset, vault, newDepositAmount);
 
         assert.bnEqual(
-          await assetContract.balanceOf(vault.address),
+          await provider.getBalance(vault.address),
           newDepositAmount
         );
       });
@@ -2553,8 +2527,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.initiateWithdraw(depositAmount);
 
         const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
-        minETHOut = await crv
-          .get_dy(1, 0, depositAmount)
+        minETHOut = (await crv.get_dy(1, 0, depositAmount))
           .mul(crvSlippage.add(100))
           .div(100);
       });
@@ -2705,7 +2678,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("should send LDO rewards to feeRecipient", async function () {
-        const LDO_HOLDER = "0xca06411bd7a7296d7dbdd0050dfc846e95febeb7";
+        const LDO_HOLDER = "0xF5Fb27b912D987B5b6e02A1B1BE0C1F0740E2c6f";
         await hre.network.provider.request({
           method: "hardhat_impersonateAccount",
           params: [LDO_HOLDER],
