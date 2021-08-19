@@ -535,7 +535,7 @@ library VaultLifecycleSTETH {
         address collateralToken,
         address recipient,
         uint256 withdrawAmount
-    ) external returns (uint256 yieldTokenBalance) {
+    ) internal returns (uint256 yieldTokenBalance) {
         IERC20 collateral = IERC20(collateralToken);
 
         yieldTokenBalance = collateral.balanceOf(address(this));
