@@ -327,7 +327,6 @@ function behavesLikeRibbonOptionsVault(params: {
         "address",
         "string",
         "string",
-        "address",
         "Tuple",
       ];
 
@@ -343,7 +342,6 @@ function behavesLikeRibbonOptionsVault(params: {
         strikeSelection.address,
         premiumDiscount,
         auctionDuration,
-        WSTETH_ADDRESS,
         [
           isPut,
           tokenDecimals,
@@ -594,7 +592,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -621,7 +618,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -648,7 +644,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -675,7 +670,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -702,7 +696,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -729,7 +722,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -756,7 +748,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,
@@ -783,7 +774,6 @@ function behavesLikeRibbonOptionsVault(params: {
             strikeSelection.address,
             premiumDiscount,
             auctionDuration,
-            WSTETH_ADDRESS,
             [
               isPut,
               tokenDecimals,

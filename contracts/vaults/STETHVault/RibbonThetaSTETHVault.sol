@@ -60,7 +60,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
      * @param _ldo is the LDO contract
-     * @param _wsteth is the WSTETH contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -71,7 +70,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         address _weth,
         address _usdc,
         address _ldo,
-        address _wsteth,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
@@ -82,7 +80,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
             _weth,
             _usdc,
             _ldo,
-            _wsteth,
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
