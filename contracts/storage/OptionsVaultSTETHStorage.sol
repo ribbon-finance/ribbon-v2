@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.7.2;
 
-import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
+import {IWSTETH} from "../interfaces/ISTETH.sol";
 import {
     OptionsVaultStorageV1,
     OptionsThetaVaultStorageV1,

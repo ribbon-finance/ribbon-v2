@@ -26,6 +26,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     address public immutable USDC;
     address public immutable WETH;
     address public immutable LDO;
+    address public immutable WSTETH;
 
     uint256 public constant delay = 1 hours;
 
@@ -79,6 +80,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
      * @param _ldo is the LDO contract
+     * @param _wsteth is the WSTETH contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
@@ -88,6 +90,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         address _weth,
         address _usdc,
         address _ldo,
+        address _wsteth,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
@@ -96,6 +99,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_ldo != address(0), "!_ldo");
+        require(_wsteth != address(0), "!_wsteth");
 
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
@@ -105,6 +109,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         WETH = _weth;
         USDC = _usdc;
         LDO = _ldo;
+        WSTETH = _wsteth;
+
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
@@ -120,7 +126,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        address _wsteth,
         string memory tokenName,
         string memory tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -135,8 +140,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
             _vaultParams
         );
 
-        require(_wsteth != address(0), "!_wsteth");
-
         __ReentrancyGuard_init();
         __ERC20_init(tokenName, tokenSymbol);
         __Ownable_init();
@@ -149,7 +152,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
 
-        collateralToken = IWSTETH(_wsteth);
+        collateralToken = IWSTETH(WSTETH);
 
         vaultState.lastLockedAmount = type(uint104).max;
 
