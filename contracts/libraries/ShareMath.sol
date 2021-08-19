@@ -20,7 +20,7 @@ library ShareMath {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        return underlyingAmount.mul(10**uint256(decimals)).div(pps);
+        return underlyingAmount.mul(10**decimals).div(pps);
     }
 
     function sharesToUnderlying(
@@ -33,7 +33,7 @@ library ShareMath {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        return shares.mul(pps).div(10**uint256(decimals));
+        return shares.mul(pps).div(10**decimals);
     }
 
     /**
