@@ -517,9 +517,9 @@ contract RibbonVault is
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds > 0, "!numRounds");
 
-        uint16 _round = vaultState.round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = vaultState.round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
@@ -555,14 +555,14 @@ contract RibbonVault is
         optionState.nextOption = address(0);
 
         // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
         lockedBalance = _lockedBalance.sub(_collectVaultFees(_lockedBalance));
 
         vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
+        vaultState.round = uint16(currentRound + 1);
 
         _mint(address(this), mintShares);
 

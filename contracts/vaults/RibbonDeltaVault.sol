@@ -48,7 +48,11 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         uint256 newOptionAllocation
     );
 
-    event InstantWithdraw(address indexed account, uint256 share, uint16 round);
+    event InstantWithdraw(
+        address indexed account,
+        uint256 share,
+        uint256 round
+    );
 
     event PlaceAuctionBid(
         uint256 auctionId,
@@ -184,7 +188,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * 0 < newOptionAllocation < 1000. 1000 = 10%.
      * @param newOptionAllocation is the option % allocation
      */
-    function setOptionAllocation(uint16 newOptionAllocation)
+    function setOptionAllocation(uint256 newOptionAllocationPct)
         external
         onlyOwner
     {
@@ -226,6 +230,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
                 )
             );
         }
+        uint256 currentRound = vaultState.round;
 
         // If we need to withdraw beyond current round deposit
         if (sharesLeftForWithdrawal > 0) {
@@ -246,12 +251,12 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit InstantWithdraw(msg.sender, share, vaultState.round);
+        emit InstantWithdraw(msg.sender, share, currentRound);
 
         uint256 sharesToUnderlying =
             ShareMath.sharesToUnderlying(
                 share,
-                roundPricePerShare[vaultState.round],
+                roundPricePerShare[currentRound],
                 vaultParams.decimals
             );
         transferAsset(msg.sender, sharesToUnderlying);
