@@ -57,7 +57,7 @@ library ShareMath {
             return
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
         }
-            return depositReceipt.unredeemedShares;
+        return depositReceipt.unredeemedShares;
     }
 
     /************************************************
