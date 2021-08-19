@@ -2786,7 +2786,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(
           await vault.accountVaultBalance(user),
-          BigNumber.from(depositAmount).add(1)
+          BigNumber.from(depositAmount)
         );
 
         await assetContract.connect(userSigner).transfer(owner, depositAmount);
@@ -2798,7 +2798,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // remain the same after deposit
         assert.bnEqual(
           await vault.accountVaultBalance(user),
-          BigNumber.from(depositAmount).add(1)
+          BigNumber.from(depositAmount)
         );
 
         const settlementPriceITM = isPut

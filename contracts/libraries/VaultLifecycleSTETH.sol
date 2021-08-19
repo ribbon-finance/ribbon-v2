@@ -623,9 +623,10 @@ library VaultLifecycleSTETH {
             ISTETH(steth).submit{value: address(this).balance}(address(this));
             uint256 stethBalance = stethToken.balanceOf(address(this));
             // approve wrap
-            stethToken.doubleApprove(collateralToken, stethBalance);
-            // Wrap to wstETH
-            collateral.wrap(stethBalance);
+            stethToken.doubleApprove(collateralToken, stethBalance.add(1));
+            // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
+            collateral.wrap(stethBalance.add(1));
+            uint256 stethBalance2 = stethToken.balanceOf(address(this));
         }
     }
 
