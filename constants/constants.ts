@@ -40,7 +40,7 @@ export const YEARN_REGISTRY_ADDRESS =
 /**
  * WSTETH Pricers
  */
-export const WSTETH_PRICER = "0x4661951D252993AFa69b36bcc7Ba7da4a48813bF"; //"0";
+export const WSTETH_PRICER = "0x4661951D252993AFa69b36bcc7Ba7da4a48813bF";
 
 /**
  * Gamma Protocol
