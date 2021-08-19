@@ -135,7 +135,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
+    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 && newPremiumDiscount < 1000,
             "Invalid discount"
