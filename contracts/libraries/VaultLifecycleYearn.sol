@@ -176,12 +176,7 @@ library VaultLifecycleYearn {
 
         uint256 balanceSansQueued = currentBalance.sub(queuedAmount);
 
-        return (
-            balanceSansQueued,
-            queuedAmount,
-            newPricePerShare,
-            _mintShares
-        );
+        return (balanceSansQueued, queuedAmount, newPricePerShare, _mintShares);
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
