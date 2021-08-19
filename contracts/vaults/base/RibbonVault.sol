@@ -278,6 +278,8 @@ contract RibbonVault is OptionsVaultStorage {
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
+        
+        uint256 depositAmount = amount;
 
         uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
