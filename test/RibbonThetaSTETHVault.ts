@@ -200,7 +200,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let defaultOtoken: Contract;
   let assetContract: Contract;
   let collateralContract: Contract;
-  let decimalDiff: BigNumber;
   let collateralPricerSigner: Contract;
 
   // Variables
@@ -466,10 +465,6 @@ function behavesLikeRibbonOptionsVault(params: {
       collateralContract = await getContractAt(
         params.collateralContractName,
         collateralAsset
-      );
-
-      decimalDiff = BigNumber.from(10).pow(
-        18 - parseInt((await assetContract.decimals()).toString())
       );
 
       firstOptionPremium = BigNumber.from(
