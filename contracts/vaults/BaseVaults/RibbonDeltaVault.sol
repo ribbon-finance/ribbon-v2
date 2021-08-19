@@ -274,7 +274,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
-        balanceBeforePremium = uint104(lockedBalance);
+        balanceBeforePremium = lockedBalance;
 
         GnosisAuction.BidDetails memory bidDetails;
 
