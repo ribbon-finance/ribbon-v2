@@ -48,15 +48,8 @@ describe("Integration-RibbonThetaVault", () => {
 
   behavesLikeRibbonThetaVault({
     deploymentName: "RibbonThetaVaultWBTCCall",
-    // depositAmount: parseEther("0.0001"),
     depositAmount: parseUnits("0.0001", 8),
     isPut: false,
-  });
-
-  behavesLikeRibbonThetaVault({
-    deploymentName: "RibbonThetaVaultETHPut",
-    depositAmount: parseUnits("0.1", 6),
-    isPut: true,
   });
 
   before(async () => {
