@@ -167,18 +167,18 @@ library VaultLifecycleYearn {
         uint256 newSupply = currentSupply.add(_mintShares);
         // TODO: We need to use the pps of the round they scheduled the withdrawal
         // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
-        uint256 queuedWithdrawAmount =
+        uint256 queuedAmount =
             newSupply > 0
                 ? uint256(vaultState.queuedWithdrawShares)
                     .mul(currentBalance)
                     .div(newSupply)
                 : 0;
 
-        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
+        uint256 balanceSansQueued = currentBalance.sub(queuedAmount);
 
         return (
             balanceSansQueued,
-            queuedWithdrawAmount,
+            queuedAmount,
             newPricePerShare,
             _mintShares
         );
@@ -517,6 +517,7 @@ library VaultLifecycleYearn {
         require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
+        require(performanceFee < 100 * 10**6, "Invalid performance fee");
     }
 
     /**
