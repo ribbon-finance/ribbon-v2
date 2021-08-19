@@ -348,7 +348,7 @@ contract RibbonVault is
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
-        
+
         uint256 depositAmount = amount;
 
         uint256 depositAmount = uint104(amount);
