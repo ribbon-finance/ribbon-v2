@@ -1,4 +1,3 @@
-import { Signer } from "@ethersproject/abstract-signer";
 import hre, { ethers, artifacts } from "hardhat";
 import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
@@ -10,8 +9,8 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
-} from "../helpers/constants";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+} from "../../constants/constants";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
 
@@ -20,8 +19,7 @@ const { parseEther } = ethers.utils;
 
 export async function deployProxy(
   logicContractName: string,
-  adminSigner: Signer,
-  initializeTypes: string[],
+  adminSigner: SignerWithAddress,
   initializeArgs: any[],
   logicDeployParams = [],
   factoryOptions = {}
@@ -90,7 +88,10 @@ export async function mintAndApprove(
   );
 }
 
-export async function getAssetPricer(pricer: string, signer: Signer) {
+export async function getAssetPricer(
+  pricer: string,
+  signer: SignerWithAddress
+) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [pricer],

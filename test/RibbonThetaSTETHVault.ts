@@ -162,12 +162,13 @@ function behavesLikeRibbonOptionsVault(params: {
   };
 }) {
   // Addresses
-  let owner: string, user: string, feeRecipient: string;
+  let owner: string, keeper: string, user: string, feeRecipient: string;
 
   // Signers
   let adminSigner: SignerWithAddress,
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
+    keeperSigner: SignerWithAddress,
     feeRecipientSigner: SignerWithAddress;
 
   // Parameters
@@ -219,7 +220,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAt()) + 1);
       await strikeSelection.setDelta(params.deltaFirstOption);
-      await vault.connect(ownerSigner).rollToNextOption();
+      await vault.connect(keeperSigner).rollToNextOption();
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
@@ -235,7 +236,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-      await vault.connect(ownerSigner).rollToNextOption();
+      await vault.connect(keeperSigner).rollToNextOption();
     };
 
     const getNextOptionReadyAt = async () => {
@@ -265,11 +266,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [adminSigner, ownerSigner, userSigner, feeRecipientSigner] =
+      [adminSigner, ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
         await ethers.getSigners();
       owner = ownerSigner.address;
       user = userSigner.address;
-      owner = ownerSigner.address;
+      keeper = keeperSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
@@ -318,6 +319,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const initializeTypes = [
         "address",
         "address",
+        "address",
         "string",
         "string",
         "string",
@@ -332,6 +334,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       const initializeArgs = [
         owner,
+        keeper,
         feeRecipient,
         managementFee,
         performanceFee,
@@ -540,6 +543,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("initializes with correct values", async function () {
         assert.equal((await vault.cap()).toString(), parseEther("500"));
         assert.equal(await vault.owner(), owner);
+        assert.equal(await vault.keeper(), keeper);
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
@@ -585,6 +589,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -611,6 +616,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             constants.AddressZero,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -633,10 +639,38 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!owner");
       });
 
+      it("reverts when initializing with 0 keeper", async function () {
+        await expect(
+          testVault.initialize(
+            owner,
+            constants.AddressZero,
+            feeRecipient,
+            managementFee,
+            performanceFee,
+            tokenName,
+            tokenSymbol,
+            optionsPremiumPricer.address,
+            strikeSelection.address,
+            premiumDiscount,
+            auctionDuration,
+            WSTETH_ADDRESS,
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS : asset,
+              asset,
+              minimumSupply,
+              parseEther("500"),
+            ]
+          )
+        ).to.be.revertedWith("!keeper");
+      });
+
       it("reverts when initializing with 0 feeRecipient", async function () {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             constants.AddressZero,
             managementFee,
             performanceFee,
@@ -663,6 +697,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -689,6 +724,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -715,6 +751,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -741,6 +778,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             "0",
@@ -907,6 +945,57 @@ function behavesLikeRibbonOptionsVault(params: {
       it("changes the auction duration", async function () {
         await vault.connect(ownerSigner).setAuctionDuration("1000000");
         assert.equal((await vault.auctionDuration()).toString(), "1000000");
+      });
+    });
+
+    describe("#setNewKeeper", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new keeper to owner", async function () {
+        assert.equal(await vault.keeper(), keeper);
+        await vault.connect(ownerSigner).setNewKeeper(owner);
+        assert.equal(await vault.keeper(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(vault.setNewKeeper(owner)).to.be.revertedWith(
+          "caller is not the owner"
+        );
+      });
+    });
+
+    describe("#setStrikeSelection", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new strike selection contract to owner", async function () {
+        assert.equal(await vault.strikeSelection(), strikeSelection.address);
+        await vault.connect(ownerSigner).setStrikeSelection(owner);
+        assert.equal(await vault.strikeSelection(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(vault.setStrikeSelection(owner)).to.be.revertedWith(
+          "caller is not the owner"
+        );
+      });
+    });
+
+    describe("#setOptionsPremiumPricer", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new options premium pricer contract to owner", async function () {
+        assert.equal(
+          await vault.optionsPremiumPricer(),
+          optionsPremiumPricer.address
+        );
+        await vault.connect(ownerSigner).setOptionsPremiumPricer(owner);
+        assert.equal(await vault.optionsPremiumPricer(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(vault.setOptionsPremiumPricer(owner)).to.be.revertedWith(
+          "caller is not the owner"
+        );
       });
     });
 
@@ -1259,10 +1348,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await depositIntoVault(depositAsset, vault, depositAmount);
       });
 
-      it("reverts when not called with owner", async function () {
+      it("reverts when not called with keeper", async function () {
         await expect(
           vault.connect(userSigner).burnRemainingOTokens()
-        ).to.be.revertedWith("Ownable: caller is not the owner");
+        ).to.be.revertedWith("!keeper");
       });
 
       it("burns all remaining oTokens", async function () {
@@ -1270,7 +1359,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
-        await vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         let bidMultiplier = 2;
 
@@ -1328,7 +1417,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterSettle = await collateralContract.balanceOf(
           vault.address
         );
-        vault.connect(ownerSigner).burnRemainingOTokens();
+        vault.connect(keeper).burnRemainingOTokens();
         const assetBalanceAfterBurn = await collateralContract.balanceOf(
           vault.address
         );
@@ -1359,12 +1448,18 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle = await setupOracle(params.underlyingPricer, ownerSigner);
       });
 
+      it("reverts when not called with keeper", async function () {
+        await expect(
+          vault.connect(ownerSigner).rollToNextOption()
+        ).to.be.revertedWith("!keeper");
+      });
+
       it("reverts when delay not passed", async function () {
         await vault.connect(ownerSigner).commitAndClose();
 
         // will revert when trying to roll immediately
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
 
         time.increaseTo(
@@ -1372,7 +1467,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
       });
 
@@ -1381,7 +1476,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const res = await vault.connect(ownerSigner).rollToNextOption();
+        const res = await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(res).to.not.emit(vault, "CloseShort");
 
@@ -1390,7 +1485,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             defaultOtokenAddress,
             await collateralContract.balanceOf(MARGIN_POOL),
-            owner
+            keeper
           );
 
         const vaultState = await vault.vaultState();
@@ -1425,7 +1520,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.nextOption()
         );
 
-        await vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         const currentAuctionCounter = await gnosisAuction.auctionCounter();
         const auctionDetails = await gnosisAuction.auctionData(
@@ -1510,14 +1605,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const firstTx = await vault.connect(ownerSigner).rollToNextOption();
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
             await collateralContract.balanceOf(MARGIN_POOL),
-            owner
+            keeper
           );
 
         // 100% of the vault's balance is allocated to short
@@ -1540,7 +1635,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const firstTx = await vault.connect(ownerSigner).rollToNextOption();
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
         assert.equal(await vault.currentOption(), firstOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), firstOption.expiry);
@@ -1551,7 +1646,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmountInAsset, owner);
+          .withArgs(firstOptionAddress, depositAmountInAsset, keeper);
 
         let bidMultiplier = 1;
 
@@ -1622,7 +1717,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let startMarginBalance = await collateralContract.balanceOf(
           MARGIN_POOL
         );
-        const secondTx = await vault.connect(ownerSigner).rollToNextOption();
+        const secondTx = await vault.connect(keeperSigner).rollToNextOption();
         let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL);
 
         let vaultFees = secondInitialLockedBalance
@@ -1649,7 +1744,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             secondOptionAddress,
             endMarginBalance.sub(startMarginBalance),
-            owner
+            keeper
           );
 
         assert.bnEqual(
@@ -1663,7 +1758,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // will revert when trying to roll immediately
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
 
         time.increaseTo(
@@ -1671,7 +1766,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!ready");
       });
 
@@ -1682,14 +1777,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const firstTx = await vault.connect(ownerSigner).rollToNextOption();
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
             await collateralContract.balanceOf(MARGIN_POOL),
-            owner
+            keeper
           );
 
         // 100% of the vault's balance is allocated to short
@@ -1712,14 +1807,14 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const firstTx = await vault.connect(ownerSigner).rollToNextOption();
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
             await collateralContract.balanceOf(MARGIN_POOL),
-            owner
+            keeper
           );
 
         let bidMultiplier = 1;
@@ -1794,7 +1889,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let startMarginBalance = await collateralContract.balanceOf(
           MARGIN_POOL
         );
-        const secondTx = await vault.connect(ownerSigner).rollToNextOption();
+        const secondTx = await vault.connect(keeperSigner).rollToNextOption();
         let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL);
 
         let vaultFees = secondInitialLockedBalance
@@ -1836,7 +1931,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             secondOptionAddress,
             endMarginBalance.sub(startMarginBalance),
-            owner
+            keeper
           );
 
         assert.equal(
@@ -1849,10 +1944,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        await vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
-          vault.connect(ownerSigner).rollToNextOption()
+          vault.connect(keeperSigner).rollToNextOption()
         ).to.be.revertedWith("!nextOption");
       });
 
@@ -1860,7 +1955,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const tx = await vault.connect(ownerSigner).rollToNextOption();
+        const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 1042850);
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
@@ -1985,7 +2080,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         // Mid-week deposit in round 2
         await vault.connect(userSigner).depositETH({ value: depositAmount });
@@ -2021,7 +2116,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(afterPps);
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         assert.bnGt(beforeBalance, afterBalance);
         assert.bnGt(beforePps, afterPps);
@@ -2314,7 +2409,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(ownerSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
           vault.initiateWithdraw(depositAmount.div(2))

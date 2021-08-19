@@ -95,6 +95,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      */
     function initialize(
         address _owner,
+        address _keeper,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
@@ -109,6 +110,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     ) external initializer {
         baseInitialize(
             _owner,
+            _keeper,
             _feeRecipient,
             _managementFee,
             _performanceFee,
@@ -128,7 +130,6 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
         auctionDuration = _auctionDuration;
-        vaultState.lastLockedAmount = type(uint104).max;
     }
 
     /************************************************
@@ -156,6 +157,30 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
         require(newAuctionDuration >= 1 hours, "!newAuctionDuration");
 
         auctionDuration = newAuctionDuration;
+    }
+
+    /**
+     * @notice Sets the new strike selection contract
+     * @param newStrikeSelection is the address of the new strike selection contract
+     */
+    function setStrikeSelection(address newStrikeSelection) external onlyOwner {
+        require(newStrikeSelection != address(0), "!newStrikeSelection");
+        strikeSelection = newStrikeSelection;
+    }
+
+    /**
+     * @notice Sets the new options premium pricer contract
+     * @param newOptionsPremiumPricer is the address of the new strike selection contract
+     */
+    function setOptionsPremiumPricer(address newOptionsPremiumPricer)
+        external
+        onlyOwner
+    {
+        require(
+            newOptionsPremiumPricer != address(0),
+            "!newOptionsPremiumPricer"
+        );
+        optionsPremiumPricer = newOptionsPremiumPricer;
     }
 
     /**
@@ -206,7 +231,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external onlyOwner nonReentrant {
+    function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
         VaultLifecycleSTETH.CloseParams memory closeParams =
@@ -259,7 +284,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     /**
      * @notice Rolls the vault's funds into a new short position.
      */
-    function rollToNextOption() external nonReentrant {
+    function rollToNextOption() external onlyKeeper nonReentrant {
         (address newOption, uint256 queuedWithdrawAmount) = _rollToNextOption();
 
         // Locked balance denominated in `collateralToken`
@@ -284,7 +309,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyOwner {
+    function startAuction() public onlyKeeper {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         uint256 currOtokenPremium = currentOtokenPremium;
@@ -304,7 +329,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
-    function burnRemainingOTokens() external onlyOwner nonReentrant {
+    function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssedAmount =
             VaultLifecycleSTETH.burnOtokens(
                 GAMMA_CONTROLLER,

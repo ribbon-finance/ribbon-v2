@@ -475,6 +475,7 @@ library VaultLifecycleSTETH {
 
     function verifyConstructorParams(
         address owner,
+        address keeper,
         address feeRecipient,
         uint256 performanceFee,
         string calldata tokenName,
@@ -482,6 +483,7 @@ library VaultLifecycleSTETH {
         Vault.VaultParams calldata _vaultParams
     ) external pure {
         require(owner != address(0), "!owner");
+        require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
         require(bytes(tokenName).length > 0, "!tokenName");

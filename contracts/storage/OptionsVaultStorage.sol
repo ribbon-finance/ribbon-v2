@@ -37,6 +37,10 @@ abstract contract OptionsVaultStorageV1 is
 
     address public feeRecipient;
 
+    // role in charge of weekly vault operations such as rollToNextOption and burnRemainingOTokens
+    // no access to critical vault changes
+    address public keeper;
+
     uint256 public performanceFee;
 
     uint256 public managementFee;

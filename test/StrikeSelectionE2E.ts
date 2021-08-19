@@ -1,16 +1,16 @@
 import { network, ethers } from "hardhat";
 import { assert, expect } from "chai";
-import { Contract } from "@ethersproject/contracts";
+import { Contract } from "ethers";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import {
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 const { provider, getContractFactory } = ethers;
 
 moment.tz.setDefault("UTC");
