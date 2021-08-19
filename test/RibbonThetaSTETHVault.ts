@@ -18,10 +18,10 @@ import {
   STETH_ETH_CRV_POOL,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
-  STETH_PRICER,
+  WSTETH_PRICER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-} from "./helpers/constants";
+} from "../constants/constants";
 import {
   deployProxy,
   setupOracle,
@@ -68,7 +68,7 @@ describe("RibbonThetaSTETHVault", () => {
     collateralAsset: WSTETH_ADDRESS,
     intermediaryAsset: STETH_ADDRESS,
     depositAsset: WETH_ADDRESS,
-    collateralPricer: STETH_PRICER,
+    collateralPricer: WSTETH_PRICER,
     underlyingPricer: CHAINLINK_WETH_PRICER,
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),

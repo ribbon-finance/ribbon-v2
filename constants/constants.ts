@@ -38,9 +38,9 @@ export const YEARN_REGISTRY_ADDRESS =
   "0x50c1a2eA0a861A967D9d0FFE2AE4012c2E053804";
 
 /**
- * STETH Pricers
+ * WSTETH Pricers
  */
-export const STETH_PRICER = "0x7b7a7fA8e7A86F0100E72E815E65006052364F48"; //"0";
+export const WSTETH_PRICER = "0x4661951D252993AFa69b36bcc7Ba7da4a48813bF"; //"0";
 
 /**
  * Gamma Protocol
