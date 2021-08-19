@@ -203,9 +203,10 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    function setCap(uint104 newCap) external onlyOwner {
+    function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
-        vaultParams.cap = newCap;
+        ShareMath.assertUint104(newCap);
+        vaultParams.cap = uint104(newCap);
     }
 
     /************************************************
@@ -272,14 +273,14 @@ contract RibbonVault is OptionsVaultYearnStorage {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
 
-        uint256 depositAmount = uint104(amount);
+        uint256 depositAmount = amount;
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
@@ -291,7 +292,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         depositReceipts[creditor] = Vault.DepositReceipt({
             round: uint16(currentRound),
             amount: uint104(depositAmount),
-            unredeemedShares: unredeemedShares
+            unredeemedShares: uint104(unredeemedShares)
         });
 
         vaultState.totalPending = uint128(
@@ -368,7 +369,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                roundPricePerShare[uint16(withdrawalRound)],
+                roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
             );
 
@@ -471,9 +472,9 @@ contract RibbonVault is OptionsVaultYearnStorage {
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = vaultState.round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = vaultState.round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
@@ -509,14 +510,14 @@ contract RibbonVault is OptionsVaultYearnStorage {
         optionState.nextOption = address(0);
 
         // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
 
         vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
+        vaultState.round = uint16(currentRound + 1);
         vaultState.lockedAmount = uint104(lockedBalance);
 
         _mint(address(this), mintShares);
