@@ -949,38 +949,32 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setStrikeSelection", () => {
+    describe("#setStrikeSelectionOrPricer", () => {
       time.revertToSnapshotAfterTest();
 
       it("set new strike selection contract to owner", async function () {
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
-        await vault.connect(ownerSigner).setStrikeSelection(owner);
+        await vault
+          .connect(ownerSigner)
+          .setStrikeSelectionOrPricer(owner, true);
         assert.equal(await vault.strikeSelection(), owner);
       });
-
-      it("reverts when not owner call", async function () {
-        await expect(vault.setStrikeSelection(owner)).to.be.revertedWith(
-          "caller is not the owner"
-        );
-      });
-    });
-
-    describe("#setOptionsPremiumPricer", () => {
-      time.revertToSnapshotAfterTest();
 
       it("set new options premium pricer contract to owner", async function () {
         assert.equal(
           await vault.optionsPremiumPricer(),
           optionsPremiumPricer.address
         );
-        await vault.connect(ownerSigner).setOptionsPremiumPricer(owner);
+        await vault
+          .connect(ownerSigner)
+          .setStrikeSelectionOrPricer(owner, false);
         assert.equal(await vault.optionsPremiumPricer(), owner);
       });
 
       it("reverts when not owner call", async function () {
-        await expect(vault.setOptionsPremiumPricer(owner)).to.be.revertedWith(
-          "caller is not the owner"
-        );
+        await expect(
+          vault.setStrikeSelectionOrPricer(owner, true)
+        ).to.be.revertedWith("caller is not the owner");
       });
     });
 

@@ -158,27 +158,20 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     }
 
     /**
-     * @notice Sets the new strike selection contract
-     * @param newStrikeSelection is the address of the new strike selection contract
+     * @notice Sets the new strike selection or options premium pricer contract
+     * @param newContract is the address of the new strike selection or options premium pricer contract
+     * @param isStrikeSelection is whether we are setting the strike selection contract
      */
-    function setStrikeSelection(address newStrikeSelection) external onlyOwner {
-        require(newStrikeSelection != address(0), "!newStrikeSelection");
-        strikeSelection = newStrikeSelection;
-    }
-
-    /**
-     * @notice Sets the new options premium pricer contract
-     * @param newOptionsPremiumPricer is the address of the new strike selection contract
-     */
-    function setOptionsPremiumPricer(address newOptionsPremiumPricer)
-        external
-        onlyOwner
-    {
-        require(
-            newOptionsPremiumPricer != address(0),
-            "!newOptionsPremiumPricer"
-        );
-        optionsPremiumPricer = newOptionsPremiumPricer;
+    function setStrikeSelectionOrPricer(
+        address newContract,
+        bool isStrikeSelection
+    ) external onlyOwner {
+        require(newContract != address(0), "!newContract");
+        if (isStrikeSelection) {
+            strikeSelection = newContract;
+        } else {
+            optionsPremiumPricer = newContract;
+        }
     }
 
     /**
