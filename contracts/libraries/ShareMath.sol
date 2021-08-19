@@ -68,12 +68,8 @@ library ShareMath {
 
             uint256 unredeemedShares256 =
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
-            assertUint128(unredeemedShares256);
-
-            unredeemedShares = uint128(unredeemedShares256);
-        } else {
-            unredeemedShares = depositReceipt.unredeemedShares;
         }
+            return depositReceipt.unredeemedShares;
     }
 
     /************************************************
