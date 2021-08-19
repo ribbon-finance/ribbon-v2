@@ -2160,7 +2160,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         const redeemAmount = BigNumber.from(1);
-        const tx1 = await vault.redeem({ value: depositAmount });
+        const tx1 = await vault.redeem(redeemAmount);
 
         await expect(tx1)
           .to.emit(vault, "Redeem")
@@ -2687,7 +2687,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const ldo = await ethers.getContractAt("IERC20", LDO_ADDRESS);
 
-        await ldo.connect(ldoHolder).transfer(vault.address, depositAmount);
+        let ldoDepositAmount = BigNumber.from(100);
+
+        await ldo.connect(ldoHolder).transfer(vault.address, ldoDepositAmount);
 
         let startBalance = await ldo.balanceOf(vault.address);
 
@@ -2695,8 +2697,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let endBalance = await ldo.balanceOf(vault.address);
 
-        assert.equal(startBalance.sub(endBalance), depositAmount);
-        assert.equal(await ldo.balanceOf(feeRecipient), depositAmount);
+        assert.equal(startBalance.sub(endBalance), ldoDepositAmount);
+        assert.equal(await ldo.balanceOf(feeRecipient), ldoDepositAmount);
       });
     });
 
@@ -2784,7 +2786,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(
           await vault.accountVaultBalance(user),
-          BigNumber.from(depositAmount)
+          BigNumber.from(depositAmount).add(1)
         );
 
         await assetContract.connect(userSigner).transfer(owner, depositAmount);
@@ -2796,7 +2798,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // remain the same after deposit
         assert.bnEqual(
           await vault.accountVaultBalance(user),
-          BigNumber.from(depositAmount)
+          BigNumber.from(depositAmount).add(1)
         );
 
         const settlementPriceITM = isPut
