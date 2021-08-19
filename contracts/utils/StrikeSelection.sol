@@ -94,8 +94,8 @@ contract StrikeSelection is DSMath, Ownable {
 
         uint256 strike =
             isPut
-                ? assetPrice.sub(assetPrice % step)
-                : assetPrice.add(step - (assetPrice % step));
+                ? assetPrice.sub(assetPrice % step).sub(step)
+                : assetPrice.add(step - (assetPrice % step)).add(step);
         uint256 targetDelta = isPut ? uint256(10000).sub(delta) : delta;
         uint256 prevDelta = 10000;
 

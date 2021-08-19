@@ -2,6 +2,7 @@ import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
+import * as time from "../helpers/time";
 
 moment.tz.setDefault("UTC");
 
@@ -18,6 +19,20 @@ describe("VaultLifecycle", () => {
   });
 
   describe("getNextFriday", () => {
+    time.revertToSnapshotAfterEach(async () => {
+      const { timestamp } = await provider.getBlock("latest");
+
+      const currentTime = moment.unix(timestamp);
+
+      const nextFriday = moment(currentTime)
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(9); // needs to be 8am UTC
+
+      await time.increaseTo(nextFriday.unix());
+    });
+
     it("gets the first Friday, given the day of week is Saturday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
