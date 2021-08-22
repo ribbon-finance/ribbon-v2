@@ -7,7 +7,7 @@ import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  CHAINLINK_WETH_PRICER,
+  CHAINLINK_WETH_PRICER_STETH,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
@@ -69,7 +69,7 @@ describe("RibbonThetaSTETHVault", () => {
     intermediaryAsset: STETH_ADDRESS,
     depositAsset: WETH_ADDRESS,
     collateralPricer: WSTETH_PRICER,
-    underlyingPricer: CHAINLINK_WETH_PRICER,
+    underlyingPricer: CHAINLINK_WETH_PRICER_STETH,
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -228,7 +228,11 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+      const oracle = await setupOracle(
+        params.underlyingPricer,
+        ownerSigner,
+        true
+      );
 
       await setOpynOracleExpiryPriceYearn(
         params.asset,
@@ -470,7 +474,7 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       );
 
-      await setAssetPricer(collateralAsset, params.collateralPricer);
+      await setAssetPricer(collateralAsset, params.collateralPricer, true);
 
       collateralPricerSigner = await getAssetPricer(
         params.collateralPricer,
@@ -1418,7 +1422,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.depositAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+        oracle = await setupOracle(params.underlyingPricer, ownerSigner, true);
       });
 
       it("reverts when not called with keeper", async function () {
@@ -1966,7 +1970,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+        oracle = await setupOracle(params.underlyingPricer, ownerSigner, true);
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2316,7 +2320,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+        oracle = await setupOracle(params.underlyingPricer, ownerSigner, true);
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
