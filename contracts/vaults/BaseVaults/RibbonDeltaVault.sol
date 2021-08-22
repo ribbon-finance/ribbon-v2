@@ -47,7 +47,11 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         uint256 newOptionAllocationPct
     );
 
-    event InstantWithdraw(address indexed account, uint256 share, uint16 round);
+    event InstantWithdraw(
+        address indexed account,
+        uint256 share,
+        uint256 round
+    );
 
     event PlaceAuctionBid(
         uint256 auctionId,
@@ -162,7 +166,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      * @notice Sets the new % allocation of funds towards options purchases ( 3 decimals. ex: 55 * 10 ** 2 is 55%)
      * @param newOptionAllocationPct is the option % allocation
      */
-    function setOptionAllocation(uint16 newOptionAllocationPct)
+    function setOptionAllocation(uint256 newOptionAllocationPct)
         external
         onlyOwner
     {
@@ -191,7 +195,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
         uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
 
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
 
         // If we need to withdraw beyond current round deposit
         if (sharesLeftForWithdrawal > 0) {
@@ -244,7 +248,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
 
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = balanceBeforePremium;
+        vaultState.lastLockedAmount = uint104(balanceBeforePremium);
 
         // redeem
         if (oldOption != address(0)) {
@@ -270,7 +274,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
-        balanceBeforePremium = uint104(lockedBalance);
+        balanceBeforePremium = lockedBalance;
 
         GnosisAuction.BidDetails memory bidDetails;
 
