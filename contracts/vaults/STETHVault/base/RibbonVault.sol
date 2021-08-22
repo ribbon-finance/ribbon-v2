@@ -272,7 +272,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
@@ -291,7 +291,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         depositReceipts[creditor] = Vault.DepositReceipt({
             round: uint16(currentRound),
             amount: uint104(depositAmount),
-            unredeemedShares: unredeemedShares
+            unredeemedShares: uint104(unredeemedShares)
         });
 
         vaultState.totalPending = uint128(

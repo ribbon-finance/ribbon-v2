@@ -33,7 +33,7 @@ library VaultLifecycleSTETH {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint16 lastStrikeOverride;
+        uint256 lastStrikeOverride;
         uint256 overriddenStrikePrice;
     }
 
