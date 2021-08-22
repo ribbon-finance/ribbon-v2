@@ -86,7 +86,7 @@ describe("RibbonThetaSTETHVault", () => {
     isPut: false,
     gasLimits: {
       depositWorstCase: 173521,
-      depositBestCase: 156558,
+      depositBestCase: 156564,
     },
   });
 });
