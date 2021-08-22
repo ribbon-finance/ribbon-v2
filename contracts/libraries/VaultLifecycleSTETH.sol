@@ -6,8 +6,9 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
-import {IYearnVault} from "../interfaces/IYearn.sol";
+import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
+import {ICRV} from "../interfaces/ICRV.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -22,7 +23,7 @@ import {
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
-library VaultLifecycleYearn {
+library VaultLifecycleSTETH {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using SupportsNonCompliantERC20 for IERC20;
@@ -69,7 +70,7 @@ library VaultLifecycleYearn {
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, vaultParams.isPut);
+            : selection.getStrikePrice(expiry, false);
 
         require(strikePrice != 0, "!strikePrice");
 
@@ -79,8 +80,7 @@ library VaultLifecycleYearn {
             closeParams.USDC,
             collateralAsset,
             strikePrice,
-            expiry,
-            vaultParams.isPut
+            expiry
         );
 
         verifyOtoken(
@@ -97,9 +97,7 @@ library VaultLifecycleYearn {
                 optionsPremiumPricer,
                 premiumDiscount
             ),
-            IYearnVault(collateralAsset).pricePerShare().mul(
-                decimalShift(collateralAsset)
-            )
+            IWSTETH(collateralAsset).stEthPerToken()
         );
 
         require(premium > 0, "!premium");
@@ -115,7 +113,7 @@ library VaultLifecycleYearn {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(otoken.isPut() == false, "Type mismatch");
         require(
             otoken.underlyingAsset() == vaultParams.underlying,
             "Wrong underlyingAsset"
@@ -167,16 +165,21 @@ library VaultLifecycleYearn {
         uint256 newSupply = currentSupply.add(_mintShares);
         // TODO: We need to use the pps of the round they scheduled the withdrawal
         // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
-        uint256 queuedAmount =
+        uint256 queuedWithdrawAmount =
             newSupply > 0
                 ? uint256(vaultState.queuedWithdrawShares)
                     .mul(currentBalance)
                     .div(newSupply)
                 : 0;
 
-        uint256 balanceSansQueued = currentBalance.sub(queuedAmount);
+        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
 
-        return (balanceSansQueued, queuedAmount, newPricePerShare, _mintShares);
+        return (
+            balanceSansQueued,
+            queuedWithdrawAmount,
+            newPricePerShare,
+            _mintShares
+        );
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
@@ -199,32 +202,11 @@ library VaultLifecycleYearn {
             uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
-        if (oToken.isPut()) {
-            // For minting puts, there will be instances where the full depositAmount will not be used for minting.
-            // This is because of an issue with precision.
-            //
-            // For ETH put options, we are calculating the mintAmount (10**8 decimals) using
-            // the depositAmount (10**18 decimals), which will result in truncation of decimals when scaling down.
-            // As a result, there will be tiny amounts of dust left behind in the Opyn vault when minting put otokens.
-            //
-            // For simplicity's sake, we do not refund the dust back to the address(this) on minting otokens.
-            // We retain the dust in the vault so the calling contract can withdraw the
-            // actual locked amount + dust at settlement.
-            //
-            // To test this behavior, we can console.log
-            // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
-            // to see how much dust (or excess collateral) is left behind.
-            mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
-        } else {
-            mintAmount = depositAmount;
-            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
+        mintAmount = depositAmount;
+        uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
 
-            if (mintAmount > scaleBy && collateralDecimals > 8) {
-                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-            }
+        if (mintAmount > scaleBy && collateralDecimals > 8) {
+            mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
         }
 
         // double approve to fix non-compliant ERC20s
@@ -431,8 +413,7 @@ library VaultLifecycleYearn {
         address strikeAsset,
         address collateralAsset,
         uint256 strikePrice,
-        uint256 expiry,
-        bool isPut
+        uint256 expiry
     ) internal returns (address) {
         IOtokenFactory factory = IOtokenFactory(otokenFactory);
 
@@ -443,7 +424,7 @@ library VaultLifecycleYearn {
                 collateralAsset,
                 strikePrice,
                 expiry,
-                isPut
+                false
             );
 
         if (otokenFromFactory != address(0)) {
@@ -457,7 +438,7 @@ library VaultLifecycleYearn {
                 collateralAsset,
                 strikePrice,
                 expiry,
-                isPut
+                false
             );
         return otoken;
     }
@@ -504,58 +485,48 @@ library VaultLifecycleYearn {
         require(owner != address(0), "!owner");
         require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee < 100 * 10**6, "Invalid performance fee");
+        require(performanceFee > 0, "!performanceFee");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
         require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
+
+        require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
     }
 
     /**
-     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
-     * @param weth is the weth address
-     * @param asset is the vault asset address
+     * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param amount is the withdraw amount in `asset`
      * @return withdrawAmount is the withdraw amount in `collateralToken`
      */
     function withdrawYieldAndBaseToken(
-        address weth,
-        address asset,
         address collateralToken,
         address recipient,
         uint256 amount
     ) external returns (uint256 withdrawAmount) {
-        uint256 pricePerYearnShare =
-            IYearnVault(collateralToken).pricePerShare();
-        withdrawAmount = dswdiv(
-            amount,
-            pricePerYearnShare.mul(decimalShift(collateralToken))
-        );
+        withdrawAmount = IWSTETH(collateralToken).getWstETHByStETH(amount);
+
         uint256 yieldTokenBalance =
             withdrawYieldToken(collateralToken, recipient, withdrawAmount);
 
-        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
+        // If there is not enough stETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
         if (withdrawAmount > yieldTokenBalance) {
             withdrawBaseToken(
-                weth,
-                asset,
                 collateralToken,
                 recipient,
                 withdrawAmount,
-                yieldTokenBalance,
-                pricePerYearnShare
+                yieldTokenBalance
             );
         }
     }
 
     /**
-     * @notice Withdraws yvWETH from vault
+     * @notice Withdraws stETH from vault
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
@@ -577,91 +548,99 @@ library VaultLifecycleYearn {
 
     /**
      * @notice Withdraws `asset` from vault
-     * @param weth is the weth address
-     * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
-     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
+     * @param yieldTokenBalance is the collateral token (stETH) balance of the vault
      */
     function withdrawBaseToken(
-        address weth,
-        address asset,
         address collateralToken,
         address recipient,
         uint256 withdrawAmount,
-        uint256 yieldTokenBalance,
-        uint256 pricePerYearnShare
+        uint256 yieldTokenBalance
     ) internal {
         uint256 underlyingTokensToWithdraw =
-            dsmul(
-                withdrawAmount.sub(yieldTokenBalance),
-                pricePerYearnShare.mul(decimalShift(collateralToken))
+            IWSTETH(collateralToken).getStETHByWstETH(
+                withdrawAmount.sub(yieldTokenBalance)
             );
-        transferAsset(
-            weth,
-            asset,
-            payable(recipient),
-            underlyingTokensToWithdraw
-        );
+
+        transferAsset(payable(recipient), underlyingTokensToWithdraw);
     }
 
     /**
      * @notice Unwraps the necessary amount of the yield-bearing yearn token
      *         and transfers amount to vault
      * @param amount is the amount of `asset` to withdraw
-     * @param asset is the vault asset address
      * @param collateralToken is the address of the collateral token
-     * @param yearnWithdrawalBuffer is the buffer for withdrawals from yearn vault
-     * @param yearnWithdrawalSlippage is the slippage for withdrawals from yearn vault
+     * @param crvPool is the address of the steth <-> eth pool on curve
+     * @param minETHOut is the min eth to recieve
      */
     function unwrapYieldToken(
         uint256 amount,
-        address asset,
         address collateralToken,
-        uint256 yearnWithdrawalBuffer,
-        uint256 yearnWithdrawalSlippage
-    ) external {
-        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
-        IYearnVault collateral = IYearnVault(collateralToken);
+        address crvPool,
+        uint256 minETHOut
+    ) external returns (uint256 amountETHOut) {
+        uint256 assetBalance = address(this).balance;
+
+        amountETHOut = dsmin(assetBalance, amount);
 
         uint256 amountToUnwrap =
-            dswdiv(
-                dsmax(assetBalance, amount).sub(assetBalance),
-                collateral.pricePerShare().mul(decimalShift(collateralToken))
+            IWSTETH(collateralToken).getWstETHByStETH(
+                dsmax(assetBalance, amount).sub(assetBalance)
             );
 
         if (amountToUnwrap > 0) {
-            amountToUnwrap = amountToUnwrap
-                .add(amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000))
-                .sub(1);
+            IWSTETH wsteth = IWSTETH(collateralToken);
+            // Unrap to stETH
+            wsteth.unwrap(amountToUnwrap);
 
-            collateral.withdraw(
-                amountToUnwrap,
-                address(this),
-                yearnWithdrawalSlippage
+            // approve steth exchange
+            IERC20(wsteth.stETH()).doubleApprove(crvPool, amountToUnwrap);
+
+            // CRV SWAP HERE from steth -> eth
+            // 0 = ETH, 1 = STETH
+            amountETHOut = amountETHOut.add(
+                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOut)
             );
         }
     }
 
     /**
      * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
-     * @param asset is the vault asset address
+     * @param weth is the address of weth
      * @param collateralToken is the address of the collateral token
      */
-    function wrapToYieldToken(address asset, address collateralToken) external {
-        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
+    function wrapToYieldToken(address weth, address collateralToken) external {
+        // Unwrap all weth premiums transferred to contract
+        IWETH weth = IWETH(weth);
+        uint256 wethBalance = weth.balanceOf(address(this));
 
-        if (amountToWrap > 0) {
-            IERC20(asset).safeApprove(collateralToken, amountToWrap);
+        if (wethBalance > 0) {
+            weth.withdraw(wethBalance);
+        }
 
-            // there is a slight imprecision with regards to calculating back from yearn token -> underlying
-            // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
-            // at that point in time.
-            // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
-            // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
-            IYearnVault(collateralToken).deposit(amountToWrap, address(this));
+        uint256 ethBalance = address(this).balance;
+
+        IWSTETH collateral = IWSTETH(collateralToken);
+        ISTETH stethToken = ISTETH(collateral.stETH());
+
+        if (ethBalance > 0) {
+            // Send eth to Lido, recieve steth
+            stethToken.submit{value: ethBalance}(address(this));
+        }
+
+        // Get all steth in contract
+        uint256 stethBalance = stethToken.balanceOf(address(this));
+
+        if (stethBalance > 0) {
+            // approve wrap
+            IERC20(address(stethToken)).doubleApprove(
+                collateralToken,
+                stethBalance.add(1)
+            );
+            // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
+            collateral.wrap(stethBalance.add(1));
         }
     }
 
@@ -703,37 +682,12 @@ library VaultLifecycleYearn {
 
     /**
      * @notice Helper function to make either an ETH transfer or ERC20 transfer
-     * @param weth is the weth address
-     * @param asset is the vault asset address
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
-    function transferAsset(
-        address weth,
-        address asset,
-        address payable recipient,
-        uint256 amount
-    ) public {
-        if (asset == weth) {
-            IWETH(weth).withdraw(amount);
-            (bool success, ) = recipient.call{value: amount}("");
-            require(success, "!success");
-            return;
-        }
-        IERC20(asset).safeTransfer(recipient, amount);
-    }
-
-    /**
-     * @notice Returns the decimal shift between 18 decimals and asset tokens
-     * @param collateralToken is the address of the collateral token
-     */
-    function decimalShift(address collateralToken)
-        public
-        view
-        returns (uint256)
-    {
-        return
-            10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
+    function transferAsset(address payable recipient, uint256 amount) public {
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "!success");
     }
 
     /**
