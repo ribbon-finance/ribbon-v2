@@ -205,13 +205,16 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
-        VaultLifecycleSTETH.unwrapYieldToken(
-            amount,
-            address(collateralToken),
-            STETH_ETH_CRV_POOL,
-            minETHOut
-        );
-        VaultLifecycleSTETH.transferAsset(msg.sender, amount);
+        // Unwrap may incur curve pool slippage
+        uint256 amountETHOut =
+            VaultLifecycleSTETH.unwrapYieldToken(
+                amount,
+                address(collateralToken),
+                STETH_ETH_CRV_POOL,
+                minETHOut
+            );
+
+        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
     }
 
     /************************************************

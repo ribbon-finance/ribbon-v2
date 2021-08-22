@@ -233,7 +233,8 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         require(amount > 0, "!amount");
 
         _depositFor(
-            collateralToken.getStETHByWstETH(amount),
+            // off by one
+            collateralToken.getStETHByWstETH(amount).sub(1),
             msg.sender,
             false
         );
@@ -372,14 +373,16 @@ contract RibbonVault is OptionsVaultSTETHStorage {
                 vaultParams.decimals
             );
 
-        VaultLifecycleSTETH.unwrapYieldToken(
-            withdrawAmount,
-            address(collateralToken),
-            STETH_ETH_CRV_POOL,
-            minETHOut
-        );
+        // Unwrap may incur curve pool slippage
+        uint256 amountETHOut =
+            VaultLifecycleSTETH.unwrapYieldToken(
+                withdrawAmount,
+                address(collateralToken),
+                STETH_ETH_CRV_POOL,
+                minETHOut
+            );
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
+        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
 
         require(withdrawAmount > 0, "!withdrawAmount");
 

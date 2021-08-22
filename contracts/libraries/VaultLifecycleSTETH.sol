@@ -580,8 +580,10 @@ library VaultLifecycleSTETH {
         address collateralToken,
         address crvPool,
         uint256 minETHOut
-    ) external {
+    ) external returns (uint256 amountETHOut) {
         uint256 assetBalance = address(this).balance;
+
+        amountETHOut = dsmin(assetBalance, amount);
 
         uint256 amountToUnwrap =
             IWSTETH(collateralToken).getWstETHByStETH(
@@ -593,11 +595,14 @@ library VaultLifecycleSTETH {
             // Unrap to stETH
             wsteth.unwrap(amountToUnwrap);
 
-            ICRV crv = ICRV(crvPool);
+            // approve steth exchange
+            IERC20(wsteth.stETH()).doubleApprove(crvPool, amountToUnwrap);
 
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
-            crv.exchange(1, 0, amountToUnwrap, minETHOut);
+            amountETHOut = amountETHOut.add(
+                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOut)
+            );
         }
     }
 
@@ -607,26 +612,35 @@ library VaultLifecycleSTETH {
      * @param collateralToken is the address of the collateral token
      */
     function wrapToYieldToken(address weth, address collateralToken) external {
-        IWSTETH collateral = IWSTETH(collateralToken);
-        address steth = collateral.stETH();
-        IERC20 stethToken = IERC20(steth);
-
         // Unwrap all weth premiums transferred to contract
         IWETH weth = IWETH(weth);
         uint256 wethBalance = weth.balanceOf(address(this));
+
         if (wethBalance > 0) {
             weth.withdraw(wethBalance);
         }
 
-        if (address(this).balance > 0) {
+        uint256 ethBalance = address(this).balance;
+
+        IWSTETH collateral = IWSTETH(collateralToken);
+        ISTETH stethToken = ISTETH(collateral.stETH());
+
+        if (ethBalance > 0) {
             // Send eth to Lido, recieve steth
-            ISTETH(steth).submit{value: address(this).balance}(address(this));
-            uint256 stethBalance = stethToken.balanceOf(address(this));
+            stethToken.submit{value: ethBalance}(address(this));
+        }
+
+        // Get all steth in contract
+        uint256 stethBalance = stethToken.balanceOf(address(this));
+
+        if (stethBalance > 0) {
             // approve wrap
-            stethToken.doubleApprove(collateralToken, stethBalance.add(1));
+            IERC20(address(stethToken)).doubleApprove(
+                collateralToken,
+                stethBalance.add(1)
+            );
             // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
             collateral.wrap(stethBalance.add(1));
-            uint256 stethBalance2 = stethToken.balanceOf(address(this));
         }
     }
 
