@@ -2604,7 +2604,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
-          .withArgs(user, withdrawAmount.toString(), depositAmount);
+          .withArgs(user, crvETHAmountAfterSlippage.toString(), depositAmount);
 
         if (depositAsset !== WETH_ADDRESS) {
           const collateralERC20 = await getContractAt("IERC20", depositAsset);
