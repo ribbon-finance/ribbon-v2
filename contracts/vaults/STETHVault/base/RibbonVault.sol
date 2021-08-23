@@ -382,9 +382,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
                 minETHOut
             );
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
-
         require(amountETHOut > 0, "!amountETHOut");
+
+        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
 
         emit Withdraw(msg.sender, amountETHOut, withdrawalShares);
 
