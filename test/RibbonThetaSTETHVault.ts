@@ -2583,8 +2583,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToSecondOption(settlePriceITM);
 
-        const pricePerShare = await vault.roundPricePerShare(2);
-
         let beforeBalance: BigNumber;
         if (depositAsset === WETH_ADDRESS) {
           beforeBalance = await provider.getBalance(user);
