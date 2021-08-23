@@ -2584,9 +2584,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToSecondOption(settlePriceITM);
 
         const pricePerShare = await vault.roundPricePerShare(2);
-        const withdrawAmount = depositAmount
-          .mul(pricePerShare)
-          .div(BigNumber.from(10).pow(await vault.decimals()));
 
         let beforeBalance: BigNumber;
         if (depositAsset === WETH_ADDRESS) {
