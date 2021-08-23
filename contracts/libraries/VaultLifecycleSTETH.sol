@@ -21,12 +21,10 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycleSTETH {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -211,7 +209,7 @@ library VaultLifecycleSTETH {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.doubleApprove(marginPool, depositAmount);
+        collateralToken.safeApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -596,7 +594,7 @@ library VaultLifecycleSTETH {
             wsteth.unwrap(amountToUnwrap);
 
             // approve steth exchange
-            IERC20(wsteth.stETH()).doubleApprove(crvPool, amountToUnwrap);
+            IERC20(wsteth.stETH()).safeApprove(crvPool, amountToUnwrap);
 
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
@@ -635,7 +633,7 @@ library VaultLifecycleSTETH {
 
         if (stethBalance > 0) {
             // approve wrap
-            IERC20(address(stethToken)).doubleApprove(
+            IERC20(address(stethToken)).safeApprove(
                 collateralToken,
                 stethBalance.add(1)
             );
