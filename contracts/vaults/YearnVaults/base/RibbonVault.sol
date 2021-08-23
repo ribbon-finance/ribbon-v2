@@ -381,14 +381,14 @@ contract RibbonVault is OptionsVaultYearnStorage {
             YEARN_WITHDRAWAL_SLIPPAGE
         );
 
+        require(withdrawAmount > 0, "!withdrawAmount");
+
         VaultLifecycleYearn.transferAsset(
             WETH,
             vaultParams.asset,
             msg.sender,
             withdrawAmount
         );
-
-        require(withdrawAmount > 0, "!withdrawAmount");
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
