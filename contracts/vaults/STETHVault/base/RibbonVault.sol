@@ -369,7 +369,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                roundPricePerShare[uint16(withdrawalRound)],
+                roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
             );
 
@@ -418,7 +418,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint104(shares);
+        ShareMath.assertUint128(shares);
 
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
@@ -431,7 +431,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[uint16(receiptRound)],
+                roundPricePerShare[receiptRound],
                 vaultParams.decimals
             );
 
@@ -468,9 +468,9 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = vaultState.round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = vaultState.round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
@@ -506,14 +506,14 @@ contract RibbonVault is OptionsVaultSTETHStorage {
         optionState.nextOption = address(0);
 
         // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
 
         vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
+        vaultState.round = uint16(currentRound + 1);
         vaultState.lockedAmount = uint104(lockedBalance);
 
         _mint(address(this), mintShares);

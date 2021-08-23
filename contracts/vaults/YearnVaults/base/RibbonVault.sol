@@ -422,7 +422,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint104(shares);
+        ShareMath.assertUint128(shares);
 
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
@@ -435,7 +435,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[uint16(receiptRound)],
+                roundPricePerShare[receiptRound],
                 vaultParams.decimals
             );
 

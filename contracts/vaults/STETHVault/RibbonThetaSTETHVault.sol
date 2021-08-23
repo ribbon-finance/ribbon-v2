@@ -138,7 +138,7 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
+    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 && newPremiumDiscount < 1000,
             "Invalid discount"
@@ -262,9 +262,9 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
 
-        uint104 lockedAmount = vaultState.lockedAmount;
+        uint256 lockedAmount = vaultState.lockedAmount;
         vaultState.lastLockedAmount = lockedAmount > 0
-            ? lockedAmount
+            ? uint104(lockedAmount)
             : vaultState.lastLockedAmount;
         vaultState.lockedAmount = 0;
 
