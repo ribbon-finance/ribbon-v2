@@ -163,8 +163,7 @@ library VaultLifecycleSTETH {
             pendingAmount.mul(singleShare).div(newPricePerShare);
 
         uint256 newSupply = currentSupply.add(_mintShares);
-        // TODO: We need to use the pps of the round they scheduled the withdrawal
-        // not the pps of the new round. https://github.com/ribbon-finance/ribbon-v2/pull/10#discussion_r652174863
+
         uint256 queuedWithdrawAmount =
             newSupply > 0
                 ? uint256(vaultState.queuedWithdrawShares)
@@ -172,10 +171,8 @@ library VaultLifecycleSTETH {
                     .div(newSupply)
                 : 0;
 
-        uint256 balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
-
         return (
-            balanceSansQueued,
+            currentBalance.sub(queuedWithdrawAmount),
             queuedWithdrawAmount,
             newPricePerShare,
             _mintShares
