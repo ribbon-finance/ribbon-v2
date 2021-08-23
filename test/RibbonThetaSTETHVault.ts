@@ -2146,16 +2146,16 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.redeem(0)).to.be.revertedWith("!shares");
       });
 
-      it("overflows when shares >uint104", async function () {
+      it("overflows when shares >uint128", async function () {
         const redeemAmount = BigNumber.from(
-          "340282366920938463463374607431768211455"
+          "340282366920938463463374607431768211456"
         );
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.depositETH({ value: depositAmount });
         await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U104");
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U128");
       });
 
       it("reverts when redeeming more than available", async function () {
