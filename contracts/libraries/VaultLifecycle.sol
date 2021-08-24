@@ -572,23 +572,4 @@ library VaultLifecycle {
             ? singleShare.mul(roundStartBalance).div(currentSupply)
             : singleShare;
     }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
-        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
-    }
 }
