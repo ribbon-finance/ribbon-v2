@@ -618,10 +618,10 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  // futureStrikeForecasting.start();
-  // commitAndCloseJob.start();
-  // rollToNextOptionJob.start();
-  // settleAuctionJob.start();
+  futureStrikeForecasting.start();
+  commitAndCloseJob.start();
+  rollToNextOptionJob.start();
+  settleAuctionJob.start();
 
   // Not commit()'ing for now
   // updateVolatilityJob.start();
