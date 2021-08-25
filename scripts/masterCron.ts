@@ -414,8 +414,6 @@ async function strikeForecasting() {
       optionPremium = wmul(optionPremium, collateralToken.stEthPerToken());
     }
 
-    let assetDecimals = await asset.decimals();
-
     await log(
       `${vaultName}\nExpected strike price: $${strike.div(
         BigNumber.from(10).pow(8)
@@ -423,10 +421,10 @@ async function strikeForecasting() {
         4
       )} delta) \nDeribit strike price: $${deribitStrike} (${deribitDelta} delta) \nExpected premium: ${(
         optionPremium /
-        10 ** assetDecimals
+        10 ** 18
       ).toFixed(
-        assetDecimals
-      )} ${await asset.symbol()} \nExpected expiry: ${expiry.toString()}`
+        8
+      )} ${await asset.symbol()} \nExpected expiry: ${new Date(expiry*1000).toUTCString()}`
     );
   }
 }
@@ -551,6 +549,10 @@ async function run() {
     // 0 0 9 * * 5 = 9am UTC on Fridays.
     `0 0 ${COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE} * * 5`,
     async function () {
+      await log(
+        `\n=============================================================================`
+      );
+      await updateManualVol();
       await strikeForecasting();
     },
     null,
@@ -562,7 +564,6 @@ async function run() {
     // 0 0 10 * * 5 = 10am UTC on Fridays.
     `0 0 ${COMMIT_START} * * 5`,
     async function () {
-      await updateManualVol();
       await commitAndClose();
     },
     null,
@@ -618,10 +619,10 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  // futureStrikeForecasting.start();
-  // commitAndCloseJob.start();
-  // rollToNextOptionJob.start();
-  // settleAuctionJob.start();
+  futureStrikeForecasting.start();
+  commitAndCloseJob.start();
+  rollToNextOptionJob.start();
+  settleAuctionJob.start();
 
   // Not commit()'ing for now
   // updateVolatilityJob.start();

@@ -61,6 +61,11 @@ export default {
       1: "0xAb6df2dE75a4f07D95c040DF90c7362bB5edcd90",
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
     },
+    keeper: {
+      default: 0,
+      1: "0xAb6df2dE75a4f07D95c040DF90c7362bB5edcd90",
+      42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
+    },
     admin: {
       default: 0,
       1: "0x88A9142fa18678003342a8Fd706Bd301E0FecEfd",
