@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {DSMath} from "../../../vendor/DSMathLib.sol";
 import {SafeERC20} from "../../../vendor/CustomSafeERC20.sol";
 import {IYearnRegistry, IYearnVault} from "../../../interfaces/IYearn.sol";
 import {
@@ -237,7 +238,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         require(amount > 0, "!amount");
 
         uint256 amountInAsset =
-            VaultLifecycleYearn.dswmul(
+            DSMath.wmul(
                 amount,
                 collateralToken.pricePerShare().mul(
                     VaultLifecycleYearn.decimalShift(address(collateralToken))
@@ -665,7 +666,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             uint256(vaultState.lockedAmount)
                 .add(IERC20(vaultParams.asset).balanceOf(address(this)))
                 .add(
-                VaultLifecycleYearn.dswmul(
+                DSMath.wmul(
                     collateralToken.balanceOf(address(this)),
                     collateralToken.pricePerShare().mul(
                         VaultLifecycleYearn.decimalShift(
