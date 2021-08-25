@@ -26,7 +26,8 @@ const main = async ({
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
-  const { deployer, owner, admin, feeRecipient } = await getNamedAccounts();
+  const { deployer, owner, keeper, admin, feeRecipient } =
+    await getNamedAccounts();
   console.log(`02 - Deploying ETH Call Theta Vault on ${network.name}`);
 
   const isMainnet = network.name === "mainnet";
@@ -68,6 +69,7 @@ const main = async ({
 
   const initArgs = [
     owner,
+    keeper,
     feeRecipient,
     0,
     0,
