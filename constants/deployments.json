@@ -1,23 +1,24 @@
 {
     "kovan": {
-        "ManualVolOracle": "0x6cD56377C7409693cf3D48e23B14EA72217bec22",
-        "OptionsPremiumPricerETH": "0x748F85AC6727EDc6b8120Fd7127a4Fb33d047d47",
-        "OptionsPremiumPricerWBTC": "0x36690d83a06971CD2F1f4A95052Ab0D5980e0FC8",
-        "RibbonThetaVaultETHCall": "0x6888cEaae27F1D66C4152082c186ed452E387FBB",
-        "RibbonThetaVaultETHPut": "0xc8B86C2dE51F124D99D783A11Be666E7c1Be2387",
-        "RibbonThetaVaultLogic": "0x739Ce06d2b435F81951fd5E4a5f67FD39E718b04",
-        "RibbonThetaVaultWBTCCall": "0xa6C65B92E24C72D5935396532c2536f0ca30654f",
-        "StrikeSelectionETH": "0xCf06D7a084739d869d3257F7190E6A75126F9e00",
-        "StrikeSelectionWBTC": "0x20D96F5754D39c75eA9094002DE2108e5F5d1329",
-        "VaultLifecycle": "0xe73ED716Af2C5fbB6b685009E11957f208507cf6"
+        "ManualVolOracle": "0x3e79a62ece7BAe86B687bD1D90598F86f93D2af2",
+        "OptionsPremiumPricerETH": "0x651aDc98dd621bA70B4e791adB9B4Ad8082713bC",
+        "OptionsPremiumPricerWBTC": "0x1775e7Bdd034d2De74a3ef131044395373880dA1",
+        "RibbonThetaVaultETHCall": "0x5770745d644CCA4D33E08f0abfBBE3aA8c836c33",
+        "RibbonThetaVaultLogic": "0x8E1F9bB6BBCF0582CF3Ab0C5D4B16AA94bECFb81",
+        "RibbonThetaVaultWBTCCall": "0x6e08c6659132dB4aF0352c409e4b3067C8E97ac2",
+        "StrikeSelectionETH": "0xB69f74aA91301d1c3384A77e127F1F422Fdb84a6",
+        "StrikeSelectionWBTC": "0x2Cd6e166Fb9DABC50d0b07DdE12e08dDC7a9D5DC",
+        "VaultLifecycle": "0x2c8661Ce1D3a368099511CB34500f453E6597eE2"
     },
     "mainnet": {
         "ManualVolOracle": "0xe24854968CDbCfa049ddd6F089b5C552D181eCC4",
         "OptionsPremiumPricerETH": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C",
         "OptionsPremiumPricerWBTC": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8",
-        "RibbonThetaVaultETHCall": "0x1EBEA9c79f0dE60209c8B386AA6EC8a8F21a89C0",
-        "RibbonThetaVaultLogic": "0xa0Db6c4C2906dE0158802BA8d98798d04f52B79A",
-        "StrikeSelectionETH": "0xf6e785185f9943DC0dB13392d5475769D2105911",
-        "VaultLifecycle": "0x5eE5db4480Db3B4cf08d871b737f0ce5785caA53"
+        "RibbonThetaVaultETHCall": "0xcfCf97F4300aFAa94566696fbF116C4d881FB3bc",
+        "RibbonThetaVaultLogic": "0x43cfEaa64013071d5505acF98b137f74c8CCD423",
+        "RibbonThetaVaultWBTCCall": "0x9d1d31190f945b72f6de8f1c72b97931c9d5014a",
+        "StrikeSelectionETH": "0x896e4ddC672E5e3dF9d21762518985eBb36482fA",
+        "StrikeSelectionWBTC": "0x001D77351daD0cD3f696c67EbBa5Bda0C11d0Db1",
+        "VaultLifecycle": "0xC1e51bA212C8b3fAdA5B5D3973d7c46d2b8181dF"
     }
 }
