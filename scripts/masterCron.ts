@@ -538,12 +538,12 @@ async function run() {
 
   //Atlantic/Reykjavik corresponds to UTC
 
+  const NETWORK_CONGESTION_BUFFER = 5; // 5 minutes
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
   const COMMIT_START = 10; // 10 am UTC
   const VOL_PERIOD = 12 * 3600; // 12 hours
   const TIMELOCK_DELAY = 1; // 1 hour
-  const AUCTION_LIFE_TIME_DELAY = 6; // 6 hours
-  const AUCTION_SETTLE_BUFFER = 10; // 10 minutes
+  const AUCTION_LIFE_TIME_DELAY = 1; // 1 hours
 
   var futureStrikeForecasting = new CronJob(
     // 0 0 9 * * 5 = 9am UTC on Fridays.
@@ -572,7 +572,7 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 0 ${COMMIT_START + TIMELOCK_DELAY} * * 5`,
+    `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + TIMELOCK_DELAY} * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -582,7 +582,7 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${AUCTION_SETTLE_BUFFER} ${
+    `0 ${NETWORK_CONGESTION_BUFFER * 3} ${
       COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
     } * * 5`,
     async function () {
