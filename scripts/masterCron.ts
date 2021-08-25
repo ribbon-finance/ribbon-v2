@@ -552,6 +552,7 @@ async function run() {
       await log(
         `\n=============================================================================`
       );
+      await updateManualVol();
       await strikeForecasting();
     },
     null,
@@ -563,7 +564,6 @@ async function run() {
     // 0 0 10 * * 5 = 10am UTC on Fridays.
     `0 0 ${COMMIT_START} * * 5`,
     async function () {
-      await updateManualVol();
       await commitAndClose();
     },
     null,
