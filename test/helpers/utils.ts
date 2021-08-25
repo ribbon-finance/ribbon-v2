@@ -4,6 +4,7 @@ import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
 import {
   GAMMA_ORACLE,
+  GAMMA_ORACLE_STETH,
   GAMMA_WHITELIST,
   ORACLE_DISPUTE_PERIOD,
   ORACLE_LOCKING_PERIOD,
@@ -108,7 +109,11 @@ export async function getAssetPricer(
   return await pricerContract.connect(ownerSigner);
 }
 
-export async function setAssetPricer(asset: string, pricer: string) {
+export async function setAssetPricer(
+  asset: string,
+  pricer: string,
+  isSTETH = false
+) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER],
@@ -116,7 +121,10 @@ export async function setAssetPricer(asset: string, pricer: string) {
 
   const ownerSigner = await provider.getSigner(ORACLE_OWNER);
 
-  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE);
+  const oracle = await ethers.getContractAt(
+    "IOracle",
+    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE
+  );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
 }
@@ -155,7 +163,8 @@ export async function whitelistProduct(
 
 export async function setupOracle(
   pricerOwner: string,
-  signer: SignerWithAddress
+  signer: SignerWithAddress,
+  isSTETH = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -171,7 +180,11 @@ export async function setupOracle(
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend.connect(signer).go(pricerOwner, { value: parseEther("0.5") });
 
-  const oracle = new ethers.Contract(GAMMA_ORACLE, ORACLE_ABI, pricerSigner);
+  const oracle = new ethers.Contract(
+    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE,
+    ORACLE_ABI,
+    pricerSigner
+  );
 
   const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
 
