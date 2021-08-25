@@ -414,8 +414,6 @@ async function strikeForecasting() {
       optionPremium = wmul(optionPremium, collateralToken.stEthPerToken());
     }
 
-    let assetDecimals = await asset.decimals();
-
     await log(
       `${vaultName}\nExpected strike price: $${strike.div(
         BigNumber.from(10).pow(8)
@@ -423,9 +421,9 @@ async function strikeForecasting() {
         4
       )} delta) \nDeribit strike price: $${deribitStrike} (${deribitDelta} delta) \nExpected premium: ${(
         optionPremium /
-        10 ** assetDecimals
+        10 ** 18
       ).toFixed(
-        assetDecimals
+        8
       )} ${await asset.symbol()} \nExpected expiry: ${expiry.toString()}`
     );
   }
@@ -551,6 +549,9 @@ async function run() {
     // 0 0 9 * * 5 = 9am UTC on Fridays.
     `0 0 ${COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE} * * 5`,
     async function () {
+      await log(
+        `\n=============================================================================`
+      );
       await strikeForecasting();
     },
     null,

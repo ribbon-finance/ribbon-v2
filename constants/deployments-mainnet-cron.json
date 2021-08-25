@@ -27,12 +27,12 @@
     "vaults": {
       "RibbonThetaVaultETHCall": {
         "address": "0xcfCf97F4300aFAa94566696fbF116C4d881FB3bc",
-        "strikeSelection": "",
+        "strikeSelection": "0x896e4ddc672e5e3df9d21762518985ebb36482fa",
         "optionsPremiumPricer": "0xcf38c16253912a827f38b5b2c08e6059a0194e8c"
       },
       "RibbonThetaVaultWBTCCall": {
         "address": "0x9d1d31190F945b72f6DE8f1C72b97931c9d5014a",
-        "strikeSelection": "",
+        "strikeSelection": "0x001D77351daD0cD3f696c67EbBa5Bda0C11d0Db1",
         "optionsPremiumPricer": "0x7c24414191e2818a1a8cd995688c9da74faf67a8"
       }
     },
