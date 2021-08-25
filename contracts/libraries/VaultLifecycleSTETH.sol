@@ -168,7 +168,7 @@ library VaultLifecycleSTETH {
                     .mul(currentBalance)
                     .div(newSupply)
                 : 0;
-                
+
         uint256 balanceSansQueued = currentBalance.sub(queuedAmount);
 
         return (balanceSansQueued, queuedAmount, newPricePerShare, _mintShares);
