@@ -431,9 +431,10 @@ library VaultLifecycle {
                 .sub(prevLockedAmount)
                 .mul(performanceFeePercent)
                 .div(100 * 10**6);
-            managementFee = currentLockedBalance.mul(managementFeePercent).div(
-                100 * 10**6
-            );
+            managementFee = currentLockedBalance
+                .sub(totalPending)
+                .mul(managementFeePercent)
+                .div(100 * 10**6);
 
             vaultFee = performanceFee.add(managementFee);
         }
