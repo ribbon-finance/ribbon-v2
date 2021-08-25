@@ -169,7 +169,7 @@ library VaultLifecycleSTETH {
                 : 0;
 
         return (
-            currentBalance.sub(queuedWithdrawAmount),
+            currentBalance.sub(queuedAmount),
             queuedWithdrawAmount,
             newPricePerShare,
             _mintShares
