@@ -685,6 +685,7 @@ library VaultLifecycleSTETH {
     }
 
     /**
+     * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
      * Reference: https://codereview.stackexchange.com/a/33532
      * Examples:
