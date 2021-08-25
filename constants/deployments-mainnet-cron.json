@@ -26,19 +26,14 @@
   "mainnet": {
     "vaults": {
       "RibbonThetaVaultETHCall": {
-        "address": "0x1EBEA9c79f0dE60209c8B386AA6EC8a8F21a89C0",
-        "strikeSelection": "0xf6e785185f9943DC0dB13392d5475769D2105911",
-        "optionsPremiumPricer": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C"
+        "address": "0xcfCf97F4300aFAa94566696fbF116C4d881FB3bc",
+        "strikeSelection": "0x896e4ddc672e5e3df9d21762518985ebb36482fa",
+        "optionsPremiumPricer": "0xcf38c16253912a827f38b5b2c08e6059a0194e8c"
       },
       "RibbonThetaVaultWBTCCall": {
-        "address": "",
-        "strikeSelection": "",
-        "optionsPremiumPricer": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8"
-      },
-      "RibbonThetaVaultETHPut": {
-        "address": "",
-        "strikeSelection": "0xf6e785185f9943DC0dB13392d5475769D2105911",
-        "optionsPremiumPricer": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C"
+        "address": "0x9d1d31190F945b72f6DE8f1C72b97931c9d5014a",
+        "strikeSelection": "0x001D77351daD0cD3f696c67EbBa5Bda0C11d0Db1",
+        "optionsPremiumPricer": "0x7c24414191e2818a1a8cd995688c9da74faf67a8"
       }
     },
     "univ3pools": {
