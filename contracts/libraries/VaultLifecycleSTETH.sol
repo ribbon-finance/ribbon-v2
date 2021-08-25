@@ -21,12 +21,10 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycleSTETH {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -163,8 +161,7 @@ library VaultLifecycleSTETH {
             pendingAmount.mul(singleShare).div(newPricePerShare);
 
         uint256 newSupply = currentSupply.add(_mintShares);
-
-        uint256 queuedWithdrawAmount =
+        uint256 queuedAmount =
             newSupply > 0
                 ? uint256(vaultState.queuedWithdrawShares)
                     .mul(currentBalance)
@@ -208,7 +205,7 @@ library VaultLifecycleSTETH {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.doubleApprove(marginPool, depositAmount);
+        collateralToken.safeApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -482,13 +479,12 @@ library VaultLifecycleSTETH {
         require(owner != address(0), "!owner");
         require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee > 0, "!performanceFee");
+        require(performanceFee < 100 * 10**6, "Invalid performance fee");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
         require(_vaultParams.asset != address(0), "!asset");
 
-        require(_vaultParams.decimals > 0, "!tokenDecimals");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
     }
@@ -593,7 +589,7 @@ library VaultLifecycleSTETH {
             wsteth.unwrap(amountToUnwrap);
 
             // approve steth exchange
-            IERC20(wsteth.stETH()).doubleApprove(crvPool, amountToUnwrap);
+            IERC20(wsteth.stETH()).safeApprove(crvPool, amountToUnwrap);
 
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
@@ -610,11 +606,11 @@ library VaultLifecycleSTETH {
      */
     function wrapToYieldToken(address weth, address collateralToken) external {
         // Unwrap all weth premiums transferred to contract
-        IWETH weth = IWETH(weth);
-        uint256 wethBalance = weth.balanceOf(address(this));
+        IWETH wethToken = IWETH(weth);
+        uint256 wethBalance = wethToken.balanceOf(address(this));
 
         if (wethBalance > 0) {
-            weth.withdraw(wethBalance);
+            wethToken.withdraw(wethBalance);
         }
 
         uint256 ethBalance = address(this).balance;
@@ -632,7 +628,7 @@ library VaultLifecycleSTETH {
 
         if (stethBalance > 0) {
             // approve wrap
-            IERC20(address(stethToken)).doubleApprove(
+            IERC20(address(stethToken)).safeApprove(
                 collateralToken,
                 stethBalance.add(1)
             );
@@ -669,9 +665,10 @@ library VaultLifecycleSTETH {
                 .sub(prevLockedAmount)
                 .mul(performanceFeePercent)
                 .div(100 * 10**6);
-            managementFee = currentLockedBalance.mul(managementFeePercent).div(
-                100 * 10**6
-            );
+            managementFee = currentLockedBalance
+                .sub(totalPending)
+                .mul(managementFeePercent)
+                .div(100 * 10**6);
 
             vaultFee = performanceFee.add(managementFee);
         }
@@ -688,7 +685,6 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
      * Reference: https://codereview.stackexchange.com/a/33532
      * Examples:
