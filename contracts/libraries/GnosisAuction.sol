@@ -3,6 +3,7 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {DSMath} from "../vendor/DSMathLib.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
@@ -67,7 +68,12 @@ library GnosisAuction {
         // shift decimals to correspond to decimals of USDC for puts
         // and underlying for calls
         uint256 minBidAmount =
-            dswmul(oTokenSellAmount.mul(10**10), auctionDetails.oTokenPremium)
+            DSMath
+                .wmul(
+                oTokenSellAmount.mul(10**10),
+                auctionDetails
+                    .oTokenPremium
+            )
                 .div(10**(uint256(18).sub(auctionDetails.assetDecimals)));
 
         require(
@@ -245,24 +251,5 @@ library GnosisAuction {
                     (uint256(buyAmount) << 96) +
                     uint256(sellAmount)
             );
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = dsadd(dsmul(x, y), DSWAD / 2) / DSWAD;
     }
 }
