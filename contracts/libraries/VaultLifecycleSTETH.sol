@@ -3,6 +3,7 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {DSMath} from "../vendor/DSMathLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
@@ -89,7 +90,7 @@ library VaultLifecycleSTETH {
             closeParams.delay
         );
 
-        premium = dswmul(
+        premium = DSMath.wmul(
             GnosisAuction.getOTokenPremium(
                 otokenAddress,
                 optionsPremiumPricer,
@@ -532,7 +533,7 @@ library VaultLifecycleSTETH {
 
         yieldTokenBalance = collateral.balanceOf(address(this));
         uint256 yieldTokensToWithdraw =
-            dsmin(yieldTokenBalance, withdrawAmount);
+            DSMath.min(yieldTokenBalance, withdrawAmount);
         if (yieldTokensToWithdraw > 0) {
             collateral.safeTransfer(recipient, yieldTokensToWithdraw);
         }
@@ -575,11 +576,11 @@ library VaultLifecycleSTETH {
     ) external returns (uint256 amountETHOut) {
         uint256 assetBalance = address(this).balance;
 
-        amountETHOut = dsmin(assetBalance, amount);
+        amountETHOut = DSMath.min(assetBalance, amount);
 
         uint256 amountToUnwrap =
             IWSTETH(collateralToken).getWstETHByStETH(
-                dsmax(assetBalance, amount).sub(assetBalance)
+                DSMath.max(assetBalance, amount).sub(assetBalance)
             );
 
         if (amountToUnwrap > 0) {
@@ -714,37 +715,5 @@ library VaultLifecycleSTETH {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
             : singleShare;
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = dsadd(dsmul(x, y), DSWAD / 2) / DSWAD;
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
-    }
-
-    function dsmin(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return x <= y ? x : y;
-    }
-
-    function dsmax(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return x >= y ? x : y;
     }
 }

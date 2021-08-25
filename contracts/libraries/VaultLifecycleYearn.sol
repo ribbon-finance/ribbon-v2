@@ -3,6 +3,7 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {DSMath} from "../vendor/DSMathLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
@@ -91,7 +92,7 @@ library VaultLifecycleYearn {
             closeParams.delay
         );
 
-        premium = dswmul(
+        premium = DSMath.wmul(
             GnosisAuction.getOTokenPremium(
                 otokenAddress,
                 optionsPremiumPricer,
@@ -216,7 +217,7 @@ library VaultLifecycleYearn {
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
                 .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
+                .mul(10**18) // we use 10**18 to give extra precision
                 .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
@@ -533,7 +534,7 @@ library VaultLifecycleYearn {
     ) external returns (uint256 withdrawAmount) {
         uint256 pricePerYearnShare =
             IYearnVault(collateralToken).pricePerShare();
-        withdrawAmount = dswdiv(
+        withdrawAmount = DSMath.wdiv(
             amount,
             pricePerYearnShare.mul(decimalShift(collateralToken))
         );
@@ -570,7 +571,7 @@ library VaultLifecycleYearn {
 
         yieldTokenBalance = collateral.balanceOf(address(this));
         uint256 yieldTokensToWithdraw =
-            dsmin(yieldTokenBalance, withdrawAmount);
+            DSMath.min(yieldTokenBalance, withdrawAmount);
         if (yieldTokensToWithdraw > 0) {
             collateral.safeTransfer(recipient, yieldTokensToWithdraw);
         }
@@ -596,7 +597,7 @@ library VaultLifecycleYearn {
         uint256 pricePerYearnShare
     ) internal {
         uint256 underlyingTokensToWithdraw =
-            dsmul(
+            DSMath.mul(
                 withdrawAmount.sub(yieldTokenBalance),
                 pricePerYearnShare.mul(decimalShift(collateralToken))
             );
@@ -628,8 +629,8 @@ library VaultLifecycleYearn {
         IYearnVault collateral = IYearnVault(collateralToken);
 
         uint256 amountToUnwrap =
-            dswdiv(
-                dsmax(assetBalance, amount).sub(assetBalance),
+            DSMath.wdiv(
+                DSMath.max(assetBalance, amount).sub(assetBalance),
                 collateral.pricePerShare().mul(decimalShift(collateralToken))
             );
 
@@ -769,37 +770,5 @@ library VaultLifecycleYearn {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
             : singleShare;
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = dsadd(dsmul(x, y), DSWAD / 2) / DSWAD;
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
-    }
-
-    function dsmin(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return x <= y ? x : y;
-    }
-
-    function dsmax(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return x >= y ? x : y;
     }
 }

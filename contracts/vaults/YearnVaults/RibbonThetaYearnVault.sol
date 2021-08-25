@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {DSMath} from "../../vendor/DSMathLib.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
@@ -296,7 +297,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
 
         uint256 lockedBalance =
             collateralToken.balanceOf(address(this)).sub(
-                VaultLifecycleYearn.dswdiv(
+                DSMath.wdiv(
                     queuedWithdrawAmount.add(
                         queuedWithdrawAmount.mul(YEARN_WITHDRAWAL_BUFFER).div(
                             10000
