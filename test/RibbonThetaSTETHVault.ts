@@ -80,7 +80,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("10"),
-    crvETHAmountAfterSlippage: BigNumber.from("963487622901720447"),
+    crvETHAmountAfterSlippage: BigNumber.from("963435544683405430"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -388,7 +388,6 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -418,7 +417,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(2, "week")
+        .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -756,32 +755,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ]
           )
         ).to.be.revertedWith("!minimumSupply");
-      });
-
-      it("reverts when performanceFee is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            "0",
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!performanceFee");
       });
     });
 

@@ -169,9 +169,12 @@ library VaultLifecycleSTETH {
                     .div(newSupply)
                 : 0;
 
-        uint256 balanceSansQueued = currentBalance.sub(queuedAmount);
-
-        return (balanceSansQueued, queuedAmount, newPricePerShare, _mintShares);
+        return (
+            currentBalance.sub(queuedAmount),
+            queuedAmount,
+            newPricePerShare,
+            _mintShares
+        );
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
@@ -477,16 +480,14 @@ library VaultLifecycleSTETH {
         require(owner != address(0), "!owner");
         require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee > 0, "!performanceFee");
+        require(performanceFee < 100 * 10**6, "Invalid performance fee");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
         require(_vaultParams.asset != address(0), "!asset");
-
-        require(_vaultParams.decimals > 0, "!tokenDecimals");
+        require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
-        require(performanceFee < 100 * 10**6, "Invalid performance fee");
     }
 
     /**
@@ -686,24 +687,27 @@ library VaultLifecycleSTETH {
 
     /**
      * @notice Gets the next options expiry timestamp
+     * @param currentExpiry is the expiry timestamp of the current option
+     * Reference: https://codereview.stackexchange.com/a/33532
+     * Examples:
+     * getNextFriday(week 1 thursday) -> week 1 friday
+     * getNextFriday(week 1 friday) -> week 2 friday
+     * getNextFriday(week 1 saturday) -> week 2 friday
      */
     function getNextFriday(uint256 currentExpiry)
         internal
         pure
         returns (uint256)
     {
-        uint256 nextWeek = currentExpiry + 86400 * 7;
-        uint256 dayOfWeek = ((nextWeek / 86400) + 4) % 7;
+        // dayOfWeek = 0 (sunday) - 6 (saturday)
+        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
+        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
+        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
 
-        uint256 friday;
-        if (dayOfWeek > 5) {
-            friday = nextWeek - 86400 * (dayOfWeek - 5);
-        } else {
-            friday = nextWeek + 86400 * (5 - dayOfWeek);
+        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
+        if (currentExpiry >= friday8am) {
+            friday8am += 7 days;
         }
-
-        uint256 friday8am =
-            (friday - (friday % (60 * 60 * 24))) + (8 * 60 * 60);
         return friday8am;
     }
 
