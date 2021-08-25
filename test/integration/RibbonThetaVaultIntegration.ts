@@ -48,15 +48,8 @@ describe("Integration-RibbonThetaVault", () => {
 
   behavesLikeRibbonThetaVault({
     deploymentName: "RibbonThetaVaultWBTCCall",
-    // depositAmount: parseEther("0.0001"),
     depositAmount: parseUnits("0.0001", 8),
     isPut: false,
-  });
-
-  behavesLikeRibbonThetaVault({
-    deploymentName: "RibbonThetaVaultETHPut",
-    depositAmount: parseUnits("0.1", 6),
-    isPut: true,
   });
 
   before(async () => {
@@ -239,6 +232,23 @@ describe("Integration-RibbonThetaVault", () => {
         });
       });
 
+      describe("initiateWithdraw", () => {
+        it("initiates a withdrawal", async () => {
+          const { heldByVault: beforeHeldByVault } = await vault.shareBalances(
+            user
+          );
+
+          const tx = await vault.initiateWithdraw(depositAmount);
+          await tx.wait();
+
+          const { heldByVault: afterHeldByVault, heldByAccount } =
+            await vault.shareBalances(user);
+
+          assert.bnEqual(afterHeldByVault, BigNumber.from(0));
+          assert.bnEqual(heldByAccount, beforeHeldByVault.sub(depositAmount));
+        });
+      });
+
       describe("commitAndClose", () => {
         it("commits and close prior position", async () => {
           const { nextOption: beforeNextOption } = await vault.optionState();
@@ -248,7 +258,7 @@ describe("Integration-RibbonThetaVault", () => {
           }
 
           const { timestamp } = await ethers.provider.getBlock("latest");
-          const commitTx = await vault.commitAndClose();
+          const commitTx = await vault.commitAndClose({ gasLimit: 900000 });
           const receipt = await commitTx.wait();
           console.log(`commitAndClose took ${receipt.gasUsed} gas`);
 
@@ -333,18 +343,13 @@ describe("Integration-RibbonThetaVault", () => {
             "IGnosisAuction",
             auctionAddress
           );
-          const {
-            auctioningToken,
-            biddingToken,
-            auctionEndDate,
-            minimumBiddingAmountPerOrder,
-          } = await auction.auctionData(auctionID);
+          const { auctioningToken, biddingToken, auctionEndDate } =
+            await auction.auctionData(auctionID);
           assert.equal(auctioningToken, currentOption);
           assert.equal(biddingToken, assetContract.address);
           console.log(
             `Auction ends at: ${moment.unix(auctionEndDate).toString()}`
           );
-          console.log(`Minimum bid amount: ${minimumBiddingAmountPerOrder}`);
 
           // 100% should be transferred into Opyn
           assert.isTrue(
