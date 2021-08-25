@@ -424,7 +424,7 @@ async function strikeForecasting() {
         10 ** 18
       ).toFixed(
         8
-      )} ${await asset.symbol()} \nExpected expiry: ${expiry.toString()}`
+      )} ${await asset.symbol()} \nExpected expiry: ${new Date(expiry*1000).toUTCString()}`
     );
   }
 }
