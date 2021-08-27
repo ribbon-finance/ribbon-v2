@@ -97,8 +97,8 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
      * @param _feeRecipient is the address to recieve vault performance and management fees
      * @param _managementFee is the management fee pct.
      * @param _performanceFee is the perfomance fee pct.
-     * @param _tokenName is the name of the token
-     * @param _tokenSymbol is the symbol of the token
+     * @param tokenName is the name of the token
+     * @param tokenSymbol is the symbol of the token
      * @param _optionsPremiumPricer is the address of the contract with the
        black-scholes premium calculation logic
      * @param _strikeSelection is the address of the contract with strike selection logic
