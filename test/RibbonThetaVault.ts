@@ -1286,6 +1286,100 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
+      it("closes short even when otokens are burned", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToNextOption();
+
+        await time.increase(auctionDuration);
+
+        // auction settled without any bids
+        // so we return 100% of the tokens
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await vault.optionAuctionID());
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await rollToSecondOption(firstOption.strikePrice);
+
+        const controller = await ethers.getContractAt(
+          "IController",
+          GAMMA_CONTROLLER
+        );
+
+        assert.equal(await controller.getAccountVaultCounter(vault.address), 2);
+      });
+
+      it("closes short when otokens are partially burned", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToNextOption();
+
+        const bidMultiplier = "1";
+        const latestAuction = (await gnosisAuction.auctionCounter()).toString();
+        const otoken = await ethers.getContractAt(
+          "IERC20",
+          firstOption.address
+        );
+        const initialOtokenBalance = await otoken.balanceOf(
+          gnosisAuction.address
+        );
+
+        const totalOptionsAvailableToBuy = initialOtokenBalance
+          .div(2)
+          .mul(await gnosisAuction.FEE_DENOMINATOR())
+          .div(
+            (await gnosisAuction.FEE_DENOMINATOR()).add(
+              await gnosisAuction.feeNumerator()
+            )
+          )
+          .div(bidMultiplier);
+
+        const bid = wmul(
+          totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
+          firstOptionPremium
+        )
+          .div(BigNumber.from(10).pow(18 - params.tokenDecimals))
+          .toString();
+
+        const queueStartElement =
+          "0x0000000000000000000000000000000000000000000000000000000000000001";
+
+        await assetContract
+          .connect(userSigner)
+          .approve(gnosisAuction.address, bid);
+
+        // BID OTOKENS HERE
+        await gnosisAuction
+          .connect(userSigner)
+          .placeSellOrders(
+            latestAuction,
+            [totalOptionsAvailableToBuy.toString()],
+            [bid],
+            [queueStartElement],
+            "0x"
+          );
+
+        await time.increase(auctionDuration);
+
+        // we initiate a complete burn of the otokens
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await vault.optionAuctionID());
+
+        assert.bnLte(
+          await otoken.balanceOf(vault.address),
+          initialOtokenBalance.div(2)
+        );
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await rollToSecondOption(firstOption.strikePrice);
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
@@ -1298,6 +1392,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
+
     describe("#burnRemainingOTokens", () => {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
@@ -1332,7 +1427,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
@@ -1382,7 +1476,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
@@ -1654,7 +1747,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
@@ -1805,7 +1897,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,

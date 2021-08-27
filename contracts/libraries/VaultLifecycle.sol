@@ -276,6 +276,14 @@ library VaultLifecycle {
 
         require(vault.shortOtokens.length > 0, "No short");
 
+        address shortOtoken = vault.shortOtokens[0];
+
+        // The short position has been previously closed, or all the otokens have been burned.
+        // So we return early.
+        if (shortOtoken == address(0)) {
+            return 0;
+        }
+
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
         uint256 startCollateralBalance =
