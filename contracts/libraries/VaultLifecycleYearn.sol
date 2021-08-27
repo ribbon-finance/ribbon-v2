@@ -374,8 +374,8 @@ library VaultLifecycleYearn {
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
      * @param gammaController is the address of the opyn controller contract
-     * @param amount is the amount of otokens to burn
-     * @param return amount of collateral redeemed by burning otokens
+     * @param currentOption is the address of the current option
+     * @return amount of collateral redeemed by burning otokens
      */
     function burnOtokens(address gammaController, address currentOption)
         external
@@ -447,7 +447,7 @@ library VaultLifecycleYearn {
      * @param strikePrice is the strike price of the option
      * @param expiry is the expiry timestamp of the option
      * @param isPut is whether the option is a put
-     * @param return the address of the option
+     * @return the address of the option
      */
     function getOrDeployOtoken(
         address otokenFactory,
@@ -489,7 +489,7 @@ library VaultLifecycleYearn {
     /**
      * @notice Starts the gnosis auction
      * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @param return the auction id of the newly created auction
+     * @return the auction id of the newly created auction
      */
     function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
         external
@@ -688,9 +688,9 @@ library VaultLifecycleYearn {
      * @param currentLockedBalance is the amount of funds currently locked in opyn
      * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
-     * @param return performanceFee is the performance fee
-     * @param return managementFee is the management fee
-     * @param return vaultFee is the total fees
+     * @return performanceFee is the performance fee
+     * @return managementFee is the management fee
+     * @return vaultFee is the total fees
      */
     function getVaultFees(
         Vault.VaultState storage vaultState,
