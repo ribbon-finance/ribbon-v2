@@ -318,7 +318,7 @@ async function runTX(
     let newGasPrice = (await gas(network)).toString();
 
     try {
-      const tx = await vault.connect(signer)[`"${method}()"`]({
+      const tx = await vault.connect(signer)[`${method}()`]({
         gasPrice: newGasPrice,
         gasLimit: gasLimits[method],
       });
@@ -422,9 +422,9 @@ async function strikeForecasting() {
       )} delta) \nDeribit strike price: $${deribitStrike} (${deribitDelta} delta) \nExpected premium: ${(
         optionPremium /
         10 ** 18
-      ).toFixed(
-        8
-      )} ${await asset.symbol()} \nExpected expiry: ${new Date(expiry*1000).toUTCString()}`
+      ).toFixed(8)} ${await asset.symbol()} \nExpected expiry: ${new Date(
+        expiry * 1000
+      ).toUTCString()}`
     );
   }
 }
@@ -473,7 +473,7 @@ async function settleAuctions() {
 }
 
 async function updateManualVol() {
-  const volOracleArtifact = await hre.artifacts.readArtifact("VolOracle");
+  const volOracleArtifact = await hre.artifacts.readArtifact("ManualVolOracle");
 
   const volOracle = new ethers.Contract(
     MANUAL_VOL_ORACLE,
@@ -619,10 +619,11 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  futureStrikeForecasting.start();
-  commitAndCloseJob.start();
-  rollToNextOptionJob.start();
-  settleAuctionJob.start();
+  // futureStrikeForecasting.start();
+  // commitAndCloseJob.start();
+  // rollToNextOptionJob.start();
+  // settleAuctionJob.start();
+  await commitAndClose();
 
   // Not commit()'ing for now
   // updateVolatilityJob.start();
