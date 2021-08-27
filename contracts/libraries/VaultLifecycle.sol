@@ -4,7 +4,6 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {
     IStrikeSelection,
@@ -18,9 +17,7 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {
-    SupportsNonCompliantERC20
-} from "../libraries/SupportsNonCompliantERC20.sol";
+import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -31,7 +28,7 @@ library VaultLifecycle {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint16 lastStrikeOverride;
+        uint256 lastStrikeOverride;
         uint256 overriddenStrikePrice;
     }
 
@@ -40,7 +37,7 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
+        Vault.VaultParams calldata vaultParams,
         Vault.VaultState storage vaultState
     )
         external
@@ -77,6 +74,7 @@ library VaultLifecycle {
 
         otokenAddress = getOrDeployOtoken(
             closeParams,
+            vaultParams,
             underlying,
             asset,
             strikePrice,
@@ -93,10 +91,29 @@ library VaultLifecycle {
         require(premium > 0, "!premium");
     }
 
-    function verifyOtoken(address otokenAddress, uint256 delay) private view {
+    function verifyOtoken(
+        address otokenAddress,
+        Vault.VaultParams calldata vaultParams,
+        address collateralAsset,
+        address USDC,
+        uint256 delay
+    ) private view {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == collateralAsset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
@@ -105,7 +122,6 @@ library VaultLifecycle {
         uint256 currentSupply,
         address asset,
         uint8 decimals,
-        uint256 initialSharePrice,
         uint256 pendingAmount,
         uint128 queuedWithdrawShares
     )
@@ -125,8 +141,7 @@ library VaultLifecycle {
         newPricePerShare = getPPS(
             currentSupply,
             roundStartBalance,
-            singleShare,
-            initialSharePrice
+            singleShare
         );
 
         // After closing the short, if the options expire in-the-money
@@ -188,10 +203,8 @@ library VaultLifecycle {
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
                 .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(
-                oToken.strikePrice().mul(10**(18 - (8 - collateralDecimals)))
-            );
+                .mul(10**18) // we use 10**18 to give extra precision
+                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
             uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
@@ -203,7 +216,7 @@ library VaultLifecycle {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(marginPool, depositAmount);
+        collateralToken.doubleApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -390,8 +403,46 @@ library VaultLifecycle {
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
+    function getVaultFees(
+        Vault.VaultState storage vaultState,
+        uint256 currentLockedBalance,
+        uint256 performanceFeePercent,
+        uint256 managementFeePercent
+    )
+        external
+        view
+        returns (
+            uint256 performanceFee,
+            uint256 managementFee,
+            uint256 vaultFee
+        )
+    {
+        uint256 prevLockedAmount = vaultState.lastLockedAmount;
+        uint256 totalPending = vaultState.totalPending;
+
+        // Take performance fee and management fee ONLY if difference between
+        // last week and this week's vault deposits, taking into account pending
+        // deposits and withdrawals, is positive. If it is negative, last week's
+        // option expired ITM past breakeven, and the vault took a loss so we
+        // do not collect performance fee for last week
+        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
+            performanceFee = currentLockedBalance
+                .sub(totalPending)
+                .sub(prevLockedAmount)
+                .mul(performanceFeePercent)
+                .div(100 * 10**6);
+            managementFee = currentLockedBalance
+                .sub(totalPending)
+                .mul(managementFeePercent)
+                .div(100 * 10**6);
+
+            vaultFee = performanceFee.add(managementFee);
+        }
+    }
+
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
+        Vault.VaultParams calldata vaultParams,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
@@ -424,7 +475,13 @@ library VaultLifecycle {
                 isPut
             );
 
-        verifyOtoken(otoken, closeParams.delay);
+        verifyOtoken(
+            otoken,
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
 
         return otoken;
     }
@@ -461,6 +518,7 @@ library VaultLifecycle {
 
     function verifyConstructorParams(
         address owner,
+        address keeper,
         address feeRecipient,
         uint256 performanceFee,
         string calldata tokenName,
@@ -468,9 +526,9 @@ library VaultLifecycle {
         Vault.VaultParams calldata _vaultParams
     ) external pure {
         require(owner != address(0), "!owner");
+        require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee > 0, "!performanceFee");
-        require(performanceFee < 10**8, "performanceFee >= 100%");
+        require(performanceFee < 100 * 10**6, "Invalid performance fee");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
@@ -478,7 +536,6 @@ library VaultLifecycle {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
-        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
     }
 
     /**
@@ -510,30 +567,10 @@ library VaultLifecycle {
     function getPPS(
         uint256 currentSupply,
         uint256 roundStartBalance,
-        uint256 singleShare,
-        uint256 initialSharePrice
+        uint256 singleShare
     ) internal pure returns (uint256 newPricePerShare) {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : initialSharePrice;
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
-        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
+            : singleShare;
     }
 }
