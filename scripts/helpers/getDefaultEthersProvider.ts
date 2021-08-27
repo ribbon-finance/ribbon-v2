@@ -17,7 +17,7 @@ export const getDefaultProvider = (network: Networks = "kovan") => {
 
 export const getDefaultSigner = (path: string, network: Networks = "kovan") => {
   const mnemonic =
-    network === "mainnet" ? process.env.MNEMONIC : process.env.KOVAN_MNEMONIC;
+    network === "mainnet" ? process.env.MAINNET_MNEMONIC : process.env.KOVAN_MNEMONIC;
 
   if (!mnemonic) {
     throw new Error("No mnemonic set");
