@@ -3,9 +3,12 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {DSMath} from "../vendor/DSMathLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
+import {IYearnVault} from "../interfaces/IYearn.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 import {
     IStrikeSelection,
     IOptionsPremiumPricer
@@ -18,12 +21,11 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {
-    SupportsNonCompliantERC20
-} from "../libraries/SupportsNonCompliantERC20.sol";
+import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
-library VaultLifecycle {
+library VaultLifecycleYearn {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
     using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
@@ -31,7 +33,7 @@ library VaultLifecycle {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint16 lastStrikeOverride;
+        uint256 lastStrikeOverride;
         uint256 overriddenStrikePrice;
     }
 
@@ -44,6 +46,7 @@ library VaultLifecycle {
      * @param closeParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
+     * @param collateralAsset is the address of the collateral asset
      * @return otokenAddress is the address of the new option
      * @return premium is the premium of the new option
      * @return strikePrice is the strike price of the new option
@@ -54,8 +57,9 @@ library VaultLifecycle {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
-        Vault.VaultState storage vaultState
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState,
+        address collateralAsset
     )
         external
         returns (
@@ -78,33 +82,44 @@ library VaultLifecycle {
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
-        bool isPut = vaultParams.isPut;
-        address underlying = vaultParams.underlying;
-        address asset = vaultParams.asset;
-
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, isPut);
+            : selection.getStrikePrice(expiry, vaultParams.isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
-            closeParams,
-            underlying,
-            asset,
+            closeParams.OTOKEN_FACTORY,
+            vaultParams.underlying,
+            closeParams.USDC,
+            collateralAsset,
             strikePrice,
             expiry,
-            isPut
+            vaultParams.isPut
         );
 
-        // get the black scholes premium of the option
-        premium = GnosisAuction.getOTokenPremium(
+        verifyOtoken(
             otokenAddress,
-            optionsPremiumPricer,
-            premiumDiscount
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
+
+        // get the black scholes premium of the option and adjust premium based on
+        // collateral asset <-> asset exchange rate
+        premium = DSMath.wmul(
+            GnosisAuction.getOTokenPremium(
+                otokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount
+            ),
+            IYearnVault(collateralAsset).pricePerShare().mul(
+                decimalShift(collateralAsset)
+            )
         );
 
         require(premium > 0, "!premium");
@@ -128,6 +143,19 @@ library VaultLifecycle {
         require(otokenAddress != address(0), "!otokenAddress");
 
         IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == collateralAsset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
@@ -136,39 +164,38 @@ library VaultLifecycle {
      * @notice Calculate the shares to mint, new price per share, and
       amount of funds to re-allocate as collateral for the new round
      * @param currentSupply is the total supply of shares
-     * @param asset is the address of the vault's asset
-     * @param decimals is the decimals of the asset
-     * @param pendingAmount is the amount of funds pending from recent deposits
+     * @param currentBalance is the total balance of the vault
+     * @param vaultParams is the struct with vault general data
+     * @param vaultState is the struct with vault accounting state
      * @return newLockedAmount is the amount of funds to allocate for the new round
+     * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
      */
     function rollover(
         uint256 currentSupply,
-        address asset,
-        uint8 decimals,
-        uint256 initialSharePrice,
-        uint256 pendingAmount,
-        uint128 queuedWithdrawShares
+        uint256 currentBalance,
+        Vault.VaultParams calldata vaultParams,
+        Vault.VaultState calldata vaultState
     )
         external
-        view
+        pure
         returns (
             uint256 newLockedAmount,
+            uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         )
     {
-        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
+        uint256 pendingAmount = uint256(vaultState.totalPending);
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**uint256(decimals);
+        uint256 singleShare = 10**uint256(vaultParams.decimals);
 
         newPricePerShare = getPPS(
             currentSupply,
             roundStartBalance,
-            singleShare,
-            initialSharePrice
+            singleShare
         );
 
         // After closing the short, if the options expire in-the-money
@@ -179,15 +206,16 @@ library VaultLifecycle {
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
-        uint256 queuedWithdrawAmount =
+        uint256 queuedAmount =
             newSupply > 0
-                ? uint256(queuedWithdrawShares).mul(currentBalance).div(
-                    newSupply
-                )
+                ? uint256(vaultState.queuedWithdrawShares)
+                    .mul(currentBalance)
+                    .div(newSupply)
                 : 0;
 
         return (
-            currentBalance.sub(queuedWithdrawAmount),
+            currentBalance.sub(queuedAmount),
+            queuedAmount,
             newPricePerShare,
             _mintShares
         );
@@ -238,10 +266,8 @@ library VaultLifecycle {
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
                 .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
-                .div(
-                oToken.strikePrice().mul(10**(18 - (8 - collateralDecimals)))
-            );
+                .mul(10**18) // we use 10**18 to give extra precision
+                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
             uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
@@ -253,7 +279,7 @@ library VaultLifecycle {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(marginPool, depositAmount);
+        collateralToken.doubleApprove(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -344,51 +370,6 @@ library VaultLifecycle {
     }
 
     /**
-     * @notice Exercises the ITM option using existing long otoken position. Currently this implementation is simple.
-     * It calls the `Redeem` action to claim the payout.
-     * @param gammaController is the address of the opyn controller contract
-     * @param oldOption is the address of the old option
-     * @param asset is the address of the vault's asset
-     * @return amount of asset received by exercising the option
-     */
-    function settleLong(
-        address gammaController,
-        address oldOption,
-        address asset
-    ) external returns (uint256) {
-        IController controller = IController(gammaController);
-
-        uint256 oldOptionBalance = IERC20(oldOption).balanceOf(address(this));
-
-        if (controller.getPayout(oldOption, oldOptionBalance) == 0) {
-            return 0;
-        }
-
-        uint256 startAssetBalance = IERC20(asset).balanceOf(address(this));
-
-        // If it is after expiry, we need to redeem the profits
-        IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](1);
-
-        actions[0] = IController.ActionArgs(
-            IController.ActionType.Redeem,
-            address(0), // not used
-            address(this), // address to send profits to
-            oldOption, // address of otoken
-            0, // not used
-            oldOptionBalance, // otoken balance
-            0, // not used
-            "" // not used
-        );
-
-        controller.operate(actions);
-
-        uint256 endAssetBalance = IERC20(asset).balanceOf(address(this));
-
-        return endAssetBalance.sub(startAssetBalance);
-    }
-
-    /**
      * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
@@ -396,10 +377,17 @@ library VaultLifecycle {
      * @param amount is the amount of otokens to burn
      * @param return amount of collateral redeemed by burning otokens
      */
-    function burnOtokens(address gammaController, uint256 amount)
+    function burnOtokens(address gammaController, address currentOption)
         external
         returns (uint256)
     {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+
+        if (numOTokensToBurn < 0) {
+            return 0;
+        }
+
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -426,7 +414,7 @@ library VaultLifecycle {
             address(this), // address to transfer from
             address(vault.shortOtokens[0]), // otoken address
             vaultID, // vaultId
-            amount, // amount
+            numOTokensToBurn, // amount
             0, //index
             "" //data
         );
@@ -437,7 +425,9 @@ library VaultLifecycle {
             address(this), // address to transfer to
             address(collateralToken), // withdrawn asset
             vaultID, // vaultId
-            vault.collateralAmounts[0].mul(amount).div(vault.shortAmounts[0]), // amount
+            vault.collateralAmounts[0].mul(numOTokensToBurn).div(
+                vault.shortAmounts[0]
+            ), // amount
             0, //index
             "" //data
         );
@@ -447,6 +437,249 @@ library VaultLifecycle {
         uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
 
         return endCollateralBalance.sub(startCollateralBalance);
+    }
+
+    /**
+     * @notice Either retrieves the option token if it already exists, or deploy it
+     * @param otokenFactory is the address of the opyn factory contract with option token blueprint
+     * @param underlying is the address of the underlying asset of the option
+     * @param collateralAsset is the address of the collateral asset of the option
+     * @param strikePrice is the strike price of the option
+     * @param expiry is the expiry timestamp of the option
+     * @param isPut is whether the option is a put
+     * @param return the address of the option
+     */
+    function getOrDeployOtoken(
+        address otokenFactory,
+        address underlying,
+        address strikeAsset,
+        address collateralAsset,
+        uint256 strikePrice,
+        uint256 expiry,
+        bool isPut
+    ) internal returns (address) {
+        IOtokenFactory factory = IOtokenFactory(otokenFactory);
+
+        address otokenFromFactory =
+            factory.getOtoken(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+
+        if (otokenFromFactory != address(0)) {
+            return otokenFromFactory;
+        }
+
+        address otoken =
+            factory.createOtoken(
+                underlying,
+                strikeAsset,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                isPut
+            );
+        return otoken;
+    }
+
+    /**
+     * @notice Starts the gnosis auction
+     * @param auctionDetails is the struct with all the custom parameters of the auction
+     * @param return the auction id of the newly created auction
+     */
+    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
+        external
+        returns (uint256)
+    {
+        return GnosisAuction.startAuction(auctionDetails);
+    }
+
+    /**
+     * @notice Verify the constructor params satisfy requirements
+     * @param owner is the owner of the vault with critical permissions
+     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
+     * @param feeRecipient is the address to recieve vault performance and management fees
+     * @param performanceFee is the perfomance fee pct.
+     * @param tokenName is the name of the token
+     * @param tokenSymbol is the symbol of the token
+     * @param _vaultParams is the struct with vault general data
+     */
+    function verifyConstructorParams(
+        address owner,
+        address keeper,
+        address feeRecipient,
+        uint256 performanceFee,
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        Vault.VaultParams calldata _vaultParams
+    ) external pure {
+        require(owner != address(0), "!owner");
+        require(keeper != address(0), "!keeper");
+        require(feeRecipient != address(0), "!feeRecipient");
+        require(performanceFee < 100 * 10**6, "Invalid performance fee");
+        require(bytes(tokenName).length > 0, "!tokenName");
+        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
+
+        require(_vaultParams.asset != address(0), "!asset");
+        require(_vaultParams.underlying != address(0), "!underlying");
+        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
+        require(_vaultParams.cap > 0, "!cap");
+    }
+
+    /**
+     * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param amount is the withdraw amount in `asset`
+     * @return withdrawAmount is the withdraw amount in `collateralToken`
+     */
+    function withdrawYieldAndBaseToken(
+        address weth,
+        address asset,
+        address collateralToken,
+        address recipient,
+        uint256 amount
+    ) external returns (uint256 withdrawAmount) {
+        uint256 pricePerYearnShare =
+            IYearnVault(collateralToken).pricePerShare();
+        withdrawAmount = DSMath.wdiv(
+            amount,
+            pricePerYearnShare.mul(decimalShift(collateralToken))
+        );
+        uint256 yieldTokenBalance =
+            withdrawYieldToken(collateralToken, recipient, withdrawAmount);
+
+        // If there is not enough yvWETH in the vault, it withdraws as much as possible and
+        // transfers the rest in `asset`
+        if (withdrawAmount > yieldTokenBalance) {
+            withdrawBaseToken(
+                weth,
+                asset,
+                collateralToken,
+                recipient,
+                withdrawAmount,
+                yieldTokenBalance,
+                pricePerYearnShare
+            );
+        }
+    }
+
+    /**
+     * @notice Withdraws yvWETH from vault
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @return yieldTokenBalance is the balance of the yield token
+     */
+    function withdrawYieldToken(
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount
+    ) internal returns (uint256 yieldTokenBalance) {
+        IERC20 collateral = IERC20(collateralToken);
+
+        yieldTokenBalance = collateral.balanceOf(address(this));
+        uint256 yieldTokensToWithdraw =
+            DSMath.min(yieldTokenBalance, withdrawAmount);
+        if (yieldTokensToWithdraw > 0) {
+            collateral.safeTransfer(recipient, yieldTokensToWithdraw);
+        }
+    }
+
+    /**
+     * @notice Withdraws `asset` from vault
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @param yieldTokenBalance is the collateral token (yvWETH) balance of the vault
+     * @param pricePerYearnShare is the yvWETH<->WETH price ratio
+     */
+    function withdrawBaseToken(
+        address weth,
+        address asset,
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount,
+        uint256 yieldTokenBalance,
+        uint256 pricePerYearnShare
+    ) internal {
+        uint256 underlyingTokensToWithdraw =
+            DSMath.mul(
+                withdrawAmount.sub(yieldTokenBalance),
+                pricePerYearnShare.mul(decimalShift(collateralToken))
+            );
+        transferAsset(
+            weth,
+            asset,
+            payable(recipient),
+            underlyingTokensToWithdraw
+        );
+    }
+
+    /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to vault
+     * @param amount is the amount of `asset` to withdraw
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param yearnWithdrawalBuffer is the buffer for withdrawals from yearn vault
+     * @param yearnWithdrawalSlippage is the slippage for withdrawals from yearn vault
+     */
+    function unwrapYieldToken(
+        uint256 amount,
+        address asset,
+        address collateralToken,
+        uint256 yearnWithdrawalBuffer,
+        uint256 yearnWithdrawalSlippage
+    ) external {
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        IYearnVault collateral = IYearnVault(collateralToken);
+
+        uint256 amountToUnwrap =
+            DSMath.wdiv(
+                DSMath.max(assetBalance, amount).sub(assetBalance),
+                collateral.pricePerShare().mul(decimalShift(collateralToken))
+            );
+
+        if (amountToUnwrap > 0) {
+            amountToUnwrap = amountToUnwrap
+                .add(amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000))
+                .sub(1);
+
+            collateral.withdraw(
+                amountToUnwrap,
+                address(this),
+                yearnWithdrawalSlippage
+            );
+        }
+    }
+
+    /**
+     * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     */
+    function wrapToYieldToken(address asset, address collateralToken) external {
+        uint256 amountToWrap = IERC20(asset).balanceOf(address(this));
+
+        if (amountToWrap > 0) {
+            IERC20(asset).safeApprove(collateralToken, amountToWrap);
+
+            // there is a slight imprecision with regards to calculating back from yearn token -> underlying
+            // that stems from miscoordination between ytoken .deposit() amount wrapped and pricePerShare
+            // at that point in time.
+            // ex: if I have 1 eth, deposit 1 eth into yearn vault and calculate value of yearn token balance
+            // denominated in eth (via balance(yearn token) * pricePerShare) we will get 1 eth - 1 wei.
+            IYearnVault(collateralToken).deposit(amountToWrap, address(this));
+        }
     }
 
     /**
@@ -497,136 +730,38 @@ library VaultLifecycle {
     }
 
     /**
-     * @notice Either retrieves the option token if it already exists, or deploy it
-     * @param closeParams is the struct with details on previous option and strike selection details
-     * @param vaultParams is the struct with vault general data
-     * @param underlying is the address of the underlying asset of the option
-     * @param collateralAsset is the address of the collateral asset of the option
-     * @param strikePrice is the strike price of the option
-     * @param expiry is the expiry timestamp of the option
-     * @param isPut is whether the option is a put
-     * @param return the address of the option
+     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @param weth is the weth address
+     * @param asset is the vault asset address
+     * @param recipient is the receiving address
+     * @param amount is the transfer amount
      */
-    function getOrDeployOtoken(
-        CloseParams calldata closeParams,
-        address underlying,
-        address collateralAsset,
-        uint256 strikePrice,
-        uint256 expiry,
-        bool isPut
-    ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
-
-        address otokenFromFactory =
-            factory.getOtoken(
-                underlying,
-                closeParams.USDC,
-                collateralAsset,
-                strikePrice,
-                expiry,
-                isPut
-            );
-
-        if (otokenFromFactory != address(0)) {
-            return otokenFromFactory;
+    function transferAsset(
+        address weth,
+        address asset,
+        address payable recipient,
+        uint256 amount
+    ) public {
+        if (asset == weth) {
+            IWETH(weth).withdraw(amount);
+            (bool success, ) = recipient.call{value: amount}("");
+            require(success, "!success");
+            return;
         }
-
-        address otoken =
-            factory.createOtoken(
-                underlying,
-                closeParams.USDC,
-                collateralAsset,
-                strikePrice,
-                expiry,
-                isPut
-            );
-
-        verifyOtoken(otoken, closeParams.delay);
-
-        return otoken;
+        IERC20(asset).safeTransfer(recipient, amount);
     }
 
     /**
-     * @notice Starts the gnosis auction
-     * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @param return the auction id of the newly created auction
+     * @notice Returns the decimal shift between 18 decimals and asset tokens
+     * @param collateralToken is the address of the collateral token
      */
-    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
-        external
+    function decimalShift(address collateralToken)
+        public
+        view
         returns (uint256)
     {
-        return GnosisAuction.startAuction(auctionDetails);
-    }
-
-    /**
-     * @notice Places a bid in an auction
-     * @param bidDetails is the struct with all the details of the
-      bid including the auction's id and how much to bid
-     * @param return how much we are offering in the bidding token
-     * @param return how much we are bidding for in the auctioning token
-     * @param return the user id of the bid
-     */
-    function placeBid(GnosisAuction.BidDetails calldata bidDetails)
-        external
-        returns (
-            uint256,
-            uint256,
-            uint64
-        )
-    {
-        return GnosisAuction.placeBid(bidDetails);
-    }
-
-    /**
-     * @notice Claims the oTokens belonging to the vault
-     * @param auctionSellOrder is the sell order of the bid
-     * @param gnosisEasyAuction is the address of the gnosis auction contract
-     holding custody to the funds
-     * @param counterpartyThetaVault is the address of the counterparty theta
-     vault of this delta vault
-     */
-    function claimAuctionOtokens(
-        Vault.AuctionSellOrder calldata auctionSellOrder,
-        address gnosisEasyAuction,
-        address counterpartyThetaVault
-    ) external {
-        GnosisAuction.claimAuctionOtokens(
-            auctionSellOrder,
-            gnosisEasyAuction,
-            counterpartyThetaVault
-        );
-    }
-
-    /**
-     * @notice Verify the constructor params satisfy requirements
-     * @param owner is the owner of the vault with critical permissions
-     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
-     * @param feeRecipient is the address to recieve vault performance and management fees
-     * @param performanceFee is the perfomance fee pct.
-     * @param tokenName is the name of the token
-     * @param tokenSymbol is the symbol of the token
-     * @param _vaultParams is the struct with vault general data
-     */
-    function verifyConstructorParams(
-        address owner,
-        address feeRecipient,
-        uint256 performanceFee,
-        string calldata tokenName,
-        string calldata tokenSymbol,
-        Vault.VaultParams calldata _vaultParams
-    ) external pure {
-        require(owner != address(0), "!owner");
-        require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee > 0, "!performanceFee");
-        require(performanceFee < 10**8, "performanceFee >= 100%");
-        require(bytes(tokenName).length > 0, "!tokenName");
-        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
-
-        require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
-        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
-        require(_vaultParams.cap > 0, "!cap");
-        require(_vaultParams.initialSharePrice > 0, "!initialSharePrice");
+        return
+            10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
     }
 
     /**
@@ -658,30 +793,10 @@ library VaultLifecycle {
     function getPPS(
         uint256 currentSupply,
         uint256 roundStartBalance,
-        uint256 singleShare,
-        uint256 initialSharePrice
+        uint256 singleShare
     ) internal pure returns (uint256 newPricePerShare) {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : initialSharePrice;
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
-        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
+            : singleShare;
     }
 }
