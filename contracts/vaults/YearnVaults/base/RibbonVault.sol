@@ -4,22 +4,18 @@ pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {OptionsVaultStorage} from "../../storage/OptionsVaultStorage.sol";
-import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../../libraries/ShareMath.sol";
-import {IOtoken} from "../../interfaces/GammaInterface.sol";
-import {IWETH} from "../../interfaces/IWETH.sol";
-import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
+import {DSMath} from "../../../vendor/DSMathLib.sol";
+import {SafeERC20} from "../../../vendor/CustomSafeERC20.sol";
+import {IYearnRegistry, IYearnVault} from "../../../interfaces/IYearn.sol";
 import {
-    IStrikeSelection,
-    IOptionsPremiumPricer
-} from "../../interfaces/IRibbon.sol";
+    OptionsVaultYearnStorage
+} from "../../../storage/OptionsVaultYearnStorage.sol";
+import {Vault} from "../../../libraries/Vault.sol";
+import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
+import {ShareMath} from "../../../libraries/ShareMath.sol";
+import {IWETH} from "../../../interfaces/IWETH.sol";
 
-contract RibbonVault is OptionsVaultStorage {
+contract RibbonVault is OptionsVaultYearnStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -33,7 +29,9 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint256 public constant delay = 1 hours;
 
-    uint256 public constant period = 7 days;
+    uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+
+    uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
 
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
@@ -55,6 +53,9 @@ contract RibbonVault is OptionsVaultStorage {
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
+    // Yearn registry contract
+    address public immutable YEARN_REGISTRY;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -67,13 +68,7 @@ contract RibbonVault is OptionsVaultStorage {
         uint256 round
     );
 
-    event Redeem(address indexed account, uint256 share, uint16 round);
-
-    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
-
-    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
-
-    event CapSet(uint256 oldCap, uint256 newCap, address manager);
+    event Redeem(address indexed account, uint256 share, uint256 round);
 
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
@@ -95,25 +90,29 @@ contract RibbonVault is OptionsVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _yearnRegistry is the address of the yearn registry from token to vault token
      */
     constructor(
         address _weth,
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _yearnRegistry
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_yearnRegistry != address(0), "!_yearnRegistry");
 
         WETH = _weth;
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+        YEARN_REGISTRY = _yearnRegistry;
     }
 
     /**
@@ -121,6 +120,7 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function baseInitialize(
         address _owner,
+        address _keeper,
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
@@ -128,8 +128,9 @@ contract RibbonVault is OptionsVaultStorage {
         string memory tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycle.verifyConstructorParams(
+        VaultLifecycleYearn.verifyConstructorParams(
             _owner,
+            _keeper,
             _feeRecipient,
             _performanceFee,
             tokenName,
@@ -142,20 +143,39 @@ contract RibbonVault is OptionsVaultStorage {
         __Ownable_init();
         transferOwnership(_owner);
 
+        keeper = _keeper;
+
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
-        vaultState.lastLockedAmount = uint104(
-            IERC20(vaultParams.asset).balanceOf(address(this))
-        );
+        vaultState.lastLockedAmount = type(uint104).max;
+
+        _upgradeYearnVault();
 
         vaultState.round = 1;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the keeper.
+     */
+    modifier onlyKeeper() {
+        require(msg.sender == keeper, "!keeper");
+        _;
     }
 
     /************************************************
      *  SETTERS
      ***********************************************/
+
+    /**
+     * @notice Sets the new keeper
+     * @param newKeeper is the address of the new keeper
+     */
+    function setNewKeeper(address newKeeper) external onlyOwner {
+        require(newKeeper != address(0), "!newKeeper");
+        keeper = newKeeper;
+    }
 
     /**
      * @notice Sets the new fee recipient
@@ -172,9 +192,6 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(newManagementFee < 100 * 10**6, "Invalid management fee");
-
-        emit ManagementFeeSet(managementFee, newManagementFee);
-
         // We are dividing annualized management fee by num weeks in a year
         managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
     }
@@ -185,9 +202,6 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
-
-        emit PerformanceFeeSet(performanceFee, newPerformanceFee);
-
         performanceFee = newPerformanceFee;
     }
 
@@ -195,11 +209,10 @@ contract RibbonVault is OptionsVaultStorage {
      * @notice Sets a new cap for deposits
      * @param newCap is the new cap for deposits
      */
-    function setCap(uint104 newCap) external onlyOwner {
+    function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
-        uint256 oldCap = vaultParams.cap;
-        vaultParams.cap = newCap;
-        emit CapSet(oldCap, newCap, msg.sender);
+        ShareMath.assertUint104(newCap);
+        vaultParams.cap = uint104(newCap);
     }
 
     /************************************************
@@ -207,19 +220,7 @@ contract RibbonVault is OptionsVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the asset is not WETH.
-     */
-    function depositETH() external payable nonReentrant {
-        require(vaultParams.asset == WETH, "!WETH");
-        require(msg.value > 0, "!value");
-
-        _depositFor(msg.value, msg.sender);
-
-        IWETH(WETH).deposit{value: msg.value}();
-    }
-
-    /**
-     * @notice Deposits the `asset` from msg.sender.
+     * @notice Deposits the `asset` into the contract and mint vault shares.
      * @param amount is the amount of `asset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
@@ -235,21 +236,23 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
-     * @notice Used for vault -> vault deposits on the user's behalf
-     * @param amount is the amount of `asset` to deposit
-     * @param creditor is the address that can claim/withdraw deposited amount
+     * @notice Deposits the `collateralToken` into the contract and mint vault shares.
+     * @param amount is the amount of `collateralToken` to deposit
      */
-    function depositFor(uint256 amount, address creditor)
-        external
-        nonReentrant
-    {
+    function depositYieldToken(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
-        require(creditor != address(0));
 
-        _depositFor(amount, creditor);
+        uint256 amountInAsset =
+            DSMath.wmul(
+                amount,
+                collateralToken.pricePerShare().mul(
+                    VaultLifecycleYearn.decimalShift(address(collateralToken))
+                )
+            );
 
-        IERC20(vaultParams.asset).safeTransferFrom(
+        _depositFor(amountInAsset, msg.sender);
+
+        IERC20(address(collateralToken)).safeTransferFrom(
             msg.sender,
             address(this),
             amount
@@ -257,10 +260,9 @@ contract RibbonVault is OptionsVaultStorage {
     }
 
     /**
-     * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
-     * @notice Used for vault -> vault deposits on the user's behalf
-     * @param amount is the amount of `asset` to deposit
-     * @param creditor is the address that can claim/withdraw deposited amount
+     * @notice Mints the vault shares to the creditor
+     * @param amount is the amount of `asset` deposited
+     * @param creditor is the address to receieve the deposit
      */
     function _depositFor(uint256 amount, address creditor) private {
         uint256 currentRound = vaultState.round;
@@ -277,14 +279,14 @@ contract RibbonVault is OptionsVaultStorage {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
 
-        uint256 depositAmount = uint104(amount);
+        uint256 depositAmount = amount;
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
@@ -294,10 +296,9 @@ contract RibbonVault is OptionsVaultStorage {
         ShareMath.assertUint104(depositAmount);
 
         depositReceipts[creditor] = Vault.DepositReceipt({
-            processed: false,
             round: uint16(currentRound),
             amount: uint104(depositAmount),
-            unredeemedShares: unredeemedShares
+            unredeemedShares: uint104(unredeemedShares)
         });
 
         vaultState.totalPending = uint128(
@@ -361,7 +362,7 @@ contract RibbonVault is OptionsVaultStorage {
         uint256 withdrawalRound = withdrawal.round;
 
         // This checks if there is a withdrawal
-        require(withdrawalShares > 0, "Not initiated");
+        require(withdrawalShares > 0, "!initiated");
 
         require(withdrawalRound < vaultState.round, "Round not closed");
 
@@ -374,16 +375,30 @@ contract RibbonVault is OptionsVaultStorage {
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                roundPricePerShare[uint16(withdrawalRound)],
+                roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
             );
+
+        VaultLifecycleYearn.unwrapYieldToken(
+            withdrawAmount,
+            vaultParams.asset,
+            address(collateralToken),
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
+
+        require(withdrawAmount > 0, "!withdrawAmount");
+
+        VaultLifecycleYearn.transferAsset(
+            WETH,
+            vaultParams.asset,
+            msg.sender,
+            withdrawAmount
+        );
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
         _burn(address(this), withdrawalShares);
-
-        require(withdrawAmount > 0, "!withdrawAmount");
-        transferAsset(msg.sender, withdrawAmount);
     }
 
     /**
@@ -407,21 +422,26 @@ contract RibbonVault is OptionsVaultStorage {
      * @param shares is the number of shares to redeem, could be 0 when isMax=true
      * @param isMax is flag for when callers do a max redemption
      */
+    /**
+     * @notice Redeems shares that are owed to the account
+     * @param shares is the number of shares to redeem, could be 0 when isMax=true
+     * @param isMax is flag for when callers do a max redemption
+     */
     function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint104(shares);
+        ShareMath.assertUint128(shares);
 
-        Vault.DepositReceipt memory depositReceipt =
+        Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        uint16 currentRound = vaultState.round;
-        require(depositReceipt.round < currentRound, "Round not closed");
+        uint256 currentRound = vaultState.round;
+        uint256 receiptRound = depositReceipt.round;
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[depositReceipt.round],
+                roundPricePerShare[receiptRound],
                 vaultParams.decimals
             );
 
@@ -429,14 +449,18 @@ contract RibbonVault is OptionsVaultStorage {
         require(shares > 0, "!shares");
         require(shares <= unredeemedShares, "Exceeds available");
 
-        // This zeroes out any pending amount from depositReceipt
-        depositReceipts[msg.sender].amount = 0;
-        depositReceipts[msg.sender].processed = true;
+        // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
+        // we debit from the unredeemedShares, but leave the amount field intact
+        // If the round has past, with no new deposits, we just zero it out for new deposits.
+        depositReceipts[msg.sender].amount = receiptRound < currentRound
+            ? 0
+            : depositReceipt.amount;
+
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            uint256(unredeemedShares).sub(shares)
+            unredeemedShares.sub(shares)
         );
 
-        emit Redeem(msg.sender, shares, depositReceipt.round);
+        emit Redeem(msg.sender, shares, receiptRound);
 
         _transfer(address(this), msg.sender, shares);
     }
@@ -454,9 +478,9 @@ contract RibbonVault is OptionsVaultStorage {
     function initRounds(uint256 numRounds) external nonReentrant {
         require(numRounds < 52, "numRounds >= 52");
 
-        uint16 _round = vaultState.round;
-        for (uint16 i = 0; i < numRounds; i++) {
-            uint16 index = _round + i;
+        uint256 _round = vaultState.round;
+        for (uint256 i = 0; i < numRounds; i++) {
+            uint256 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = PLACEHOLDER_UINT;
@@ -467,7 +491,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
      * @return newOption is the new option address
-     * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
+     * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
     function _rollToNextOption() internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
@@ -475,32 +499,42 @@ contract RibbonVault is OptionsVaultStorage {
         address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
-        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
-            VaultLifecycle.rollover(
+        (
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount,
+            uint256 newPricePerShare,
+            uint256 mintShares
+        ) =
+            VaultLifecycleYearn.rollover(
                 totalSupply(),
-                vaultParams.asset,
-                vaultParams.decimals,
-                vaultParams.initialSharePrice,
-                uint256(vaultState.totalPending),
-                vaultState.queuedWithdrawShares
+                totalBalance(),
+                vaultParams,
+                vaultState
             );
 
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
 
         // Finalize the pricePerShare at the end of the round
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
 
         vaultState.totalPending = 0;
-        vaultState.round = currentRound + 1;
+        vaultState.round = uint16(currentRound + 1);
+        vaultState.lockedAmount = uint104(lockedBalance);
 
         _mint(address(this), mintShares);
 
-        return (newOption, lockedBalance);
+        // Wrap entire `asset` balance to `collateralToken` balance
+        VaultLifecycleYearn.wrapToYieldToken(
+            vaultParams.asset,
+            address(collateralToken)
+        );
+
+        return (newOption, queuedWithdrawAmount);
     }
 
     /*
@@ -510,35 +544,24 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function _collectVaultFees(uint256 currentLockedBalance)
         internal
-        returns (uint256 vaultFee)
+        returns (uint256)
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 lockedBalanceSansPending =
-            currentLockedBalance.sub(vaultState.totalPending);
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (lockedBalanceSansPending > prevLockedAmount) {
-            uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? lockedBalanceSansPending
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * 10**6)
-                    : 0;
-            uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
-                    : 0;
-
-            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
-        }
+        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
+            VaultLifecycleYearn.getVaultFees(
+                vaultState,
+                currentLockedBalance,
+                performanceFee,
+                managementFee
+            );
 
         if (vaultFee > 0) {
-            transferAsset(payable(feeRecipient), vaultFee);
+            VaultLifecycleYearn.withdrawYieldAndBaseToken(
+                WETH,
+                vaultParams.asset,
+                address(collateralToken),
+                feeRecipient,
+                vaultFee
+            );
             emit CollectVaultFees(
                 performanceFeeInAsset,
                 vaultFee,
@@ -546,22 +569,30 @@ contract RibbonVault is OptionsVaultStorage {
                 feeRecipient
             );
         }
+
+        return vaultFee;
     }
 
-    /**
-     * @notice Helper function to make either an ETH transfer or ERC20 transfer
-     * @param recipient is the receiving address
-     * @param amount is the transfer amount
-     */
-    function transferAsset(address payable recipient, uint256 amount) internal {
-        address asset = vaultParams.asset;
-        if (asset == WETH) {
-            IWETH(WETH).withdraw(amount);
-            (bool success, ) = recipient.call{value: amount}("");
-            require(success, "!success");
-            return;
-        }
-        IERC20(asset).safeTransfer(recipient, amount);
+    /*
+      Upgrades the vault to point to the latest yearn vault for the asset token
+    */
+    function upgradeYearnVault() external onlyOwner {
+        // Unwrap old yvUSDC
+        VaultLifecycleYearn.unwrapYieldToken(
+            collateralToken.balanceOf(address(this)),
+            vaultParams.asset,
+            address(collateralToken),
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
+        _upgradeYearnVault();
+    }
+
+    function _upgradeYearnVault() internal {
+        address collateralAddr =
+            IYearnRegistry(YEARN_REGISTRY).latestVault(vaultParams.asset);
+        require(collateralAddr != address(0), "!collateralToken");
+        collateralToken = IYearnVault(collateralAddr);
     }
 
     /************************************************
@@ -613,7 +644,7 @@ contract RibbonVault is OptionsVaultStorage {
             return (balanceOf(account), 0);
         }
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
@@ -638,8 +669,17 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function totalBalance() public view returns (uint256) {
         return
-            uint256(vaultState.lockedAmount).add(
-                IERC20(vaultParams.asset).balanceOf(address(this))
+            uint256(vaultState.lockedAmount)
+                .add(IERC20(vaultParams.asset).balanceOf(address(this)))
+                .add(
+                DSMath.wmul(
+                    collateralToken.balanceOf(address(this)),
+                    collateralToken.pricePerShare().mul(
+                        VaultLifecycleYearn.decimalShift(
+                            address(collateralToken)
+                        )
+                    )
+                )
             );
     }
 
