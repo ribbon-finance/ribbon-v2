@@ -1315,7 +1315,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
@@ -1600,7 +1599,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
@@ -1767,7 +1765,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          optionsPremiumPricer,
           assetContract,
           userSigner.address,
           defaultOtokenAddress,
