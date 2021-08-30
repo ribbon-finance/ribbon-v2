@@ -8,7 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {DSMath} from "../vendor/DSMath.sol";
 import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {RibbonDeltaVaultStorage} from "../storage/RibbonDeltaVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
@@ -16,7 +16,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
-contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
+contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;

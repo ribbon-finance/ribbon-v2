@@ -7,13 +7,13 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsThetaVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {RibbonThetaVaultStorage} from "../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
-contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
+contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;

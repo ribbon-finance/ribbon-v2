@@ -5,9 +5,17 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {OptionsVaultStorage} from "../../storage/OptionsVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
@@ -18,11 +26,46 @@ import {
     IStrikeSelection,
     IOptionsPremiumPricer
 } from "../../interfaces/IRibbon.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 
-contract RibbonVault is OptionsVaultStorage {
+contract RibbonVault is
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    ERC20Upgradeable
+{
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
+
+    /************************************************
+     *  NON UPGRADEABLE STORAGE
+     ***********************************************/
+
+    /// @notice Stores the user's pending deposit for the round
+    mapping(address => Vault.DepositReceipt) public depositReceipts;
+
+    /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
+    /// This is used to determine the number of shares to be returned
+    /// to a user with their DepositReceipt.depositAmount
+    mapping(uint16 => uint256) public roundPricePerShare;
+
+    /// @notice Stores pending user withdrawals
+    mapping(address => Vault.Withdrawal) public withdrawals;
+
+    Vault.VaultParams public vaultParams;
+
+    Vault.VaultState public vaultState;
+
+    Vault.OptionState public optionState;
+
+    address public feeRecipient;
+
+    uint256 public performanceFee;
+
+    uint256 public managementFee;
+
+    // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
+    uint256[30] private ____gap;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
