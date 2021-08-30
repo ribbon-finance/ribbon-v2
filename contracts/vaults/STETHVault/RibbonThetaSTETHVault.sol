@@ -29,13 +29,13 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
-        address manager
+        address indexed manager
     );
 
     event CloseShort(
         address indexed options,
         uint256 withdrawAmount,
-        address manager
+        address indexed manager
     );
 
     event InstantWithdraw(
@@ -45,10 +45,10 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
     );
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
+        address indexed auctioningToken,
+        address indexed biddingToken,
         uint256 auctionCounter,
-        address manager
+        address indexed manager
     );
 
     /************************************************
