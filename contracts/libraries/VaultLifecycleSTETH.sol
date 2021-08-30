@@ -268,6 +268,12 @@ library VaultLifecycleSTETH {
 
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
+        // The short position has been previously closed, or all the otokens have been burned.
+        // So we return early.
+        if (address(collateralToken) == address(0)) {
+            return 0;
+        }
+
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
