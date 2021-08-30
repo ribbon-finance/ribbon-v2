@@ -198,8 +198,6 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     {
         require(share > 0, "!shares");
 
-        updatePPS(true);
-
         (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
             _withdrawFromNewDeposit(share);
 
