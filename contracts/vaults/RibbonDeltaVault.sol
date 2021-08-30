@@ -16,6 +16,12 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonDeltaVaultStorage.
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, DSMath, RibbonDeltaVaultStorage
+ */
 contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
