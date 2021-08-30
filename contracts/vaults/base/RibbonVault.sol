@@ -52,16 +52,22 @@ contract RibbonVault is
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
 
+    /// @notice Vault's parameters like cap, decimals
     Vault.VaultParams public vaultParams;
 
+    /// @notice Vault's lifecycle state like round and locked amounts
     Vault.VaultState public vaultState;
 
+    /// @notice Vault's state of the options sold and the timelocked option
     Vault.OptionState public optionState;
 
+    /// @notice Fee recipient for the performance and management fees
     address public feeRecipient;
 
+    /// @notice Performance fee charged on premiums earned in rollToNextOption. Only charged when there is no loss.
     uint256 public performanceFee;
 
+    /// @notice Management fee charged on entire AUM in rollToNextOption. Only charged when there is no loss.
     uint256 public managementFee;
 
     // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
