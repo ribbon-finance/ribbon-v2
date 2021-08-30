@@ -1319,6 +1319,19 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
+      beforeEach(async function () {
+        // Deposit only if asset is WETH
+        if (params.depositAsset === WETH_ADDRESS) {
+          const addressToDeposit = [userSigner, ownerSigner, adminSigner];
+
+          for (let i = 0; i < addressToDeposit.length; i++) {
+            const weth = assetContract.connect(addressToDeposit[i]);
+            await weth.deposit({ value: parseEther("10") });
+            await weth.approve(vault.address, parseEther("10"));
+          }
+        }
+      });
+
       it("sets the next option and closes existing short", async function () {
         await assetContract
           .connect(userSigner)
