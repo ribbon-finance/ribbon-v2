@@ -308,13 +308,17 @@ contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
             lockedBalance
         );
 
-        startAuction();
+        _startAuction();
     }
 
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyKeeper {
+    function startAuction() external onlyKeeper nonReentrant {
+        _startAuction();
+    }
+
+    function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         uint256 currOtokenPremium = currentOtokenPremium;
