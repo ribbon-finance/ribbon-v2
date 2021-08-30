@@ -149,8 +149,6 @@ contract RibbonVault is OptionsVaultSTETHStorage {
 
         collateralToken = IWSTETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
-        vaultState.lastLockedAmount = type(uint104).max;
-
         vaultState.round = 1;
     }
 
@@ -572,6 +570,7 @@ contract RibbonVault is OptionsVaultSTETHStorage {
     /**
      * @notice Returns the underlying balance held on the vault for the account
      * @param account is the address to lookup balance for
+     * @return the amount of `asset` custodied by the vault for the user
      */
     function accountVaultBalance(address account)
         external

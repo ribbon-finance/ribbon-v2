@@ -90,6 +90,19 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _keeper is the keeper of the vault with medium permissions (weekly actions)
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param tokenName is the name of the token
+     * @param tokenSymbol is the symbol of the token
+     * @param _optionsPremiumPricer is the address of the contract with the
+       black-scholes premium calculation logic
+     * @param _strikeSelection is the address of the contract with strike selection logic
+     * @param _premiumDiscount is the vault's discount applied to the premium
+     * @param _auctionDuration is the duration of the gnosis auction
+     * @param _vaultParams is the struct with vault general data
      */
     function initialize(
         address _owner,
@@ -179,6 +192,10 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         optionsPremiumPricer = newOptionsPremiumPricer;
     }
 
+    /************************************************
+     *  VAULT OPERATIONS
+     ***********************************************/
+
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
@@ -220,10 +237,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
             amount
         );
     }
-
-    /************************************************
-     *  VAULT OPERATIONS
-     ***********************************************/
 
     /**
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
@@ -267,9 +280,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
         optionState.currentOption = address(0);
 
         uint256 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = lockedAmount > 0
-            ? uint104(lockedAmount)
-            : vaultState.lastLockedAmount;
+        vaultState.lastLockedAmount = uint104(lockedAmount);
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {

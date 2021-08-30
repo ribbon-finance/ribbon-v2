@@ -144,7 +144,6 @@ contract RibbonVault is OptionsVaultYearnStorage {
         performanceFee = _performanceFee;
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
-        vaultState.lastLockedAmount = type(uint104).max;
 
         _upgradeYearnVault();
 
@@ -596,6 +595,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
     /**
      * @notice Returns the underlying balance held on the vault for the account
      * @param account is the address to lookup balance for
+     * @return the amount of `asset` custodied by the vault for the user
      */
     function accountVaultBalance(address account)
         external

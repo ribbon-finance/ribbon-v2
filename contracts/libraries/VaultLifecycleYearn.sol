@@ -37,6 +37,21 @@ library VaultLifecycleYearn {
         uint256 overriddenStrikePrice;
     }
 
+    /**
+     * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
+     * @param strikeSelection is the address of the contract with strike selection logic
+     * @param optionsPremiumPricer is the address of the contract with the
+       black-scholes premium calculation logic
+     * @param premiumDiscount is the vault's discount applied to the premium
+     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param vaultParams is the struct with vault general data
+     * @param vaultState is the struct with vault accounting state
+     * @param collateralAsset is the address of the collateral asset
+     * @return otokenAddress is the address of the new option
+     * @return premium is the premium of the new option
+     * @return strikePrice is the strike price of the new option
+     * @return delta is the delta of the new option
+     */
     function commitAndClose(
         address strikeSelection,
         address optionsPremiumPricer,
@@ -67,6 +82,7 @@ library VaultLifecycleYearn {
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
+        // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverride ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
@@ -74,6 +90,7 @@ library VaultLifecycleYearn {
 
         require(strikePrice != 0, "!strikePrice");
 
+        // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
             closeParams.OTOKEN_FACTORY,
             vaultParams.underlying,
@@ -92,6 +109,8 @@ library VaultLifecycleYearn {
             closeParams.delay
         );
 
+        // get the black scholes premium of the option and adjust premium based on
+        // collateral asset <-> asset exchange rate
         premium = DSMath.wmul(
             GnosisAuction.getOTokenPremium(
                 otokenAddress,
@@ -106,6 +125,14 @@ library VaultLifecycleYearn {
         require(premium > 0, "!premium");
     }
 
+    /**
+     * @notice Verify the otoken has the correct parameters to prevent vulnerability to opyn contract changes
+     * @param otokenAddress is the address of the otoken
+     * @param vaultParams is the struct with vault general data
+     * @param collateralAsset is the address of the collateral asset
+     * @param USDC is the address of usdc
+     * @param delay is the delay between commitAndClose and rollToNextOption
+     */
     function verifyOtoken(
         address otokenAddress,
         Vault.VaultParams calldata vaultParams,
@@ -133,6 +160,18 @@ library VaultLifecycleYearn {
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
 
+    /**
+     * @notice Calculate the shares to mint, new price per share, and
+      amount of funds to re-allocate as collateral for the new round
+     * @param currentSupply is the total supply of shares
+     * @param currentBalance is the total balance of the vault
+     * @param vaultParams is the struct with vault general data
+     * @param vaultState is the struct with vault accounting state
+     * @return newLockedAmount is the amount of funds to allocate for the new round
+     * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
+     * @return newPricePerShare is the price per share of the new round
+     * @return mintShares is the amount of shares to mint from deposits
+     */
     function rollover(
         uint256 currentSupply,
         uint256 currentBalance,
@@ -185,6 +224,14 @@ library VaultLifecycleYearn {
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
+    /**
+     * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
+     * @param gammaController is the address of the opyn controller contract
+     * @param marginPool is the address of the opyn margin contract which holds the collateral
+     * @param oTokenAddress is the address of the otoken to mint
+     * @param depositAmount is the amount of collateral to deposit
+     * @return the otoken mint amount
+     */
     function createShort(
         address gammaController,
         address marginPool,
@@ -240,7 +287,7 @@ library VaultLifecycleYearn {
         actions[0] = IController.ActionArgs(
             IController.ActionType.OpenVault,
             address(this), // owner
-            address(this), // receiver -  we need this contract to receive so we can swap at the end
+            address(this), // receiver
             address(0), // asset, otoken
             newVaultID, // vaultId
             0, // amount
@@ -278,8 +325,10 @@ library VaultLifecycleYearn {
     /**
      * @notice Close the existing short otoken position. Currently this implementation is simple.
      * It closes the most recent vault opened by the contract. This assumes that the contract will
-     * only have a single vault open at any given time. Since calling `closeShort` deletes vaults,
-     * this assumption should hold.
+     * only have a single vault open at any given time. Since calling `_closeShort` deletes vaults by
+     calling SettleVault action, this assumption should hold.
+     * @param gammaController is the address of the opyn controller contract
+     * @return amount of collateral redeemed from the vault
      */
     function settleShort(address gammaController) external returns (uint256) {
         IController controller = IController(gammaController);
@@ -321,50 +370,12 @@ library VaultLifecycleYearn {
     }
 
     /**
-     * @notice Exercises the ITM option using existing long otoken position. Currently this implementation is simple.
-     * It calls the `Redeem` action to claim the payout.
-     */
-    function settleLong(
-        address gammaController,
-        address oldOption,
-        address asset
-    ) external returns (uint256) {
-        IController controller = IController(gammaController);
-
-        uint256 oldOptionBalance = IERC20(oldOption).balanceOf(address(this));
-
-        if (controller.getPayout(oldOption, oldOptionBalance) == 0) {
-            return 0;
-        }
-
-        uint256 startAssetBalance = IERC20(asset).balanceOf(address(this));
-
-        // If it is after expiry, we need to redeem the profits
-        IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](1);
-
-        actions[0] = IController.ActionArgs(
-            IController.ActionType.Redeem,
-            address(0), // not used
-            address(this), // address to send profits to
-            oldOption, // address of otoken
-            0, // not used
-            oldOptionBalance, // otoken balance
-            0, // not used
-            "" // not used
-        );
-
-        controller.operate(actions);
-
-        uint256 endAssetBalance = IERC20(asset).balanceOf(address(this));
-
-        return endAssetBalance.sub(startAssetBalance);
-    }
-
-    /**
      * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
+     * @param gammaController is the address of the opyn controller contract
+     * @param currentOption is the address of the current option
+     * @return amount of collateral redeemed by burning otokens
      */
     function burnOtokens(address gammaController, address currentOption)
         external
@@ -392,7 +403,7 @@ library VaultLifecycleYearn {
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
-        // Burning all otokens that are left from the gnosis auction,
+        // Burning `amount` of oTokens from the ribbon vault,
         // then withdrawing the corresponding collateral amount from the vault
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](2);
@@ -400,7 +411,7 @@ library VaultLifecycleYearn {
         actions[0] = IController.ActionArgs(
             IController.ActionType.BurnShortOption,
             address(this), // owner
-            address(this), // address to transfer to
+            address(this), // address to transfer from
             address(vault.shortOtokens[0]), // otoken address
             vaultID, // vaultId
             numOTokensToBurn, // amount
@@ -428,6 +439,16 @@ library VaultLifecycleYearn {
         return endCollateralBalance.sub(startCollateralBalance);
     }
 
+    /**
+     * @notice Either retrieves the option token if it already exists, or deploy it
+     * @param otokenFactory is the address of the opyn factory contract with option token blueprint
+     * @param underlying is the address of the underlying asset of the option
+     * @param collateralAsset is the address of the collateral asset of the option
+     * @param strikePrice is the strike price of the option
+     * @param expiry is the expiry timestamp of the option
+     * @param isPut is whether the option is a put
+     * @return the address of the option
+     */
     function getOrDeployOtoken(
         address otokenFactory,
         address underlying,
@@ -465,6 +486,11 @@ library VaultLifecycleYearn {
         return otoken;
     }
 
+    /**
+     * @notice Starts the gnosis auction
+     * @param auctionDetails is the struct with all the custom parameters of the auction
+     * @return the auction id of the newly created auction
+     */
     function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
         external
         returns (uint256)
@@ -472,29 +498,16 @@ library VaultLifecycleYearn {
         return GnosisAuction.startAuction(auctionDetails);
     }
 
-    function placeBid(GnosisAuction.BidDetails calldata bidDetails)
-        external
-        returns (
-            uint256,
-            uint256,
-            uint64
-        )
-    {
-        return GnosisAuction.placeBid(bidDetails);
-    }
-
-    function claimAuctionOtokens(
-        Vault.AuctionSellOrder calldata auctionSellOrder,
-        address gnosisEasyAuction,
-        address counterpartyThetaVault
-    ) external {
-        GnosisAuction.claimAuctionOtokens(
-            auctionSellOrder,
-            gnosisEasyAuction,
-            counterpartyThetaVault
-        );
-    }
-
+    /**
+     * @notice Verify the constructor params satisfy requirements
+     * @param owner is the owner of the vault with critical permissions
+     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
+     * @param feeRecipient is the address to recieve vault performance and management fees
+     * @param performanceFee is the perfomance fee pct.
+     * @param tokenName is the name of the token
+     * @param tokenSymbol is the symbol of the token
+     * @param _vaultParams is the struct with vault general data
+     */
     function verifyConstructorParams(
         address owner,
         address keeper,
@@ -562,6 +575,7 @@ library VaultLifecycleYearn {
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @return yieldTokenBalance is the balance of the yield token
      */
     function withdrawYieldToken(
         address collateralToken,
@@ -668,6 +682,16 @@ library VaultLifecycleYearn {
         }
     }
 
+    /**
+     * @notice Calculates the performance and management fee for this week's round
+     * @param vaultState is the struct with vault accounting state
+     * @param currentLockedBalance is the amount of funds currently locked in opyn
+     * @param performanceFeePercent is the performance fee pct.
+     * @param managementFeePercent is the management fee pct.
+     * @return performanceFee is the performance fee
+     * @return managementFee is the management fee
+     * @return vaultFee is the total fees
+     */
     function getVaultFees(
         Vault.VaultState storage vaultState,
         uint256 currentLockedBalance,
