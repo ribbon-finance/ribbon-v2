@@ -318,7 +318,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
+    function setStrikePrice(uint256 strikePrice)
         external
         onlyOwner
         nonReentrant

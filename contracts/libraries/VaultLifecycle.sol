@@ -104,10 +104,10 @@ library VaultLifecycle {
     function rollover(
         uint256 currentSupply,
         address asset,
-        uint8 decimals,
+        uint256 decimals,
         uint256 initialSharePrice,
         uint256 pendingAmount,
-        uint128 queuedWithdrawShares
+        uint256 queuedWithdrawShares
     )
         external
         view
@@ -120,7 +120,7 @@ library VaultLifecycle {
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**uint256(decimals);
+        uint256 singleShare = 10**decimals;
 
         newPricePerShare = getPPS(
             currentSupply,
@@ -139,9 +139,7 @@ library VaultLifecycle {
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? uint256(queuedWithdrawShares).mul(currentBalance).div(
-                    newSupply
-                )
+                ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
                 : 0;
 
         return (

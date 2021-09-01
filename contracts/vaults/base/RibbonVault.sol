@@ -35,7 +35,7 @@ contract RibbonVault is OptionsVaultStorage {
 
     uint256 public constant period = 7 days;
 
-    uint128 internal constant PLACEHOLDER_UINT = 1;
+    uint256 internal constant PLACEHOLDER_UINT = 1;
 
     // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
     // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
@@ -305,7 +305,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param shares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint128 shares) external nonReentrant {
+    function initiateWithdraw(uint256 shares) external nonReentrant {
         require(shares > 0, "!shares");
 
         // We do a max redeem before initiating a withdrawal
@@ -332,7 +332,8 @@ contract RibbonVault is OptionsVaultStorage {
             ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
         } else if (withdrawalShares == 0) {
-            withdrawals[msg.sender].shares = shares;
+            ShareMath.assertUint128(shares);
+            withdrawals[msg.sender].shares = uint128(shares);
             withdrawals[msg.sender].round = uint16(currentRound);
         } else {
             // If we have an old withdrawal, we revert
@@ -404,8 +405,6 @@ contract RibbonVault is OptionsVaultStorage {
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint128(shares);
-
         Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
@@ -428,6 +427,7 @@ contract RibbonVault is OptionsVaultStorage {
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
         depositReceipts[msg.sender].processed = true;
+        ShareMath.assertUint128(shares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
             unredeemedShares.sub(shares)
         );
@@ -568,7 +568,7 @@ contract RibbonVault is OptionsVaultStorage {
         view
         returns (uint256)
     {
-        uint8 decimals = vaultParams.decimals;
+        uint256 decimals = vaultParams.decimals;
         uint256 numShares = shares(account);
         uint256 pps =
             totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
