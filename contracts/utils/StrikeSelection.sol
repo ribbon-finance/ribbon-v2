@@ -90,7 +90,7 @@ contract StrikeSelection is DSMath, Ownable {
         // asset's annualized volatility
         uint256 annualizedVol =
             volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
-                10**(18 - ORACLE_PRICE_DECIMALS)
+                10**10
             );
 
         // For each asset prices with step of 'step' (down if put, up if call)
@@ -102,8 +102,7 @@ contract StrikeSelection is DSMath, Ownable {
             isPut
                 ? assetPrice.sub(assetPrice % step)
                 : assetPrice.add(step - (assetPrice % step));
-        uint256 targetDelta =
-            isPut ? uint256(DELTA_DECIMALS).sub(delta) : delta;
+        uint256 targetDelta = isPut ? DELTA_DECIMALS.sub(delta) : delta;
         uint256 prevDelta = DELTA_DECIMALS;
 
         while (true) {
