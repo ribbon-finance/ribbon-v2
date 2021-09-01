@@ -31,6 +31,9 @@ contract StrikeSelection is DSMath, Ownable {
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
 
+    // ChainLink's USD Price oracles return results in 8 decimal places
+    uint256 private constant ORACLE_PRICE_DECIMALS = 10**8;
+
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
 
@@ -102,7 +105,9 @@ contract StrikeSelection is DSMath, Ownable {
         while (true) {
             uint256 currDelta =
                 optionsPremiumPricer.getOptionDelta(
-                    assetPrice.mul(10**8).div(assetOracleMultiplier),
+                    assetPrice.mul(ORACLE_PRICE_DECIMALS).div(
+                        assetOracleMultiplier
+                    ),
                     strike,
                     annualizedVol,
                     expiryTimestamp
@@ -127,7 +132,9 @@ contract StrikeSelection is DSMath, Ownable {
                 );
                 // make decimals consistent with oToken strike price decimals (10 ** 8)
                 return (
-                    finalStrike.mul(10**8).div(assetOracleMultiplier),
+                    finalStrike.mul(ORACLE_PRICE_DECIMALS).div(
+                        assetOracleMultiplier
+                    ),
                     finalDelta
                 );
             }

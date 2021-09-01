@@ -28,17 +28,30 @@ contract RibbonVault is OptionsVaultStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
+    /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     address public immutable WETH;
+
+    /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
 
+    /// @notice 1 hour timelock between commitAndClose and rollToNexOption.
+    /// 1 hour period allows vault depositors to leave.
     uint256 public constant delay = 1 hours;
 
+    /// @notice 7 day period between each options sale.
     uint256 public constant period = 7 days;
 
+    // Fees are 6-decimal places. For example: 20 * 10**6 = 20%
+    uint256 internal constant FEE_DECIMALS = 10**6;
+
+    // Premium discount is 4-decimal places. For example: 80 * 10**4 = 80%. Which represents a 20% discount.
+    uint256 internal constant PREMIUM_DISCOUNT_DECIMALS = 10**4;
+
+    // Placeholder value used to stuff storage to avoid cold storage writes.
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
-    // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
-    // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
+    // Number of weeks per year = 52.142857 weeks * FEE_DECIMALS = 52142857
+    // Dividing by weeks per year requires doing num.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
@@ -139,7 +152,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
+        managementFee = _managementFee.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
         vaultState.lastLockedAmount = uint104(
             IERC20(vaultParams.asset).balanceOf(address(this))
@@ -166,12 +179,15 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(newManagementFee < 100 * 10**6, "Invalid management fee");
+        require(
+            newManagementFee < 100 * FEE_DECIMALS,
+            "Invalid management fee"
+        );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.mul(10**6).div(WEEKS_PER_YEAR);
+        managementFee = newManagementFee.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR);
     }
 
     /**
@@ -179,7 +195,10 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
+        require(
+            newPerformanceFee < 100 * FEE_DECIMALS,
+            "Invalid performance fee"
+        );
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
 
@@ -447,7 +466,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @param numRounds is the number of rounds to initialize in the map
      */
     function initRounds(uint256 numRounds) external nonReentrant {
-        require(numRounds < 52, "numRounds >= 52");
+        require(numRounds > 0, "!numRounds");
 
         uint16 _round = vaultState.round;
         for (uint16 i = 0; i < numRounds; i++) {
@@ -522,11 +541,13 @@ contract RibbonVault is OptionsVaultStorage {
                     ? lockedBalanceSansPending
                         .sub(prevLockedAmount)
                         .mul(performanceFee)
-                        .div(100 * 10**6)
+                        .div(100 * FEE_DECIMALS)
                     : 0;
             uint256 managementFeeInAsset =
                 managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(100 * 10**6)
+                    ? currentLockedBalance.mul(managementFee).div(
+                        100 * FEE_DECIMALS
+                    )
                     : 0;
 
             vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
