@@ -376,7 +376,7 @@ contract RibbonVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param shares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint128 shares) external nonReentrant {
+    function initiateWithdraw(uint256 shares) external nonReentrant {
         require(shares > 0, "!shares");
 
         // We do a max redeem before initiating a withdrawal
@@ -472,8 +472,6 @@ contract RibbonVault is
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint128(shares);
-
         Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
@@ -496,6 +494,7 @@ contract RibbonVault is
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
         depositReceipts[msg.sender].processed = true;
+        ShareMath.assertUint128(shares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
             unredeemedShares.sub(shares)
         );
@@ -651,7 +650,7 @@ contract RibbonVault is
         view
         returns (uint256)
     {
-        uint8 decimals = vaultParams.decimals;
+        uint256 decimals = vaultParams.decimals;
         uint256 numShares = shares(account);
         uint256 pps =
             totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
