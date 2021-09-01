@@ -166,7 +166,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new % allocation of funds towards options purchases ( 3 decimals. ex: 55 * 10 ** 2 is 55%)
+     * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 55 * 10 ** 2 is 55%)
      * @param newOptionAllocationPct is the option % allocation
      */
     function setOptionAllocation(uint16 newOptionAllocationPct)
