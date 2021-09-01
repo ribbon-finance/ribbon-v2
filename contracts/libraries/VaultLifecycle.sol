@@ -610,6 +610,7 @@ library VaultLifecycle {
         address owner,
         address feeRecipient,
         uint256 performanceFee,
+        uint256 managementFee,
         string calldata tokenName,
         string calldata tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -628,6 +629,10 @@ library VaultLifecycle {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
+        require(
+            _vaultParams.minimumSupply > _vaultParams.cap,
+            "minimumSupply has to be higher than cap"
+        );
     }
 
     /**
