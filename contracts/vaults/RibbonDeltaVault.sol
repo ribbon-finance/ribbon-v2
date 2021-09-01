@@ -117,8 +117,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                 vaultParams.asset,
             "!_counterpartyThetaVault: asset"
         );
+        // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocationPct > 0 && _optionAllocationPct < 10000,
+            _optionAllocationPct > 0 && _optionAllocationPct < 1000,
             "!_optionAllocationPct"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
