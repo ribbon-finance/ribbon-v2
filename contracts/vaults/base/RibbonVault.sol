@@ -650,12 +650,20 @@ contract RibbonVault is
         returns (uint256)
     {
         uint256 _decimals = vaultParams.decimals;
-        uint256 numShares = shares(account);
         uint256 pps =
-            totalBalance().sub(vaultState.totalPending).mul(10**_decimals).div(
-                totalSupply()
+            ShareMath.pricePerShare(
+                totalSupply(),
+                totalBalance(),
+                vaultState.totalPending,
+                _decimals
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, _decimals);
+
+        return
+            ShareMath.sharesToUnderlying(
+                shares(account),
+                pps,
+                uint8(_decimals)
+            );
     }
 
     /**
@@ -699,9 +707,13 @@ contract RibbonVault is
      * @notice The price of a unit of share denominated in the `collateral`
      */
     function pricePerShare() external view returns (uint256) {
-        uint256 balance = totalBalance().sub(vaultState.totalPending);
         return
-            (10**uint256(vaultParams.decimals)).mul(balance).div(totalSupply());
+            ShareMath.pricePerShare(
+                totalSupply(),
+                totalBalance(),
+                vaultState.totalPending,
+                vaultParams.decimals
+            );
     }
 
     /**
