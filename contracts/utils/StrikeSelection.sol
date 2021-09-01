@@ -160,8 +160,8 @@ contract StrikeSelection is DSMath, Ownable {
                 ? prevDelta
                 : currDelta;
         } else {
-            uint256 upperBoundDiff = currDelta.sub(targetDelta);
-            uint256 lowerBoundDiff = targetDelta.sub(prevDelta);
+            uint256 upperBoundDiff = prevDelta.sub(targetDelta);
+            uint256 lowerBoundDiff = targetDelta.sub(currDelta);
             finalDelta = lowerBoundDiff <= upperBoundDiff
                 ? currDelta
                 : prevDelta;

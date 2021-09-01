@@ -326,7 +326,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         uint256 existingShares = uint256(withdrawal.shares);
 
-        require(!topup && existingShares == 0, "Existing withdraw");
+        require(!topup && existingShares != 0, "Existing withdraw");
 
         uint256 withdrawalShares;
         if (topup) {
