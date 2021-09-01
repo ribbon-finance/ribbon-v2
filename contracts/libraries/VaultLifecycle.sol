@@ -23,9 +23,6 @@ library VaultLifecycle {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
 
-    // Fees are 6-decimal places. For example: 20 * 10**6 = 20%
-    uint256 internal constant FEE_DECIMALS = 10**6;
-
     struct CloseParams {
         address OTOKEN_FACTORY;
         address USDC;
