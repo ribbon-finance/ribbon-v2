@@ -66,6 +66,21 @@ library ShareMath {
         return depositReceipt.unredeemedShares;
     }
 
+    function pricePerShare(
+        uint256 totalSupply,
+        uint256 totalBalance,
+        uint256 pendingAmount,
+        uint256 decimals
+    ) internal pure returns (uint256) {
+        uint256 singleShare = 10**decimals;
+        return
+            totalSupply > 0
+                ? singleShare.mul(totalBalance.sub(pendingAmount)).div(
+                    totalSupply
+                )
+                : singleShare;
+    }
+
     /************************************************
      *  HELPERS
      ***********************************************/

@@ -159,28 +159,33 @@ library VaultLifecycle {
         )
     {
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
-        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**decimals;
-
-        newPricePerShare = getPPS(
+        newPricePerShare = ShareMath.pricePerShare(
             currentSupply,
-            roundStartBalance,
-            singleShare,
-            initialSharePrice
+            currentBalance,
+            pendingAmount,
+            decimals
         );
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            pendingAmount.mul(singleShare).div(newPricePerShare);
+            ShareMath.underlyingToShares(
+                pendingAmount,
+                newPricePerShare,
+                decimals
+            );
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
+                ? ShareMath.sharesToUnderlying(
+                    queuedWithdrawShares,
+                    newPricePerShare,
+                    decimals
+                )
                 : 0;
 
         return (
@@ -656,16 +661,5 @@ library VaultLifecycle {
             friday8am += 7 days;
         }
         return friday8am;
-    }
-
-    function getPPS(
-        uint256 currentSupply,
-        uint256 roundStartBalance,
-        uint256 singleShare,
-        uint256 initialSharePrice
-    ) internal pure returns (uint256 newPricePerShare) {
-        newPricePerShare = currentSupply > 0
-            ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : initialSharePrice;
     }
 }
