@@ -31,6 +31,9 @@ contract StrikeSelection is DSMath, Ownable {
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
 
+    // Delta are in 4 decimal places. 1 * 10**4 = 1 delta.
+    uint256 private constant DELTA_DECIMALS = 10**4;
+
     // ChainLink's USD Price oracles return results in 8 decimal places
     uint256 private constant ORACLE_PRICE_DECIMALS = 10**8;
 
@@ -87,7 +90,7 @@ contract StrikeSelection is DSMath, Ownable {
         // asset's annualized volatility
         uint256 annualizedVol =
             volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
-                10**10
+                10**(18 - ORACLE_PRICE_DECIMALS)
             );
 
         // For each asset prices with step of 'step' (down if put, up if call)
@@ -99,8 +102,9 @@ contract StrikeSelection is DSMath, Ownable {
             isPut
                 ? assetPrice.sub(assetPrice % step)
                 : assetPrice.add(step - (assetPrice % step));
-        uint256 targetDelta = isPut ? uint256(10000).sub(delta) : delta;
-        uint256 prevDelta = 10000;
+        uint256 targetDelta =
+            isPut ? uint256(DELTA_DECIMALS).sub(delta) : delta;
+        uint256 prevDelta = DELTA_DECIMALS;
 
         while (true) {
             uint256 currDelta =
