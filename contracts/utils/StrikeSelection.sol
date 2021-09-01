@@ -93,7 +93,7 @@ contract StrikeSelection is Ownable {
         // asset's annualized volatility
         uint256 annualizedVol =
             volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
-                10**(18 - ORACLE_PRICE_DECIMALS)
+                10**10
             );
 
         // For each asset prices with step of 'step' (down if put, up if call)
