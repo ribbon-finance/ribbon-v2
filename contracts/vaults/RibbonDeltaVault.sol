@@ -282,7 +282,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = balanceBeforePremium;
+        vaultState.lastLockedAmount = uint104(balanceBeforePremium);
 
         // redeem
         if (oldOption != address(0)) {

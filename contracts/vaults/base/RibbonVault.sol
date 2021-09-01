@@ -342,7 +342,7 @@ contract RibbonVault is
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
@@ -351,7 +351,6 @@ contract RibbonVault is
 
         uint256 depositAmount = amount;
 
-        uint256 depositAmount = uint104(amount);
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
             uint256 newAmount = uint256(depositReceipt.amount).add(amount);
@@ -364,7 +363,7 @@ contract RibbonVault is
             processed: false,
             round: uint16(currentRound),
             amount: uint104(depositAmount),
-            unredeemedShares: unredeemedShares
+            unredeemedShares: uint128(unredeemedShares)
         });
 
         uint256 newTotalPending = uint256(vaultState.totalPending).add(amount);
@@ -473,7 +472,7 @@ contract RibbonVault is
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint104(shares);
+        ShareMath.assertUint128(shares);
 
         Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
@@ -483,7 +482,7 @@ contract RibbonVault is
         uint16 currentRound = vaultState.round;
         require(depositReceipt.round < currentRound, "Round not closed");
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
                 roundPricePerShare[depositReceipt.round],
@@ -498,7 +497,7 @@ contract RibbonVault is
         depositReceipts[msg.sender].amount = 0;
         depositReceipts[msg.sender].processed = true;
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            uint256(unredeemedShares).sub(shares)
+            unredeemedShares.sub(shares)
         );
 
         emit Redeem(msg.sender, shares, depositReceipt.round);
@@ -688,7 +687,7 @@ contract RibbonVault is
             return (balanceOf(account), 0);
         }
 
-        uint128 unredeemedShares =
+        uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 vaultState.round,
                 roundPricePerShare[depositReceipt.round],
