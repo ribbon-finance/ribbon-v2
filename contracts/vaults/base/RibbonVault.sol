@@ -44,8 +44,8 @@ contract RibbonVault is OptionsVaultStorage {
     // Fees are 6-decimal places. For example: 20 * 10**6 = 20%
     uint256 internal constant FEE_DECIMALS = 10**6;
 
-    // Premium discount is 4-decimal places. For example: 80 * 10**4 = 80%. Which represents a 20% discount.
-    uint256 internal constant PREMIUM_DISCOUNT_DECIMALS = 10**4;
+    // Premium discount has 1-decimal place. For example: 80 * 10**1 = 80%. Which represents a 20% discount.
+    uint256 internal constant PREMIUM_DISCOUNT_DECIMALS = 10;
 
     // Placeholder value used to stuff storage to avoid cold storage writes.
     uint128 internal constant PLACEHOLDER_UINT = 1;
