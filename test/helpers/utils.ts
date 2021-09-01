@@ -282,7 +282,6 @@ export async function mintToken(
 
 export async function bidForOToken(
   gnosisAuction: Contract,
-  optionsPremiumPricer: Contract,
   assetContract: Contract,
   contractSigner: string,
   oToken: string,
