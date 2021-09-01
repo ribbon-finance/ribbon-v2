@@ -16,9 +16,6 @@ library GnosisAuction {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    // Otokens have 8 decimal places.
-    uint256 private constant OTOKEN_DECIMALS = 10**8;
-
     event InitiateGnosisAuction(
         address indexed auctioningToken,
         address indexed biddingToken,
