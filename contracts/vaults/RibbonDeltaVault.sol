@@ -341,7 +341,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             // Subtraction underflow checks already ensure it is smaller than uint104
             depositReceipt.amount = uint104(
                 ShareMath.sharesToUnderlying(
-                    uint256(receiptShares).sub(sharesWithdrawn),
+                    receiptShares.sub(sharesWithdrawn),
                     roundPricePerShare[depositReceipt.round],
                     vaultParams.decimals
                 )
