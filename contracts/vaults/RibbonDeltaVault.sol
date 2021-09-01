@@ -142,17 +142,11 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             !isWithdraw ||
             roundPricePerShare[vaultState.round] <= PLACEHOLDER_UINT
         ) {
-            uint256 pendingAmount = uint256(vaultState.totalPending);
-            uint256 currentBalance =
-                IERC20(vaultParams.asset).balanceOf(address(this));
-            uint256 roundStartBalance = currentBalance.sub(pendingAmount);
-
-            uint256 singleShare = 10**uint256(vaultParams.decimals);
-            roundPricePerShare[vaultState.round] = VaultLifecycle.getPPS(
+            roundPricePerShare[vaultState.round] = ShareMath.pricePerShare(
                 totalSupply(),
-                roundStartBalance,
-                singleShare,
-                vaultParams.initialSharePrice
+                IERC20(vaultParams.asset).balanceOf(address(this)),
+                vaultState.totalPending,
+                vaultParams.decimals
             );
         }
 
