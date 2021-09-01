@@ -25,6 +25,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
+    uint256 private constant OPTION_ALLOCATION_DECIMALS = 10**2;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -118,7 +120,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             "!_counterpartyThetaVault: asset"
         );
         require(
-            _optionAllocationPct > 0 && _optionAllocationPct < 10000,
+            _optionAllocationPct > 0 &&
+                _optionAllocationPct < 10 * OPTION_ALLOCATION_DECIMALS,
             "!_optionAllocationPct"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
@@ -175,7 +178,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocationPct > 0 && newOptionAllocationPct < 1000,
+            newOptionAllocationPct > 0 &&
+                newOptionAllocationPct < 10 * OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 
