@@ -131,7 +131,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         require(_strikeSelection != address(0), "!_strikeSelection");
         require(
             _premiumDiscount > 0 &&
-                _premiumDiscount < 100 * PREMIUM_DISCOUNT_DECIMALS,
+                _premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
             "!_premiumDiscount"
         );
         require(_auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
@@ -152,7 +152,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 &&
-                newPremiumDiscount < 100 * PREMIUM_DISCOUNT_DECIMALS,
+                newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
             "Invalid discount"
         );
 

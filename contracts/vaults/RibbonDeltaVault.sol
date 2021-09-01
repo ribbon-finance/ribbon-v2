@@ -22,12 +22,6 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     using ShareMath for Vault.DepositReceipt;
 
     /************************************************
-     *  IMMUTABLES & CONSTANTS
-     ***********************************************/
-
-    uint256 private constant OPTION_ALLOCATION_DECIMALS = 10**2;
-
-    /************************************************
      *  EVENTS
      ***********************************************/
 
@@ -121,7 +115,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         );
         require(
             _optionAllocationPct > 0 &&
-                _optionAllocationPct < 10 * OPTION_ALLOCATION_DECIMALS,
+                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "!_optionAllocationPct"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
@@ -179,7 +173,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         // Needs to be less than 10%
         require(
             newOptionAllocationPct > 0 &&
-                newOptionAllocationPct < 10 * OPTION_ALLOCATION_DECIMALS,
+                newOptionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 

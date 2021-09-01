@@ -41,12 +41,6 @@ contract RibbonVault is OptionsVaultStorage {
     /// @notice 7 day period between each options sale.
     uint256 public constant period = 7 days;
 
-    // Fees are 6-decimal places. For example: 20 * 10**6 = 20%
-    uint256 internal constant FEE_DECIMALS = 10**6;
-
-    // Premium discount has 1-decimal place. For example: 80 * 10**1 = 80%. Which represents a 20% discount.
-    uint256 internal constant PREMIUM_DISCOUNT_DECIMALS = 10;
-
     // Placeholder value used to stuff storage to avoid cold storage writes.
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
@@ -152,7 +146,9 @@ contract RibbonVault is OptionsVaultStorage {
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR);
+        managementFee = _managementFee.mul(Vault.FEE_DECIMALS).div(
+            WEEKS_PER_YEAR
+        );
         vaultParams = _vaultParams;
         vaultState.lastLockedAmount = uint104(
             IERC20(vaultParams.asset).balanceOf(address(this))
@@ -180,14 +176,16 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(
-            newManagementFee < 100 * FEE_DECIMALS,
+            newManagementFee < 100 * Vault.FEE_DECIMALS,
             "Invalid management fee"
         );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR);
+        managementFee = newManagementFee.mul(Vault.FEE_DECIMALS).div(
+            WEEKS_PER_YEAR
+        );
     }
 
     /**
@@ -196,7 +194,7 @@ contract RibbonVault is OptionsVaultStorage {
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(
-            newPerformanceFee < 100 * FEE_DECIMALS,
+            newPerformanceFee < 100 * Vault.FEE_DECIMALS,
             "Invalid performance fee"
         );
 
@@ -541,12 +539,12 @@ contract RibbonVault is OptionsVaultStorage {
                     ? lockedBalanceSansPending
                         .sub(prevLockedAmount)
                         .mul(performanceFee)
-                        .div(100 * FEE_DECIMALS)
+                        .div(100 * Vault.FEE_DECIMALS)
                     : 0;
             uint256 managementFeeInAsset =
                 managementFee > 0
                     ? currentLockedBalance.mul(managementFee).div(
-                        100 * FEE_DECIMALS
+                        100 * Vault.FEE_DECIMALS
                     )
                     : 0;
 

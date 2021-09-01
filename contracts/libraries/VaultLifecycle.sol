@@ -26,9 +26,6 @@ library VaultLifecycle {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
 
-    // Fees are 6-decimal places. For example: 20 * 10**6 = 20%
-    uint256 internal constant FEE_DECIMALS = 10**6;
-
     struct CloseParams {
         address OTOKEN_FACTORY;
         address USDC;
@@ -473,7 +470,10 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
-        require(performanceFee < 100 * FEE_DECIMALS, "performanceFee >= 100%");
+        require(
+            performanceFee < 100 * Vault.FEE_DECIMALS,
+            "performanceFee >= 100%"
+        );
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 

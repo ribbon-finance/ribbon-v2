@@ -15,9 +15,6 @@ library GnosisAuction {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    // Otokens have 8 decimal places.
-    uint256 private constant OTOKEN_DECIMALS = 10**8;
-
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
@@ -124,14 +121,14 @@ library GnosisAuction {
         sellAmount = bidDetails
             .lockedBalance
             .mul(bidDetails.optionAllocationPct)
-            .div(10000);
+            .div(100 * Vault.OPTION_ALLOCATION_DECIMALS);
 
         // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
         buyAmount = sellAmount
             .mul(10**bidDetails.assetDecimals)
             .div(bidDetails.optionPremium)
-            .mul(OTOKEN_DECIMALS)
+            .mul(Vault.OTOKEN_DECIMALS)
             .div(10**bidDetails.assetDecimals);
 
         require(
@@ -229,7 +226,9 @@ library GnosisAuction {
         );
 
         // Apply a discount to incentivize arbitraguers
-        optionPremium = optionPremium.mul(premiumDiscount).div(1000);
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            Vault.OPTION_ALLOCATION_DECIMALS
+        );
 
         require(
             optionPremium <= type(uint96).max,
