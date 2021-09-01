@@ -514,12 +514,25 @@ library VaultLifecycleSTETH {
         address recipient,
         uint256 amount
     ) external returns (uint256 withdrawAmount) {
-        withdrawAmount = IWSTETH(collateralToken).getWstETHByStETH(amount);
+        IWSTETH collateral = IWSTETH(collateralToken);
+
+        withdrawAmount = collateral.getWstETHByStETH(amount);
 
         uint256 yieldTokenBalance =
             withdrawYieldToken(collateralToken, recipient, withdrawAmount);
 
-        // If there is not enough stETH in the vault, it withdraws as much as possible and
+        // If there is not enough wstETH in the vault, it withdraws as much as possible steth
+        if (withdrawAmount > yieldTokenBalance) {
+            yieldTokenBalance = yieldTokenBalance.add(
+                withdrawYieldToken(
+                    collateral.stETH(),
+                    recipient,
+                    withdrawAmount.sub(yieldTokenBalance)
+                )
+            );
+        }
+
+        // If there is not enough stETH or wstETH in the vault, it withdraws as much as possible and
         // transfers the rest in `asset`
         if (withdrawAmount > yieldTokenBalance) {
             withdrawBaseToken(
