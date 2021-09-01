@@ -22,7 +22,7 @@ contract StrikeSelection is Ownable {
 
     IVolatilityOracle public immutable volatilityOracle;
 
-    // delta for options strike price selection. 1 is 10000 (10**5)
+    // delta for options strike price selection. 1 is 10000 (10**4)
     uint256 public delta;
 
     // step in absolute terms at which we will increment
@@ -48,7 +48,7 @@ contract StrikeSelection is Ownable {
     ) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(_delta > 0, "!_delta");
-        require(_delta < 10**5, "newDelta cannot be more than 1");
+        require(_delta <= DELTA_DECIMALS, "newDelta cannot be more than 1");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
         volatilityOracle = IVolatilityOracle(
