@@ -249,11 +249,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         require(amount > 0, "!amount");
         require(depositReceipt.round == currentRound, "Invalid round");
 
-        uint104 receiptAmount = depositReceipt.amount;
+        uint256 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
+        depositReceipt.amount = uint104(receiptAmount.sub(amount));
         vaultState.totalPending = uint128(
             uint256(vaultState.totalPending).sub(amount)
         );
@@ -316,8 +316,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
+
         uint256 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = uint104(lockedAmount);
+        vaultState.lastLockedAmount = lockedAmount > 0
+            ? uint104(lockedAmount)
+            : vaultState.lastLockedAmount;
+
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {

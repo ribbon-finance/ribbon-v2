@@ -13,35 +13,29 @@ library ShareMath {
     function underlyingToShares(
         uint256 underlyingAmount,
         uint256 pps,
-        uint8 decimals
-    ) internal pure returns (uint104) {
-        // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
-        // which should never happen.
-        // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(pps > PLACEHOLDER_UINT, "Invalid pps");
-
-        uint256 shares =
-            uint256(underlyingAmount).mul(10**uint256(decimals)).div(pps);
-        assertUint104(shares);
-
-        return uint104(shares);
-    }
-
-    function sharesToUnderlying(
-        uint256 shares,
-        uint256 pps,
-        uint8 decimals
+        uint256 decimals
     ) internal pure returns (uint256) {
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        uint256 underlyingAmount =
-            uint256(shares).mul(pps).div(10**uint256(decimals));
-        assertUint104(shares);
+        uint256 shares = uint256(underlyingAmount).mul(10**decimals).div(pps);
 
-        return underlyingAmount;
+        return shares;
+    }
+
+    function sharesToUnderlying(
+        uint256 shares,
+        uint256 pps,
+        uint256 decimals
+    ) internal pure returns (uint256) {
+        // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
+        // which should never happen.
+        // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
+        require(pps > PLACEHOLDER_UINT, "Invalid pps");
+
+        return shares.mul(pps).div(10**decimals);
     }
 
     /**
@@ -56,8 +50,8 @@ library ShareMath {
         Vault.DepositReceipt memory depositReceipt,
         uint256 currentRound,
         uint256 pps,
-        uint8 decimals
-    ) internal pure returns (uint128 unredeemedShares) {
+        uint256 decimals
+    ) internal pure returns (uint256 unredeemedShares) {
         if (
             depositReceipt.round > 0 &&
             depositReceipt.round < currentRound &&
@@ -66,10 +60,10 @@ library ShareMath {
             uint256 sharesFromRound =
                 underlyingToShares(depositReceipt.amount, pps, decimals);
 
-            uint256 unredeemedShares256 =
+            return
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
         }
-            return depositReceipt.unredeemedShares;
+        return depositReceipt.unredeemedShares;
     }
 
     /************************************************
