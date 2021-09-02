@@ -227,7 +227,7 @@ library GnosisAuction {
 
         // Apply a discount to incentivize arbitraguers
         optionPremium = optionPremium.mul(premiumDiscount).div(
-            Vault.OPTION_ALLOCATION_DECIMALS
+            100 * Vault.PREMIUM_DISCOUNT_DECIMALS
         );
 
         require(
