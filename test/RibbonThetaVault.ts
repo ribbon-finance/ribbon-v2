@@ -2505,7 +2505,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           await expect(tx)
             .to.emit(collateralERC20, "Transfer")
-            .withArgs(vault.address, user, depositAmount);
+            .withArgs(vault.address, user, withdrawAmount);
         }
 
         const { shares, round } = await vault.withdrawals(user);
