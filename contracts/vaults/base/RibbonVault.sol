@@ -141,9 +141,11 @@ contract RibbonVault is OptionsVaultStorage {
         performanceFee = _performanceFee;
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
-        vaultState.lastLockedAmount = uint104(
-            IERC20(vaultParams.asset).balanceOf(address(this))
-        );
+
+        uint256 assetBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+        ShareMath.assertUint104(assetBalance);
+        vaultState.lastLockedAmount = uint104(assetBalance);
 
         vaultState.round = 1;
     }
@@ -295,9 +297,10 @@ contract RibbonVault is OptionsVaultStorage {
             unredeemedShares: unredeemedShares
         });
 
-        vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).add(amount)
-        );
+        uint256 newTotalPending = uint256(vaultState.totalPending).add(amount);
+        ShareMath.assertUint128(newTotalPending);
+
+        vaultState.totalPending = uint128(newTotalPending);
     }
 
     /**
@@ -339,9 +342,10 @@ contract RibbonVault is OptionsVaultStorage {
             revert("Existing withdraw");
         }
 
-        vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).add(shares)
-        );
+        uint256 newQueuedWithdrawShares =
+            uint256(vaultState.queuedWithdrawShares).add(shares);
+        ShareMath.assertUint128(newQueuedWithdrawShares);
+        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
         _transfer(msg.sender, address(this), shares);
     }
