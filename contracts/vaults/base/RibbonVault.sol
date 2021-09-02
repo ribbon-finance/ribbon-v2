@@ -422,7 +422,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         numShares = isMax ? unredeemedShares : numShares;
         require(numShares > 0, "!shares");
-        require(numShares <= numShares, "Exceeds available");
+        require(numShares <= unredeemedShares, "Exceeds available");
 
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
