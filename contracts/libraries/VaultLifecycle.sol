@@ -164,6 +164,8 @@ library VaultLifecycle {
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IOtoken oToken = IOtoken(oTokenAddress);
         address collateralAsset = oToken.collateralAsset();
 
@@ -263,8 +265,11 @@ library VaultLifecycle {
 
         require(vault.shortOtokens.length > 0, "No short");
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
+        // This is equivalent to doing IERC20(vault.asset).balanceOf(address(this))
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
