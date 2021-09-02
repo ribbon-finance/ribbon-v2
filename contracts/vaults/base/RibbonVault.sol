@@ -568,13 +568,13 @@ contract RibbonVault is OptionsVaultStorage {
         view
         returns (uint256)
     {
-        uint256 decimals = vaultParams.decimals;
+        uint256 _decimals = vaultParams.decimals;
         uint256 numShares = shares(account);
         uint256 pps =
-            totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
+            totalBalance().sub(vaultState.totalPending).mul(10**_decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToUnderlying(numShares, pps, _decimals);
     }
 
     /**
