@@ -10,8 +10,8 @@ library ShareMath {
 
     uint256 constant PLACEHOLDER_UINT = 1;
 
-    function underlyingToShares(
-        uint256 underlyingAmount,
+    function assetToShares(
+        uint256 assetAmount,
         uint256 pps,
         uint8 decimals
     ) internal pure returns (uint104) {
@@ -21,13 +21,13 @@ library ShareMath {
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
         uint256 shares =
-            uint256(underlyingAmount).mul(10**uint256(decimals)).div(pps);
+            uint256(assetAmount).mul(10**uint256(decimals)).div(pps);
         assertUint104(shares);
 
         return uint104(shares);
     }
 
-    function sharesToUnderlying(
+    function sharesToAsset(
         uint256 shares,
         uint256 pps,
         uint8 decimals
@@ -37,19 +37,19 @@ library ShareMath {
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(pps > PLACEHOLDER_UINT, "Invalid pps");
 
-        uint256 underlyingAmount =
+        uint256 assetAmount =
             uint256(shares).mul(pps).div(10**uint256(decimals));
         assertUint104(shares);
 
-        return underlyingAmount;
+        return assetAmount;
     }
 
     /**
      * @notice Returns the shares unredeemed by the user given their DepositReceipt
      * @param depositReceipt is the user's deposit receipt
      * @param currentRound is the `round` stored on the vault
-     * @param pps is the price in underlying per share
-     * @param decimals is the number of decimals the underlying/shares use
+     * @param pps is the price in asset per share
+     * @param decimals is the number of decimals the asset/shares use
      * @return unredeemedShares is the user's virtual balance of shares that are owed
      */
     function getSharesFromReceipt(
@@ -64,7 +64,7 @@ library ShareMath {
             !depositReceipt.processed
         ) {
             uint256 sharesFromRound =
-                underlyingToShares(depositReceipt.amount, pps, decimals);
+                assetToShares(depositReceipt.amount, pps, decimals);
 
             assertUint104(sharesFromRound);
 

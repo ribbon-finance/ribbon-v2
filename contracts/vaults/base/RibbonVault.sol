@@ -421,7 +421,7 @@ contract RibbonVault is
         );
 
         uint256 withdrawAmount =
-            ShareMath.sharesToUnderlying(
+            ShareMath.sharesToAsset(
                 withdrawalShares,
                 roundPricePerShare[uint16(withdrawalRound)],
                 vaultParams.decimals
@@ -613,7 +613,7 @@ contract RibbonVault is
      ***********************************************/
 
     /**
-     * @notice Returns the underlying balance held on the vault for the account
+     * @notice Returns the asset balance held on the vault for the account
      * @param account is the address to lookup balance for
      */
     function accountVaultBalance(address account)
@@ -627,7 +627,7 @@ contract RibbonVault is
             totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToAsset(numShares, pps, decimals);
     }
 
     /**
@@ -668,7 +668,7 @@ contract RibbonVault is
     }
 
     /**
-     * @notice The price of a unit of share denominated in the `collateral`
+     * @notice The price of a unit of share denominated in the `asset`
      */
     function pricePerShare() external view returns (uint256) {
         uint256 balance = totalBalance().sub(vaultState.totalPending);

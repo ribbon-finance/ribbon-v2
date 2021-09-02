@@ -38,7 +38,7 @@ library Vault {
         // used for calculating performance fee deduction
         uint104 lastLockedAmount;
         // 32 byte slot 2
-        // Stores the total tally of how much of collateral there is
+        // Stores the total tally of how much of `asset` there is
         // to be used to mint rTHETA tokens
         uint128 totalPending;
         // Amount locked for scheduled withdrawals;
