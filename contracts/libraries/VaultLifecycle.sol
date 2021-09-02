@@ -630,8 +630,8 @@ library VaultLifecycle {
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
         require(
-            _vaultParams.minimumSupply > _vaultParams.cap,
-            "minimumSupply has to be higher than cap"
+            _vaultParams.cap > _vaultParams.minimumSupply,
+            "cap has to be higher than minimumSupply"
         );
     }
 
