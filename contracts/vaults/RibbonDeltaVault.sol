@@ -96,7 +96,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         string memory _tokenName,
         string memory _tokenSymbol,
         address _counterpartyThetaVault,
-        uint256 _optionAllocationPct,
+        uint256 _optionAllocation,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -118,11 +118,11 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             "!_counterpartyThetaVault: asset"
         );
         require(
-            _optionAllocationPct > 0 && _optionAllocationPct < 10000,
-            "!_optionAllocationPct"
+            _optionAllocation > 0 && _optionAllocation < 10000,
+            "!_optionAllocation"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
-        optionAllocationPct = _optionAllocationPct;
+        optionAllocation = _optionAllocation;
     }
 
     /**
@@ -284,7 +284,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         bidDetails.asset = vaultParams.asset;
         bidDetails.assetDecimals = vaultParams.decimals;
         bidDetails.lockedBalance = lockedBalance;
-        bidDetails.optionAllocationPct = optionAllocationPct;
+        bidDetails.optionAllocation = optionAllocation;
         bidDetails.optionPremium = optionPremium;
         bidDetails.bidder = msg.sender;
 
