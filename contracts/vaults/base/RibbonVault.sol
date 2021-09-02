@@ -332,7 +332,7 @@ contract RibbonVault is OptionsVaultStorage {
             ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
         } else if (withdrawalShares == 0) {
-            ShareMath.assertUint128(shares);
+            ShareMath.assertUint128(numShares);
             withdrawals[msg.sender].shares = uint128(numShares);
             withdrawals[msg.sender].round = uint16(currentRound);
         } else {
@@ -385,7 +385,7 @@ contract RibbonVault is OptionsVaultStorage {
 
     /**
      * @notice Redeems shares that are owed to the account
-     * @param shares is the number of shares to redeem
+     * @param numShares is the number of shares to redeem
      */
     function redeem(uint256 numShares) external nonReentrant {
         require(numShares > 0, "!numShares");
@@ -401,7 +401,7 @@ contract RibbonVault is OptionsVaultStorage {
 
     /**
      * @notice Redeems shares that are owed to the account
-     * @param shares is the number of shares to redeem, could be 0 when isMax=true
+     * @param numShares is the number of shares to redeem, could be 0 when isMax=true
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 numShares, bool isMax) internal {
@@ -427,7 +427,7 @@ contract RibbonVault is OptionsVaultStorage {
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
         depositReceipts[msg.sender].processed = true;
-        ShareMath.assertUint128(shares);
+        ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
             unredeemedShares.sub(numShares)
         );
