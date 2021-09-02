@@ -7,14 +7,13 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {
     IPriceOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
-import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import {
     IVolatilityOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract StrikeSelection is DSMath, Ownable {
+contract StrikeSelection is Ownable {
     using SafeMath for uint256;
 
     /**
@@ -152,9 +151,9 @@ contract StrikeSelection is DSMath, Ownable {
         bool isPut
     ) private pure returns (uint256 finalDelta) {
         uint256 upperBoundDiff =
-            isPut ? sub(currDelta, targetDelta) : sub(prevDelta, targetDelta);
+            isPut ? currDelta.sub(targetDelta) : prevDelta.sub(targetDelta);
         uint256 lowerBoundDiff =
-            isPut ? sub(targetDelta, prevDelta) : sub(targetDelta, currDelta);
+            isPut ? targetDelta.sub(prevDelta) : targetDelta.sub(currDelta);
 
         // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
         // for calls and lower strike price for puts for deltas
