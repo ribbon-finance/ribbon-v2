@@ -68,7 +68,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
-        uint256 auctionCounter,
+        uint256 auctionID,
         address manager
     );
 
@@ -313,10 +313,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         uint256 numOTokensToBurn =
             IERC20(optionState.currentOption).balanceOf(address(this));
         require(numOTokensToBurn > 0, "!otokens");
-        uint256 unlockedAssedAmount =
+        uint256 unlockedAssetAmount =
             VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
+            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
         );
     }
 
