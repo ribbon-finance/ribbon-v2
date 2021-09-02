@@ -166,6 +166,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
+        // Cannot set more than 100%, but can be set to 0.
         require(newManagementFee < 100 * 10**6, "Invalid management fee");
 
         emit ManagementFeeSet(managementFee, newManagementFee);
@@ -179,6 +180,7 @@ contract RibbonVault is OptionsVaultStorage {
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
+        // Cannot set more than 100%, but can be set to 0.
         require(newPerformanceFee < 100 * 10**6, "Invalid performance fee");
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
