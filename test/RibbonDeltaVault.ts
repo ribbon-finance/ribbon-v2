@@ -1387,8 +1387,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const res = await vault
@@ -1459,8 +1459,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
@@ -1506,8 +1506,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
@@ -1667,8 +1667,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
