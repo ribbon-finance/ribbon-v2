@@ -222,6 +222,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         _depositFor(amount, msg.sender);
 
+        // An approve() by the msg.sender is required beforehand
         IERC20(vaultParams.asset).safeTransferFrom(
             msg.sender,
             address(this),
@@ -244,6 +245,7 @@ contract RibbonVault is OptionsVaultStorage {
 
         _depositFor(amount, creditor);
 
+        // An approve() by the msg.sender is required beforehand
         IERC20(vaultParams.asset).safeTransferFrom(
             msg.sender,
             address(this),
