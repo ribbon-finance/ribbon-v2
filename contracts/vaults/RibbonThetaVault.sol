@@ -128,7 +128,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         require(_strikeSelection != address(0), "!_strikeSelection");
         require(
             _premiumDiscount > 0 && _premiumDiscount < 1000,
-            "!_premiumDiscount"
+            "Invalid discount"
         );
         require(_auctionDuration >= 1 hours, "!_auctionDuration");
         optionsPremiumPricer = _optionsPremiumPricer;

@@ -123,7 +123,8 @@ contract StrikeSelection is DSMath, Ownable {
                 require(
                     isPut
                         ? finalStrike <= assetPrice
-                        : finalStrike >= assetPrice
+                        : finalStrike >= assetPrice,
+                    "Invalid strike price"
                 );
                 // make decimals consistent with oToken strike price decimals (10 ** 8)
                 return (
