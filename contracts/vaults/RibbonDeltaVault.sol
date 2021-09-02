@@ -36,14 +36,14 @@ contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
      ***********************************************/
 
     event OpenLong(
-        address indexed options,
+        address indexed option,
         uint256 purchaseAmount,
         uint256 premium,
         address manager
     );
 
     event CloseLong(
-        address indexed options,
+        address indexed option,
         uint256 profitAmount,
         address manager
     );
