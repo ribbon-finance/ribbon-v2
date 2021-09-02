@@ -237,7 +237,10 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         optionState.nextOption = otokenAddress;
 
         uint256 nextOptionReady = block.timestamp.add(delay);
-        require(nextOptionReady <= type(uint32), "Overflow nextOptionReady");
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
         optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         _closeShort(oldOption);
