@@ -177,7 +177,7 @@ contract RibbonVault is
         string memory tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycle.verifyConstructorParams(
+        VaultLifecycle.verifyInitializerParams(
             _owner,
             _feeRecipient,
             _performanceFee,
@@ -374,13 +374,13 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        bool topup = withdrawal.round == currentRound;
+        bool withdrawalIsSameRound = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
         uint256 withdrawalShares = uint256(withdrawal.shares);
 
-        if (topup) {
+        if (withdrawalIsSameRound) {
             uint256 increasedShares = withdrawalShares.add(shares);
             ShareMath.assertUint128(increasedShares);
             withdrawals[msg.sender].shares = uint128(increasedShares);
