@@ -89,7 +89,8 @@ interface IController {
         WithdrawCollateral,
         SettleVault,
         Redeem,
-        Call
+        Call,
+        Liquidate
     }
 
     struct ActionArgs {
