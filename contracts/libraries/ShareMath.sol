@@ -66,8 +66,6 @@ library ShareMath {
             uint256 sharesFromRound =
                 underlyingToShares(depositReceipt.amount, pps, decimals);
 
-            assertUint104(sharesFromRound);
-
             uint256 unredeemedShares256 =
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);
             assertUint128(unredeemedShares256);
