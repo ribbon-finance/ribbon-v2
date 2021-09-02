@@ -31,9 +31,9 @@ contract RibbonVault is OptionsVaultStorage {
     address public immutable WETH;
     address public immutable USDC;
 
-    uint256 public constant delay = 1 hours;
+    uint256 public constant DELAY = 1 hours;
 
-    uint256 public constant period = 7 days;
+    uint256 public constant PERIOD = 7 days;
 
     uint128 internal constant PLACEHOLDER_UINT = 1;
 
@@ -119,21 +119,21 @@ contract RibbonVault is OptionsVaultStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
         VaultLifecycle.verifyConstructorParams(
             _owner,
             _feeRecipient,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
 
         __ReentrancyGuard_init();
-        __ERC20_init(tokenName, tokenSymbol);
+        __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
 

@@ -43,8 +43,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     );
 
     event NewOptionAllocationSet(
-        uint256 optionAllocationPct,
-        uint256 newOptionAllocationPct
+        uint256 optionAllocation,
+        uint256 newOptionAllocation
     );
 
     event InstantWithdraw(address indexed account, uint256 share, uint16 round);
@@ -93,8 +93,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _counterpartyThetaVault,
         uint256 _optionAllocationPct,
         Vault.VaultParams calldata _vaultParams
@@ -104,8 +104,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _feeRecipient,
             _managementFee,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
         require(
@@ -167,24 +167,21 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
     /**
      * @notice Sets the new % allocation of funds towards options purchases ( 3 decimals. ex: 55 * 10 ** 2 is 55%)
-     * @param newOptionAllocationPct is the option % allocation
+     * @param newOptionAllocation is the option % allocation
      */
-    function setOptionAllocation(uint16 newOptionAllocationPct)
+    function setOptionAllocation(uint16 newOptionAllocation)
         external
         onlyOwner
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocationPct > 0 && newOptionAllocationPct < 1000,
+            newOptionAllocation > 0 && newOptionAllocation < 1000,
             "Invalid allocation"
         );
 
-        emit NewOptionAllocationSet(
-            optionAllocationPct,
-            newOptionAllocationPct
-        );
+        emit NewOptionAllocationSet(optionAllocation, newOptionAllocation);
 
-        optionAllocationPct = newOptionAllocationPct;
+        optionAllocation = newOptionAllocation;
     }
 
     /**
@@ -247,7 +244,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             counterpartyThetaVault.optionState().nextOption;
         require(counterpartyNextOption != address(0), "!thetavaultclosed");
         optionState.nextOption = counterpartyNextOption;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+        optionState.nextOptionReadyAt = uint32(block.timestamp.add(DELAY));
 
         optionState.currentOption = address(0);
         vaultState.lastLockedAmount = balanceBeforePremium;
