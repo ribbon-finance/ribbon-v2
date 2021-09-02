@@ -251,7 +251,7 @@ library GnosisAuction {
      * DSMath Copy paste
      */
 
-    uint256 constant DSWAD = 10**18;
+    uint256 private constant DSWAD = 10**18;
 
     function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
         require((z = x + y) >= x, "ds-math-add-overflow");
