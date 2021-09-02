@@ -856,30 +856,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!minimumSupply");
       });
 
-      it("reverts when performanceFee is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            "0",
-            tokenName,
-            tokenSymbol,
-            thetaVault.address,
-            optionAllocationPct,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-              initialSharePrice,
-            ]
-          )
-        ).to.be.revertedWith("!performanceFee");
-      });
-
       it("reverts when optionAllocationPct is 0", async function () {
         await expect(
           testVault.initialize(
@@ -901,7 +877,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initialSharePrice,
             ]
           )
-        ).to.be.revertedWith("!performanceFee");
+        ).to.be.revertedWith("!_optionAllocationPct");
       });
     });
 
