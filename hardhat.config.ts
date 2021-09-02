@@ -13,7 +13,7 @@ export default {
     mnemonic: process.env.TEST_MNEMONIC,
   },
   solidity: {
-    version: "0.7.3",
+    version: "0.8.4",
     settings: {
       optimizer: {
         runs: 200,
