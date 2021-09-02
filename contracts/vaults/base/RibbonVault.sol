@@ -599,7 +599,7 @@ contract RibbonVault is OptionsVaultStorage {
     {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[account];
 
-        if (depositReceipt.round < PLACEHOLDER_UINT) {
+        if (depositReceipt.round <= PLACEHOLDER_UINT) {
             return (balanceOf(account), 0);
         }
 
