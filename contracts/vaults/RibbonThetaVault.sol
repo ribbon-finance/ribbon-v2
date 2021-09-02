@@ -217,7 +217,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 USDC: USDC,
                 currentOption: oldOption,
                 delay: delay,
-                lastStrikeOverride: lastStrikeOverride,
+                lastStrikeOverrideRound: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice
             });
 
@@ -331,6 +331,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
-        lastStrikeOverride = vaultState.round;
+        lastStrikeOverrideRound = vaultState.round;
     }
 }

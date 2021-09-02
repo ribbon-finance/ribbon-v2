@@ -31,7 +31,7 @@ library VaultLifecycle {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint16 lastStrikeOverride;
+        uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
     }
 
@@ -68,7 +68,7 @@ library VaultLifecycle {
         address underlying = vaultParams.underlying;
         address asset = vaultParams.asset;
 
-        (strikePrice, delta) = closeParams.lastStrikeOverride ==
+        (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, isPut);
