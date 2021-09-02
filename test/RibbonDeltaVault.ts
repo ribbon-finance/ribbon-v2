@@ -1974,7 +1974,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.maxRedeem();
 
-        await expect(vault.maxRedeem()).to.be.revertedWith("!shares");
+        await expect(vault.maxRedeem()).to.be.revertedWith("!numShares");
       });
 
       it("reverts when redeeming after implicit redemption", async function () {
@@ -2122,7 +2122,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(0)).to.be.revertedWith("!shares");
+        await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -2200,7 +2200,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!shares");
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith(
+          "!numShares"
+        );
       });
 
       it("reverts when no deposit made", async function () {
@@ -2344,7 +2346,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("!shares");
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith(
+          "!numShares"
+        );
       });
 
       it("reverts when withdrawing more than unredeemed balance", async function () {
