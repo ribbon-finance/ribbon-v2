@@ -214,7 +214,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
             if (heldByAccount < sharesLeftForWithdrawal) {
                 // Redeem all shares custodied by vault to user
-                _redeem(0, true);
+                _redeem(share, false);
             }
 
             // Burn shares
