@@ -102,7 +102,7 @@ library VaultLifecycle {
     }
 
     function rollover(
-        uint256 currentSupply,
+        uint256 currentShareSupply,
         address asset,
         uint8 decimals,
         uint256 initialSharePrice,
@@ -123,7 +123,7 @@ library VaultLifecycle {
         uint256 singleShare = 10**uint256(decimals);
 
         newPricePerShare = getPPS(
-            currentSupply,
+            currentShareSupply,
             roundStartBalance,
             singleShare,
             initialSharePrice
@@ -135,7 +135,7 @@ library VaultLifecycle {
         uint256 _mintShares =
             pendingAmount.mul(singleShare).div(newPricePerShare);
 
-        uint256 newSupply = currentSupply.add(_mintShares);
+        uint256 newSupply = currentShareSupply.add(_mintShares);
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
@@ -152,7 +152,7 @@ library VaultLifecycle {
     }
 
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
-    uint256 private constant OTOKEN_DECIMALS = 10**8;
+    uint256 private constant OTOKEN_MULTIPLIER = 10**8;
 
     function createShort(
         address gammaController,
@@ -189,7 +189,7 @@ library VaultLifecycle {
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
+                .mul(OTOKEN_MULTIPLIER)
                 .mul(DSWAD) // we use 10**18 to give extra precision
                 .div(
                 oToken.strikePrice().mul(10**(18 - (8 - collateralDecimals)))
@@ -205,7 +205,7 @@ library VaultLifecycle {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(marginPool, depositAmount);
+        collateralToken.safeApproveNonCompliant(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -464,7 +464,7 @@ library VaultLifecycle {
         );
     }
 
-    function verifyConstructorParams(
+    function verifyInitializerParams(
         address owner,
         address feeRecipient,
         uint256 performanceFee,
