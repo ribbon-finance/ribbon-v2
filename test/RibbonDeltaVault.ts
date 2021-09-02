@@ -2134,7 +2134,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U104");
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(
+          "Overflow uint104"
+        );
       });
 
       it("reverts when redeeming more than available", async function () {
