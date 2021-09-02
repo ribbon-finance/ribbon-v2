@@ -2396,24 +2396,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
-
-      it("can initiate a withdrawal when there is a pending deposit", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount.mul(2));
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.deposit(depositAmount);
-
-        const tx = await vault.initiateWithdraw(depositAmount);
-
-        await expect(tx)
-          .to.emit(vault, "Redeem")
-          .withArgs(user, depositAmount, 2);
-      });
-
       it("reverts when there is insufficient balance over multiple calls", async function () {
         await assetContract
           .connect(userSigner)
