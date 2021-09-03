@@ -210,7 +210,7 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   return candles[candles.length - 1][pricePoint] * 10 ** 6;
 }
 
-async function settle(
+async function settleAndBurn(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
   provider: any,
@@ -238,6 +238,15 @@ async function settle(
         });
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+
+        let newGasPrice2 = (await gas(network)).toString();
+
+        const tx2 = await vault.connect(signer).burnRemainingOTokens({
+          gasPrice: newGasPrice2,
+          gasLimit: gasLimits["burnRemainingOTokens"],
+        });
+
+        await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
       }
     } catch (error) {
       await log(
@@ -459,16 +468,13 @@ async function settleAuctions() {
     provider
   );
 
-  // 3. settleAuction
-  await settle(gnosisAuction, vaultArtifact.abi, provider, signer, network);
-
-  // 4. burnRemainingOTokens
-  await runTX(
+  // 3. settleAuction and 4. burnRemainingOTokens
+  await settleAndBurn(
+    gnosisAuction,
     vaultArtifact.abi,
     provider,
     signer,
-    network,
-    "burnRemainingOTokens"
+    network
   );
 }
 
@@ -562,7 +568,7 @@ async function run() {
 
   var commitAndCloseJob = new CronJob(
     // 0 0 10 * * 5 = 10am UTC on Fridays.
-    `0 0 ${COMMIT_START} * * 5`,
+    `0 ${NETWORK_CONGESTION_BUFFER * 3} ${COMMIT_START} * * 5`,
     async function () {
       await commitAndClose();
     },
@@ -572,7 +578,7 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + TIMELOCK_DELAY} * * 5`,
+    `0 ${NETWORK_CONGESTION_BUFFER * 4} ${COMMIT_START + TIMELOCK_DELAY} * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -582,7 +588,7 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${NETWORK_CONGESTION_BUFFER * 3} ${
+    `0 ${NETWORK_CONGESTION_BUFFER * 6} ${
       COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
     } * * 5`,
     async function () {
