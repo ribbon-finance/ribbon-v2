@@ -23,6 +23,7 @@ import {
 } from "../constants/constants";
 import { encodeOrder } from "../test/helpers/utils";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 
 import { CronJob } from "cron";
 import Discord = require("discord.js");
@@ -210,7 +211,7 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   return candles[candles.length - 1][pricePoint] * 10 ** 6;
 }
 
-async function settle(
+async function settleAndBurn(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
   provider: any,
@@ -238,6 +239,15 @@ async function settle(
         });
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+
+        let newGasPrice2 = (await gas(network)).toString();
+
+        const tx2 = await vault.connect(signer).burnRemainingOTokens({
+          gasPrice: newGasPrice2,
+          gasLimit: gasLimits["burnRemainingOTokens"],
+        });
+
+        await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
       }
     } catch (error) {
       await log(
@@ -459,25 +469,20 @@ async function settleAuctions() {
     provider
   );
 
-  // 3. settleAuction
-  await settle(gnosisAuction, vaultArtifact.abi, provider, signer, network);
-
-  // 4. burnRemainingOTokens
-  await runTX(
+  // 3. settleAuction and 4. burnRemainingOTokens
+  await settleAndBurn(
+    gnosisAuction,
     vaultArtifact.abi,
     provider,
     signer,
-    network,
-    "burnRemainingOTokens"
+    network
   );
 }
 
 async function updateManualVol() {
-  const volOracleArtifact = await hre.artifacts.readArtifact("ManualVolOracle");
-
   const volOracle = new ethers.Contract(
     MANUAL_VOL_ORACLE,
-    volOracleArtifact.abi,
+    ManualVolOracle_ABI,
     provider
   );
 
@@ -537,7 +542,7 @@ async function run() {
   client.login(process.env.DISCORD_TOKEN);
 
   //Atlantic/Reykjavik corresponds to UTC
-
+  const OPYN_PRICE_FINALIZATION_BUFFER = 15; // 15 minutes
   const NETWORK_CONGESTION_BUFFER = 5; // 5 minutes
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
   const COMMIT_START = 10; // 10 am UTC
@@ -547,7 +552,9 @@ async function run() {
 
   var futureStrikeForecasting = new CronJob(
     // 0 0 9 * * 5 = 9am UTC on Fridays.
-    `0 0 ${COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE} * * 5`,
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${
+      COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE
+    } * * 5`,
     async function () {
       await log(
         `\n=============================================================================`
@@ -562,7 +569,7 @@ async function run() {
 
   var commitAndCloseJob = new CronJob(
     // 0 0 10 * * 5 = 10am UTC on Fridays.
-    `0 0 ${COMMIT_START} * * 5`,
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${COMMIT_START} * * 5`,
     async function () {
       await commitAndClose();
     },
@@ -572,7 +579,9 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + TIMELOCK_DELAY} * * 5`,
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + NETWORK_CONGESTION_BUFFER} ${
+      COMMIT_START + TIMELOCK_DELAY
+    } * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -582,7 +591,7 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${NETWORK_CONGESTION_BUFFER * 3} ${
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + NETWORK_CONGESTION_BUFFER * 2} ${
       COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
     } * * 5`,
     async function () {
