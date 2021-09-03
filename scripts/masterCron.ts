@@ -542,7 +542,7 @@ async function run() {
   client.login(process.env.DISCORD_TOKEN);
 
   //Atlantic/Reykjavik corresponds to UTC
-  const OPYN_PRICE_FINALIZATION_BUFFER = 15; // 5 minutes
+  const OPYN_PRICE_FINALIZATION_BUFFER = 15; // 15 minutes
   const NETWORK_CONGESTION_BUFFER = 5; // 5 minutes
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
   const COMMIT_START = 10; // 10 am UTC
