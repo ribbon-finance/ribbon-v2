@@ -214,7 +214,7 @@ contract StrikeSelection is Ownable {
      */
     function setDelta(uint256 newDelta) external onlyOwner {
         require(newDelta > 0, "!newDelta");
-        require(newDelta < 10**5, "newDelta cannot be more than 1");
+        require(newDelta <= DELTA_DECIMALS, "newDelta cannot be more than 1");
         uint256 oldDelta = delta;
         delta = newDelta;
         emit DeltaSet(oldDelta, newDelta, msg.sender);
