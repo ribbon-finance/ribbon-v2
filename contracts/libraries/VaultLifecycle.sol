@@ -621,7 +621,7 @@ library VaultLifecycle {
             performanceFee < 100 * Vault.FEE_DECIMALS,
             "performanceFee >= 100%"
         );
-         require(
+        require(
             managementFee < 100 * Vault.FEE_DECIMALS,
             "managementFee >= 100%"
         );
