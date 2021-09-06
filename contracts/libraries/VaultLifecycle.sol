@@ -187,6 +187,18 @@ library VaultLifecycle {
                 )
                 : 0;
 
+        // uint256 _mintShares =
+        //     pendingAmount.mul(10**decimals).div(newPricePerShare);
+
+        // uint256 newSupply = currentSupply.add(_mintShares);
+
+        // uint256 queuedWithdrawAmount =
+        //     newSupply > 0
+        //         ? uint256(queuedWithdrawShares).mul(currentBalance).div(
+        //             newSupply
+        //         )
+        //         : 0;
+
         return (
             currentBalance.sub(queuedWithdrawAmount),
             newPricePerShare,
