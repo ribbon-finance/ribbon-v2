@@ -171,20 +171,14 @@ library VaultLifecycle {
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            ShareMath.underlyingToShares(
-                pendingAmount,
-                newPricePerShare,
-                decimals
-            );
+            pendingAmount.mul(10**decimals).div(newPricePerShare);
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? ShareMath.sharesToUnderlying(
-                    queuedWithdrawShares,
-                    newPricePerShare,
-                    decimals
+                ? uint256(queuedWithdrawShares).mul(currentBalance).div(
+                    newSupply
                 )
                 : 0;
 
