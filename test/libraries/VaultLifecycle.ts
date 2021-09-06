@@ -128,7 +128,7 @@ describe("VaultLifecycle", () => {
           lifecycle.address, // pass in the lifecycle contract itself as the address to mock
           18,
           parseEther("0.1"),
-          parseEther("0.1")
+          parseEther("0.2")
         );
 
       // currentBalance - lockedAmount = queuedWithdrawAmount
@@ -144,7 +144,7 @@ describe("VaultLifecycle", () => {
       );
       assert.bnEqual(
         queuedWithdrawAmount,
-        parseEther("0.1").mul(pricePerShare).div(singleShare)
+        parseEther("0.2").mul(pricePerShare).div(singleShare)
       );
     });
   });
