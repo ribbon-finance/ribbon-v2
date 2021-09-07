@@ -8,7 +8,7 @@ import {Vault} from "./Vault.sol";
 library ShareMath {
     using SafeMath for uint256;
 
-    uint256 constant PLACEHOLDER_UINT = 1;
+    uint256 internal constant PLACEHOLDER_UINT = 1;
 
     function underlyingToShares(
         uint256 underlyingAmount,
