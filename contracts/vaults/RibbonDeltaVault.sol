@@ -217,7 +217,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         updatePPS(true)
         nonReentrant
     {
-        require(share > 0, "!shares");
+        require(share > 0, "!numShares");
 
         (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
             _withdrawFromNewDeposit(share);
