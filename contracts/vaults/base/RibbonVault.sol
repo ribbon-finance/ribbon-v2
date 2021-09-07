@@ -95,9 +95,6 @@ contract RibbonVault is
     /// @notice 7 day period between each options sale.
     uint256 public constant period = 7 days;
 
-    // Placeholder value used to stuff storage to avoid cold storage writes.
-    uint128 internal constant PLACEHOLDER_UINT = 1;
-
     // Number of weeks per year = 52.142857 weeks * FEE_DECIMALS = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
@@ -529,7 +526,7 @@ contract RibbonVault is
             uint16 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = PLACEHOLDER_UINT;
+            roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
         }
     }
 
@@ -681,7 +678,7 @@ contract RibbonVault is
     {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[account];
 
-        if (depositReceipt.round < PLACEHOLDER_UINT) {
+        if (depositReceipt.round < ShareMath.PLACEHOLDER_UINT) {
             return (balanceOf(account), 0);
         }
 

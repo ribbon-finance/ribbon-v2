@@ -144,7 +144,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
 
         if (
             !isWithdraw ||
-            roundPricePerShare[vaultState.round] <= PLACEHOLDER_UINT
+            roundPricePerShare[vaultState.round] <= ShareMath.PLACEHOLDER_UINT
         ) {
             uint256 pendingAmount = uint256(vaultState.totalPending);
             uint256 currentBalance =
