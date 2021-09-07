@@ -191,11 +191,17 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     function withdrawInstantly(uint256 share) external nonReentrant {
         require(share > 0, "!shares");
 
-        updatePPS(true);
+        (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
+            _withdrawFromNewDeposit(share);
 
-        uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
-
-        uint256 currentRound = vaultState.round;
+        // Withdraw shares from pending amount
+        if (sharesToWithdrawFromPending > 0) {
+            vaultState.totalPending = uint128(
+                uint256(vaultState.totalPending).sub(
+                    sharesToWithdrawFromPending
+                )
+            );
+        }
 
         // If we need to withdraw beyond current round deposit
         if (sharesLeftForWithdrawal > 0) {
@@ -216,7 +222,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit InstantWithdraw(msg.sender, share, currentRound);
+        emit InstantWithdraw(msg.sender, share, vaultState.round);
 
         uint256 sharesToUnderlying =
             ShareMath.sharesToUnderlying(
@@ -316,9 +322,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     /**
      * @notice Withdraws from the most recent deposit which has not been processed
      * @param share is how many shares to withdraw in total
+     * @return the shares to remove from pending
      * @return the shares left to withdraw
      */
-    function _withdrawFromNewDeposit(uint256 share) private returns (uint256) {
+    function _withdrawFromNewDeposit(uint256 share)
+        private
+        returns (uint256, uint256)
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -342,9 +352,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                     vaultParams.decimals
                 )
             );
-            return share.sub(sharesWithdrawn);
+            return (sharesWithdrawn, share.sub(sharesWithdrawn));
         }
 
-        return share;
+        return (0, share);
     }
 }
