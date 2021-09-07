@@ -856,30 +856,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!minimumSupply");
       });
 
-      it("reverts when performanceFee is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            "0",
-            tokenName,
-            tokenSymbol,
-            thetaVault.address,
-            optionAllocationPct,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-              initialSharePrice,
-            ]
-          )
-        ).to.be.revertedWith("!performanceFee");
-      });
-
       it("reverts when optionAllocationPct is 0", async function () {
         await expect(
           testVault.initialize(
@@ -901,7 +877,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initialSharePrice,
             ]
           )
-        ).to.be.revertedWith("!performanceFee");
+        ).to.be.revertedWith("!_optionAllocationPct");
       });
     });
 
@@ -2134,7 +2110,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U104");
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(
+          "Overflow uint104"
+        );
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -2523,7 +2501,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 104000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 104500);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });

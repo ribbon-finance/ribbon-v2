@@ -7,14 +7,13 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {
     IPriceOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
-import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import {
     IVolatilityOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract StrikeSelection is DSMath, Ownable {
+contract StrikeSelection is Ownable {
     using SafeMath for uint256;
 
     /**
@@ -30,6 +29,12 @@ contract StrikeSelection is DSMath, Ownable {
     uint256 public step;
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
+
+    // Delta are in 4 decimal places. 1 * 10**4 = 1 delta.
+    uint256 private constant DELTA_DECIMALS = 10**4;
+
+    // ChainLink's USD Price oracles return results in 8 decimal places
+    uint256 private constant ORACLE_PRICE_DECIMALS = 10**8;
 
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
@@ -98,13 +103,15 @@ contract StrikeSelection is DSMath, Ownable {
             isPut
                 ? assetPrice.sub(assetPrice % step)
                 : assetPrice.add(step - (assetPrice % step));
-        uint256 targetDelta = isPut ? uint256(10000).sub(delta) : delta;
-        uint256 prevDelta = 10000;
+        uint256 targetDelta = isPut ? DELTA_DECIMALS.sub(delta) : delta;
+        uint256 prevDelta = DELTA_DECIMALS;
 
         while (true) {
             uint256 currDelta =
                 optionsPremiumPricer.getOptionDelta(
-                    assetPrice.mul(10**8).div(assetOracleMultiplier),
+                    assetPrice.mul(ORACLE_PRICE_DECIMALS).div(
+                        assetOracleMultiplier
+                    ),
                     strike,
                     annualizedVol,
                     expiryTimestamp
@@ -125,11 +132,14 @@ contract StrikeSelection is DSMath, Ownable {
                 require(
                     isPut
                         ? finalStrike <= assetPrice
-                        : finalStrike >= assetPrice
+                        : finalStrike >= assetPrice,
+                    "Invalid strike price"
                 );
                 // make decimals consistent with oToken strike price decimals (10 ** 8)
                 return (
-                    finalStrike.mul(10**8).div(assetOracleMultiplier),
+                    finalStrike.mul(ORACLE_PRICE_DECIMALS).div(
+                        assetOracleMultiplier
+                    ),
                     finalDelta
                 );
             }
@@ -154,18 +164,24 @@ contract StrikeSelection is DSMath, Ownable {
         uint256 targetDelta,
         bool isPut
     ) private pure returns (uint256) {
-        uint256 upperBoundDiff =
-            isPut ? sub(currDelta, targetDelta) : sub(prevDelta, targetDelta);
-        uint256 lowerBoundDiff =
-            isPut ? sub(targetDelta, prevDelta) : sub(targetDelta, currDelta);
-
+        uint256 finalDelta;
+        
         // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
         // for calls and lower strike price for puts for deltas
-        uint256 finalDelta =
-            lowerBoundDiff <= upperBoundDiff
-                ? (isPut ? prevDelta : currDelta)
-                : (isPut ? currDelta : prevDelta);
-
+        if (isPut) {
+            uint256 upperBoundDiff = currDelta.sub(targetDelta);
+            uint256 lowerBoundDiff = targetDelta.sub(prevDelta);
+            finalDelta = lowerBoundDiff <= upperBoundDiff
+                ? prevDelta
+                : currDelta;
+        } else {
+            uint256 upperBoundDiff = prevDelta.sub(targetDelta);
+            uint256 lowerBoundDiff = targetDelta.sub(currDelta);
+            finalDelta = lowerBoundDiff <= upperBoundDiff
+                ? currDelta
+                : prevDelta;
+        }
+        
         return finalDelta;
     }
 
@@ -183,23 +199,10 @@ contract StrikeSelection is DSMath, Ownable {
         uint256 strike,
         bool isPut
     ) private view returns (uint256) {
-        uint256 finalStrike;
-
-        if (isPut) {
-            if (finalDelta == prevDelta) {
-                finalStrike = strike.add(step);
-            } else {
-                finalStrike = strike;
-            }
-        } else {
-            if (finalDelta == prevDelta) {
-                finalStrike = strike.sub(step);
-            } else {
-                finalStrike = strike;
-            }
+        if (finalDelta != prevDelta) {
+            return strike;
         }
-
-        return finalStrike;
+        return isPut ? strike.add(step) : strike.sub(step);
     }
 
     /**
