@@ -101,12 +101,12 @@ contract RibbonVault is
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
-    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/Controller.sol
     address public immutable GAMMA_CONTROLLER;
 
     // MARGIN_POOL is Gamma protocol's collateral pool.
     // Needed to approve collateral.safeTransferFrom for minting otokens.
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/MarginPool.sol
     address public immutable MARGIN_POOL;
 
     // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids

@@ -151,7 +151,7 @@ library VaultLifecycle {
         );
     }
 
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/Otoken.sol#L70
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     function createShort(
