@@ -2,6 +2,22 @@
 pragma solidity ^0.7.3;
 
 library Vault {
+    /************************************************
+     *  IMMUTABLES & CONSTANTS
+     ***********************************************/
+
+    // Fees are 6-decimal places. For example: 20 * 10**6 = 20%
+    uint256 internal constant FEE_DECIMALS = 10**6;
+
+    // Premium discount has 1-decimal place. For example: 80 * 10**1 = 80%. Which represents a 20% discount.
+    uint256 internal constant PREMIUM_DISCOUNT_DECIMALS = 10;
+
+    // Otokens have 8 decimal places.
+    uint256 internal constant OTOKEN_DECIMALS = 10**8;
+
+    // Percentage of funds allocated to options is 2 decimal places. 10 * 10**2 = 10%
+    uint256 internal constant OPTION_ALLOCATION_DECIMALS = 10**2;
+
     struct VaultParams {
         // Option type the vault is selling
         bool isPut;
