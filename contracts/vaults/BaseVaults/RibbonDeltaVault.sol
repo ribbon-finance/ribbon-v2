@@ -129,8 +129,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
                 vaultParams.asset,
             "!_counterpartyThetaVault: asset"
         );
+        // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocationPct > 0 && _optionAllocationPct < 10000,
+            _optionAllocationPct > 0 && _optionAllocationPct < 1000,
             "!_optionAllocationPct"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
@@ -169,7 +170,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new % allocation of funds towards options purchases ( 3 decimals. ex: 55 * 10 ** 2 is 55%)
+     * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
+     * 0 < newOptionAllocationPct < 1000. 1000 = 10%.
      * @param newOptionAllocationPct is the option % allocation
      */
     function setOptionAllocation(uint256 newOptionAllocationPct)
