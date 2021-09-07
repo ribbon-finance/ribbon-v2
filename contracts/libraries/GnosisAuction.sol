@@ -18,7 +18,7 @@ library GnosisAuction {
     event InitiateGnosisAuction(
         address auctioningToken,
         address biddingToken,
-        uint256 auctionCounter,
+        uint256 auctionID,
         address manager
     );
 
@@ -79,7 +79,7 @@ library GnosisAuction {
             .initiateAuction(
             // address of oToken we minted and are selling
             auctionDetails.oTokenAddress,
-            // address of asset we want in exchange for oTokens. Should match vault collateral
+            // address of asset we want in exchange for oTokens. Should match vault `asset`
             auctionDetails.asset,
             // orders can be cancelled before the auction's halfway point
             block.timestamp.add(auctionDetails.duration.div(2)),

@@ -1248,7 +1248,7 @@ function behavesLikeRibbonOptionsVault(params: {
             : BigNumber.from("4050000000000");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverride()).toString(), "1");
+        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
         assert.equal(
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
