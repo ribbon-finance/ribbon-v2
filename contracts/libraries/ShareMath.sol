@@ -8,7 +8,7 @@ import {Vault} from "./Vault.sol";
 library ShareMath {
     using SafeMath for uint256;
 
-    uint256 constant PLACEHOLDER_UINT = 1;
+    uint256 internal constant PLACEHOLDER_UINT = 1;
 
     function underlyingToShares(
         uint256 underlyingAmount,
@@ -83,10 +83,10 @@ library ShareMath {
      ***********************************************/
 
     function assertUint104(uint256 num) internal pure {
-        require(num <= type(uint104).max, ">U104");
+        require(num <= type(uint104).max, "Overflow uint104");
     }
 
     function assertUint128(uint256 num) internal pure {
-        require(num <= type(uint128).max, ">U128");
+        require(num <= type(uint128).max, "Overflow uint128");
     }
 }
