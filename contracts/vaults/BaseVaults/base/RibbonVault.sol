@@ -644,7 +644,7 @@ contract RibbonVault is
         if (asset == WETH) {
             IWETH(WETH).withdraw(amount);
             (bool success, ) = recipient.call{value: amount}("");
-            require(success, "!success");
+            require(success, "Transfer failed");
             return;
         }
         IERC20(asset).safeTransfer(recipient, amount);
