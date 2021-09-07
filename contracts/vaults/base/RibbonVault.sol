@@ -15,18 +15,10 @@ import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
-import {IOtoken} from "../../interfaces/GammaInterface.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
-import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
-import {
-    IStrikeSelection,
-    IOptionsPremiumPricer
-} from "../../interfaces/IRibbon.sol";
-import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 
 contract RibbonVault is
     ReentrancyGuardUpgradeable,

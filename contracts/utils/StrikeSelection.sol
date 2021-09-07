@@ -3,7 +3,6 @@ pragma solidity ^0.7.3;
 pragma experimental ABIEncoderV2;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {
     IPriceOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
