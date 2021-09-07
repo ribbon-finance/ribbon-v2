@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {DSMath} from "../vendor/DSMathLib.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
@@ -16,18 +17,18 @@ library GnosisAuction {
     using SafeERC20 for IERC20;
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
+        address indexed auctioningToken,
+        address indexed biddingToken,
         uint256 auctionCounter,
-        address manager
+        address indexed manager
     );
 
     event PlaceAuctionBid(
         uint256 auctionId,
-        address auctioningToken,
+        address indexed auctioningToken,
         uint256 sellAmount,
         uint256 buyAmount,
-        address bidder
+        address indexed bidder
     );
 
     struct AuctionDetails {
@@ -67,7 +68,12 @@ library GnosisAuction {
         // shift decimals to correspond to decimals of USDC for puts
         // and underlying for calls
         uint256 minBidAmount =
-            dswmul(oTokenSellAmount.mul(10**10), auctionDetails.oTokenPremium)
+            DSMath
+                .wmul(
+                oTokenSellAmount.mul(10**10),
+                auctionDetails
+                    .oTokenPremium
+            )
                 .div(10**(uint256(18).sub(auctionDetails.assetDecimals)));
 
         require(
@@ -121,14 +127,14 @@ library GnosisAuction {
         sellAmount = bidDetails
             .lockedBalance
             .mul(bidDetails.optionAllocationPct)
-            .div(10000);
+            .div(100 * Vault.OPTION_ALLOCATION_DECIMALS);
 
         // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
         buyAmount = sellAmount
             .mul(10**bidDetails.assetDecimals)
             .div(bidDetails.optionPremium)
-            .mul(10**8)
+            .mul(Vault.OTOKEN_DECIMALS)
             .div(10**bidDetails.assetDecimals);
 
         require(
@@ -171,6 +177,8 @@ library GnosisAuction {
             buyAmount,
             bidDetails.bidder
         );
+
+        return (sellAmount, buyAmount, userId);
     }
 
     function claimAuctionOtokens(
@@ -195,23 +203,26 @@ library GnosisAuction {
     function getOTokenSellAmount(address oTokenAddress)
         internal
         view
-        returns (uint256 oTokenSellAmount)
+        returns (uint256)
     {
         // We take our current oToken balance. That will be our sell amount
         // but gnosis will transfer all the otokens
-        oTokenSellAmount = IERC20(oTokenAddress).balanceOf(address(this));
+        uint256 oTokenSellAmount =
+            IERC20(oTokenAddress).balanceOf(address(this));
 
         require(
             oTokenSellAmount <= type(uint96).max,
             "oTokenSellAmount > type(uint96) max value!"
         );
+
+        return oTokenSellAmount;
     }
 
     function getOTokenPremium(
         address oTokenAddress,
         address optionsPremiumPricer,
         uint256 premiumDiscount
-    ) internal view returns (uint256 optionPremium) {
+    ) internal view returns (uint256) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IOptionsPremiumPricer premiumPricer =
             IOptionsPremiumPricer(optionsPremiumPricer);
@@ -219,19 +230,24 @@ library GnosisAuction {
         // Apply black-scholes formula (from rvol library) to option given its features
         // and get price for 100 contracts denominated in the underlying asset for call option
         // and USDC for put option
-        optionPremium = premiumPricer.getPremium(
-            newOToken.strikePrice(),
-            newOToken.expiryTimestamp(),
-            newOToken.isPut()
-        );
+        uint256 optionPremium =
+            premiumPricer.getPremium(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
 
         // Apply a discount to incentivize arbitraguers
-        optionPremium = optionPremium.mul(premiumDiscount).div(1000);
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            100 * Vault.PREMIUM_DISCOUNT_DECIMALS
+        );
 
         require(
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
         );
+
+        return optionPremium;
     }
 
     function encodeOrder(
@@ -245,24 +261,5 @@ library GnosisAuction {
                     (uint256(buyAmount) << 96) +
                     uint256(sellAmount)
             );
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswmul(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = dsadd(dsmul(x, y), DSWAD / 2) / DSWAD;
     }
 }
