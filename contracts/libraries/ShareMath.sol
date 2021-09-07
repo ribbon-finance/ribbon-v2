@@ -65,10 +65,10 @@ library ShareMath {
      ***********************************************/
 
     function assertUint104(uint256 num) internal pure {
-        require(num <= type(uint104).max, ">U104");
+        require(num <= type(uint104).max, "Overflow uint104");
     }
 
     function assertUint128(uint256 num) internal pure {
-        require(num <= type(uint128).max, ">U128");
+        require(num <= type(uint128).max, "Overflow uint128");
     }
 }
