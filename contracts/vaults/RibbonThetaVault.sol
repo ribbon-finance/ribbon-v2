@@ -38,13 +38,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
-        address manager
+        address indexed manager
     );
 
     event CloseShort(
         address indexed options,
         uint256 withdrawAmount,
-        address manager
+        address indexed manager
     );
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
@@ -66,10 +66,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     );
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
+        address indexed auctioningToken,
+        address indexed biddingToken,
         uint256 auctionCounter,
-        address manager
+        address indexed manager
     );
 
     /************************************************

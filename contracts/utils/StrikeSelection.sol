@@ -31,8 +31,8 @@ contract StrikeSelection is DSMath, Ownable {
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
 
-    event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
-    event StepSet(uint256 oldStep, uint256 newStep, address owner);
+    event DeltaSet(uint256 oldDelta, uint256 newDelta, address indexed owner);
+    event StepSet(uint256 oldStep, uint256 newStep, address indexed owner);
 
     constructor(
         address _optionsPremiumPricer,
