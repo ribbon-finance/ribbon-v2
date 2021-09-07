@@ -17,18 +17,18 @@ library GnosisAuction {
     using SafeERC20 for IERC20;
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
+        address indexed auctioningToken,
+        address indexed biddingToken,
         uint256 auctionCounter,
-        address manager
+        address indexed manager
     );
 
     event PlaceAuctionBid(
         uint256 auctionId,
-        address auctioningToken,
+        address indexed auctioningToken,
         uint256 sellAmount,
         uint256 buyAmount,
-        address bidder
+        address indexed bidder
     );
 
     struct AuctionDetails {
