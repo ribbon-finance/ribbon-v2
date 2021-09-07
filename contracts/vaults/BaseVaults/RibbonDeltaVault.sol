@@ -6,17 +6,23 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {DSMath} from "../../vendor/DSMath.sol";
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../../storage/OptionsVaultStorage.sol";
-import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../../libraries/ShareMath.sol";
+import {DSMath} from "../vendor/DSMath.sol";
+import {GnosisAuction} from "../libraries/GnosisAuction.sol";
+import {RibbonDeltaVaultStorage} from "../storage/RibbonDeltaVaultStorage.sol";
+import {Vault} from "../libraries/Vault.sol";
+import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
 
-contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonDeltaVaultStorage.
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, DSMath, RibbonDeltaVaultStorage
+ */
+contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;

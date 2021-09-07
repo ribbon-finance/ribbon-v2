@@ -6,14 +6,20 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {OptionsThetaVaultStorage} from "../../storage/OptionsVaultStorage.sol";
-import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../../libraries/ShareMath.sol";
+import {GnosisAuction} from "../libraries/GnosisAuction.sol";
+import {RibbonThetaVaultStorage} from "../storage/RibbonThetaVaultStorage.sol";
+import {Vault} from "../libraries/Vault.sol";
+import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
-contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
+ */
+contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
