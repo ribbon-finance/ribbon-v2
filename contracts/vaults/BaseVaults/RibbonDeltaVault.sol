@@ -257,7 +257,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
         updatePPS(true);
 
         optionState.nextOption = counterpartyNextOption;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+
+        uint256 nextOptionReady = block.timestamp.add(delay);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         optionState.currentOption = address(0);
         vaultState.lastLockedAmount = uint104(balanceBeforePremium);

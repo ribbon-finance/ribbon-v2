@@ -276,7 +276,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         ShareMath.assertUint104(premium);
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+
+        uint256 nextOptionReady = block.timestamp.add(delay);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         _closeShort(oldOption);
     }
@@ -305,6 +311,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     function rollToNextOption() external onlyKeeper nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
+        ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
