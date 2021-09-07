@@ -383,20 +383,19 @@ contract RibbonVault is
 
         emit InitiateWithdraw(msg.sender, shares, currentRound);
 
-        uint256 withdrawalShares = uint256(withdrawal.shares);
+        uint256 existingShares = uint256(withdrawal.shares);
 
+        uint256 withdrawalShares;
         if (topup) {
-            uint256 increasedShares = withdrawalShares.add(shares);
-            ShareMath.assertUint128(increasedShares);
-            withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (withdrawalShares == 0) {
-            withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = uint16(currentRound);
+            withdrawalShares = existingShares.add(shares);
         } else {
-            // If we have an old withdrawal, we revert
-            // The user has to process the withdrawal
-            revert("Existing withdraw");
+            require(existingShares == 0, "Existing withdraw");
+            withdrawalShares = shares;
+            withdrawals[msg.sender].round = uint16(currentRound);
         }
+
+        ShareMath.assertUint128(withdrawalShares);
+        withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
         vaultState.queuedWithdrawShares = uint128(
             uint256(vaultState.queuedWithdrawShares).add(shares)

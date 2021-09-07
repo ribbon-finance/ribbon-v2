@@ -151,16 +151,21 @@ contract StrikeSelection is DSMath, Ownable {
         uint256 targetDelta,
         bool isPut
     ) private pure returns (uint256 finalDelta) {
-        uint256 upperBoundDiff =
-            isPut ? sub(currDelta, targetDelta) : sub(prevDelta, targetDelta);
-        uint256 lowerBoundDiff =
-            isPut ? sub(targetDelta, prevDelta) : sub(targetDelta, currDelta);
-
         // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
         // for calls and lower strike price for puts for deltas
-        finalDelta = lowerBoundDiff <= upperBoundDiff
-            ? (isPut ? prevDelta : currDelta)
-            : (isPut ? currDelta : prevDelta);
+        if (isPut) {
+            uint256 upperBoundDiff = currDelta.sub(targetDelta);
+            uint256 lowerBoundDiff = targetDelta.sub(prevDelta);
+            finalDelta = lowerBoundDiff <= upperBoundDiff
+                ? prevDelta
+                : currDelta;
+        } else {
+            uint256 upperBoundDiff = prevDelta.sub(targetDelta);
+            uint256 lowerBoundDiff = targetDelta.sub(currDelta);
+            finalDelta = lowerBoundDiff <= upperBoundDiff
+                ? currDelta
+                : prevDelta;
+        }
     }
 
     /**
@@ -176,19 +181,10 @@ contract StrikeSelection is DSMath, Ownable {
         uint256 strike,
         bool isPut
     ) private view returns (uint256 finalStrike) {
-        if (isPut) {
-            if (finalDelta == prevDelta) {
-                finalStrike = strike.add(step);
-            } else {
-                finalStrike = strike;
-            }
-        } else {
-            if (finalDelta == prevDelta) {
-                finalStrike = strike.sub(step);
-            } else {
-                finalStrike = strike;
-            }
+        if (finalDelta != prevDelta) {
+            return strike;
         }
+        return isPut ? strike.add(step) : strike.sub(step);
     }
 
     /**
