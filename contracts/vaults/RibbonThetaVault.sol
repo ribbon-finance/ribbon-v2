@@ -28,8 +28,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
-    // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
+    /// @notice oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
     address public immutable OTOKEN_FACTORY;
+
+    // The minimum duration for an option auction.
+    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
 
     /************************************************
      *  EVENTS
@@ -133,10 +136,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(_strikeSelection != address(0), "!_strikeSelection");
         require(
-            _premiumDiscount > 0 && _premiumDiscount < 1000,
+            _premiumDiscount > 0 &&
+                _premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
             "!_premiumDiscount"
         );
-        require(_auctionDuration >= 1 hours, "!_auctionDuration");
+        require(_auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
         optionsPremiumPricer = _optionsPremiumPricer;
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
@@ -153,7 +157,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
         require(
-            newPremiumDiscount > 0 && newPremiumDiscount < 1000,
+            newPremiumDiscount > 0 &&
+                newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
             "Invalid discount"
         );
 
@@ -167,7 +172,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param newAuctionDuration is the auction duration
      */
     function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(newAuctionDuration >= 1 hours, "Invalid auction duration");
+        require(
+            newAuctionDuration >= MIN_AUCTION_DURATION,
+            "Invalid auction duration"
+        );
 
         emit AuctionDurationSet(auctionDuration, newAuctionDuration);
 
