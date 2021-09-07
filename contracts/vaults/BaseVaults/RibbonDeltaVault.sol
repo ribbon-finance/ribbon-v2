@@ -13,8 +13,7 @@ import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
-import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
+import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe

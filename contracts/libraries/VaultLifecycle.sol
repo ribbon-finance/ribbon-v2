@@ -5,10 +5,7 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
-import {
-    IStrikeSelection,
-    IOptionsPremiumPricer
-} from "../interfaces/IRibbon.sol";
+import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
