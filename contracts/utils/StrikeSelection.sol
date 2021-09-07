@@ -7,14 +7,13 @@ import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {
     IPriceOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
-import {DSMath} from "../vendor/DSMath.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import {
     IVolatilityOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract StrikeSelection is DSMath, Ownable {
+contract StrikeSelection is Ownable {
     using SafeMath for uint256;
 
     /**
