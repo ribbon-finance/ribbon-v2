@@ -115,7 +115,11 @@ contract RibbonVault is
 
     event Deposit(address indexed account, uint256 amount, uint256 round);
 
-    event InitiateWithdraw(address account, uint256 shares, uint256 round);
+    event InitiateWithdraw(
+        address indexed account,
+        uint256 shares,
+        uint256 round
+    );
 
     event Redeem(address indexed account, uint256 share, uint16 round);
 
@@ -125,12 +129,13 @@ contract RibbonVault is
 
     event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
-    event Withdraw(address account, uint256 amount, uint256 shares);
+    event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
     event CollectVaultFees(
         uint256 performanceFee,
         uint256 vaultFee,
-        uint256 round
+        uint256 round,
+        address indexed feeRecipient
     );
 
     /************************************************
@@ -588,7 +593,12 @@ contract RibbonVault is
 
         if (vaultFee > 0) {
             transferAsset(payable(feeRecipient), vaultFee);
-            emit CollectVaultFees(performanceFee, vaultFee, vaultState.round);
+            emit CollectVaultFees(
+                performanceFeeInAsset,
+                vaultFee,
+                vaultState.round,
+                feeRecipient
+            );
         }
     }
 
