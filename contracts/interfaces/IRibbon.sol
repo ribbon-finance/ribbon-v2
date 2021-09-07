@@ -22,13 +22,13 @@ interface IOptionsPremiumPricer {
         uint256 st,
         uint256 v,
         uint256 t
-    ) external view returns (uint256 delta);
+    ) external view returns (uint256);
 
-    function getUnderlyingPrice() external view returns (uint256 price);
+    function getUnderlyingPrice() external view returns (uint256);
 
-    function priceOracle() external view returns (address oracle);
+    function priceOracle() external view returns (address);
 
-    function volatilityOracle() external view returns (address oracle);
+    function volatilityOracle() external view returns (address);
 
-    function pool() external view returns (address _pool);
+    function pool() external view returns (address);
 }
