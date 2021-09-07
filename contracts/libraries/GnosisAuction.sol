@@ -18,10 +18,10 @@ library GnosisAuction {
     using SafeERC20 for IERC20;
 
     event InitiateGnosisAuction(
-        address indexed auctioningToken,
-        address indexed biddingToken,
-        uint256 auctionCounter,
-        address indexed manager
+        address auctioningToken,
+        address biddingToken,
+        uint256 auctionID,
+        address manager
     );
 
     event PlaceAuctionBid(
@@ -86,7 +86,7 @@ library GnosisAuction {
             .initiateAuction(
             // address of oToken we minted and are selling
             auctionDetails.oTokenAddress,
-            // address of asset we want in exchange for oTokens. Should match vault collateral
+            // address of asset we want in exchange for oTokens. Should match vault `asset`
             auctionDetails.asset,
             // orders can be cancelled before the auction's halfway point
             block.timestamp.add(auctionDetails.duration.div(2)),
