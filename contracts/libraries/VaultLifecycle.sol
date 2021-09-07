@@ -91,6 +91,8 @@ library VaultLifecycle {
         );
 
         require(premium > 0, "!premium");
+
+        return (otokenAddress, premium, strikePrice, delta);
     }
 
     function verifyOtoken(address otokenAddress, uint256 delay) private view {
@@ -151,7 +153,7 @@ library VaultLifecycle {
         );
     }
 
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/Otoken.sol#L70
     uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     function createShort(
@@ -188,7 +190,7 @@ library VaultLifecycle {
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
                 .mul(OTOKEN_DECIMALS)
-                .mul(DSWAD) // we use 10**18 to give extra precision
+                .mul(10**18) // we use 10**18 to give extra precision
                 .div(
                 oToken.strikePrice().mul(10**(18 - (8 - collateralDecimals)))
             );
@@ -439,9 +441,9 @@ library VaultLifecycle {
     function placeBid(GnosisAuction.BidDetails calldata bidDetails)
         external
         returns (
-            uint256,
-            uint256,
-            uint64
+            uint256 sellAmount,
+            uint256 buyAmount,
+            uint64 userId
         )
     {
         return GnosisAuction.placeBid(bidDetails);
@@ -470,7 +472,10 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(performanceFee > 0, "!performanceFee");
-        require(performanceFee < 10**8, "performanceFee >= 100%");
+        require(
+            performanceFee < 100 * Vault.FEE_DECIMALS,
+            "performanceFee >= 100%"
+        );
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
@@ -516,24 +521,5 @@ library VaultLifecycle {
         newPricePerShare = currentSupply > 0
             ? singleShare.mul(roundStartBalance).div(currentSupply)
             : initialSharePrice;
-    }
-
-    /***
-     * DSMath Copy paste
-     */
-
-    uint256 private constant DSWAD = 10**18;
-
-    function dsadd(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require((z = x + y) >= x, "ds-math-add-overflow");
-    }
-
-    function dsmul(uint256 x, uint256 y) private pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "ds-math-mul-overflow");
-    }
-
-    //rounds to zero if x*y < WAD / 2
-    function dswdiv(uint256 x, uint256 y) private pure returns (uint256 z) {
-        z = dsadd(dsmul(x, DSWAD), y / 2) / y;
     }
 }
