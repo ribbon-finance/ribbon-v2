@@ -206,9 +206,11 @@ contract RibbonVault is
             WEEKS_PER_YEAR
         );
         vaultParams = _vaultParams;
-        vaultState.lastLockedAmount = uint104(
-            IERC20(vaultParams.asset).balanceOf(address(this))
-        );
+
+        uint256 assetBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+        ShareMath.assertUint104(assetBalance);
+        vaultState.lastLockedAmount = uint104(assetBalance);
 
         vaultState.round = 1;
     }
@@ -368,9 +370,10 @@ contract RibbonVault is
             unredeemedShares: unredeemedShares
         });
 
-        vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).add(amount)
-        );
+        uint256 newTotalPending = uint256(vaultState.totalPending).add(amount);
+        ShareMath.assertUint128(newTotalPending);
+
+        vaultState.totalPending = uint128(newTotalPending);
     }
 
     /**
@@ -408,12 +411,10 @@ contract RibbonVault is
             withdrawals[msg.sender].round = uint16(currentRound);
         }
 
-        ShareMath.assertUint128(withdrawalShares);
-        withdrawals[msg.sender].shares = uint128(withdrawalShares);
-
-        vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).add(shares)
-        );
+        uint256 newQueuedWithdrawShares =
+            uint256(vaultState.queuedWithdrawShares).add(shares);
+        ShareMath.assertUint128(newQueuedWithdrawShares);
+        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
         _transfer(msg.sender, address(this), shares);
     }
