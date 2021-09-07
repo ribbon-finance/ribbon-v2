@@ -18,11 +18,11 @@ interface IOptionsPremiumPricer {
     ) external view returns (uint256);
 
     function getOptionDelta(
-        uint256 sp,
-        uint256 st,
-        uint256 v,
-        uint256 t
-    ) external view returns (uint256);
+        uint256 spotPrice,
+        uint256 strikePrice,
+        uint256 volatility,
+        uint256 expiryTimestamp
+    ) external view returns (uint256 delta);
 
     function getUnderlyingPrice() external view returns (uint256);
 

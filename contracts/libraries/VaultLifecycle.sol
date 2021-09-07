@@ -27,7 +27,7 @@ library VaultLifecycle {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint256 lastStrikeOverride;
+        uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
     }
 
@@ -78,8 +78,7 @@ library VaultLifecycle {
         address underlying = vaultParams.underlying;
         address asset = vaultParams.asset;
 
-        // calculate strike and delta
-        (strikePrice, delta) = closeParams.lastStrikeOverride ==
+        (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, isPut);
@@ -143,7 +142,7 @@ library VaultLifecycle {
      * @return mintShares is the amount of shares to mint from deposits
      */
     function rollover(
-        uint256 currentSupply,
+        uint256 currentShareSupply,
         address asset,
         uint256 decimals,
         uint256 pendingAmount,
@@ -176,7 +175,7 @@ library VaultLifecycle {
                 decimals
             );
 
-        uint256 newSupply = currentSupply.add(_mintShares);
+        uint256 newSupply = currentShareSupply.add(_mintShares);
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
@@ -194,8 +193,8 @@ library VaultLifecycle {
         );
     }
 
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/Otoken.sol#L70
-    uint256 private constant OTOKEN_DECIMALS = 10**8;
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
+    uint256 private constant OTOKEN_MULTIPLIER = 10**8;
 
     /**
      * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
@@ -215,6 +214,8 @@ library VaultLifecycle {
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IOtoken oToken = IOtoken(oTokenAddress);
         address collateralAsset = oToken.collateralAsset();
 
@@ -238,8 +239,8 @@ library VaultLifecycle {
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
-                .mul(10**18) // we use 10**18 to give extra precision
+                .mul(OTOKEN_MULTIPLIER)
+                .mul(DSWAD) // we use 10**18 to give extra precision
                 .div(
                 oToken.strikePrice().mul(10**(18 - (8 - collateralDecimals)))
             );
@@ -254,7 +255,7 @@ library VaultLifecycle {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.safeApprove(marginPool, depositAmount);
+        collateralToken.safeApproveNonCompliant(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -316,8 +317,11 @@ library VaultLifecycle {
 
         require(vault.shortOtokens.length > 0, "No short");
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
+        // This is equivalent to doing IERC20(vault.asset).balanceOf(address(this))
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
