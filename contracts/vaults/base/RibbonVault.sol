@@ -374,10 +374,10 @@ contract RibbonVault is
 
     /**
      * @notice Initiates a withdrawal that can be processed once the round completes
-     * @param shares is the number of shares to withdraw
+     * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 shares) external nonReentrant {
-        require(shares > 0, "!shares");
+    function initiateWithdraw(uint256 numShares) external nonReentrant {
+        require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
         // But we check if they must first have unredeemed shares
@@ -394,7 +394,7 @@ contract RibbonVault is
 
         bool topup = withdrawal.round == currentRound;
 
-        emit InitiateWithdraw(msg.sender, shares, currentRound);
+        emit InitiateWithdraw(msg.sender, numShares, currentRound);
 
         uint256 existingShares = uint256(withdrawal.shares);
 
@@ -412,7 +412,7 @@ contract RibbonVault is
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-        _transfer(msg.sender, address(this), shares);
+        _transfer(msg.sender, address(this), numShares);
     }
 
     /**
@@ -452,11 +452,11 @@ contract RibbonVault is
 
     /**
      * @notice Redeems shares that are owed to the account
-     * @param shares is the number of shares to redeem
+     * @param numShares is the number of shares to redeem
      */
-    function redeem(uint256 shares) external nonReentrant {
-        require(shares > 0, "!shares");
-        _redeem(shares, false);
+    function redeem(uint256 numShares) external nonReentrant {
+        require(numShares > 0, "!numShares");
+        _redeem(numShares, false);
     }
 
     /**
@@ -468,10 +468,10 @@ contract RibbonVault is
 
     /**
      * @notice Redeems shares that are owed to the account
-     * @param shares is the number of shares to redeem, could be 0 when isMax=true
+     * @param numShares is the number of shares to redeem, could be 0 when isMax=true
      * @param isMax is flag for when callers do a max redemption
      */
-    function _redeem(uint256 shares, bool isMax) internal {
+    function _redeem(uint256 numShares, bool isMax) internal {
         Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
@@ -487,21 +487,21 @@ contract RibbonVault is
                 vaultParams.decimals
             );
 
-        shares = isMax ? unredeemedShares : shares;
-        require(shares > 0, "!shares");
-        require(shares <= unredeemedShares, "Exceeds available");
+        numShares = isMax ? unredeemedShares : numShares;
+        require(numShares > 0, "!numShares");
+        require(numShares <= unredeemedShares, "Exceeds available");
 
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
         depositReceipts[msg.sender].processed = true;
-        ShareMath.assertUint128(shares);
+        ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            unredeemedShares.sub(shares)
+            unredeemedShares.sub(numShares)
         );
 
-        emit Redeem(msg.sender, shares, depositReceipt.round);
+        emit Redeem(msg.sender, numShares, depositReceipt.round);
 
-        _transfer(address(this), msg.sender, shares);
+        _transfer(address(this), msg.sender, numShares);
     }
 
     /************************************************
@@ -650,13 +650,13 @@ contract RibbonVault is
         view
         returns (uint256)
     {
-        uint256 decimals = vaultParams.decimals;
+        uint256 _decimals = vaultParams.decimals;
         uint256 numShares = shares(account);
         uint256 pps =
-            totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
+            totalBalance().sub(vaultState.totalPending).mul(10**_decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToUnderlying(numShares, pps, _decimals);
     }
 
     /**
