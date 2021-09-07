@@ -8,7 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {DSMath} from "../vendor/DSMath.sol";
 import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {RibbonDeltaVaultStorage} from "../storage/RibbonDeltaVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
@@ -16,7 +16,13 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
-contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonDeltaVaultStorage.
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, DSMath, RibbonDeltaVaultStorage
+ */
+contract RibbonDeltaVault is RibbonVault, DSMath, RibbonDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -29,13 +35,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         address indexed options,
         uint256 purchaseAmount,
         uint256 premium,
-        address manager
+        address indexed manager
     );
 
     event CloseLong(
         address indexed options,
         uint256 profitAmount,
-        address manager
+        address indexed manager
     );
 
     event NewOptionAllocationSet(
@@ -47,10 +53,10 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
     event PlaceAuctionBid(
         uint256 auctionId,
-        address auctioningToken,
+        address indexed auctioningToken,
         uint256 sellAmount,
         uint256 buyAmount,
-        address bidder
+        address indexed bidder
     );
 
     /************************************************
@@ -113,6 +119,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                 vaultParams.asset,
             "!_counterpartyThetaVault: asset"
         );
+        // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
             _optionAllocationPct > 0 &&
                 _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
@@ -163,7 +170,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new % allocation of funds towards options purchases ( 3 decimals. ex: 55 * 10 ** 2 is 55%)
+     * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
+     * 0 < newOptionAllocationPct < 1000. 1000 = 10%.
      * @param newOptionAllocationPct is the option % allocation
      */
     function setOptionAllocation(uint16 newOptionAllocationPct)
@@ -196,9 +204,17 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     {
         require(share > 0, "!shares");
 
-        uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
+        (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
+            _withdrawFromNewDeposit(share);
 
-        uint16 currentRound = vaultState.round;
+        // Withdraw shares from pending amount
+        if (sharesToWithdrawFromPending > 0) {
+            vaultState.totalPending = uint128(
+                uint256(vaultState.totalPending).sub(
+                    sharesToWithdrawFromPending
+                )
+            );
+        }
 
         // If we need to withdraw beyond current round deposit
         if (sharesLeftForWithdrawal > 0) {
@@ -219,7 +235,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit InstantWithdraw(msg.sender, share, currentRound);
+        emit InstantWithdraw(msg.sender, share, vaultState.round);
 
         uint256 sharesToUnderlying =
             ShareMath.sharesToUnderlying(
@@ -314,9 +330,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     /**
      * @notice Withdraws from the most recent deposit which has not been processed
      * @param share is how many shares to withdraw in total
+     * @return the shares to remove from pending
      * @return the shares left to withdraw
      */
-    function _withdrawFromNewDeposit(uint256 share) private returns (uint256) {
+    function _withdrawFromNewDeposit(uint256 share)
+        private
+        returns (uint256, uint256)
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -340,9 +360,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                     vaultParams.decimals
                 )
             );
-            return share.sub(sharesWithdrawn);
+            return (sharesWithdrawn, share.sub(sharesWithdrawn));
         }
 
-        return share;
+        return (0, share);
     }
 }
