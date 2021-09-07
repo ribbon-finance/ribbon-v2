@@ -141,7 +141,6 @@ contract RibbonVault is OptionsVaultStorage {
         performanceFee = _performanceFee;
         managementFee = _managementFee.mul(10**6).div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
-        
         vaultState.lastLockedAmount = uint104(
             IERC20(vaultParams.asset).balanceOf(address(this))
         );
