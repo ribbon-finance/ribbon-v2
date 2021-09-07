@@ -283,17 +283,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             lockedBalance
         );
 
-        _startAuction();
+        startAuction();
     }
 
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() external onlyKeeper nonReentrant {
-        _startAuction();
-    }
-
-    function _startAuction() private {
+    function startAuction() public onlyOwner {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         uint256 currOtokenPremium = currentOtokenPremium;
