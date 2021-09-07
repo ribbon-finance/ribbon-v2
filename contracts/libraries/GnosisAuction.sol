@@ -6,6 +6,7 @@ import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../vendor/DSMathLib.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {DSMath} from "../vendor/DSMathLib.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
