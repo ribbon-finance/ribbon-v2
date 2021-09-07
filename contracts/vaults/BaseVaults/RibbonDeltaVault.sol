@@ -32,14 +32,14 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      ***********************************************/
 
     event OpenLong(
-        address indexed options,
+        address indexed option,
         uint256 purchaseAmount,
         uint256 premium,
         address indexed manager
     );
 
     event CloseLong(
-        address indexed options,
+        address indexed option,
         uint256 profitAmount,
         address indexed manager
     );
@@ -244,13 +244,13 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
 
         emit InstantWithdraw(msg.sender, share, currentRound);
 
-        uint256 sharesToUnderlying =
-            ShareMath.sharesToUnderlying(
+        uint256 withdrawAmount =
+            ShareMath.sharesToAsset(
                 share,
                 roundPricePerShare[currentRound],
                 vaultParams.decimals
             );
-        transferAsset(msg.sender, sharesToUnderlying);
+        transferAsset(msg.sender, withdrawAmount);
     }
 
     /**
@@ -360,7 +360,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             depositReceipt.amount > 0
         ) {
             uint256 receiptShares =
-                ShareMath.underlyingToShares(
+                ShareMath.assetToShares(
                     depositReceipt.amount,
                     roundPricePerShare[depositReceipt.round],
                     vaultParams.decimals
@@ -368,8 +368,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             uint256 sharesWithdrawn = Math.min(receiptShares, share);
             // Subtraction underflow checks already ensure it is smaller than uint104
             depositReceipt.amount = uint104(
-                ShareMath.sharesToUnderlying(
-                    receiptShares.sub(sharesWithdrawn),
+                ShareMath.sharesToAsset(
+                    uint256(receiptShares).sub(sharesWithdrawn),
                     roundPricePerShare[depositReceipt.round],
                     vaultParams.decimals
                 )

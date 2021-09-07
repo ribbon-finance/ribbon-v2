@@ -9,30 +9,30 @@ library ShareMath {
 
     uint256 internal constant PLACEHOLDER_UINT = 1;
 
-    function underlyingToShares(
-        uint256 underlyingAmount,
-        uint256 pps,
-        uint256 decimals
-    ) internal pure returns (uint256) {
+    function assetToShares(
+        uint256 assetAmount,
+        uint256 assetPerShare,
+        uint decimals
+    ) internal pure returns (uint) {
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(pps > PLACEHOLDER_UINT, "Invalid pps");
+        require(assetPerShare > PLACEHOLDER_UINT, "Invalid assetPerShare");
 
         uint256 shares = uint256(underlyingAmount).mul(10**decimals).div(pps);
 
         return shares;
     }
 
-    function sharesToUnderlying(
+    function sharesToAsset(
         uint256 shares,
-        uint256 pps,
-        uint256 decimals
+        uint256 assetPerShare,
+        uint decimals
     ) internal pure returns (uint256) {
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(pps > PLACEHOLDER_UINT, "Invalid pps");
+        require(assetPerShare > PLACEHOLDER_UINT, "Invalid assetPerShare");
 
         return shares.mul(pps).div(10**decimals);
     }
@@ -41,8 +41,8 @@ library ShareMath {
      * @notice Returns the shares unredeemed by the user given their DepositReceipt
      * @param depositReceipt is the user's deposit receipt
      * @param currentRound is the `round` stored on the vault
-     * @param pps is the price in underlying per share
-     * @param decimals is the number of decimals the underlying/shares use
+     * @param assetPerShare is the price in asset per share
+     * @param decimals is the number of decimals the asset/shares use
      * @return unredeemedShares is the user's virtual balance of shares that are owed
      */
     function getSharesFromReceipt(
@@ -57,7 +57,7 @@ library ShareMath {
             !depositReceipt.processed
         ) {
             uint256 sharesFromRound =
-                underlyingToShares(depositReceipt.amount, pps, decimals);
+                assetToShares(depositReceipt.amount, assetPerShare, decimals);
 
             return
                 uint256(depositReceipt.unredeemedShares).add(sharesFromRound);

@@ -180,7 +180,7 @@ contract RibbonVault is
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycle.verifyConstructorParams(
+        VaultLifecycle.verifyInitializerParams(
             _owner,
             _keeper,
             _feeRecipient,
@@ -410,15 +410,19 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
-        bool topup = withdrawal.round == currentRound;
+        bool withdrawalIsSameRound = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, numShares, currentRound);
 
         uint256 existingShares = uint256(withdrawal.shares);
 
-        uint256 withdrawalShares;
-        if (topup) {
-            withdrawalShares = existingShares.add(numShares);
+        if (withdrawalIsSameRound) {
+            uint256 increasedShares = withdrawalShares.add(shares);
+            ShareMath.assertUint128(increasedShares);
+            withdrawals[msg.sender].shares = uint128(increasedShares);
+        } else if (withdrawalShares == 0) {
+            withdrawals[msg.sender].shares = shares;
+            withdrawals[msg.sender].round = uint16(currentRound);
         } else {
             require(existingShares == 0, "Existing withdraw");
             withdrawalShares = numShares;
@@ -454,7 +458,7 @@ contract RibbonVault is
         );
 
         uint256 withdrawAmount =
-            ShareMath.sharesToUnderlying(
+            ShareMath.sharesToAsset(
                 withdrawalShares,
                 roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
@@ -658,7 +662,7 @@ contract RibbonVault is
      ***********************************************/
 
     /**
-     * @notice Returns the underlying balance held on the vault for the account
+     * @notice Returns the asset balance held on the vault for the account
      * @param account is the address to lookup balance for
      * @return the amount of `asset` custodied by the vault for the user
      */
@@ -682,6 +686,7 @@ contract RibbonVault is
                 pps,
                 uint8(_decimals)
             );
+        return ShareMath.sharesToAsset(numShares, pps, decimals);
     }
 
     /**
@@ -722,7 +727,7 @@ contract RibbonVault is
     }
 
     /**
-     * @notice The price of a unit of share denominated in the `collateral`
+     * @notice The price of a unit of share denominated in the `asset`
      */
     function pricePerShare() external view returns (uint256) {
         return

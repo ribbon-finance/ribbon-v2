@@ -11,7 +11,7 @@ abstract contract RibbonThetaVaultStorageV1 {
     // Current oToken premium
     uint256 public currentOtokenPremium;
     // Last round id at which the strike was manually overridden
-    uint256 public lastStrikeOverride;
+    uint16 public lastStrikeOverrideRound;
     // Price last overridden strike set to
     uint256 public overriddenStrikePrice;
     // Auction duration
