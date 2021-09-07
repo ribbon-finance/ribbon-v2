@@ -71,12 +71,14 @@ contract StrikeSelection is Ownable {
      * given the expiry timestamp and whether option is call or put
      * @param expiryTimestamp is the unix timestamp of expiration
      * @param isPut is whether option is put or call
+     * @return newStrikePrice is the strike price of the option (ex: for BTC might be 45000 * 10 ** 8)
+     * @return newDelta is the delta of the option given its parameters
      */
 
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
         external
         view
-        returns (uint256, uint256)
+        returns (uint256 newStrikePrice, uint256 newDelta)
     {
         require(
             expiryTimestamp > block.timestamp,
@@ -154,13 +156,16 @@ contract StrikeSelection is Ownable {
      * @param currDelta is delta of the current strike price
      * @param targetDelta is the delta we are targeting
      * @param isPut is whether its a put
+     * @return the best delta value
      */
     function _getBestDelta(
         uint256 prevDelta,
         uint256 currDelta,
         uint256 targetDelta,
         bool isPut
-    ) private pure returns (uint256 finalDelta) {
+    ) private pure returns (uint256) {
+        uint256 finalDelta;
+        
         // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
         // for calls and lower strike price for puts for deltas
         if (isPut) {
@@ -176,6 +181,8 @@ contract StrikeSelection is Ownable {
                 ? currDelta
                 : prevDelta;
         }
+        
+        return finalDelta;
     }
 
     /**
@@ -184,13 +191,14 @@ contract StrikeSelection is Ownable {
      * @param prevDelta is delta of the previous strike price
      * @param strike is the strike of the previous iteration
      * @param isPut is whether its a put
+     * @return the best strike
      */
     function _getBestStrike(
         uint256 finalDelta,
         uint256 prevDelta,
         uint256 strike,
         bool isPut
-    ) private view returns (uint256 finalStrike) {
+    ) private view returns (uint256) {
         if (finalDelta != prevDelta) {
             return strike;
         }

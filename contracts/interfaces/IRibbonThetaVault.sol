@@ -5,9 +5,9 @@ pragma experimental ABIEncoderV2;
 import {Vault} from "../libraries/Vault.sol";
 
 interface IRibbonThetaVault {
-    function currentOption() external view returns (address _currentOption);
+    function currentOption() external view returns (address);
 
-    function nextOption() external view returns (address _nextOption);
+    function nextOption() external view returns (address);
 
     function vaultParams() external view returns (Vault.VaultParams memory);
 
@@ -15,5 +15,5 @@ interface IRibbonThetaVault {
 
     function optionState() external view returns (Vault.OptionState memory);
 
-    function optionAuctionID() external view returns (uint256 _auctionID);
+    function optionAuctionID() external view returns (uint256);
 }

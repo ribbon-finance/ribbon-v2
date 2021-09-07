@@ -537,13 +537,16 @@ contract RibbonVault is
      * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      */
-    function _rollToNextOption() internal returns (address, uint256) {
+    function _rollToNextOption()
+        internal
+        returns (address newOption, uint256 lockedBalance)
+    {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
-        address newOption = optionState.nextOption;
+        newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
-        (uint256 lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
+        (uint256 _lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
             VaultLifecycle.rollover(
                 totalSupply(),
                 vaultParams.asset,
@@ -561,7 +564,7 @@ contract RibbonVault is
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+        lockedBalance = _lockedBalance.sub(_collectVaultFees(_lockedBalance));
 
         vaultState.totalPending = 0;
         vaultState.round = currentRound + 1;
@@ -578,11 +581,13 @@ contract RibbonVault is
      */
     function _collectVaultFees(uint256 currentLockedBalance)
         internal
-        returns (uint256 vaultFee)
+        returns (uint256)
     {
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
         uint256 lockedBalanceSansPending =
             currentLockedBalance.sub(vaultState.totalPending);
+
+        uint256 vaultFee;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
@@ -616,6 +621,8 @@ contract RibbonVault is
                 feeRecipient
             );
         }
+
+        return vaultFee;
     }
 
     /**
