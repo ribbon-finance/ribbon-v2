@@ -89,6 +89,8 @@ library VaultLifecycle {
         );
 
         require(premium > 0, "!premium");
+
+        return (otokenAddress, premium, strikePrice, delta);
     }
 
     function verifyOtoken(
@@ -502,9 +504,9 @@ library VaultLifecycle {
     function placeBid(GnosisAuction.BidDetails calldata bidDetails)
         external
         returns (
-            uint256,
-            uint256,
-            uint64
+            uint256 sellAmount,
+            uint256 buyAmount,
+            uint64 userId
         )
     {
         return GnosisAuction.placeBid(bidDetails);

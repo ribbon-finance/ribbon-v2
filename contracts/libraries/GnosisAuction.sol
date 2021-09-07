@@ -178,6 +178,8 @@ library GnosisAuction {
             buyAmount,
             bidDetails.bidder
         );
+
+        return (sellAmount, buyAmount, userId);
     }
 
     function claimAuctionOtokens(
@@ -202,23 +204,26 @@ library GnosisAuction {
     function getOTokenSellAmount(address oTokenAddress)
         internal
         view
-        returns (uint256 oTokenSellAmount)
+        returns (uint256)
     {
         // We take our current oToken balance. That will be our sell amount
         // but gnosis will transfer all the otokens
-        oTokenSellAmount = IERC20(oTokenAddress).balanceOf(address(this));
+        uint256 oTokenSellAmount =
+            IERC20(oTokenAddress).balanceOf(address(this));
 
         require(
             oTokenSellAmount <= type(uint96).max,
             "oTokenSellAmount > type(uint96) max value!"
         );
+
+        return oTokenSellAmount;
     }
 
     function getOTokenPremium(
         address oTokenAddress,
         address optionsPremiumPricer,
         uint256 premiumDiscount
-    ) internal view returns (uint256 optionPremium) {
+    ) internal view returns (uint256) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IOptionsPremiumPricer premiumPricer =
             IOptionsPremiumPricer(optionsPremiumPricer);
@@ -226,11 +231,12 @@ library GnosisAuction {
         // Apply black-scholes formula (from rvol library) to option given its features
         // and get price for 100 contracts denominated in the underlying asset for call option
         // and USDC for put option
-        optionPremium = premiumPricer.getPremium(
-            newOToken.strikePrice(),
-            newOToken.expiryTimestamp(),
-            newOToken.isPut()
-        );
+        uint256 optionPremium =
+            premiumPricer.getPremium(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
 
         // Apply a discount to incentivize arbitraguers
         optionPremium = optionPremium.mul(premiumDiscount).div(
@@ -241,6 +247,8 @@ library GnosisAuction {
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
         );
+
+        return optionPremium;
     }
 
     function encodeOrder(
