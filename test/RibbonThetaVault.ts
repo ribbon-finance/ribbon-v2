@@ -731,32 +731,6 @@ function behavesLikeRibbonOptionsVault(params: {
           )
         ).to.be.revertedWith("!asset");
       });
-
-      it("reverts when minimumSupply is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              0,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!minimumSupply");
-      });
     });
 
     describe("#name", () => {

@@ -798,31 +798,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!cap");
       });
 
-      it("reverts when asset is 0x", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            thetaVault.address,
-            optionAllocationPct,
-            [
-              isPut,
-              tokenDecimals,
-              constants.AddressZero,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!asset");
-      });
-
-      it("reverts when minimumSupply is 0", async function () {
+      it("reverts when optionAllocationPct is 0", async function () {
         await expect(
           testVault.initialize(
             owner,
@@ -843,7 +819,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!minimumSupply");
+        ).to.be.revertedWith("!_optionAllocationPct");
       });
     });
 
