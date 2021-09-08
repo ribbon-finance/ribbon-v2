@@ -127,7 +127,7 @@ library GnosisAuction {
         // calculate how much to allocate
         sellAmount = bidDetails
             .lockedBalance
-            .mul(bidDetails.optionAllocationPct)
+            .mul(bidDetails.optionAllocation)
             .div(100 * Vault.OPTION_ALLOCATION_DECIMALS);
 
         // divide the `asset` sellAmount by the target premium per oToken to

@@ -673,7 +673,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.counterpartyThetaVault(), thetaVault.address);
         assert.bnEqual(cap, parseEther("500"));
         assert.equal(
-          (await vault.optionAllocation()).toString(),
+          (await vault.optionAllocationPct()).toString(),
           optionAllocationPct.toString()
         );
       });
@@ -1304,7 +1304,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1376,7 +1376,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1423,7 +1423,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1543,7 +1543,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let newBidAmount = secondInitialLockedBalance
           .sub(vaultFees)
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
@@ -1584,7 +1584,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1686,7 +1686,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let newBidAmount = (
           await lockedBalanceForRollover(assetContract, vault)
         )
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
@@ -1896,7 +1896,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.maxRedeem();
 
-        await expect(vault.maxRedeem()).to.be.revertedWith("!shares");
+        await expect(vault.maxRedeem()).to.be.revertedWith("!numShares");
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
@@ -2044,7 +2044,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(0)).to.be.revertedWith("!shares");
+        await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -2118,7 +2118,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!shares");
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith(
+          "!numShares"
+        );
       });
 
       it("reverts when no deposit made", async function () {
@@ -2262,7 +2264,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("!shares");
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith(
+          "!numShares"
+        );
       });
 
       it("reverts when withdrawing more than unredeemed balance", async function () {
@@ -2568,7 +2572,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .setOptionAllocation(BigNumber.from("100"));
         assert.bnEqual(
-          BigNumber.from(await vault.optionAllocation()),
+          BigNumber.from(await vault.optionAllocationPct()),
           BigNumber.from("100")
         );
       });

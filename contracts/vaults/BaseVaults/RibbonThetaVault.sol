@@ -111,7 +111,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      * @param _owner is the owner of the vault with critical permissions
-     * @param _keeper is the keeper of the vault with medium permissions (weekly actions)
      * @param _feeRecipient is the address to recieve vault performance and management fees
      * @param _managementFee is the management fee pct.
      * @param _performanceFee is the perfomance fee pct.
@@ -248,7 +247,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             depositReceipts[msg.sender];
 
         uint256 currentRound = vaultState.round;
-
         require(amount > 0, "!amount");
         require(depositReceipt.round == currentRound, "Invalid round");
 
@@ -319,6 +317,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
+
         uint256 lockedAmount = vaultState.lockedAmount;
         vaultState.lastLockedAmount = lockedAmount > 0
             ? uint104(lockedAmount)
@@ -356,7 +355,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() external onlyKeeper nonReentrant {
+    function startAuction() external nonReentrant {
         _startAuction();
     }
 

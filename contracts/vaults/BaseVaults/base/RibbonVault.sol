@@ -39,7 +39,7 @@ contract RibbonVault is
     /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
     /// This is used to determine the number of shares to be returned
     /// to a user with their DepositReceipt.depositAmount
-    mapping(uint16 => uint256) public roundPricePerShare;
+    mapping(uint256 => uint256) public roundPricePerShare;
 
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
@@ -87,7 +87,6 @@ contract RibbonVault is
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
 
-
     // Number of weeks per year = 52.142857 weeks * FEE_DECIMALS = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
@@ -119,6 +118,12 @@ contract RibbonVault is
     );
 
     event Redeem(address indexed account, uint256 share, uint256 round);
+
+    event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
+
+    event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
+
+    event CapSet(uint256 oldCap, uint256 newCap, address manager);
 
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
@@ -373,7 +378,7 @@ contract RibbonVault is
         depositReceipts[creditor] = Vault.DepositReceipt({
             round: uint16(currentRound),
             amount: uint104(depositAmount),
-            unredeemedShares: uint104(unredeemedShares)
+            unredeemedShares: uint128(unredeemedShares)
         });
 
         uint256 newTotalPending = uint256(vaultState.totalPending).add(amount);
@@ -384,10 +389,10 @@ contract RibbonVault is
 
     /**
      * @notice Initiates a withdrawal that can be processed once the round completes
-     * @param shares is the number of shares to withdraw
+     * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint128 shares) external nonReentrant {
-        require(shares > 0, "!shares");
+    function initiateWithdraw(uint256 numShares) external nonReentrant {
+        require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
         // But we check if they must first have unredeemed shares
@@ -404,25 +409,25 @@ contract RibbonVault is
 
         bool topup = withdrawal.round == currentRound;
 
-        emit InitiateWithdraw(msg.sender, shares, currentRound);
+        emit InitiateWithdraw(msg.sender, numShares, currentRound);
 
         uint256 existingShares = uint256(withdrawal.shares);
 
         uint256 withdrawalShares;
         if (topup) {
-            withdrawalShares = existingShares.add(shares);
+            withdrawalShares = existingShares.add(numShares);
         } else {
             require(existingShares == 0, "Existing withdraw");
-            withdrawalShares = shares;
+            withdrawalShares = numShares;
             withdrawals[msg.sender].round = uint16(currentRound);
         }
 
         uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(shares);
+            uint256(vaultState.queuedWithdrawShares).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-        _transfer(msg.sender, address(this), shares);
+        _transfer(msg.sender, address(this), numShares);
     }
 
     /**
@@ -448,7 +453,7 @@ contract RibbonVault is
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                roundPricePerShare[uint16(withdrawalRound)],
+                roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
             );
 
@@ -462,11 +467,11 @@ contract RibbonVault is
 
     /**
      * @notice Redeems shares that are owed to the account
-     * @param shares is the number of shares to redeem
+     * @param numShares is the number of shares to redeem
      */
-    function redeem(uint256 shares) external nonReentrant {
-        require(shares > 0, "!shares");
-        _redeem(shares, false);
+    function redeem(uint256 numShares) external nonReentrant {
+        require(numShares > 0, "!numShares");
+        _redeem(numShares, false);
     }
 
     /**
@@ -478,19 +483,17 @@ contract RibbonVault is
 
     /**
      * @notice Redeems shares that are owed to the account
-     * @param shares is the number of shares to redeem, could be 0 when isMax=true
+     * @param numShares is the number of shares to redeem, could be 0 when isMax=true
      * @param isMax is flag for when callers do a max redemption
      */
-    function _redeem(uint256 shares, bool isMax) internal {
-        ShareMath.assertUint128(shares);
-
-        Vault.DepositReceipt storage depositReceipt =
+    function _redeem(uint256 numShares, bool isMax) internal {
+        Vault.DepositReceipt memory depositReceipt =
             depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
         uint256 currentRound = vaultState.round;
-        uint256 receiptRound = depositReceipt.round;
+        require(depositReceipt.round < currentRound, "Round not closed");
 
         uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
@@ -499,24 +502,21 @@ contract RibbonVault is
                 vaultParams.decimals
             );
 
-        shares = isMax ? unredeemedShares : shares;
-        require(shares > 0, "!shares");
-        require(shares <= unredeemedShares, "Exceeds available");
+        numShares = isMax ? unredeemedShares : numShares;
+        require(numShares > 0, "!numShares");
+        require(numShares <= unredeemedShares, "Exceeds available");
 
-        // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
-        // we debit from the unredeemedShares, but leave the amount field intact
-        // If the round has past, with no new deposits, we just zero it out for new deposits.
-        depositReceipts[msg.sender].amount = receiptRound < currentRound
-            ? 0
-            : depositReceipt.amount;
-
+        // This zeroes out any pending amount from depositReceipt
+        depositReceipts[msg.sender].amount = 0;
+        depositReceipts[msg.sender].processed = true;
+        ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            unredeemedShares.sub(shares)
+            unredeemedShares.sub(numShares)
         );
 
-        emit Redeem(msg.sender, shares, receiptRound);
+        emit Redeem(msg.sender, numShares, depositReceipt.round);
 
-        _transfer(address(this), msg.sender, shares);
+        _transfer(address(this), msg.sender, numShares);
     }
 
     /************************************************
@@ -597,6 +597,7 @@ contract RibbonVault is
             currentLockedBalance.sub(vaultState.totalPending);
 
         uint256 vaultFee;
+        uint256 performanceFeeInAsset;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
@@ -604,13 +605,12 @@ contract RibbonVault is
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
         if (lockedBalanceSansPending > prevLockedAmount) {
-            uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? lockedBalanceSansPending
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * Vault.FEE_DECIMALS)
-                    : 0;
+            performanceFeeInAsset = performanceFee > 0
+                ? lockedBalanceSansPending
+                    .sub(prevLockedAmount)
+                    .mul(performanceFee)
+                    .div(100 * Vault.FEE_DECIMALS)
+                : 0;
             uint256 managementFeeInAsset =
                 managementFee > 0
                     ? currentLockedBalance.mul(managementFee).div(
@@ -664,13 +664,13 @@ contract RibbonVault is
         view
         returns (uint256)
     {
-        uint8 decimals = vaultParams.decimals;
+        uint256 _decimals = vaultParams.decimals;
         uint256 numShares = shares(account);
         uint256 pps =
-            totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
+            totalBalance().sub(vaultState.totalPending).mul(10**_decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToUnderlying(numShares, pps, _decimals);
     }
 
     /**
