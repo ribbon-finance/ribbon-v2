@@ -39,7 +39,7 @@ contract RibbonVault is
     /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
     /// This is used to determine the number of shares to be returned
     /// to a user with their DepositReceipt.depositAmount
-    mapping(uint16 => uint256) public roundPricePerShare;
+    mapping(uint256 => uint256) public roundPricePerShare;
 
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
@@ -117,7 +117,7 @@ contract RibbonVault is
         uint256 round
     );
 
-    event Redeem(address indexed account, uint256 share, uint16 round);
+    event Redeem(address indexed account, uint256 share, uint256 round);
 
     event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
 
@@ -399,15 +399,15 @@ contract RibbonVault is
 
         uint256 withdrawalShares;
         if (topup) {
-            withdrawalShares = existingShares.add(shares);
+            withdrawalShares = existingShares.add(numShares);
         } else {
             require(existingShares == 0, "Existing withdraw");
-            withdrawalShares = shares;
+            withdrawalShares = numShares;
             withdrawals[msg.sender].round = uint16(currentRound);
         }
 
         uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(shares);
+            uint256(vaultState.queuedWithdrawShares).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
@@ -437,7 +437,7 @@ contract RibbonVault is
         uint256 withdrawAmount =
             ShareMath.sharesToUnderlying(
                 withdrawalShares,
-                roundPricePerShare[uint16(withdrawalRound)],
+                roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
             );
 
@@ -476,7 +476,7 @@ contract RibbonVault is
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         require(depositReceipt.round < currentRound, "Round not closed");
 
         uint256 unredeemedShares =

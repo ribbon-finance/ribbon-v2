@@ -65,7 +65,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
-        uint16 round
+        uint256 round
     );
 
     event InitiateGnosisAuction(
@@ -245,7 +245,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         require(amount > 0, "!amount");
         require(depositReceipt.round == currentRound, "Invalid round");
 
