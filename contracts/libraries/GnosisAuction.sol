@@ -206,7 +206,8 @@ library GnosisAuction {
     {
         // We take our current oToken balance. That will be our sell amount
         // but otokens will be transferred to gnosis.
-        oTokenSellAmount = IERC20(oTokenAddress).balanceOf(address(this));
+        uint256 oTokenSellAmount =
+            IERC20(oTokenAddress).balanceOf(address(this));
 
         require(
             oTokenSellAmount <= type(uint96).max,
