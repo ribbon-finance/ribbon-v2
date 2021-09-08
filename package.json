@@ -30,7 +30,7 @@
   },
   "resolutions": {
     "elliptic": "^6.5.3",
-    "lodash": "4.17.20",
+    "lodash": "^4.17.20",
     "underscore": "^1.9.0"
   },
   "scripts": {
