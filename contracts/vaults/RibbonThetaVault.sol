@@ -355,7 +355,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() external onlyKeeper nonReentrant {
+    function startAuction() external nonReentrant {
         _startAuction();
     }
 

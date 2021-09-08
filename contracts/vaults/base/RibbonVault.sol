@@ -87,7 +87,6 @@ contract RibbonVault is
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
 
-
     // Number of weeks per year = 52.142857 weeks * FEE_DECIMALS = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
@@ -583,6 +582,7 @@ contract RibbonVault is
             currentLockedBalance.sub(vaultState.totalPending);
 
         uint256 vaultFee;
+        uint256 performanceFeeInAsset;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
@@ -590,13 +590,12 @@ contract RibbonVault is
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
         if (lockedBalanceSansPending > prevLockedAmount) {
-            uint256 performanceFeeInAsset =
-                performanceFee > 0
-                    ? lockedBalanceSansPending
-                        .sub(prevLockedAmount)
-                        .mul(performanceFee)
-                        .div(100 * Vault.FEE_DECIMALS)
-                    : 0;
+            performanceFeeInAsset = performanceFee > 0
+                ? lockedBalanceSansPending
+                    .sub(prevLockedAmount)
+                    .mul(performanceFee)
+                    .div(100 * Vault.FEE_DECIMALS)
+                : 0;
             uint256 managementFeeInAsset =
                 managementFee > 0
                     ? currentLockedBalance.mul(managementFee).div(
