@@ -120,9 +120,9 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         );
         // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocationPct > 0 &&
-                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
-            "!_optionAllocationPct"
+            _optionAllocation > 0 &&
+                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            "!_optionAllocation"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
         optionAllocation = _optionAllocation;
@@ -170,8 +170,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
 
     /**
      * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
-     * 0 < newOptionAllocationPct < 1000. 1000 = 10%.
-     * @param newOptionAllocationPct is the option % allocation
+     * 0 < newOptionAllocation < 1000. 1000 = 10%.
+     * @param newOptionAllocation is the option % allocation
      */
     function setOptionAllocation(uint16 newOptionAllocation)
         external
@@ -179,8 +179,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocationPct > 0 &&
-                newOptionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            newOptionAllocation > 0 &&
+                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 
