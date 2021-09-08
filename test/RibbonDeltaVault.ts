@@ -707,7 +707,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.counterpartyThetaVault(), thetaVault.address);
         assert.bnEqual(cap, parseEther("500"));
         assert.equal(
-          (await vault.optionAllocation()).toString(),
+          (await vault.optionAllocationPct()).toString(),
           optionAllocationPct.toString()
         );
       });
@@ -862,6 +862,7 @@ function behavesLikeRibbonOptionsVault(params: {
             owner,
             feeRecipient,
             managementFee,
+            performanceFee,
             "0",
             tokenName,
             tokenSymbol,
@@ -1358,7 +1359,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1430,7 +1431,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1477,7 +1478,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1597,7 +1598,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let newBidAmount = secondInitialLockedBalance
           .sub(vaultFees)
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
@@ -1638,7 +1639,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1740,7 +1741,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let newBidAmount = (
           await lockedBalanceForRollover(assetContract, vault)
         )
-          .mul(await vault.optionAllocation())
+          .mul(await vault.optionAllocationPct())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
@@ -2613,7 +2614,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .setOptionAllocation(BigNumber.from("100"));
         assert.bnEqual(
-          BigNumber.from(await vault.optionAllocation()),
+          BigNumber.from(await vault.optionAllocationPct()),
           BigNumber.from("100")
         );
       });
