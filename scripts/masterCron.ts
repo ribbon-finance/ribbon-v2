@@ -13,6 +13,8 @@ import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import { wmul } from "../test/helpers/math";
 import * as time from "../test/helpers/time";
+import * as fs from "fs";
+import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git";
 import {
   GNOSIS_EASY_AUCTION,
   VOL_ORACLE,
@@ -99,6 +101,30 @@ function generateTokenSet(tokens: Array<object>) {
   };
 
   return JSON.stringify(tokenJSON);
+}
+
+async function pushTokenListToGit(
+  tokenlist: string,
+  fileName: string,
+  branchName: string
+) {
+  const options: Partial<SimpleGitOptions> = {
+    baseDir: process.cwd(),
+    binary: "git",
+    maxConcurrentProcesses: 6,
+  };
+
+  // when setting all options in a single object
+  const git: SimpleGit = simpleGit(options);
+
+  fs.writeFile(fileName, tokenlist);
+
+  await git
+    .addConfig("user.name", "cron job")
+    .addConfig("user.email", "some@one.com")
+    .add(fileName)
+    .commit("update tokenlist")
+    .push("origin", branchName);
 }
 
 async function getDeribitDelta(instrumentName: string) {
@@ -227,6 +253,8 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
 }
 
 async function updateTokenList(
+  fileName: string,
+  branchName: string,
   vaultArtifactAbi: any,
   ierc20Abi: any,
   provider: any,
@@ -263,7 +291,7 @@ async function updateTokenList(
     tokens += token;
   }
 
-  let tokenSet = generateTokenSet(tokens);
+  await pushTokenListToGit(generateTokenSet(tokens), fileName, branchName);
 }
 
 async function settleAndBurn(
@@ -505,6 +533,8 @@ async function commitAndClose() {
 
   // 2. updateTokenList
   await updateTokenList(
+    "ribbon.tokenlist.json",
+    "tokenlist",
     vaultArtifact.abi,
     ierc20Artifact.abi,
     provider,
