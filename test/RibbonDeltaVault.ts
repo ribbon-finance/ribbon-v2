@@ -707,7 +707,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.counterpartyThetaVault(), thetaVault.address);
         assert.bnEqual(cap, parseEther("500"));
         assert.equal(
-          (await vault.optionAllocationPct()).toString(),
+          (await vault.optionAllocation()).toString(),
           optionAllocationPct.toString()
         );
       });
@@ -856,30 +856,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!minimumSupply");
       });
 
-      it("reverts when performanceFee is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            feeRecipient,
-            managementFee,
-            "0",
-            tokenName,
-            tokenSymbol,
-            thetaVault.address,
-            optionAllocationPct,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              minimumSupply,
-              parseEther("500"),
-              initialSharePrice,
-            ]
-          )
-        ).to.be.revertedWith("!performanceFee");
-      });
-
       it("reverts when optionAllocationPct is 0", async function () {
         await expect(
           testVault.initialize(
@@ -901,7 +877,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initialSharePrice,
             ]
           )
-        ).to.be.revertedWith("!performanceFee");
+        ).to.be.revertedWith("!_optionAllocationPct");
       });
     });
 
@@ -919,7 +895,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#delay", () => {
       it("returns the delay", async function () {
-        assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
+        assert.equal((await vault.DELAY()).toNumber(), OPTION_DELAY);
       });
     });
 
@@ -1382,13 +1358,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const res = await vault
@@ -1454,13 +1430,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
@@ -1501,13 +1477,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
@@ -1621,13 +1597,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let newBidAmount = secondInitialLockedBalance
           .sub(vaultFees)
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         await thetaVault.connect(ownerSigner).rollToNextOption();
@@ -1662,13 +1638,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         const firstTx = await vault
@@ -1764,13 +1740,13 @@ function behavesLikeRibbonOptionsVault(params: {
         let newBidAmount = (
           await lockedBalanceForRollover(assetContract, vault)
         )
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
           .mul(BigNumber.from(10).pow(tokenDecimals))
-          .div(optionPremium)
           .mul(BigNumber.from(10).pow(8))
+          .div(optionPremium)
           .div(BigNumber.from(10).pow(tokenDecimals));
 
         let secondInitialLockedBalance = await lockedBalanceForRollover(
@@ -2134,7 +2110,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U104");
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(
+          "Overflow uint104"
+        );
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -2523,7 +2501,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 104000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 104500);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
@@ -2645,7 +2623,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .setOptionAllocation(BigNumber.from("100"));
         assert.bnEqual(
-          BigNumber.from(await vault.optionAllocationPct()),
+          BigNumber.from(await vault.optionAllocation()),
           BigNumber.from("100")
         );
       });

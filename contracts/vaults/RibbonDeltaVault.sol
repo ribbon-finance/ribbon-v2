@@ -5,25 +5,26 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/math/Math.sol";
 
-import {DSMath} from "../vendor/DSMath.sol";
 import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsDeltaVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {RibbonDeltaVaultStorage} from "../storage/RibbonDeltaVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 
-contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonDeltaVaultStorage.
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, DSMath, RibbonDeltaVaultStorage
+ */
+contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
-
-    /************************************************
-     *  IMMUTABLES & CONSTANTS
-     ***********************************************/
 
     /************************************************
      *  EVENTS
@@ -33,28 +34,28 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         address indexed options,
         uint256 purchaseAmount,
         uint256 premium,
-        address manager
+        address indexed manager
     );
 
     event CloseLong(
         address indexed options,
         uint256 profitAmount,
-        address manager
+        address indexed manager
     );
 
     event NewOptionAllocationSet(
-        uint256 optionAllocationPct,
-        uint256 newOptionAllocationPct
+        uint256 optionAllocation,
+        uint256 newOptionAllocation
     );
 
     event InstantWithdraw(address indexed account, uint256 share, uint16 round);
 
     event PlaceAuctionBid(
         uint256 auctionId,
-        address auctioningToken,
+        address indexed auctioningToken,
         uint256 sellAmount,
         uint256 buyAmount,
-        address bidder
+        address indexed bidder
     );
 
     /************************************************
@@ -104,10 +105,10 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _counterpartyThetaVault,
-        uint256 _optionAllocationPct,
+        uint256 _optionAllocation,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -115,8 +116,8 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _feeRecipient,
             _managementFee,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
         require(
@@ -128,12 +129,14 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                 vaultParams.asset,
             "!_counterpartyThetaVault: asset"
         );
+        // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocationPct > 0 && _optionAllocationPct < 10000,
-            "!_optionAllocationPct"
+            _optionAllocation > 0 &&
+                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            "!_optionAllocation"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
-        optionAllocationPct = _optionAllocationPct;
+        optionAllocation = _optionAllocation;
     }
 
     /**
@@ -151,7 +154,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
 
         if (
             !isWithdraw ||
-            roundPricePerShare[vaultState.round] <= PLACEHOLDER_UINT
+            roundPricePerShare[vaultState.round] <= ShareMath.PLACEHOLDER_UINT
         ) {
             uint256 pendingAmount = uint256(vaultState.totalPending);
             uint256 currentBalance =
@@ -177,25 +180,29 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
      ***********************************************/
 
     /**
+<<<<<<< HEAD
      * @notice Sets the new % allocation of funds towards options purchases ( 2 decimals. ex: 55 * 10 ** 2 is 55%)
      * @param newOptionAllocationPct is the option % allocation
+=======
+     * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
+     * 0 < newOptionAllocation < 1000. 1000 = 10%.
+     * @param newOptionAllocation is the option % allocation
+>>>>>>> 8622c5fefcd73d0aed0908e75e54c1a1b533dc04
      */
-    function setOptionAllocation(uint16 newOptionAllocationPct)
+    function setOptionAllocation(uint16 newOptionAllocation)
         external
         onlyOwner
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocationPct > 0 && newOptionAllocationPct < 1000,
+            newOptionAllocation > 0 &&
+                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 
-        emit NewOptionAllocationSet(
-            optionAllocationPct,
-            newOptionAllocationPct
-        );
+        emit NewOptionAllocationSet(optionAllocation, newOptionAllocation);
 
-        optionAllocationPct = newOptionAllocationPct;
+        optionAllocation = newOptionAllocation;
     }
 
     /************************************************
@@ -213,9 +220,17 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     {
         require(share > 0, "!shares");
 
-        uint256 sharesLeftForWithdrawal = _withdrawFromNewDeposit(share);
+        (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
+            _withdrawFromNewDeposit(share);
 
-        uint16 currentRound = vaultState.round;
+        // Withdraw shares from pending amount
+        if (sharesToWithdrawFromPending > 0) {
+            vaultState.totalPending = uint128(
+                uint256(vaultState.totalPending).sub(
+                    sharesToWithdrawFromPending
+                )
+            );
+        }
 
         // If we need to withdraw beyond current round deposit
         if (sharesLeftForWithdrawal > 0) {
@@ -236,7 +251,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit InstantWithdraw(msg.sender, share, currentRound);
+        emit InstantWithdraw(msg.sender, share, vaultState.round);
 
         uint256 sharesToUnderlying =
             ShareMath.sharesToUnderlying(
@@ -258,7 +273,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
             counterpartyThetaVault.optionState().nextOption;
         require(counterpartyNextOption != address(0), "!thetavaultclosed");
         optionState.nextOption = counterpartyNextOption;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         optionState.currentOption = address(0);
         vaultState.lastLockedAmount = balanceBeforePremium;
@@ -298,7 +319,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
         bidDetails.asset = vaultParams.asset;
         bidDetails.assetDecimals = vaultParams.decimals;
         bidDetails.lockedBalance = lockedBalance;
-        bidDetails.optionAllocationPct = optionAllocationPct;
+        bidDetails.optionAllocation = optionAllocation;
         bidDetails.optionPremium = optionPremium;
         bidDetails.bidder = msg.sender;
 
@@ -327,9 +348,13 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
     /**
      * @notice Withdraws from the most recent deposit which has not been processed
      * @param share is how many shares to withdraw in total
+     * @return the shares to remove from pending
      * @return the shares left to withdraw
      */
-    function _withdrawFromNewDeposit(uint256 share) private returns (uint256) {
+    function _withdrawFromNewDeposit(uint256 share)
+        private
+        returns (uint256, uint256)
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -344,7 +369,7 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                     roundPricePerShare[depositReceipt.round],
                     vaultParams.decimals
                 );
-            uint256 sharesWithdrawn = min(receiptShares, share);
+            uint256 sharesWithdrawn = Math.min(receiptShares, share);
             // Subtraction underflow checks already ensure it is smaller than uint104
             depositReceipt.amount = uint104(
                 ShareMath.sharesToUnderlying(
@@ -353,9 +378,9 @@ contract RibbonDeltaVault is RibbonVault, DSMath, OptionsDeltaVaultStorage {
                     vaultParams.decimals
                 )
             );
-            return share.sub(sharesWithdrawn);
+            return (sharesWithdrawn, share.sub(sharesWithdrawn));
         }
 
-        return share;
+        return (0, share);
     }
 }
