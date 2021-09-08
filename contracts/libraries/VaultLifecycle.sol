@@ -89,6 +89,7 @@ library VaultLifecycle {
         // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
             closeParams,
+            vaultParams,
             underlying,
             asset,
             strikePrice,
@@ -507,6 +508,7 @@ library VaultLifecycle {
      */
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
+        Vault.VaultParams calldata vaultParams,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
@@ -539,7 +541,13 @@ library VaultLifecycle {
                 isPut
             );
 
-        verifyOtoken(otoken, closeParams.delay);
+        verifyOtoken(
+            otoken,
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
 
         return otoken;
     }
