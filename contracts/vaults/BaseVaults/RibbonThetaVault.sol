@@ -110,6 +110,19 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _keeper is the keeper of the vault with medium permissions (weekly actions)
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
+     * @param _optionsPremiumPricer is the address of the contract with the
+       black-scholes premium calculation logic
+     * @param _strikeSelection is the address of the contract with strike selection logic
+     * @param _premiumDiscount is the vault's discount applied to the premium
+     * @param _auctionDuration is the duration of the gnosis auction
+     * @param _vaultParams is the struct with vault general data
      */
     function initialize(
         address _owner,
@@ -209,6 +222,24 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
+     * @notice Optionality to set strike price manually
+     * @param strikePrice is the strike price of the new oTokens (decimals = 8)
+     */
+    function setStrikePrice(uint128 strikePrice)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(strikePrice > 0, "!strikePrice");
+        overriddenStrikePrice = strikePrice;
+        lastStrikeOverride = vaultState.round;
+    }
+
+    /************************************************
+     *  VAULT OPERATIONS
+     ***********************************************/
+
+    /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw
      */
@@ -234,10 +265,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         transferAsset(msg.sender, amount);
     }
-
-    /************************************************
-     *  VAULT OPERATIONS
-     ***********************************************/
 
     /**
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
@@ -362,19 +389,5 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         vaultState.lockedAmount = uint104(
             uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
         );
-    }
-
-    /**
-     * @notice Optionality to set strike price manually
-     * @param strikePrice is the strike price of the new oTokens (decimals = 8)
-     */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(strikePrice > 0, "!strikePrice");
-        overriddenStrikePrice = strikePrice;
-        lastStrikeOverride = vaultState.round;
     }
 }
