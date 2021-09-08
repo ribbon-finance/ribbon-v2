@@ -86,6 +86,20 @@ const getNextFriday = (currentExpiry: number) => {
   return friday8am;
 };
 
+function generateTokenSet(tokens: Array<object>) {
+  let tokenJSON = {
+    name: "Ribbon oTokens",
+    logoURI: "https://i.imgur.com/HU1u66R.jpg",
+    keywords: ["defi", "option", "opyn", "ribbon"],
+    //convert to something like 2021-09-08T10:51:49Z
+    timestamp: moment.format().toString().slice(0, -6) + "Z",
+    version: { major: 1, minor: 0, patch: 0 },
+    tokens: tokens,
+  };
+
+  return JSON.stringify(tokenJSON);
+}
+
 async function getDeribitDelta(instrumentName: string) {
   // https://docs.deribit.com/?javascript#public-get_mark_price_history
   var request = `https://www.deribit.com/api/v2/public/get_order_book?depth=1&instrument_name=${instrumentName}`;
