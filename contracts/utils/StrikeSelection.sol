@@ -19,13 +19,16 @@ contract StrikeSelection is Ownable {
      * Immutables
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
+
     IVolatilityOracle public immutable volatilityOracle;
 
     // delta for options strike price selection. 1 is 10000
     uint256 public delta;
+
     // step in absolute terms at which we will increment
     // (ex: 100 * 10 ** assetOracleDecimals means we will move at increments of 100 points)
     uint256 public step;
+
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
 
