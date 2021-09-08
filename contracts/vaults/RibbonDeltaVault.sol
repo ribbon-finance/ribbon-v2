@@ -48,7 +48,11 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         uint256 newOptionAllocation
     );
 
-    event InstantWithdraw(address indexed account, uint256 share, uint16 round);
+    event InstantWithdraw(
+        address indexed account,
+        uint256 share,
+        uint256 round
+    );
 
     event PlaceAuctionBid(
         uint256 auctionId,
@@ -89,7 +93,6 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      * @param _owner is the owner of the vault with critical permissions
-     * @param _keeper is the keeper of the vault with medium permissions (weekly actions)
      * @param _feeRecipient is the address to recieve vault performance and management fees
      * @param _managementFee is the management fee pct.
      * @param _performanceFee is the perfomance fee pct.
@@ -97,7 +100,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * @param _tokenSymbol is the symbol of the token
      * @param _counterpartyThetaVault is the address of the counterparty theta
      vault of this delta vault
-     * @param _optionAllocation is the pct of the funds to allocate towards the weekly option
+     * @param _optionAllocationPct is the pct of the funds to allocate towards the weekly option
      * @param _vaultParams is the struct with vault general data
      */
     function initialize(
@@ -108,7 +111,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         string memory _tokenName,
         string memory _tokenSymbol,
         address _counterpartyThetaVault,
-        uint256 _optionAllocation,
+        uint256 _optionAllocationPct,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -131,12 +134,12 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         );
         // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocation > 0 &&
-                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
-            "!_optionAllocation"
+            _optionAllocationPct > 0 &&
+                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            "!_optionAllocationPct"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
-        optionAllocation = _optionAllocation;
+        optionAllocationPct = _optionAllocationPct;
     }
 
     /**
@@ -182,22 +185,25 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     /**
      * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
      * 0 < newOptionAllocation < 1000. 1000 = 10%.
-     * @param newOptionAllocation is the option % allocation
+     * @param newOptionAllocationPct is the option % allocation
      */
-    function setOptionAllocation(uint16 newOptionAllocation)
+    function setOptionAllocation(uint256 newOptionAllocationPct)
         external
         onlyOwner
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocation > 0 &&
-                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            newOptionAllocationPct > 0 &&
+                newOptionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 
-        emit NewOptionAllocationSet(optionAllocation, newOptionAllocation);
+        emit NewOptionAllocationSet(
+            optionAllocationPct,
+            newOptionAllocationPct
+        );
 
-        optionAllocation = newOptionAllocation;
+        optionAllocationPct = newOptionAllocationPct;
     }
 
     /************************************************
@@ -213,7 +219,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         updatePPS(true)
         nonReentrant
     {
-        require(share > 0, "!shares");
+        require(share > 0, "!numShares");
 
         (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
             _withdrawFromNewDeposit(share);
@@ -226,6 +232,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
                 )
             );
         }
+        uint256 currentRound = vaultState.round;
 
         // If we need to withdraw beyond current round deposit
         if (sharesLeftForWithdrawal > 0) {
@@ -246,12 +253,12 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             _burn(msg.sender, sharesLeftForWithdrawal);
         }
 
-        emit InstantWithdraw(msg.sender, share, vaultState.round);
+        emit InstantWithdraw(msg.sender, share, currentRound);
 
         uint256 sharesToUnderlying =
             ShareMath.sharesToUnderlying(
                 share,
-                roundPricePerShare[vaultState.round],
+                roundPricePerShare[currentRound],
                 vaultParams.decimals
             );
         transferAsset(msg.sender, sharesToUnderlying);
@@ -277,7 +284,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         optionState.currentOption = address(0);
-        vaultState.lastLockedAmount = balanceBeforePremium;
+        vaultState.lastLockedAmount = uint104(balanceBeforePremium);
 
         // redeem
         if (oldOption != address(0)) {
@@ -314,7 +321,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         bidDetails.asset = vaultParams.asset;
         bidDetails.assetDecimals = vaultParams.decimals;
         bidDetails.lockedBalance = lockedBalance;
-        bidDetails.optionAllocation = optionAllocation;
+        bidDetails.optionAllocation = optionAllocationPct;
         bidDetails.optionPremium = optionPremium;
         bidDetails.bidder = msg.sender;
 
@@ -368,7 +375,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             // Subtraction underflow checks already ensure it is smaller than uint104
             depositReceipt.amount = uint104(
                 ShareMath.sharesToUnderlying(
-                    uint256(receiptShares).sub(sharesWithdrawn),
+                    receiptShares.sub(sharesWithdrawn),
                     roundPricePerShare[depositReceipt.round],
                     vaultParams.decimals
                 )
