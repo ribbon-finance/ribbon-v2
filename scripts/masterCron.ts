@@ -103,11 +103,7 @@ function generateTokenSet(tokens: Array<object>) {
   return JSON.stringify(tokenJSON);
 }
 
-async function pushTokenListToGit(
-  tokenlist: string,
-  fileName: string,
-  branchName: string
-) {
+async function pushTokenListToGit(tokenlist: string, fileName: string) {
   const options: Partial<SimpleGitOptions> = {
     baseDir: process.cwd(),
     binary: "git",
@@ -117,14 +113,15 @@ async function pushTokenListToGit(
   // when setting all options in a single object
   const git: SimpleGit = simpleGit(options);
 
-  fs.writeFile(fileName, tokenlist);
+  fs.writeFile(`../ribbon-token-list/${fileName}`, tokenlist);
 
   await git
+    .cwd("../ribbon-token-list")
     .addConfig("user.name", "cron job")
     .addConfig("user.email", "some@one.com")
     .add(fileName)
     .commit("update tokenlist")
-    .push("origin", branchName);
+    .push("origin", "master");
 }
 
 async function getDeribitDelta(instrumentName: string) {
@@ -254,7 +251,6 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
 
 async function updateTokenList(
   fileName: string,
-  branchName: string,
   vaultArtifactAbi: any,
   ierc20Abi: any,
   provider: any,
@@ -291,7 +287,7 @@ async function updateTokenList(
     tokens += token;
   }
 
-  await pushTokenListToGit(generateTokenSet(tokens), fileName, branchName);
+  await pushTokenListToGit(generateTokenSet(tokens), fileName);
 }
 
 async function settleAndBurn(
@@ -534,7 +530,6 @@ async function commitAndClose() {
   // 2. updateTokenList
   await updateTokenList(
     "ribbon.tokenlist.json",
-    "tokenlist",
     vaultArtifact.abi,
     ierc20Artifact.abi,
     provider,
