@@ -88,6 +88,17 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _keeper is the keeper of the vault with medium permissions (weekly actions)
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
+     * @param _counterpartyThetaVault is the address of the counterparty theta
+     vault of this delta vault
+     * @param _optionAllocation is the pct of the funds to allocate towards the weekly option
+     * @param _vaultParams is the struct with vault general data
      */
     function initialize(
         address _owner,
@@ -189,6 +200,10 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         optionAllocation = newOptionAllocation;
     }
 
+    /************************************************
+     *  VAULT OPERATIONS
+     ***********************************************/
+
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param share is the amount of shares to withdraw
@@ -241,10 +256,6 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             );
         transferAsset(msg.sender, sharesToUnderlying);
     }
-
-    /************************************************
-     *  VAULT OPERATIONS
-     ***********************************************/
 
     /**
      * @notice Closes the existing long position for the vault.

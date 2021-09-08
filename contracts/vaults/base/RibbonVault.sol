@@ -643,6 +643,7 @@ contract RibbonVault is
     /**
      * @notice Returns the underlying balance held on the vault for the account
      * @param account is the address to lookup balance for
+     * @return the amount of `asset` custodied by the vault for the user
      */
     function accountVaultBalance(address account)
         external
