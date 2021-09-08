@@ -132,9 +132,8 @@ library GnosisAuction {
         // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
         buyAmount = sellAmount
-            .mul(10**bidDetails.assetDecimals)
+            .mul(10**(bidDetails.assetDecimals.add(Vault.OTOKEN_DECIMALS)))
             .div(bidDetails.optionPremium)
-            .mul(Vault.OTOKEN_DECIMALS)
             .div(10**bidDetails.assetDecimals);
 
         require(
