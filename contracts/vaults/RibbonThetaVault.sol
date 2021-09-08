@@ -7,13 +7,19 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {OptionsThetaVaultStorage} from "../storage/OptionsVaultStorage.sol";
+import {RibbonThetaVaultStorage} from "../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
-contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
+ */
+contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -22,8 +28,11 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
-    // oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
+    /// @notice oTokenFactory is the factory contract used to spawn otokens. Used to lookup otokens.
     address public immutable OTOKEN_FACTORY;
+
+    // The minimum duration for an option auction.
+    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
 
     /************************************************
      *  EVENTS
@@ -32,13 +41,13 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
-        address manager
+        address indexed manager
     );
 
     event CloseShort(
         address indexed options,
         uint256 withdrawAmount,
-        address manager
+        address indexed manager
     );
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
@@ -60,10 +69,10 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     );
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
+        address indexed auctioningToken,
+        address indexed biddingToken,
         uint256 auctionCounter,
-        address manager
+        address indexed manager
     );
 
     /************************************************
@@ -120,8 +129,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _optionsPremiumPricer,
         address _strikeSelection,
         uint32 _premiumDiscount,
@@ -133,17 +142,18 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
             _feeRecipient,
             _managementFee,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(_strikeSelection != address(0), "!_strikeSelection");
         require(
-            _premiumDiscount > 0 && _premiumDiscount < 1000,
+            _premiumDiscount > 0 &&
+                _premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
             "!_premiumDiscount"
         );
-        require(_auctionDuration >= 1 hours, "!_auctionDuration");
+        require(_auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
         optionsPremiumPricer = _optionsPremiumPricer;
         strikeSelection = _strikeSelection;
         premiumDiscount = _premiumDiscount;
@@ -160,7 +170,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
         require(
-            newPremiumDiscount > 0 && newPremiumDiscount < 1000,
+            newPremiumDiscount > 0 &&
+                newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
             "Invalid discount"
         );
 
@@ -174,7 +185,10 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      * @param newAuctionDuration is the auction duration
      */
     function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(newAuctionDuration >= 1 hours, "Invalid auction duration");
+        require(
+            newAuctionDuration >= MIN_AUCTION_DURATION,
+            "Invalid auction duration"
+        );
 
         emit AuctionDurationSet(auctionDuration, newAuctionDuration);
 
@@ -261,7 +275,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
-                delay: delay,
+                delay: DELAY,
                 lastStrikeOverride: lastStrikeOverride,
                 overriddenStrikePrice: overriddenStrikePrice
             });
@@ -286,7 +300,13 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
         ShareMath.assertUint104(premium);
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         _closeShort(oldOption);
     }
@@ -296,12 +316,8 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
-
-        uint104 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = lockedAmount > 0
-            ? lockedAmount
-            : vaultState.lastLockedAmount;
-
+        uint256 lockedAmount = vaultState.lockedAmount;
+        vaultState.lastLockedAmount = uint104(lockedAmount);
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
@@ -317,6 +333,7 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
     function rollToNextOption() external nonReentrant {
         (address newOption, uint256 lockedBalance) = _rollToNextOption();
 
+        ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
@@ -328,13 +345,17 @@ contract RibbonThetaVault is RibbonVault, OptionsThetaVaultStorage {
             lockedBalance
         );
 
-        startAuction();
+        _startAuction();
     }
 
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() public onlyOwner {
+    function startAuction() external onlyKeeper nonReentrant {
+        _startAuction();
+    }
+
+    function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         uint256 currOtokenPremium = currentOtokenPremium;
