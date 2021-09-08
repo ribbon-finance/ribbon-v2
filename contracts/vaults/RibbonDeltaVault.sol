@@ -44,8 +44,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     );
 
     event NewOptionAllocationSet(
-        uint256 optionAllocationPct,
-        uint256 newOptionAllocationPct
+        uint256 optionAllocation,
+        uint256 newOptionAllocation
     );
 
     event InstantWithdraw(address indexed account, uint256 share, uint16 round);
@@ -94,10 +94,10 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _counterpartyThetaVault,
-        uint256 _optionAllocationPct,
+        uint256 _optionAllocation,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -105,8 +105,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             _feeRecipient,
             _managementFee,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
         require(
@@ -120,12 +120,12 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         );
         // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocationPct > 0 &&
-                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
-            "!_optionAllocationPct"
+            _optionAllocation > 0 &&
+                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            "!_optionAllocation"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
-        optionAllocationPct = _optionAllocationPct;
+        optionAllocation = _optionAllocation;
     }
 
     /**
@@ -170,26 +170,23 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
 
     /**
      * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
-     * 0 < newOptionAllocationPct < 1000. 1000 = 10%.
-     * @param newOptionAllocationPct is the option % allocation
+     * 0 < newOptionAllocation < 1000. 1000 = 10%.
+     * @param newOptionAllocation is the option % allocation
      */
-    function setOptionAllocation(uint16 newOptionAllocationPct)
+    function setOptionAllocation(uint16 newOptionAllocation)
         external
         onlyOwner
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocationPct > 0 &&
-                newOptionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            newOptionAllocation > 0 &&
+                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 
-        emit NewOptionAllocationSet(
-            optionAllocationPct,
-            newOptionAllocationPct
-        );
+        emit NewOptionAllocationSet(optionAllocation, newOptionAllocation);
 
-        optionAllocationPct = newOptionAllocationPct;
+        optionAllocation = newOptionAllocation;
     }
 
     /**
@@ -261,7 +258,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         require(counterpartyNextOption != address(0), "!thetavaultclosed");
         optionState.nextOption = counterpartyNextOption;
 
-        uint256 nextOptionReady = block.timestamp.add(delay);
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
         require(
             nextOptionReady <= type(uint32).max,
             "Overflow nextOptionReady"
@@ -306,7 +303,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         bidDetails.asset = vaultParams.asset;
         bidDetails.assetDecimals = vaultParams.decimals;
         bidDetails.lockedBalance = lockedBalance;
-        bidDetails.optionAllocationPct = optionAllocationPct;
+        bidDetails.optionAllocation = optionAllocation;
         bidDetails.optionPremium = optionPremium;
         bidDetails.bidder = msg.sender;
 
