@@ -119,7 +119,7 @@ library VaultLifecycle {
      */
     function verifyOtoken(
         address otokenAddress,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         address collateralAsset,
         address USDC,
         uint256 delay
@@ -506,7 +506,7 @@ library VaultLifecycle {
      */
     function getOrDeployOtoken(
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         address underlying,
         address collateralAsset,
         uint256 strikePrice,
@@ -601,7 +601,6 @@ library VaultLifecycle {
     /**
      * @notice Verify the constructor params satisfy requirements
      * @param owner is the owner of the vault with critical permissions
-     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
      * @param feeRecipient is the address to recieve vault performance and management fees
      * @param performanceFee is the perfomance fee pct.
      * @param tokenName is the name of the token
