@@ -82,10 +82,11 @@ contract RibbonVault is
 
     /// @notice 1 hour timelock between commitAndClose and rollToNexOption.
     /// 1 hour period allows vault depositors to leave.
-    uint256 public constant delay = 1 hours;
+    uint256 public constant DELAY = 1 hours;
 
     /// @notice 7 day period between each options sale.
-    uint256 public constant period = 7 days;
+    uint256 public constant PERIOD = 7 days;
+
 
     // Number of weeks per year = 52.142857 weeks * FEE_DECIMALS = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR)
@@ -169,8 +170,8 @@ contract RibbonVault is
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
         VaultLifecycle.verifyConstructorParams(
@@ -178,13 +179,13 @@ contract RibbonVault is
             _keeper,
             _feeRecipient,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
 
         __ReentrancyGuard_init();
-        __ERC20_init(tokenName, tokenSymbol);
+        __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
         transferOwnership(_owner);
 

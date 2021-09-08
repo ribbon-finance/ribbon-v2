@@ -117,8 +117,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
-        string memory tokenName,
-        string memory tokenSymbol,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         address _optionsPremiumPricer,
         address _strikeSelection,
         uint32 _premiumDiscount,
@@ -131,8 +131,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             _feeRecipient,
             _managementFee,
             _performanceFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
@@ -251,7 +251,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
-                delay: delay,
+                delay: DELAY,
                 lastStrikeOverride: lastStrikeOverride,
                 overriddenStrikePrice: overriddenStrikePrice
             });
@@ -277,7 +277,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
 
-        uint256 nextOptionReady = block.timestamp.add(delay);
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
         require(
             nextOptionReady <= type(uint32).max,
             "Overflow nextOptionReady"

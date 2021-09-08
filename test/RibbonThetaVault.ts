@@ -747,7 +747,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#delay", () => {
       it("returns the delay", async function () {
-        assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
+        assert.equal((await vault.DELAY()).toNumber(), OPTION_DELAY);
       });
     });
 
