@@ -205,7 +205,7 @@ library GnosisAuction {
         returns (uint256)
     {
         // We take our current oToken balance. That will be our sell amount
-        // but gnosis will transfer all the otokens
+        // but otokens will be transferred to gnosis.
         uint256 oTokenSellAmount =
             IERC20(oTokenAddress).balanceOf(address(this));
 
