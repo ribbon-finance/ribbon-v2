@@ -48,7 +48,7 @@ library GnosisAuction {
         uint256 assetDecimals;
         uint256 auctionId;
         uint256 lockedBalance;
-        uint256 optionAllocationPct;
+        uint256 optionAllocation;
         uint256 optionPremium;
         address bidder;
     }
