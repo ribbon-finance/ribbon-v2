@@ -87,9 +87,10 @@ const getNextFriday = (currentExpiry: number) => {
 };
 
 function generateTokenSet(tokens: Array<object>) {
+  // reference: https://github.com/opynfinance/opyn-tokenlist/blob/master/opyn-v1.tokenlist.json
   let tokenJSON = {
     name: "Ribbon oTokens",
-    logoURI: "https://i.imgur.com/HU1u66R.jpg",
+    logoURI: "https://i.imgur.com/u5z1Ev2.png",
     keywords: ["defi", "option", "opyn", "ribbon"],
     //convert to something like 2021-09-08T10:51:49Z
     timestamp: moment.format().toString().slice(0, -6) + "Z",
@@ -223,6 +224,46 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   let pricePoint = 4;
   // scale to 10 ** 6
   return candles[candles.length - 1][pricePoint] * 10 ** 6;
+}
+
+async function updateTokenList(
+  vaultArtifactAbi: any,
+  ierc20Abi: any,
+  provider: any,
+  network: string
+) {
+  let tokens = [];
+
+  let token = {
+    chainId: 1,
+    address: "",
+    name: "",
+    symbol: "",
+    decimals: 0,
+  };
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifactAbi,
+      provider
+    );
+
+    let oToken = new ethers.Contract(
+      await vault.nextOption(),
+      ierc20Artifact.abi,
+      provider
+    );
+
+    token["address"] = oToken.address;
+    token["name"] = await oToken.name();
+    token["symbol"] = await oToken.symbol();
+    token["decimals"] = await oToken.decimals();
+
+    tokens += token;
+  }
+
+  let tokenSet = generateTokenSet(tokens);
 }
 
 async function settleAndBurn(
@@ -455,9 +496,20 @@ async function strikeForecasting() {
 
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+
+  // 2. updateTokenList
+  await updateTokenList(
+    vaultArtifact.abi,
+    ierc20Artifact.abi,
+    provider,
+    network
+  );
 }
 
 async function rollToNextOption() {
