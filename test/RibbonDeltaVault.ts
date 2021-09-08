@@ -863,7 +863,6 @@ function behavesLikeRibbonOptionsVault(params: {
             feeRecipient,
             managementFee,
             performanceFee,
-            "0",
             tokenName,
             tokenSymbol,
             thetaVault.address,
