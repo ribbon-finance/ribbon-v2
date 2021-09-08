@@ -180,14 +180,9 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      ***********************************************/
 
     /**
-<<<<<<< HEAD
-     * @notice Sets the new % allocation of funds towards options purchases ( 2 decimals. ex: 55 * 10 ** 2 is 55%)
-     * @param newOptionAllocationPct is the option % allocation
-=======
      * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
      * 0 < newOptionAllocation < 1000. 1000 = 10%.
      * @param newOptionAllocation is the option % allocation
->>>>>>> 8622c5fefcd73d0aed0908e75e54c1a1b533dc04
      */
     function setOptionAllocation(uint16 newOptionAllocation)
         external
