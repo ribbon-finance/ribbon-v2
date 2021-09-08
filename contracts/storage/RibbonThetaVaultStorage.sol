@@ -7,13 +7,13 @@ abstract contract RibbonThetaVaultStorageV1 {
     // Logic contract used to select strike prices
     address public strikeSelection;
     // Premium discount on options we are selling (thousandths place: 000 - 999)
-    uint32 public premiumDiscount;
+    uint256 public premiumDiscount;
     // Current oToken premium
-    uint104 public currentOtokenPremium;
+    uint256 public currentOtokenPremium;
     // Last round id at which the strike was manually overridden
-    uint16 public lastStrikeOverride;
+    uint256 public lastStrikeOverride;
     // Price last overridden strike set to
-    uint128 public overriddenStrikePrice;
+    uint256 public overriddenStrikePrice;
     // Auction duration
     uint256 public auctionDuration;
     // Auction id of current option

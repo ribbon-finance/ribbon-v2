@@ -65,7 +65,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
-        uint16 round
+        uint256 round
     );
 
     event InitiateGnosisAuction(
@@ -111,7 +111,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      * @param _owner is the owner of the vault with critical permissions
-     * @param _keeper is the keeper of the vault with medium permissions (weekly actions)
      * @param _feeRecipient is the address to recieve vault performance and management fees
      * @param _managementFee is the management fee pct.
      * @param _performanceFee is the perfomance fee pct.
@@ -168,7 +167,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint16 newPremiumDiscount) external onlyOwner {
+    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
         require(
             newPremiumDiscount > 0 &&
                 newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_DECIMALS,
@@ -245,15 +244,15 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        uint16 currentRound = vaultState.round;
+        uint256 currentRound = vaultState.round;
         require(amount > 0, "!amount");
         require(depositReceipt.round == currentRound, "Invalid round");
 
-        uint104 receiptAmount = depositReceipt.amount;
+        uint256 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(uint256(receiptAmount).sub(amount));
+        depositReceipt.amount = uint104(receiptAmount.sub(amount));
         vaultState.totalPending = uint128(
             uint256(vaultState.totalPending).sub(amount)
         );
@@ -316,8 +315,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         optionState.currentOption = address(0);
+
         uint256 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = uint104(lockedAmount);
+        vaultState.lastLockedAmount = lockedAmount > 0
+            ? uint104(lockedAmount)
+            : vaultState.lastLockedAmount;
+
         vaultState.lockedAmount = 0;
 
         if (oldOption != address(0)) {
@@ -351,7 +354,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Initiate the gnosis auction.
      */
-    function startAuction() external onlyKeeper nonReentrant {
+    function startAuction() external nonReentrant {
         _startAuction();
     }
 

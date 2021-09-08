@@ -167,7 +167,7 @@ contract StrikeSelection is Ownable {
         bool isPut
     ) private pure returns (uint256) {
         uint256 finalDelta;
-        
+
         // for tie breaks (ex: 0.05 <= 0.1 <= 0.15) round to higher strike price
         // for calls and lower strike price for puts for deltas
         if (isPut) {
@@ -183,7 +183,7 @@ contract StrikeSelection is Ownable {
                 ? currDelta
                 : prevDelta;
         }
-        
+
         return finalDelta;
     }
 

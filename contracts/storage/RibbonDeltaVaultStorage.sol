@@ -9,7 +9,7 @@ abstract contract RibbonDeltaVaultStorageV1 {
     // % of funds to be used for weekly option purchase
     uint256 public optionAllocationPct;
     // Delta vault equivalent of lockedAmount
-    uint104 public balanceBeforePremium;
+    uint256 public balanceBeforePremium;
     // User Id of delta vault in latest gnosis auction
     Vault.AuctionSellOrder public auctionSellOrder;
 }
