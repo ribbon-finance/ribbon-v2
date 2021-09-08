@@ -568,9 +568,6 @@ library VaultLifecycle {
      * @notice Places a bid in an auction
      * @param bidDetails is the struct with all the details of the
       bid including the auction's id and how much to bid
-     * @return how much we are offering in the bidding token
-     * @return how much we are bidding for in the auctioning token
-     * @return the user id of the bid
      */
     function placeBid(GnosisAuction.BidDetails calldata bidDetails)
         external

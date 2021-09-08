@@ -93,11 +93,11 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * @param _feeRecipient is the address to recieve vault performance and management fees
      * @param _managementFee is the management fee pct.
      * @param _performanceFee is the perfomance fee pct.
-     * @param tokenName is the name of the token
-     * @param tokenSymbol is the symbol of the token
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
      * @param _counterpartyThetaVault is the address of the counterparty theta
      vault of this delta vault
-     * @param _optionAllocationPct is the pct of the funds to allocate towards the weekly option
+     * @param _optionAllocation is the pct of the funds to allocate towards the weekly option
      * @param _vaultParams is the struct with vault general data
      */
     function initialize(
