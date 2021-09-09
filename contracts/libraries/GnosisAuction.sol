@@ -18,10 +18,10 @@ library GnosisAuction {
     using SafeERC20 for IERC20;
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
-        uint256 auctionID,
-        address manager
+        address indexed auctioningToken,
+        address indexed biddingToken,
+        uint256 auctionCounter,
+        address indexed manager
     );
 
     event PlaceAuctionBid(
