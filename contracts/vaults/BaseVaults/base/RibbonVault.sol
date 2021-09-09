@@ -425,6 +425,9 @@ contract RibbonVault is
             withdrawals[msg.sender].round = uint16(currentRound);
         }
 
+        ShareMath.assertUint128(withdrawalShares);
+        withdrawals[msg.sender].shares = uint128(withdrawalShares);
+
         uint256 newQueuedWithdrawShares =
             uint256(vaultState.queuedWithdrawShares).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
