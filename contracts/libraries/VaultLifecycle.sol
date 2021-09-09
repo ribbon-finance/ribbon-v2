@@ -144,7 +144,7 @@ library VaultLifecycle {
     /**
      * @notice Calculate the shares to mint, new price per share, and
       amount of funds to re-allocate as collateral for the new round
-     * @param currentSupply is the total supply of shares
+     * @param currentShareSupply is the total supply of shares
      * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
      * @param pendingAmount is the amount of funds pending from recent deposits
@@ -170,7 +170,7 @@ library VaultLifecycle {
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
 
         newPricePerShare = ShareMath.pricePerShare(
-            currentSupply,
+            currentShareSupply,
             currentBalance,
             pendingAmount,
             decimals
@@ -180,17 +180,13 @@ library VaultLifecycle {
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            ShareMath.underlyingToShares(
-                pendingAmount,
-                newPricePerShare,
-                decimals
-            );
+            ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
         uint256 newSupply = currentShareSupply.add(_mintShares);
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? ShareMath.sharesToUnderlying(
+                ? ShareMath.sharesToAsset(
                     queuedWithdrawShares,
                     newPricePerShare,
                     decimals
@@ -630,7 +626,7 @@ library VaultLifecycle {
      * @param tokenSymbol is the symbol of the token
      * @param _vaultParams is the struct with vault general data
      */
-    function verifyConstructorParams(
+    function verifyInitializerParams(
         address owner,
         address keeper,
         address feeRecipient,
