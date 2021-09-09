@@ -30,16 +30,16 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      ***********************************************/
 
     event OpenLong(
-        address indexed option,
+        address indexed options,
         uint256 purchaseAmount,
         uint256 premium,
-        address manager
+        address indexed manager
     );
 
     event CloseLong(
-        address indexed option,
+        address indexed options,
         uint256 profitAmount,
-        address manager
+        address indexed manager
     );
 
     event NewOptionAllocationSet(
@@ -54,11 +54,11 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     );
 
     event PlaceAuctionBid(
-        uint256 indexed auctionId,
+        uint256 auctionId,
         address indexed auctioningToken,
         uint256 sellAmount,
         uint256 buyAmount,
-        address bidder
+        address indexed bidder
     );
 
     /************************************************
