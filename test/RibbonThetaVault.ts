@@ -700,7 +700,7 @@ function behavesLikeRibbonOptionsVault(params: {
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              parseEther("500"),
+              0,
             ]
           )
         ).to.be.revertedWith("!cap");

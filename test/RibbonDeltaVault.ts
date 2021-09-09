@@ -768,16 +768,17 @@ function behavesLikeRibbonOptionsVault(params: {
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              0,
+              parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!cap");
+        ).to.be.revertedWith("!feeRecipient");
       });
 
       it("reverts when asset is 0x", async function () {
         await expect(
           testVault.initialize(
             owner,
+            keeper,
             feeRecipient,
             managementFee,
             performanceFee,
@@ -794,7 +795,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!feeRecipient");
+        ).to.be.revertedWith("!asset");
       });
 
       it("reverts when initializing with 0 initCap", async function () {
@@ -833,13 +834,13 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            0,
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
-              0,
+              minimumSupply,
               parseEther("500"),
             ]
           )
