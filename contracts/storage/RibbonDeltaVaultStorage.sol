@@ -7,7 +7,7 @@ abstract contract RibbonDeltaVaultStorageV1 {
     // Ribbon counterparty theta vault
     IRibbonThetaVault public counterpartyThetaVault;
     // % of funds to be used for weekly option purchase
-    uint256 public optionAllocationPct;
+    uint256 public optionAllocation;
     // Delta vault equivalent of lockedAmount
     uint256 public balanceBeforePremium;
     // User Id of delta vault in latest gnosis auction

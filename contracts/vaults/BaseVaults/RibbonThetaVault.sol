@@ -70,7 +70,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         uint256 amount,
         uint256 round
     );
-    
+
     event InitiateGnosisAuction(
         address indexed auctioningToken,
         address indexed biddingToken,

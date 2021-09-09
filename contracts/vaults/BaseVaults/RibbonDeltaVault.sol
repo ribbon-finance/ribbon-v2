@@ -99,7 +99,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * @param _tokenSymbol is the symbol of the token
      * @param _counterpartyThetaVault is the address of the counterparty theta
      vault of this delta vault
-     * @param _optionAllocationPct is the pct of the funds to allocate towards the weekly option
+     * @param _optionAllocation is the pct of the funds to allocate towards the weekly option
      * @param _vaultParams is the struct with vault general data
      */
     function initialize(
@@ -111,7 +111,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         string memory _tokenName,
         string memory _tokenSymbol,
         address _counterpartyThetaVault,
-        uint256 _optionAllocationPct,
+        uint256 _optionAllocation,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
@@ -135,12 +135,12 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         );
         // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
-            _optionAllocationPct > 0 &&
-                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_MULTIPLIER,
-            "!_optionAllocationPct"
+            _optionAllocation > 0 &&
+                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+            "!_optionAllocation"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
-        optionAllocationPct = _optionAllocationPct;
+        optionAllocation = _optionAllocation;
     }
 
     /**
@@ -173,26 +173,22 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     /**
      * @notice Sets the new % allocation of funds towards options purchases (2 decimals. ex: 10 * 10**2 is 10%)
      * 0 < newOptionAllocation < 1000. 1000 = 10%.
-     * @param newOptionAllocationPct is the option % allocation
+     * @param newOptionAllocation is the option % allocation
      */
-    function setOptionAllocation(uint256 newOptionAllocationPct)
+    function setOptionAllocation(uint16 newOptionAllocation)
         external
         onlyOwner
     {
         // Needs to be less than 10%
         require(
-            newOptionAllocationPct > 0 &&
-                newOptionAllocationPct <
-                10 * Vault.OPTION_ALLOCATION_MULTIPLIER,
+            newOptionAllocation > 0 &&
+                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
             "Invalid allocation"
         );
 
-        emit NewOptionAllocationSet(
-            optionAllocationPct,
-            newOptionAllocationPct
-        );
+        emit NewOptionAllocationSet(optionAllocation, newOptionAllocation);
 
-        optionAllocationPct = newOptionAllocationPct;
+        optionAllocation = newOptionAllocation;
     }
 
     /************************************************
@@ -310,7 +306,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         bidDetails.asset = vaultParams.asset;
         bidDetails.assetDecimals = vaultParams.decimals;
         bidDetails.lockedBalance = lockedBalance;
-        bidDetails.optionAllocation = optionAllocationPct;
+        bidDetails.optionAllocation = optionAllocation;
         bidDetails.optionPremium = optionPremium;
         bidDetails.bidder = msg.sender;
 
