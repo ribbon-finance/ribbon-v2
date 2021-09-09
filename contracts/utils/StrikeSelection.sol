@@ -32,10 +32,10 @@ contract StrikeSelection is Ownable {
     uint256 private immutable assetOracleMultiplier;
 
     // Delta are in 4 decimal places. 1 * 10**4 = 1 delta.
-    uint256 private constant DELTA_DECIMALS = 10**4;
+    uint256 private constant DELTA_MULTIPLIER = 10**4;
 
     // ChainLink's USD Price oracles return results in 8 decimal places
-    uint256 private constant ORACLE_PRICE_DECIMALS = 10**8;
+    uint256 private constant ORACLE_PRICE_MULTIPLIER = 10**8;
 
     event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
     event StepSet(uint256 oldStep, uint256 newStep, address owner);
@@ -47,7 +47,7 @@ contract StrikeSelection is Ownable {
     ) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(_delta > 0, "!_delta");
-        require(_delta <= DELTA_DECIMALS, "newDelta cannot be more than 1");
+        require(_delta <= DELTA_MULTIPLIER, "newDelta cannot be more than 1");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
         volatilityOracle = IVolatilityOracle(
@@ -105,13 +105,13 @@ contract StrikeSelection is Ownable {
             isPut
                 ? assetPrice.sub(assetPrice % step)
                 : assetPrice.add(step - (assetPrice % step));
-        uint256 targetDelta = isPut ? DELTA_DECIMALS.sub(delta) : delta;
-        uint256 prevDelta = DELTA_DECIMALS;
+        uint256 targetDelta = isPut ? DELTA_MULTIPLIER.sub(delta) : delta;
+        uint256 prevDelta = DELTA_MULTIPLIER;
 
         while (true) {
             uint256 currDelta =
                 optionsPremiumPricer.getOptionDelta(
-                    assetPrice.mul(ORACLE_PRICE_DECIMALS).div(
+                    assetPrice.mul(ORACLE_PRICE_MULTIPLIER).div(
                         assetOracleMultiplier
                     ),
                     strike,
@@ -139,7 +139,7 @@ contract StrikeSelection is Ownable {
                 );
                 // make decimals consistent with oToken strike price decimals (10 ** 8)
                 return (
-                    finalStrike.mul(ORACLE_PRICE_DECIMALS).div(
+                    finalStrike.mul(ORACLE_PRICE_MULTIPLIER).div(
                         assetOracleMultiplier
                     ),
                     finalDelta
@@ -213,7 +213,7 @@ contract StrikeSelection is Ownable {
      */
     function setDelta(uint256 newDelta) external onlyOwner {
         require(newDelta > 0, "!newDelta");
-        require(newDelta <= DELTA_DECIMALS, "newDelta cannot be more than 1");
+        require(newDelta <= DELTA_MULTIPLIER, "newDelta cannot be more than 1");
         uint256 oldDelta = delta;
         delta = newDelta;
         emit DeltaSet(oldDelta, newDelta, msg.sender);
