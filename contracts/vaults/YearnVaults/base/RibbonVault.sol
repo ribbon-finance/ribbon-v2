@@ -441,7 +441,9 @@ contract RibbonVault is OptionsVaultYearnStorage {
             );
 
         shares = isMax ? unredeemedShares : shares;
-        require(shares > 0, "!shares");
+        if (shares == 0) {
+            return;
+        }
         require(shares <= unredeemedShares, "Exceeds available");
 
         // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
