@@ -239,16 +239,16 @@ async function settleAndBurn(
         });
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
-
-        let newGasPrice2 = (await gas(network)).toString();
-
-        const tx2 = await vault.connect(signer).burnRemainingOTokens({
-          gasPrice: newGasPrice2,
-          gasLimit: gasLimits["burnRemainingOTokens"],
-        });
-
-        await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
       }
+
+      let newGasPrice2 = (await gas(network)).toString();
+
+      const tx2 = await vault.connect(signer).burnRemainingOTokens({
+        gasPrice: newGasPrice2,
+        gasLimit: gasLimits["burnRemainingOTokens"],
+      });
+
+      await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
     } catch (error) {
       await log(
         `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
