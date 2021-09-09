@@ -136,7 +136,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
             _optionAllocation > 0 &&
-                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+                _optionAllocation < 10 * Vault.OPTION_ALLOCATION_MULTIPLIER,
             "!_optionAllocation"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
@@ -182,7 +182,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         // Needs to be less than 10%
         require(
             newOptionAllocation > 0 &&
-                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+                newOptionAllocation < 10 * Vault.OPTION_ALLOCATION_MULTIPLIER,
             "Invalid allocation"
         );
 
