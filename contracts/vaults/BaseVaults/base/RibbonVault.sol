@@ -416,13 +416,9 @@ contract RibbonVault is
 
         uint256 existingShares = uint256(withdrawal.shares);
 
+        uint256 withdrawalShares;
         if (withdrawalIsSameRound) {
-            uint256 increasedShares = withdrawalShares.add(shares);
-            ShareMath.assertUint128(increasedShares);
-            withdrawals[msg.sender].shares = uint128(increasedShares);
-        } else if (withdrawalShares == 0) {
-            withdrawals[msg.sender].shares = shares;
-            withdrawals[msg.sender].round = uint16(currentRound);
+            withdrawalShares = existingShares.add(numShares);
         } else {
             require(existingShares == 0, "Existing withdraw");
             withdrawalShares = numShares;
@@ -672,21 +668,15 @@ contract RibbonVault is
         returns (uint256)
     {
         uint256 _decimals = vaultParams.decimals;
-        uint256 pps =
+        uint256 assetPerShare =
             ShareMath.pricePerShare(
                 totalSupply(),
                 totalBalance(),
                 vaultState.totalPending,
                 _decimals
             );
-
         return
-            ShareMath.sharesToUnderlying(
-                shares(account),
-                pps,
-                uint8(_decimals)
-            );
-        return ShareMath.sharesToAsset(numShares, pps, decimals);
+            ShareMath.sharesToAsset(shares(account), assetPerShare, _decimals);
     }
 
     /**
