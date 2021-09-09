@@ -206,12 +206,10 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param share is the amount of shares to withdraw
      */
-    function withdrawInstantly(uint256 share)
-        external
-        updatePPS(true)
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 share) external nonReentrant {
         require(share > 0, "!numShares");
+
+        updatePPS(true);
 
         (uint256 sharesToWithdrawFromPending, uint256 sharesLeftForWithdrawal) =
             _withdrawFromNewDeposit(share);

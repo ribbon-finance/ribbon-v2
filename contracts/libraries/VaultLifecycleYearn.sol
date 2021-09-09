@@ -233,7 +233,7 @@ library VaultLifecycleYearn {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.doubleApprove(marginPool, depositAmount);
+        collateralToken.safeApproveNonCompliant(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -722,12 +722,12 @@ library VaultLifecycleYearn {
     function transferAsset(
         address weth,
         address asset,
-        address payable recipient,
+        address recipient,
         uint256 amount
     ) public {
         if (asset == weth) {
             IWETH(weth).withdraw(amount);
-            (bool success, ) = recipient.call{value: amount}("");
+            (bool success, ) = payable(recipient).call{value: amount}("");
             require(success, "!success");
             return;
         }

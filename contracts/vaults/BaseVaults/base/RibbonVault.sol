@@ -518,7 +518,6 @@ contract RibbonVault is
 
         // This zeroes out any pending amount from depositReceipt
         depositReceipts[msg.sender].amount = 0;
-        depositReceipts[msg.sender].processed = true;
         ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
             unredeemedShares.sub(numShares)

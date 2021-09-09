@@ -433,7 +433,7 @@ contract RibbonVault is
         );
 
         uint256 withdrawAmount =
-            ShareMath.sharesToUnderlying(
+            ShareMath.sharesToAsset(
                 withdrawalShares,
                 roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
@@ -650,7 +650,7 @@ contract RibbonVault is
             totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToAsset(numShares, pps, decimals);
     }
 
     /**

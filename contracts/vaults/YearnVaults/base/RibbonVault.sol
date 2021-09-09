@@ -92,6 +92,12 @@ contract RibbonVault is
     /// 1 hour period allows vault depositors to leave.
     uint256 public constant DELAY = 1 hours;
 
+    /// @notice Withdrawal buffer for yearn vault
+    uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+
+    /// @notice Slippage incurred during withdrawal
+    uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
+
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
 
@@ -428,7 +434,7 @@ contract RibbonVault is
         );
 
         uint256 withdrawAmount =
-            ShareMath.sharesToUnderlying(
+            ShareMath.sharesToAsset(
                 withdrawalShares,
                 roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
@@ -668,7 +674,7 @@ contract RibbonVault is
             totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToAsset(numShares, pps, decimals);
     }
 
     /**

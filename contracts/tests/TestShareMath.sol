@@ -4,19 +4,19 @@ pragma solidity =0.8.4;
 import {ShareMath} from "../libraries/ShareMath.sol";
 
 contract TestShareMath {
-    function underlyingToShares(
-        uint256 underlyingAmount,
+    function assetToShares(
+        uint256 assetAmount,
         uint256 pps,
         uint256 decimals
     ) external pure returns (uint256) {
-        return ShareMath.underlyingToShares(underlyingAmount, pps, decimals);
+        return ShareMath.assetToShares(assetAmount, pps, decimals);
     }
 
-    function sharesToUnderlying(
+    function sharesToAssets(
         uint256 shares,
         uint256 pps,
         uint256 decimals
     ) external pure returns (uint256) {
-        return ShareMath.sharesToUnderlying(shares, pps, decimals);
+        return ShareMath.sharesToAsset(shares, pps, decimals);
     }
 }
