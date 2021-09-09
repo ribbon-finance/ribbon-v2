@@ -6,7 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {DSMath} from "../vendor/DSMathLib.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
@@ -128,7 +128,7 @@ library GnosisAuction {
         sellAmount = bidDetails
             .lockedBalance
             .mul(bidDetails.optionAllocation)
-            .div(100 * Vault.OPTION_ALLOCATION_DECIMALS);
+            .div(100 * Vault.OPTION_ALLOCATION_MULTIPLIER);
 
         // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
@@ -239,7 +239,7 @@ library GnosisAuction {
 
         // Apply a discount to incentivize arbitraguers
         optionPremium = optionPremium.mul(premiumDiscount).div(
-            100 * Vault.PREMIUM_DISCOUNT_DECIMALS
+            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
         );
 
         require(
