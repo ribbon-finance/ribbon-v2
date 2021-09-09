@@ -16,10 +16,10 @@ import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../../libraries/ShareMath.sol";
-import {IWETH} from "../../interfaces/IWETH.sol";
+import {Vault} from "../../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../../../libraries/ShareMath.sol";
+import {IWETH} from "../../../interfaces/IWETH.sol";
 
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
@@ -56,6 +56,10 @@ contract RibbonVault is
 
     /// @notice Fee recipient for the performance and management fees
     address public feeRecipient;
+
+    /// @notice role in charge of weekly vault operations such as rollToNextOption and burnRemainingOTokens
+    // no access to critical vault changes
+    address public keeper;
 
     /// @notice Performance fee charged on premiums earned in rollToNextOption. Only charged when there is no loss.
     uint256 public performanceFee;
@@ -504,7 +508,7 @@ contract RibbonVault is
         uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
                 currentRound,
-                roundPricePerShare[receiptRound],
+                roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
 
