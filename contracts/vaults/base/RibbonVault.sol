@@ -88,8 +88,8 @@ contract RibbonVault is
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
 
-    // Number of weeks per year = 52.142857 weeks * FEE_DECIMALS = 52142857
-    // Dividing by weeks per year requires doing num.mul(FEE_DECIMALS).div(WEEKS_PER_YEAR)
+    // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
+    // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
@@ -196,7 +196,7 @@ contract RibbonVault is
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.mul(Vault.FEE_DECIMALS).div(
+        managementFee = _managementFee.mul(Vault.FEE_MULTIPLIER).div(
             WEEKS_PER_YEAR
         );
         vaultParams = _vaultParams;
@@ -229,14 +229,14 @@ contract RibbonVault is
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
         require(
-            newManagementFee < 100 * Vault.FEE_DECIMALS,
+            newManagementFee < 100 * Vault.FEE_MULTIPLIER,
             "Invalid management fee"
         );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.mul(Vault.FEE_DECIMALS).div(
+        managementFee = newManagementFee.mul(Vault.FEE_MULTIPLIER).div(
             WEEKS_PER_YEAR
         );
     }
@@ -247,7 +247,7 @@ contract RibbonVault is
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
         require(
-            newPerformanceFee < 100 * Vault.FEE_DECIMALS,
+            newPerformanceFee < 100 * Vault.FEE_MULTIPLIER,
             "Invalid performance fee"
         );
 
@@ -599,12 +599,12 @@ contract RibbonVault is
                 ? lockedBalanceSansPending
                     .sub(prevLockedAmount)
                     .mul(performanceFee)
-                    .div(100 * Vault.FEE_DECIMALS)
+                    .div(100 * Vault.FEE_MULTIPLIER)
                 : 0;
             uint256 managementFeeInAsset =
                 managementFee > 0
                     ? currentLockedBalance.mul(managementFee).div(
-                        100 * Vault.FEE_DECIMALS
+                        100 * Vault.FEE_MULTIPLIER
                     )
                     : 0;
 
