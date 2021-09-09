@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
+import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
@@ -146,7 +147,6 @@ library VaultLifecycle {
         uint256 currentSupply,
         address asset,
         uint256 decimals,
-        uint256 initialSharePrice,
         uint256 pendingAmount,
         uint256 queuedWithdrawShares
     )
