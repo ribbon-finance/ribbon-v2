@@ -5,6 +5,7 @@ pragma experimental ABIEncoderV2;
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
+import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
@@ -157,7 +158,6 @@ library VaultLifecycle {
         uint256 currentSupply,
         address asset,
         uint256 decimals,
-        uint256 initialSharePrice,
         uint256 pendingAmount,
         uint256 queuedWithdrawShares
     )
@@ -170,27 +170,27 @@ library VaultLifecycle {
         )
     {
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
-        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
 
-        uint256 singleShare = 10**decimals;
-
-        newPricePerShare = getPPS(
+        newPricePerShare = ShareMath.pricePerShare(
             currentSupply,
-            roundStartBalance,
-            singleShare
+            currentBalance,
+            pendingAmount,
+            decimals
         );
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            pendingAmount.mul(singleShare).div(newPricePerShare);
+            pendingAmount.mul(10**decimals).div(newPricePerShare);
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
         uint256 queuedWithdrawAmount =
             newSupply > 0
-                ? queuedWithdrawShares.mul(currentBalance).div(newSupply)
+                ? uint256(queuedWithdrawShares).mul(currentBalance).div(
+                    newSupply
+                )
                 : 0;
 
         return (
@@ -667,15 +667,5 @@ library VaultLifecycle {
             friday8am += 7 days;
         }
         return friday8am;
-    }
-
-    function getPPS(
-        uint256 currentSupply,
-        uint256 roundStartBalance,
-        uint256 singleShare
-    ) internal pure returns (uint256 newPricePerShare) {
-        newPricePerShare = currentSupply > 0
-            ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : singleShare;
     }
 }

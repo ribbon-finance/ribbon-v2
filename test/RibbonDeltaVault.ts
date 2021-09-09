@@ -768,6 +768,29 @@ function behavesLikeRibbonOptionsVault(params: {
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
+              0,
+            ]
+          )
+        ).to.be.revertedWith("!cap");
+      });
+
+      it("reverts when asset is 0x", async function () {
+        await expect(
+          testVault.initialize(
+            owner,
+            feeRecipient,
+            managementFee,
+            performanceFee,
+            tokenName,
+            tokenSymbol,
+            thetaVault.address,
+            optionAllocationPct,
+            [
+              isPut,
+              tokenDecimals,
+              constants.AddressZero,
+              asset,
+              minimumSupply,
               parseEther("500"),
             ]
           )
@@ -793,6 +816,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               0,
+              parseEther("500"),
             ]
           )
         ).to.be.revertedWith("!cap");

@@ -674,7 +674,7 @@ function behavesLikeRibbonOptionsVault(params: {
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              parseEther("500"),
+              0,
             ]
           )
         ).to.be.revertedWith("!feeRecipient");
@@ -700,7 +700,7 @@ function behavesLikeRibbonOptionsVault(params: {
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              0,
+              parseEther("500"),
             ]
           )
         ).to.be.revertedWith("!cap");
@@ -2066,24 +2066,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.maxRedeem()).to.be.revertedWith("!numShares");
       });
 
-      it("redeems after a deposit what was unredeemed from previous rounds", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
-
-        await vault.deposit(params.depositAmount);
-
-        await rollToNextOption();
-
-        await vault.deposit(params.depositAmount);
-
-        const tx = await vault.maxRedeem();
-
-        await expect(tx)
-          .to.emit(vault, "Redeem")
-          .withArgs(user, params.depositAmount, 2);
-      });
-
       it("is able to redeem deposit at correct pricePerShare after closing short in the money", async function () {
         await assetContract
           .connect(userSigner)
@@ -2498,24 +2480,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
-
-      it("can initiate a withdrawal when there is a pending deposit", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount.mul(2));
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.deposit(depositAmount);
-
-        const tx = await vault.initiateWithdraw(depositAmount);
-
-        await expect(tx)
-          .to.emit(vault, "Redeem")
-          .withArgs(user, depositAmount, 2);
-      });
-
       it("reverts when there is insufficient balance over multiple calls", async function () {
         await assetContract
           .connect(userSigner)
