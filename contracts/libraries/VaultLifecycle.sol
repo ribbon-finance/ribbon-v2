@@ -200,9 +200,6 @@ library VaultLifecycle {
         );
     }
 
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
-    uint256 private constant OTOKEN_MULTIPLIER = 10**8;
-
     /**
      * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
      * @param gammaController is the address of the opyn controller contract
@@ -246,7 +243,7 @@ library VaultLifecycle {
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
-                .mul(OTOKEN_MULTIPLIER)
+                .mul(10**Vault.OTOKEN_DECIMALS)
                 .mul(10**18) // we use 10**18 to give extra precision
                 .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {

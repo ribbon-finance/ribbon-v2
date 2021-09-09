@@ -13,7 +13,7 @@ library Vault {
     uint256 internal constant PREMIUM_DISCOUNT_DECIMALS = 10;
 
     // Otokens have 8 decimal places.
-    uint256 internal constant OTOKEN_DECIMALS = 10**8;
+    uint256 internal constant OTOKEN_DECIMALS = 8;
 
     // Percentage of funds allocated to options is 2 decimal places. 10 * 10**2 = 10%
     uint256 internal constant OPTION_ALLOCATION_DECIMALS = 10**2;
