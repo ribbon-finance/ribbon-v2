@@ -20,7 +20,7 @@ import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
  * Any changes/appends in storage variable needs to happen in RibbonDeltaVaultStorage.
- * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, DSMath, RibbonDeltaVaultStorage
+ * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonDeltaVaultStorage
  */
 contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     using SafeERC20 for IERC20;
@@ -136,7 +136,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         // 1000 = 10%. Needs to be less than 10% of the funds allocated to option.
         require(
             _optionAllocationPct > 0 &&
-                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+                _optionAllocationPct < 10 * Vault.OPTION_ALLOCATION_MULTIPLIER,
             "!_optionAllocationPct"
         );
         counterpartyThetaVault = IRibbonThetaVault(_counterpartyThetaVault);
@@ -189,7 +189,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         // Needs to be less than 10%
         require(
             newOptionAllocationPct > 0 &&
-                newOptionAllocationPct < 10 * Vault.OPTION_ALLOCATION_DECIMALS,
+                newOptionAllocationPct <
+                10 * Vault.OPTION_ALLOCATION_MULTIPLIER,
             "Invalid allocation"
         );
 

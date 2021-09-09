@@ -620,11 +620,11 @@ library VaultLifecycle {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
         require(
-            performanceFee < 100 * Vault.FEE_DECIMALS,
+            performanceFee < 100 * Vault.FEE_MULTIPLIER,
             "performanceFee >= 100%"
         );
         require(
-            managementFee < 100 * Vault.FEE_DECIMALS,
+            managementFee < 100 * Vault.FEE_MULTIPLIER,
             "managementFee >= 100%"
         );
         require(bytes(tokenName).length > 0, "!tokenName");
