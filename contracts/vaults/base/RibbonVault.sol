@@ -183,8 +183,8 @@ contract RibbonVault is
             _feeRecipient,
             _performanceFee,
             _managementFee,
-            tokenName,
-            tokenSymbol,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
 
