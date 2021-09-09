@@ -152,11 +152,12 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * if the oTokens are ITM
      */
     function updatePPS(bool isWithdraw) internal {
+        uint256 currentRound = vaultState.round;
         if (
             !isWithdraw ||
-            roundPricePerShare[vaultState.round] <= ShareMath.PLACEHOLDER_UINT
+            roundPricePerShare[currentRound] <= ShareMath.PLACEHOLDER_UINT
         ) {
-            roundPricePerShare[vaultState.round] = ShareMath.pricePerShare(
+            roundPricePerShare[currentRound] = ShareMath.pricePerShare(
                 totalSupply(),
                 IERC20(vaultParams.asset).balanceOf(address(this)),
                 vaultState.totalPending,
