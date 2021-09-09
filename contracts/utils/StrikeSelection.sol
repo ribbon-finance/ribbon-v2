@@ -37,8 +37,8 @@ contract StrikeSelection is Ownable {
     // ChainLink's USD Price oracles return results in 8 decimal places
     uint256 private constant ORACLE_PRICE_MULTIPLIER = 10**8;
 
-    event DeltaSet(uint256 oldDelta, uint256 newDelta, address owner);
-    event StepSet(uint256 oldStep, uint256 newStep, address owner);
+    event DeltaSet(uint256 oldDelta, uint256 newDelta, address indexed owner);
+    event StepSet(uint256 oldStep, uint256 newStep, address indexed owner);
 
     constructor(
         address _optionsPremiumPricer,
