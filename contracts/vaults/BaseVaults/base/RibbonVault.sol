@@ -184,6 +184,7 @@ contract RibbonVault is
             _keeper,
             _feeRecipient,
             _performanceFee,
+            _managementFee,
             _tokenName,
             _tokenSymbol,
             _vaultParams
@@ -238,6 +239,7 @@ contract RibbonVault is
      */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
         require(newFeeRecipient != address(0), "!newFeeRecipient");
+        require(newFeeRecipient != feeRecipient, "Must be new feeRecipient");
         feeRecipient = newFeeRecipient;
     }
 
