@@ -19,7 +19,7 @@ import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
  * Any changes/appends in storage variable needs to happen in RibbonDeltaVaultStorage.
- * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonDeltaVaultStorage
+ * RibbonDeltaVault should not inherit from any other contract aside from RibbonVault, RibbonDeltaVaultStorage
  */
 contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
     using SafeMath for uint256;
