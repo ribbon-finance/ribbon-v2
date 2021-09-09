@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycleSTETH} from "../../libraries/VaultLifecycleSTETH.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
-    OptionsThetaSTETHVaultStorage
-} from "../../storage/OptionsVaultSTETHStorage.sol";
+    RibbonThetaSTETHVaultStorage
+} from "../../storage/RibbonThetaSTETHVaultStorage.sol";
 
-contract RibbonThetaSTETHVault is RibbonVault, OptionsThetaSTETHVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonThetaSTETHVaultStorage.
+ * RibbonThetaSTETHVault should not inherit from any other contract aside from RibbonVault, RibbonThetaSTETHVaultStorage
+ */
+contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     using SafeMath for uint256;
 
     /************************************************

@@ -8,13 +8,15 @@ import {
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {GnosisAuction} from "../libraries/GnosisAuction.sol";
-import {RibbonDeltaVaultStorage} from "../storage/RibbonDeltaVaultStorage.sol";
-import {Vault} from "../libraries/Vault.sol";
-import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
-import {ShareMath} from "../libraries/ShareMath.sol";
+import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {
+    RibbonDeltaVaultStorage
+} from "../../storage/RibbonDeltaVaultStorage.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
