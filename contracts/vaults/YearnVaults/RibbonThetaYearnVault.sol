@@ -242,8 +242,8 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
-                delay: delay,
-                lastStrikeOverride: lastStrikeOverride,
+                delay: DELAY,
+                lastStrikeOverride: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice
             });
 
@@ -260,7 +260,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+        optionState.nextOptionReadyAt = uint32(block.timestamp.add(DELAY));
 
         _closeShort(oldOption);
     }
@@ -382,6 +382,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
-        lastStrikeOverride = vaultState.round;
+        lastStrikeOverrideRound = vaultState.round;
     }
 }

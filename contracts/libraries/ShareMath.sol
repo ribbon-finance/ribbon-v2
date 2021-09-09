@@ -49,11 +49,7 @@ library ShareMath {
         uint256 assetPerShare,
         uint256 decimals
     ) internal pure returns (uint256 unredeemedShares) {
-        if (
-            depositReceipt.round > 0 &&
-            depositReceipt.round < currentRound &&
-            !depositReceipt.processed
-        ) {
+        if (depositReceipt.round > 0 && depositReceipt.round < currentRound) {
             uint256 sharesFromRound =
                 assetToShares(depositReceipt.amount, assetPerShare, decimals);
 

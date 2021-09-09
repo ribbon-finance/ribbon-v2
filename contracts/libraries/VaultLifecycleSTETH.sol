@@ -687,8 +687,8 @@ library VaultLifecycleSTETH {
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
-    function transferAsset(address payable recipient, uint256 amount) public {
-        (bool success, ) = recipient.call{value: amount}("");
+    function transferAsset(address recipient, uint256 amount) public {
+        (bool success, ) = payable(recipient).call{value: amount}("");
         require(success, "!success");
     }
 
