@@ -610,16 +610,20 @@ library VaultLifecycle {
         address owner,
         address feeRecipient,
         uint256 performanceFee,
+        uint256 managementFee,
         string calldata tokenName,
         string calldata tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) external pure {
         require(owner != address(0), "!owner");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee > 0, "!performanceFee");
         require(
             performanceFee < 100 * Vault.FEE_DECIMALS,
             "performanceFee >= 100%"
+        );
+        require(
+            managementFee < 100 * Vault.FEE_DECIMALS,
+            "managementFee >= 100%"
         );
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
@@ -628,6 +632,10 @@ library VaultLifecycle {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
+        require(
+            _vaultParams.cap > _vaultParams.minimumSupply,
+            "cap has to be higher than minimumSupply"
+        );
     }
 
     /**
