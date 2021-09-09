@@ -12,29 +12,27 @@ library ShareMath {
     function assetToShares(
         uint256 assetAmount,
         uint256 assetPerShare,
-        uint decimals
-    ) internal pure returns (uint) {
-        // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
-        // which should never happen.
-        // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
-        require(assetPerShare > PLACEHOLDER_UINT, "Invalid assetPerShare");
-
-        uint256 shares = uint256(underlyingAmount).mul(10**decimals).div(pps);
-
-        return shares;
-    }
-
-    function sharesToAsset(
-        uint256 shares,
-        uint256 assetPerShare,
-        uint decimals
+        uint256 decimals
     ) internal pure returns (uint256) {
         // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
         // which should never happen.
         // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
         require(assetPerShare > PLACEHOLDER_UINT, "Invalid assetPerShare");
 
-        return shares.mul(pps).div(10**decimals);
+        return assetAmount.mul(10**decimals).div(assetPerShare);
+    }
+
+    function sharesToAsset(
+        uint256 shares,
+        uint256 assetPerShare,
+        uint256 decimals
+    ) internal pure returns (uint256) {
+        // If this throws, it means that vault's roundPricePerShare[currentRound] has not been set yet
+        // which should never happen.
+        // Has to be larger than 1 because `1` is used in `initRoundPricePerShares` to prevent cold writes.
+        require(assetPerShare > PLACEHOLDER_UINT, "Invalid assetPerShare");
+
+        return shares.mul(assetPerShare).div(10**decimals);
     }
 
     /**
@@ -48,7 +46,7 @@ library ShareMath {
     function getSharesFromReceipt(
         Vault.DepositReceipt memory depositReceipt,
         uint256 currentRound,
-        uint256 pps,
+        uint256 assetPerShare,
         uint256 decimals
     ) internal pure returns (uint256 unredeemedShares) {
         if (
