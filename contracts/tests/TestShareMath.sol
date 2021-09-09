@@ -12,7 +12,7 @@ contract TestShareMath {
         return ShareMath.assetToShares(assetAmount, pps, decimals);
     }
 
-    function sharesToAssets(
+    function sharesToAsset(
         uint256 shares,
         uint256 pps,
         uint256 decimals

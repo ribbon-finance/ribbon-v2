@@ -2066,6 +2066,22 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.maxRedeem()).to.be.revertedWith("!numShares");
       });
 
+      it("redeems after a deposit what was unredeemed from previous rounds", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+        await vault.deposit(params.depositAmount);
+        await rollToNextOption();
+
+        await vault.deposit(params.depositAmount);
+
+        const tx = await vault.maxRedeem();
+
+        await expect(tx)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, params.depositAmount, 2);
+      });
+
       it("is able to redeem deposit at correct pricePerShare after closing short in the money", async function () {
         await assetContract
           .connect(userSigner)

@@ -503,7 +503,6 @@ contract RibbonVault is
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
         uint256 currentRound = vaultState.round;
-        require(depositReceipt.round < currentRound, "Round not closed");
 
         uint256 unredeemedShares =
             depositReceipt.getSharesFromReceipt(
@@ -516,8 +515,13 @@ contract RibbonVault is
         require(numShares > 0, "!numShares");
         require(numShares <= unredeemedShares, "Exceeds available");
 
-        // This zeroes out any pending amount from depositReceipt
-        depositReceipts[msg.sender].amount = 0;
+        // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
+        // we debit from the unredeemedShares, but leave the amount field intact
+        // If the round has past, with no new deposits, we just zero it out for new deposits.
+        depositReceipts[msg.sender].amount = depositReceipt.round < currentRound
+            ? 0
+            : depositReceipt.amount;
+
         ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
             unredeemedShares.sub(numShares)
