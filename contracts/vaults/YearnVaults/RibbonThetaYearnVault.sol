@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {DSMath} from "../../vendor/DSMathLib.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {DSMath} from "../../vendor/DSMath.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
-    OptionsThetaYearnVaultStorage
-} from "../../storage/OptionsVaultYearnStorage.sol";
+    RibbonThetaYearnVaultStorage
+} from "../../storage/RibbonThetaYearnVaultStorage.sol";
 
-contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
+/**
+ * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
+ * the inheritance chain closely.
+ * Any changes/appends in storage variable needs to happen in RibbonThetaYearnVaultStorage.
+ * RibbonThetaYearnVault should not inherit from any other contract aside from RibbonVault, RibbonThetaYearnVaultStorage
+ */
+contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     using SafeMath for uint256;
 
     /************************************************
@@ -237,8 +242,8 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
-                delay: delay,
-                lastStrikeOverride: lastStrikeOverride,
+                delay: DELAY,
+                lastStrikeOverride: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice
             });
 
@@ -255,7 +260,7 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
 
         currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
-        optionState.nextOptionReadyAt = uint32(block.timestamp.add(delay));
+        optionState.nextOptionReadyAt = uint32(block.timestamp.add(DELAY));
 
         _closeShort(oldOption);
     }
@@ -377,6 +382,6 @@ contract RibbonThetaYearnVault is RibbonVault, OptionsThetaYearnVaultStorage {
     {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
-        lastStrikeOverride = vaultState.round;
+        lastStrikeOverrideRound = vaultState.round;
     }
 }

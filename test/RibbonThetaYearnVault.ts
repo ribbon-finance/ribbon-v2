@@ -84,7 +84,7 @@ describe("RibbonThetaYearnVault", () => {
     isPut: false,
     gasLimits: {
       depositWorstCase: 154539,
-      depositBestCase: 133664,
+      depositBestCase: 135000,
     },
   });
 
@@ -113,8 +113,8 @@ describe("RibbonThetaYearnVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 154121,
-      depositBestCase: 137164,
+      depositWorstCase: 155000,
+      depositBestCase: 138000,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -788,7 +788,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#delay", () => {
       it("returns the delay", async function () {
-        assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
+        assert.equal((await vault.DELAY()).toNumber(), OPTION_DELAY);
       });
     });
 
@@ -1380,7 +1380,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverride()).toString(), "1");
+        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
         assert.equal(
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
@@ -2156,7 +2156,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1063400);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1065000);
 
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
@@ -2841,7 +2841,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 170146);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 170800);
         // console.log(
         //   params.name,
         //   "completeWithdraw",

@@ -1,52 +1,117 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {DSMath} from "../../../vendor/DSMathLib.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+
+import {DSMath} from "../../../vendor/DSMath.sol";
 import {SafeERC20} from "../../../vendor/CustomSafeERC20.sol";
 import {IYearnRegistry, IYearnVault} from "../../../interfaces/IYearn.sol";
-import {
-    OptionsVaultYearnStorage
-} from "../../../storage/OptionsVaultYearnStorage.sol";
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
-contract RibbonVault is OptionsVaultYearnStorage {
+contract RibbonVault is
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    ERC20Upgradeable
+{
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
     /************************************************
+     *  NON UPGRADEABLE STORAGE
+     ***********************************************/
+
+    /// @notice Stores the user's pending deposit for the round
+    mapping(address => Vault.DepositReceipt) public depositReceipts;
+
+    /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
+    /// This is used to determine the number of shares to be returned
+    /// to a user with their DepositReceipt.depositAmount
+    mapping(uint256 => uint256) public roundPricePerShare;
+
+    /// @notice Stores pending user withdrawals
+    mapping(address => Vault.Withdrawal) public withdrawals;
+
+    /// @notice Vault's parameters like cap, decimals
+    Vault.VaultParams public vaultParams;
+
+    /// @notice Vault's lifecycle state like round and locked amounts
+    Vault.VaultState public vaultState;
+
+    /// @notice Vault's state of the options sold and the timelocked option
+    Vault.OptionState public optionState;
+
+    /// @notice Fee recipient for the performance and management fees
+    address public feeRecipient;
+
+    /// @notice role in charge of weekly vault operations such as rollToNextOption and burnRemainingOTokens
+    // no access to critical vault changes
+    address public keeper;
+
+    /// @notice Performance fee charged on premiums earned in rollToNextOption. Only charged when there is no loss.
+    uint256 public performanceFee;
+
+    /// @notice Management fee charged on entire AUM in rollToNextOption. Only charged when there is no loss.
+    uint256 public managementFee;
+
+    /// @notice Yearn vault contract
+    IYearnVault public collateralToken;
+
+    // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
+    uint256[30] private ____gap;
+
+    // *IMPORTANT* NO NEW STORAGE VARIABLES SHOULD BE ADDED HERE
+    // This is to prevent storage collisions. All storage variables should be appended to RibbonThetaYearnVaultStorage
+    // https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#modifying-your-contracts
+
+    /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
+    /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     address public immutable WETH;
+
+    /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
 
-    uint256 public constant delay = 1 hours;
+    /// @notice 1 hour timelock between commitAndClose and rollToNexOption.
+    /// 1 hour period allows vault depositors to leave.
+    uint256 public constant DELAY = 1 hours;
 
+    /// @notice Withdrawal buffer for yearn vault
     uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
 
+    /// @notice Slippage incurred during withdrawal
     uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
 
-    uint128 internal constant PLACEHOLDER_UINT = 1;
+    /// @notice 7 day period between each options sale.
+    uint256 public constant PERIOD = 7 days;
 
-    // Number of weeks per year = 52.142857 weeks * 10**6 = 52142857
-    // Dividing by weeks per year requires doing num.mul(10**6).div(WEEKS_PER_YEAR)
+    // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
+    // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
 
     // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
     // which allows users to perform multiple actions on their vaults
-    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Controller.sol
+    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/Controller.sol
     address public immutable GAMMA_CONTROLLER;
 
     // MARGIN_POOL is Gamma protocol's collateral pool.
     // Needed to approve collateral.safeTransferFrom for minting otokens.
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/MarginPool.sol
+    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/MarginPool.sol
     address public immutable MARGIN_POOL;
 
     // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids
@@ -368,7 +433,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
         );
 
         uint256 withdrawAmount =
-            ShareMath.sharesToUnderlying(
+            ShareMath.sharesToAsset(
                 withdrawalShares,
                 roundPricePerShare[withdrawalRound],
                 vaultParams.decimals
@@ -478,7 +543,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             uint256 index = _round + i;
             require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = PLACEHOLDER_UINT;
+            roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
         }
     }
 
@@ -608,7 +673,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
             totalBalance().sub(vaultState.totalPending).mul(10**decimals).div(
                 totalSupply()
             );
-        return ShareMath.sharesToUnderlying(numShares, pps, decimals);
+        return ShareMath.sharesToAsset(numShares, pps, decimals);
     }
 
     /**
@@ -634,7 +699,7 @@ contract RibbonVault is OptionsVaultYearnStorage {
     {
         Vault.DepositReceipt memory depositReceipt = depositReceipts[account];
 
-        if (depositReceipt.round < PLACEHOLDER_UINT) {
+        if (depositReceipt.round < ShareMath.PLACEHOLDER_UINT) {
             return (balanceOf(account), 0);
         }
 
