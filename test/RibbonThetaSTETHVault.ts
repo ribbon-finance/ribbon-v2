@@ -2135,7 +2135,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.depositETH({ value: depositAmount });
         await rollToNextOption();
-        await expect(vault.redeem(0)).to.be.revertedWith("!shares");
+        await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
       it("overflows when shares >uint128", async function () {
@@ -2324,7 +2324,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("!shares");
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith(
+          "!numShares"
+        );
       });
 
       it("reverts when withdrawing more than unredeemed balance", async function () {
