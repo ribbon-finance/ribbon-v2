@@ -6,16 +6,18 @@ import {
   WBTC_ADDRESS,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
-
-const WBTC_USDC_POOL = "0x99ac8cA7087fA4A2A1FB6357269965A2014ABc35";
-const MAINNET_WBTC_ORACLE = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
-const KOVAN_WBTC_ORACLE = "0x6135b13325bfC4B00278B4abC5e20bbce2D6580e";
-const KOVAN_WBTC = "0x50570256f0da172a1908207aAf0c80d4b279f303";
-
-const STRIKE_STEP = 1000;
-const STRIKE_DELTA = 1000; // 0.1d
-const PREMIUM_DISCOUNT = 950; // 0.95
-const AUCTION_DURATION = 3600; // 1 hour
+import {
+  AUCTION_DURATION,
+  KOVAN_WBTC,
+  KOVAN_WBTC_ORACLE,
+  MAINNET_WBTC_ORACLE,
+  MANAGEMENT_FEE,
+  PERFORMANCE_FEE,
+  PREMIUM_DISCOUNT,
+  STRIKE_DELTA,
+  WBTC_STRIKE_STEP,
+  WBTC_USDC_POOL,
+} from "./utils/constants";
 
 const main = async ({
   network,
@@ -53,7 +55,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionWBTC", {
     contract: "StrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
   });
 
   const wbtc = isMainnet ? WBTC_ADDRESS : KOVAN_WBTC;
@@ -70,8 +72,8 @@ const main = async ({
     owner,
     keeper,
     feeRecipient,
-    0,
-    0,
+    MANAGEMENT_FEE,
+    PERFORMANCE_FEE,
     "Ribbon BTC Theta Vault",
     "rBTC-THETA",
     pricer.address,

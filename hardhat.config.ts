@@ -4,6 +4,7 @@ import "hardhat-contract-sizer";
 import "hardhat-log-remover";
 import "hardhat-deploy";
 import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
 
@@ -63,7 +64,7 @@ export default {
     },
     keeper: {
       default: 0,
-      1: "0xAb6df2dE75a4f07D95c040DF90c7362bB5edcd90",
+      1: "0xA4290C9EAe274c7A8FbC57A1E68AdC3E95E7C67e",
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
     },
     admin: {
@@ -73,7 +74,7 @@ export default {
     },
     feeRecipient: {
       default: 0,
-      1: "0xAb6df2dE75a4f07D95c040DF90c7362bB5edcd90",
+      1: "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674", // Ribbon DAO
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
     },
   },
