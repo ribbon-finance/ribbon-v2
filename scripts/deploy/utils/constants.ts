@@ -20,4 +20,4 @@ export const STRIKE_DELTA = 1000; // 0.1d
 export const PREMIUM_DISCOUNT = 800; // 0.80, 20% discount
 export const AUCTION_DURATION = 3600; // 1 hour
 export const PERFORMANCE_FEE = 0;
-export const MANAGEMENT_FEE = 2000000; // 20% per year. 2 * 10**6
+export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result in 38356 per week.
