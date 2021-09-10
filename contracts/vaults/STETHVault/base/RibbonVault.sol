@@ -496,7 +496,7 @@ contract RibbonVault is
             );
 
         numShares = isMax ? unredeemedShares : numShares;
-        require(numShares > 0, "!shares");
+        require(numShares > 0, "!numShares");
         require(numShares <= unredeemedShares, "Exceeds available");
 
         // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
