@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
 import {Vault} from "../libraries/Vault.sol";
 
 interface IRibbonThetaVault {
-    function currentOption() external view returns (address _currentOption);
+    function currentOption() external view returns (address);
 
-    function nextOption() external view returns (address _nextOption);
+    function nextOption() external view returns (address);
 
     function vaultParams() external view returns (Vault.VaultParams memory);
 
@@ -15,5 +14,5 @@ interface IRibbonThetaVault {
 
     function optionState() external view returns (Vault.OptionState memory);
 
-    function optionAuctionID() external view returns (uint256 _auctionID);
+    function optionAuctionID() external view returns (uint256);
 }

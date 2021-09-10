@@ -80,7 +80,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("10"),
-    crvETHAmountAfterSlippage: BigNumber.from("963435544683405430"),
+    crvETHAmountAfterSlippage: BigNumber.from("963399093401309097"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -772,7 +772,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#delay", () => {
       it("returns the delay", async function () {
-        assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
+        assert.equal((await vault.DELAY()).toNumber(), OPTION_DELAY);
       });
     });
 
@@ -1241,7 +1241,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverride()).toString(), "1");
+        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
         assert.equal(
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
@@ -2009,13 +2009,12 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
 
-        const { round, amount, unredeemedShares } = await vault.depositReceipts(
-          user
-        );
+        const { round2, amount2, unredeemedShares2 } =
+          await vault.depositReceipts(user);
 
-        assert.equal(round, 1);
-        assert.bnEqual(amount, BigNumber.from(0));
-        assert.bnEqual(unredeemedShares, BigNumber.from(0));
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
@@ -2155,7 +2154,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.depositETH({ value: depositAmount });
         await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(">U128");
+        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(
+          "Overflow uint128"
+        );
       });
 
       it("reverts when redeeming more than available", async function () {

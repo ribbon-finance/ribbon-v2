@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {DSMath} from "../vendor/DSMathLib.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOtoken} from "../interfaces/GammaInterface.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
@@ -17,18 +18,18 @@ library GnosisAuction {
     using SafeERC20 for IERC20;
 
     event InitiateGnosisAuction(
-        address auctioningToken,
-        address biddingToken,
+        address indexed auctioningToken,
+        address indexed biddingToken,
         uint256 auctionCounter,
-        address manager
+        address indexed manager
     );
 
     event PlaceAuctionBid(
         uint256 auctionId,
-        address auctioningToken,
+        address indexed auctioningToken,
         uint256 sellAmount,
         uint256 buyAmount,
-        address bidder
+        address indexed bidder
     );
 
     struct AuctionDetails {
@@ -47,7 +48,7 @@ library GnosisAuction {
         uint256 assetDecimals;
         uint256 auctionId;
         uint256 lockedBalance;
-        uint256 optionAllocationPct;
+        uint256 optionAllocation;
         uint256 optionPremium;
         address bidder;
     }
@@ -85,7 +86,7 @@ library GnosisAuction {
             .initiateAuction(
             // address of oToken we minted and are selling
             auctionDetails.oTokenAddress,
-            // address of asset we want in exchange for oTokens. Should match vault collateral
+            // address of asset we want in exchange for oTokens. Should match vault `asset`
             auctionDetails.asset,
             // orders can be cancelled before the auction's halfway point
             block.timestamp.add(auctionDetails.duration.div(2)),
@@ -126,15 +127,14 @@ library GnosisAuction {
         // calculate how much to allocate
         sellAmount = bidDetails
             .lockedBalance
-            .mul(bidDetails.optionAllocationPct)
-            .div(10000);
+            .mul(bidDetails.optionAllocation)
+            .div(100 * Vault.OPTION_ALLOCATION_MULTIPLIER);
 
         // divide the `asset` sellAmount by the target premium per oToken to
         // get the number of oTokens to buy (8 decimals)
         buyAmount = sellAmount
-            .mul(10**bidDetails.assetDecimals)
+            .mul(10**(bidDetails.assetDecimals.add(Vault.OTOKEN_DECIMALS)))
             .div(bidDetails.optionPremium)
-            .mul(10**8)
             .div(10**bidDetails.assetDecimals);
 
         require(
@@ -177,6 +177,8 @@ library GnosisAuction {
             buyAmount,
             bidDetails.bidder
         );
+
+        return (sellAmount, buyAmount, userId);
     }
 
     function claimAuctionOtokens(
@@ -201,23 +203,26 @@ library GnosisAuction {
     function getOTokenSellAmount(address oTokenAddress)
         internal
         view
-        returns (uint256 oTokenSellAmount)
+        returns (uint256)
     {
         // We take our current oToken balance. That will be our sell amount
-        // but gnosis will transfer all the otokens
-        oTokenSellAmount = IERC20(oTokenAddress).balanceOf(address(this));
+        // but otokens will be transferred to gnosis.
+        uint256 oTokenSellAmount =
+            IERC20(oTokenAddress).balanceOf(address(this));
 
         require(
             oTokenSellAmount <= type(uint96).max,
             "oTokenSellAmount > type(uint96) max value!"
         );
+
+        return oTokenSellAmount;
     }
 
     function getOTokenPremium(
         address oTokenAddress,
         address optionsPremiumPricer,
         uint256 premiumDiscount
-    ) internal view returns (uint256 optionPremium) {
+    ) internal view returns (uint256) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IOptionsPremiumPricer premiumPricer =
             IOptionsPremiumPricer(optionsPremiumPricer);
@@ -225,19 +230,24 @@ library GnosisAuction {
         // Apply black-scholes formula (from rvol library) to option given its features
         // and get price for 100 contracts denominated in the underlying asset for call option
         // and USDC for put option
-        optionPremium = premiumPricer.getPremium(
-            newOToken.strikePrice(),
-            newOToken.expiryTimestamp(),
-            newOToken.isPut()
-        );
+        uint256 optionPremium =
+            premiumPricer.getPremium(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
 
         // Apply a discount to incentivize arbitraguers
-        optionPremium = optionPremium.mul(premiumDiscount).div(1000);
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
+        );
 
         require(
             optionPremium <= type(uint96).max,
             "optionPremium > type(uint96) max value!"
         );
+
+        return optionPremium;
     }
 
     function encodeOrder(
