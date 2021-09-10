@@ -56,16 +56,16 @@ contract AdminUpgradeabilityProxy is UpgradeabilityProxy {
   }
 
   /**
-   * @return The address of the proxy admin.
+   * @return adminAddress The address of the proxy admin.
    */
-  function admin() external ifAdmin returns (address) {
+  function admin() external ifAdmin returns (address adminAddress) {
     return _admin();
   }
 
   /**
-   * @return The address of the implementation.
+   * @return implementationAddress The address of the implementation.
    */
-  function implementation() external ifAdmin returns (address) {
+  function implementation() external ifAdmin returns (address implementationAddress) {
     return _implementation();
   }
 
