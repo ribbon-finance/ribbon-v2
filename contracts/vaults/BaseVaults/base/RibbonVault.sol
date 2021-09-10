@@ -510,32 +510,12 @@ contract RibbonVault is
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-<<<<<<< HEAD
-        shares = isMax ? unredeemedShares : shares;
-        if (shares == 0) {
-=======
-            
-        numShares = isMax ? unredeemedShares : numShares;
-        if (numShares == 0) {
->>>>>>> 62b3696f2953d75fed0a30fc5e8bdcb28f72c234
-            return;
-        }
-        require(numShares <= unredeemedShares, "Exceeds available");
-<<<<<<< HEAD
->>>>>>> 0a95538aa811ff392bedaaaa3c41a1b2ecd913be
-=======
             
         numShares = isMax ? unredeemedShares : numShares;
         if (numShares == 0) {
             return;
         }
         require(numShares <= unredeemedShares, "Exceeds available");
->>>>>>> cb9f25c478d61121d7b01b349198f1dc044ec2e2
-=======
->>>>>>> 62b3696f2953d75fed0a30fc5e8bdcb28f72c234
 
         // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
         // we debit from the unredeemedShares, but leave the amount field intact
