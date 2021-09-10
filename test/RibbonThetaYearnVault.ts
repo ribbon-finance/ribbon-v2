@@ -2231,20 +2231,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares, BigNumber.from(0));
       });
 
-      it("reverts when redeeming twice", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
-
-        await vault.deposit(params.depositAmount);
-
-        await rollToNextOption();
-
-        await vault.maxRedeem();
-
-        await expect(vault.maxRedeem()).to.be.revertedWith("!shares");
-      });
-
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
         await assetContract
           .connect(userSigner)
