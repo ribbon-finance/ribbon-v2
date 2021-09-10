@@ -69,7 +69,7 @@ describe("RibbonDeltaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
-    optionAllocationPct: BigNumber.from("500"),
+    optionAllocation: BigNumber.from("500"),
     optionPremium: BigNumber.from("1").mul(BigNumber.from("10").pow("8")),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -102,7 +102,7 @@ describe("RibbonDeltaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
-    optionAllocationPct: BigNumber.from("500"),
+    optionAllocation: BigNumber.from("500"),
     optionPremium: BigNumber.from("10").mul(BigNumber.from("10").pow("18")),
     auctionDuration: 21600,
     tokenDecimals: 18,
@@ -130,7 +130,7 @@ describe("RibbonDeltaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
-    optionAllocationPct: BigNumber.from("500"),
+    optionAllocation: BigNumber.from("500"),
     optionPremium: BigNumber.from("1000").mul(BigNumber.from("10").pow("6")),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("370370"),
@@ -161,7 +161,7 @@ describe("RibbonDeltaVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
-    optionAllocationPct: BigNumber.from("500"),
+    optionAllocation: BigNumber.from("500"),
     optionPremium: BigNumber.from("1000").mul(BigNumber.from("10").pow("6")),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("5263157894"),
@@ -207,7 +207,7 @@ type Option = {
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
  * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
- * @param {BigNumber} params.optionAllocationPct - Percentage of funds to allocate towards options purchase that week
+ * @param {BigNumber} params.optionAllocation - Percentage of funds to allocate towards options purchase that week
  * @param {BigNumber} params.optionPremium - Premium to pay per oToken
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
@@ -232,7 +232,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
-  optionAllocationPct: BigNumber;
+  optionAllocation: BigNumber;
   optionPremium: BigNumber;
   auctionDuration: number;
   isPut: boolean;
@@ -265,7 +265,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let premiumDiscount = params.premiumDiscount;
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
-  let optionAllocationPct = params.optionAllocationPct;
+  let optionAllocation = params.optionAllocation;
   let optionPremium = params.optionPremium;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
@@ -467,7 +467,7 @@ function behavesLikeRibbonOptionsVault(params: {
         tokenName,
         tokenSymbol,
         thetaVault.address,
-        optionAllocationPct,
+        optionAllocation,
         [
           isPut,
           tokenDecimals,
@@ -673,8 +673,8 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.counterpartyThetaVault(), thetaVault.address);
         assert.bnEqual(cap, parseEther("500"));
         assert.equal(
-          (await vault.optionAllocationPct()).toString(),
-          optionAllocationPct.toString()
+          (await vault.optionAllocation()).toString(),
+          optionAllocation.toString()
         );
       });
 
@@ -689,7 +689,7 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            optionAllocation,
             [
               isPut,
               tokenDecimals,
@@ -713,7 +713,7 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            optionAllocation,
             [
               isPut,
               tokenDecimals,
@@ -737,7 +737,7 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            optionAllocation,
             [
               isPut,
               tokenDecimals,
@@ -761,7 +761,7 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            optionAllocation,
             [
               isPut,
               tokenDecimals,
@@ -785,7 +785,7 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            optionAllocation,
             [
               isPut,
               tokenDecimals,
@@ -809,7 +809,7 @@ function behavesLikeRibbonOptionsVault(params: {
             tokenName,
             tokenSymbol,
             thetaVault.address,
-            optionAllocationPct,
+            optionAllocation,
             [
               isPut,
               tokenDecimals,
@@ -823,7 +823,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!cap");
       });
 
-      it("reverts when optionAllocationPct is 0", async function () {
+      it("reverts when optionAllocation is 0", async function () {
         await expect(
           testVault.initialize(
             owner,
@@ -844,7 +844,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!_optionAllocationPct");
+        ).to.be.revertedWith("!_optionAllocation");
       });
     });
 
@@ -1329,7 +1329,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1401,7 +1401,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1418,7 +1418,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenLong")
           .withArgs(firstOptionAddress, numOTokens, bidAmount, keeper);
 
-        // optionAllocationPct % of the vault's balance is allocated to long
+        // optionAllocation % of the vault's balance is allocated to long
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
           startAssetBalance.sub(bidAmount)
@@ -1448,7 +1448,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1568,7 +1568,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let newBidAmount = secondInitialLockedBalance
           .sub(vaultFees)
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
@@ -1609,7 +1609,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
 
         let bidAmount = (await lockedBalanceForRollover(assetContract, vault))
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let numOTokens = bidAmount
@@ -1711,7 +1711,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let newBidAmount = (
           await lockedBalanceForRollover(assetContract, vault)
         )
-          .mul(await vault.optionAllocationPct())
+          .mul(await vault.optionAllocation())
           .div(BigNumber.from(10000));
 
         let newNumOTokens = newBidAmount
@@ -1854,7 +1854,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .add(params.depositAmount)
             .sub(
               params.depositAmount
-                .mul(params.optionAllocationPct)
+                .mul(params.optionAllocation)
                 .div(BigNumber.from("10000"))
             )
         );
@@ -1886,7 +1886,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const balanceAfterOptionPurchase = params.depositAmount.sub(
           params.depositAmount
-            .mul(params.optionAllocationPct)
+            .mul(params.optionAllocation)
             .div(BigNumber.from("10000"))
         );
 
@@ -2138,7 +2138,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.depositAmount
         );
         depositAmountAfterPremium = depositAmount.sub(
-          depositAmount.mul(optionAllocationPct.div(100)).div(100)
+          depositAmount.mul(optionAllocation.div(100)).div(100)
         );
       });
 
@@ -2597,7 +2597,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .setOptionAllocation(BigNumber.from("100"));
         assert.bnEqual(
-          BigNumber.from(await vault.optionAllocationPct()),
+          BigNumber.from(await vault.optionAllocation()),
           BigNumber.from("100")
         );
       });
