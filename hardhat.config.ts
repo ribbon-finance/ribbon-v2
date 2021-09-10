@@ -21,7 +21,7 @@ export default {
     deployments: "deployments",
   },
   solidity: {
-    version: "0.7.3",
+    version: "0.8.4",
     settings: {
       optimizer: {
         runs: 200,

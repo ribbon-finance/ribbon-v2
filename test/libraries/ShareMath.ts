@@ -11,27 +11,27 @@ describe("ShareMath", () => {
     shareMath = await TestShareMath.deploy();
   });
 
-  describe("#underlyingToShares", () => {
+  describe("#assetToShares", () => {
     it("calculates the correct number", async () => {
       const decimals = 8;
       const underlyingAmount = parseUnits("1", 8);
       const pps = parseUnits("2", 8);
 
       assert.bnEqual(
-        await shareMath.underlyingToShares(underlyingAmount, pps, decimals),
+        await shareMath.assetToShares(underlyingAmount, pps, decimals),
         parseUnits("0.5", 8)
       );
     });
   });
 
-  describe("#sharesToUnderlying", () => {
+  describe("#sharesToAsset", () => {
     it("calculates the correct number", async () => {
       const decimals = 8;
       const shares = parseUnits("1", 8);
       const pps = parseUnits("2", 8);
 
       assert.bnEqual(
-        await shareMath.sharesToUnderlying(shares, pps, decimals),
+        await shareMath.sharesToAsset(shares, pps, decimals),
         parseUnits("2", 8)
       );
     });
