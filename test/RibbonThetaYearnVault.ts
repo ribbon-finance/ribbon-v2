@@ -2257,7 +2257,9 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount, BigNumber.from(0));
         assert.bnEqual(unredeemedShares, BigNumber.from(0));
 
-        await vault.maxRedeem();
+        let res = await vault.maxRedeem();
+
+        await expect(res).to.not.emit(vault, "Transfer");
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
