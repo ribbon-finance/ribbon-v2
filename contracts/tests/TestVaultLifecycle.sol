@@ -16,6 +16,7 @@ contract TestVaultLifecycle {
         if (account == address(this)) {
             return 1 ether;
         }
+        return 0;
     }
 
     function rollover(
