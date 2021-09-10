@@ -3,22 +3,22 @@
         "ManualVolOracle": "0x3e79a62ece7BAe86B687bD1D90598F86f93D2af2",
         "OptionsPremiumPricerETH": "0x651aDc98dd621bA70B4e791adB9B4Ad8082713bC",
         "OptionsPremiumPricerWBTC": "0x1775e7Bdd034d2De74a3ef131044395373880dA1",
-        "RibbonThetaVaultETHCall": "0x5770745d644CCA4D33E08f0abfBBE3aA8c836c33",
-        "RibbonThetaVaultLogic": "0x8E1F9bB6BBCF0582CF3Ab0C5D4B16AA94bECFb81",
+        "RibbonThetaVaultETHCall": "0x9467726c3cFe3f9112Cd0fA3963223d5b8b3C4B1",
+        "RibbonThetaVaultLogic": "0x2f7ABA5AF03B3fbC760722e46ee4376Aec2A0Bb0",
         "RibbonThetaVaultWBTCCall": "0x6e08c6659132dB4aF0352c409e4b3067C8E97ac2",
-        "StrikeSelectionETH": "0xB69f74aA91301d1c3384A77e127F1F422Fdb84a6",
+        "StrikeSelectionETH": "0xa3Bd562C7315B6f1C5FDf573cBfd4Ab6C8af1D07",
         "StrikeSelectionWBTC": "0x2Cd6e166Fb9DABC50d0b07DdE12e08dDC7a9D5DC",
-        "VaultLifecycle": "0x2c8661Ce1D3a368099511CB34500f453E6597eE2"
+        "VaultLifecycle": "0x97710Cbae64DE9c3615E64893CD225f6139370cA"
     },
     "mainnet": {
         "ManualVolOracle": "0xe24854968CDbCfa049ddd6F089b5C552D181eCC4",
         "OptionsPremiumPricerETH": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C",
         "OptionsPremiumPricerWBTC": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8",
-        "RibbonThetaVaultETHCall": "0xcfCf97F4300aFAa94566696fbF116C4d881FB3bc",
-        "RibbonThetaVaultLogic": "0x6eC571bEE204dC17eF7CaD5547Dc9084D28031f8",
-        "RibbonThetaVaultWBTCCall": "0x9d1d31190f945b72f6de8f1c72b97931c9d5014a",
-        "StrikeSelectionETH": "0x896e4ddC672E5e3dF9d21762518985eBb36482fA",
-        "StrikeSelectionWBTC": "0x001D77351daD0cD3f696c67EbBa5Bda0C11d0Db1",
-        "VaultLifecycle": "0x93C48f3dC0Df467ca9089925bD8256C62Af1F522"
+        "RibbonThetaVaultETHCall": "0xB0A54C398bAa5E1f0d73B9328263fdA296278EB0",
+        "RibbonThetaVaultLogic": "0xc4d1009dFF06a63a5548eCFEaf0942D45CF027c5",
+        "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
+        "StrikeSelectionETH": "0x05DC9638693117c59E7e6CC7b77232d7E494c4cf",
+        "StrikeSelectionWBTC": "0x2D8C029a76892d4B2d4E0276EDc61FBEF724ef1c",
+        "VaultLifecycle": "0xe248f69Df96B0d397E8B81A592Da8766b857d6c7"
     }
 }
