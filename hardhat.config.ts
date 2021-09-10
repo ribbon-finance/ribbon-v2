@@ -4,6 +4,7 @@ import "hardhat-contract-sizer";
 import "hardhat-log-remover";
 import "hardhat-deploy";
 import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
 
