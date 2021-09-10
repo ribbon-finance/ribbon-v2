@@ -2,19 +2,19 @@
   "kovan": {
     "vaults": {
       "RibbonThetaVaultETHCall": {
-        "address": "0xF77FE1e54bc308C88CBacf3670EB54ce4A41226E",
-        "strikeSelection": "0xaAA24915AfFab8A83af74D5A1472F4fE7AD08D71",
-        "optionsPremiumPricer": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D"
+        "address": "0x9467726c3cFe3f9112Cd0fA3963223d5b8b3C4B1",
+        "strikeSelection": "0xa3Bd562C7315B6f1C5FDf573cBfd4Ab6C8af1D07",
+        "optionsPremiumPricer": "0x651aDc98dd621bA70B4e791adB9B4Ad8082713bC"
       },
       "RibbonThetaVaultWBTCCall": {
-        "address": "0x0E24525cCb27d20354a34652f43cF707D8F0Cc97",
-        "strikeSelection": "",
+        "address": "0x6e08c6659132dB4aF0352c409e4b3067C8E97ac2",
+        "strikeSelection": "0x2Cd6e166Fb9DABC50d0b07DdE12e08dDC7a9D5DC",
         "optionsPremiumPricer": "0x947398a2C3f5dD6983bb935FEBFcF076C870e23e"
       },
       "RibbonThetaVaultETHPut": {
         "address": "0xEC1c50724CF7a618C6cdA6CFEa5c9064AFc98E84",
-        "strikeSelection": "0xaAA24915AfFab8A83af74D5A1472F4fE7AD08D71",
-        "optionsPremiumPricer": "0xE922806E610A6bA9A828a3b2Ea6A9936182FFC7D"
+        "strikeSelection": "0xa3Bd562C7315B6f1C5FDf573cBfd4Ab6C8af1D07",
+        "optionsPremiumPricer": "0x651aDc98dd621bA70B4e791adB9B4Ad8082713bC"
       }
     },
     "univ3pools": {
@@ -26,13 +26,13 @@
   "mainnet": {
     "vaults": {
       "RibbonThetaVaultETHCall": {
-        "address": "0xcfCf97F4300aFAa94566696fbF116C4d881FB3bc",
-        "strikeSelection": "0x896e4ddc672e5e3df9d21762518985ebb36482fa",
+        "address": "0xB0A54C398bAa5E1f0d73B9328263fdA296278EB0",
+        "strikeSelection": "0x05DC9638693117c59E7e6CC7b77232d7E494c4cf",
         "optionsPremiumPricer": "0xcf38c16253912a827f38b5b2c08e6059a0194e8c"
       },
       "RibbonThetaVaultWBTCCall": {
-        "address": "0x9d1d31190F945b72f6DE8f1C72b97931c9d5014a",
-        "strikeSelection": "0x001D77351daD0cD3f696c67EbBa5Bda0C11d0Db1",
+        "address": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
+        "strikeSelection": "0x2D8C029a76892d4B2d4E0276EDc61FBEF724ef1c",
         "optionsPremiumPricer": "0x7c24414191e2818a1a8cd995688c9da74faf67a8"
       }
     },
