@@ -2086,13 +2086,6 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
-
-        const { round2, amount2, unredeemedShares2 } =
-          await vault.depositReceipts(user);
-
-        assert.equal(round2, 1);
-        assert.bnEqual(amount2, BigNumber.from(0));
-        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
