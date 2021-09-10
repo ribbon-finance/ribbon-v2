@@ -71,7 +71,7 @@ contract MockOptionsPremiumPricer {
         _pool = p;
     }
 
-    function setVolatilityOracle(address oracle) external returns (address) {
+    function setVolatilityOracle(address oracle) external {
         _volatilityOracle = oracle;
     }
 }
