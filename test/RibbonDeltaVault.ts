@@ -1921,6 +1921,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.maxRedeem();
 
+        const balanceAfterOptionPurchase = params.depositAmount.sub(
+          params.depositAmount
+            .mul(params.optionAllocation)
+            .div(BigNumber.from("10000"))
+        );
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
           balanceAfterOptionPurchase
