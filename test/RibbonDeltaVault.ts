@@ -1910,7 +1910,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares, BigNumber.from(0));
       });
 
-      it("reverts when redeeming twice", async function () {
+      it("changes balance only once when redeeming twice", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount);
@@ -1921,7 +1921,36 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.maxRedeem();
 
-        await expect(vault.maxRedeem()).to.be.revertedWith("!numShares");
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        const { round, amount, unredeemedShares } = await vault.depositReceipts(
+          user
+        );
+
+        assert.equal(round, 1);
+        assert.bnEqual(amount, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares, BigNumber.from(0));
+
+        await vault.maxRedeem();
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        const { round2, amount2, unredeemedShares2 } =
+          await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {

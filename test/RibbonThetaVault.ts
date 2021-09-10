@@ -2057,7 +2057,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, params.depositAmount);
 
-        await vault.depositETH({ value: depositAmount });
+        await vault.deposit(params.depositAmount);
 
         await rollToNextOption();
 
