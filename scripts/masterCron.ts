@@ -233,10 +233,12 @@ async function settleAndBurn(
       if (auctionDetails.initialAuctionOrder !== BYTES_ZERO) {
         let newGasPrice = (await gas(network)).toString();
 
-        const tx = await gnosisAuction.connect(signer).settleAuction({
-          gasPrice: newGasPrice,
-          gasLimit: gasLimits["settleAuction"],
-        });
+        const tx = await gnosisAuction
+          .connect(signer)
+          .settleAuction(auctionID.toString(), {
+            gasPrice: newGasPrice,
+            gasLimit: gasLimits["settleAuction"],
+          });
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
       }
