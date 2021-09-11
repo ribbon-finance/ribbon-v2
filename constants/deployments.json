@@ -14,11 +14,11 @@
         "ManualVolOracle": "0xe24854968CDbCfa049ddd6F089b5C552D181eCC4",
         "OptionsPremiumPricerETH": "0xCF38C16253912A827F38B5B2c08e6059a0194e8C",
         "OptionsPremiumPricerWBTC": "0x7C24414191E2818A1a8cd995688c9DA74Faf67A8",
-        "RibbonThetaVaultETHCall": "0xB0A54C398bAa5E1f0d73B9328263fdA296278EB0",
+        "RibbonThetaVaultETHCall": "0x25751853Eab4D0eB3652B5eB6ecB102A2789644B",
         "RibbonThetaVaultLogic": "0xc4d1009dFF06a63a5548eCFEaf0942D45CF027c5",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
-        "StrikeSelectionETH": "0x05DC9638693117c59E7e6CC7b77232d7E494c4cf",
-        "StrikeSelectionWBTC": "0x2D8C029a76892d4B2d4E0276EDc61FBEF724ef1c",
+        "StrikeSelectionETH": "0x9371f33Cac1e64bbCB424d3384Add3bAfF4513A5",
+        "StrikeSelectionWBTC": "0x4E2d423201474C53F9a4D9017aC6F22E76C0498D",
         "VaultLifecycle": "0xe248f69Df96B0d397E8B81A592Da8766b857d6c7"
     }
 }
