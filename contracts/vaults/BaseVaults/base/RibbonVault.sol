@@ -510,7 +510,7 @@ contract RibbonVault is
                 roundPricePerShare[depositReceipt.round],
                 vaultParams.decimals
             );
-            
+
         numShares = isMax ? unredeemedShares : numShares;
         if (numShares == 0) {
             return;
