@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
+pragma solidity =0.8.4;
 
 contract MockOptionsPremiumPricer {
     uint256 private _optionPremiumPrice;
@@ -71,7 +71,7 @@ contract MockOptionsPremiumPricer {
         _pool = p;
     }
 
-    function setVolatilityOracle(address oracle) external returns (address) {
+    function setVolatilityOracle(address oracle) external {
         _volatilityOracle = oracle;
     }
 }

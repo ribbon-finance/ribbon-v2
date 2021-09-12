@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.7.2;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
 library GammaTypes {
     // vault is a struct of 6 arrays that describe a position a user has, a user can have multiple vaults.
@@ -89,7 +88,8 @@ interface IController {
         WithdrawCollateral,
         SettleVault,
         Redeem,
-        Call
+        Call,
+        Liquidate
     }
 
     struct ActionArgs {
