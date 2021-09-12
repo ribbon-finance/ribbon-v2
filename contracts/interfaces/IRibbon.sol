@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
+pragma solidity =0.8.4;
 
 interface IStrikeSelection {
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
@@ -18,17 +18,17 @@ interface IOptionsPremiumPricer {
     ) external view returns (uint256);
 
     function getOptionDelta(
-        uint256 sp,
-        uint256 st,
-        uint256 v,
-        uint256 t
+        uint256 spotPrice,
+        uint256 strikePrice,
+        uint256 volatility,
+        uint256 expiryTimestamp
     ) external view returns (uint256 delta);
 
-    function getUnderlyingPrice() external view returns (uint256 price);
+    function getUnderlyingPrice() external view returns (uint256);
 
-    function priceOracle() external view returns (address oracle);
+    function priceOracle() external view returns (address);
 
-    function volatilityOracle() external view returns (address oracle);
+    function volatilityOracle() external view returns (address);
 
-    function pool() external view returns (address _pool);
+    function pool() external view returns (address);
 }

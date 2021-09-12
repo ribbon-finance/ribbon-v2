@@ -6,16 +6,18 @@ import {
   KOVAN_USDC_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
-
-const ETH_USDC_POOL = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
-const MAINNET_ETH_ORACLE = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
-const KOVAN_ETH_ORACLE = "0x9326BFA02ADD2366b30bacB125260Af641031331";
-const KOVAN_WETH = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
-
-const STRIKE_STEP = 100;
-const STRIKE_DELTA = 1000; // 0.1d
-const PREMIUM_DISCOUNT = 950; // 0.95
-const AUCTION_DURATION = 3600; // 1 hour
+import {
+  AUCTION_DURATION,
+  ETH_STRIKE_STEP,
+  ETH_USDC_POOL,
+  KOVAN_ETH_ORACLE,
+  KOVAN_WETH,
+  MAINNET_ETH_ORACLE,
+  MANAGEMENT_FEE,
+  PERFORMANCE_FEE,
+  PREMIUM_DISCOUNT,
+  STRIKE_DELTA,
+} from "./utils/constants";
 
 const main = async ({
   network,
@@ -53,7 +55,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "StrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
   });
 
   const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
@@ -71,8 +73,8 @@ const main = async ({
     owner,
     keeper,
     feeRecipient,
-    0,
-    0,
+    MANAGEMENT_FEE,
+    PERFORMANCE_FEE,
     "Ribbon ETH Theta Vault",
     "rETH-THETA",
     pricer.address,
