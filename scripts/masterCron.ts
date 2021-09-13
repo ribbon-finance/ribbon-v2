@@ -135,28 +135,25 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
 
   // when setting all options in a single object
   const git: SimpleGit = simpleGit(options);
+  const filePath = `/home/ribbon-token-list/${fileName}`;
 
   let newTokenSet = tokenSet;
 
-  let currentTokenSet = (
-    JSON.parse(fs.readFileSync(`../ribbon-token-list/${fileName}`)) as TokenSet
-  ).tokens;
+  let currentTokenSet = (JSON.parse(fs.readFileSync(filePath)) as TokenSet)
+    .tokens;
 
   // add new week's otokens to token list and remove duplicates
   newTokenSet.tokens = Array.from(
     new Set(currentTokenSet.concat(newTokenSet.tokens))
   );
 
-  await fs.writeFile(
-    `../ribbon-token-list/${fileName}`,
-    JSON.stringify(newTokenSet)
-  );
+  await fs.writeFile(filePath, JSON.stringify(newTokenSet));
 
   await git
     .cwd("/home/ribbon-token-list")
     .addConfig("user.name", "cron job")
     .addConfig("user.email", "some@one.com")
-    .add(fileName)
+    .add(filePath)
     .commit(`update tokenlist ${newTokenSet.timestamp}`)
     .push("origin", "master");
 }
