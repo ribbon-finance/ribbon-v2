@@ -674,7 +674,7 @@ function behavesLikeRibbonOptionsVault(params: {
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              parseEther("500"),
+              0,
             ]
           )
         ).to.be.revertedWith("!feeRecipient");
@@ -731,32 +731,6 @@ function behavesLikeRibbonOptionsVault(params: {
           )
         ).to.be.revertedWith("!asset");
       });
-
-      it("reverts when minimumSupply is 0", async function () {
-        await expect(
-          testVault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
-              asset,
-              0,
-              parseEther("500"),
-            ]
-          )
-        ).to.be.revertedWith("!minimumSupply");
-      });
     });
 
     describe("#name", () => {
@@ -773,7 +747,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#delay", () => {
       it("returns the delay", async function () {
-        assert.equal((await vault.delay()).toNumber(), OPTION_DELAY);
+        assert.equal((await vault.DELAY()).toNumber(), OPTION_DELAY);
       });
     });
 
@@ -1251,7 +1225,7 @@ function behavesLikeRibbonOptionsVault(params: {
             : BigNumber.from("4050000000000");
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverride()).toString(), "1");
+        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
         assert.equal(
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
@@ -1388,7 +1362,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1049016);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1055000);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -2078,7 +2052,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares, BigNumber.from(0));
       });
 
-      it("reverts when redeeming twice", async function () {
+      it("changes balance only once when redeeming twice", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount);
@@ -2089,16 +2063,38 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.maxRedeem();
 
-        await expect(vault.maxRedeem()).to.be.revertedWith("!shares");
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
+
+        const { round, amount, unredeemedShares } = await vault.depositReceipts(
+          user
+        );
+
+        assert.equal(round, 1);
+        assert.bnEqual(amount, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares, BigNumber.from(0));
+
+        let res = await vault.maxRedeem();
+
+        await expect(res).to.not.emit(vault, "Transfer");
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
+        assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, params.depositAmount.mul(2));
-
         await vault.deposit(params.depositAmount);
-
         await rollToNextOption();
 
         await vault.deposit(params.depositAmount);
@@ -2216,7 +2212,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(0)).to.be.revertedWith("!shares");
+        await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -2381,7 +2377,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("!shares");
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith(
+          "!numShares"
+        );
       });
 
       it("reverts when withdrawing more than unredeemed balance", async function () {
@@ -2522,24 +2520,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(round, 2);
         assert.bnEqual(shares, depositAmount);
       });
-
-      it("can initiate a withdrawal when there is a pending deposit", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount.mul(2));
-        await vault.deposit(depositAmount);
-
-        await rollToNextOption();
-
-        await vault.deposit(depositAmount);
-
-        const tx = await vault.initiateWithdraw(depositAmount);
-
-        await expect(tx)
-          .to.emit(vault, "Redeem")
-          .withArgs(user, depositAmount, 2);
-      });
-
       it("reverts when there is insufficient balance over multiple calls", async function () {
         await assetContract
           .connect(userSigner)
@@ -2565,7 +2545,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 103700);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 105000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
@@ -2681,7 +2661,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 84153);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 84200);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
