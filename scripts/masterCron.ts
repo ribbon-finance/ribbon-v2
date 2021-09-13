@@ -57,6 +57,29 @@ let gasLimits = {
   burnRemainingOTokens: 100000,
 };
 
+interface Version {
+  major: number;
+  minor: number;
+  patch: number;
+}
+
+interface OToken {
+  chainId: number;
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+interface TokenSet {
+  name: string;
+  logoURI: string;
+  keywords: Array<string>;
+  timestamp: string;
+  version: Version;
+  tokens: Array<OToken>;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -88,9 +111,9 @@ const getNextFriday = (currentExpiry: number) => {
   return friday8am;
 };
 
-function generateTokenSet(tokens: Array<object>) {
+function generateTokenSet(tokens: Array<OToken>) {
   // reference: https://github.com/opynfinance/opyn-tokenlist/blob/master/opyn-v1.tokenlist.json
-  let tokenJSON = {
+  const tokenJSON: TokenSet = {
     name: "Ribbon oTokens",
     logoURI: "https://i.imgur.com/u5z1Ev2.png",
     keywords: ["defi", "option", "opyn", "ribbon"],
@@ -100,10 +123,10 @@ function generateTokenSet(tokens: Array<object>) {
     tokens: tokens,
   };
 
-  return JSON.stringify(tokenJSON);
+  return tokenJSON;
 }
 
-async function pushTokenListToGit(tokenlist: string, fileName: string) {
+async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
   const options: Partial<SimpleGitOptions> = {
     baseDir: process.cwd(),
     binary: "git",
@@ -113,14 +136,28 @@ async function pushTokenListToGit(tokenlist: string, fileName: string) {
   // when setting all options in a single object
   const git: SimpleGit = simpleGit(options);
 
-  fs.writeFile(`../ribbon-token-list/${fileName}`, tokenlist);
+  let newTokenSet = tokenSet;
+
+  let currentTokenSet = (
+    JSON.parse(fs.readFileSync(`../ribbon-token-list/${fileName}`)) as TokenSet
+  ).tokens;
+
+  // add new week's otokens to token list and remove duplicates
+  newTokenSet.tokens = Array.from(
+    new Set(currentTokenSet.concat(newTokenSet.tokens))
+  );
+
+  await fs.writeFile(
+    `../ribbon-token-list/${fileName}`,
+    JSON.stringify(newTokenSet)
+  );
 
   await git
-    .cwd("../ribbon-token-list")
+    .cwd("/home/ribbon-token-list")
     .addConfig("user.name", "cron job")
     .addConfig("user.email", "some@one.com")
     .add(fileName)
-    .commit("update tokenlist")
+    .commit(`update tokenlist ${newTokenSet.timestamp}`)
     .push("origin", "master");
 }
 
@@ -258,14 +295,6 @@ async function updateTokenList(
 ) {
   let tokens = [];
 
-  let token = {
-    chainId: 1,
-    address: "",
-    name: "",
-    symbol: "",
-    decimals: 0,
-  };
-
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
@@ -279,12 +308,14 @@ async function updateTokenList(
       provider
     );
 
-    token["address"] = oToken.address;
-    token["name"] = await oToken.name();
-    token["symbol"] = await oToken.symbol();
-    token["decimals"] = await oToken.decimals();
-
-    tokens += token;
+    const token: OToken = {
+      chainId: 1,
+      address: oToken.address,
+      name: await oToken.name(),
+      symbol: await oToken.symbol(),
+      decimals: parseInt((await oToken.decimals()).toString()),
+    };
+    tokens.push(token);
   }
 
   await pushTokenListToGit(generateTokenSet(tokens), fileName);
