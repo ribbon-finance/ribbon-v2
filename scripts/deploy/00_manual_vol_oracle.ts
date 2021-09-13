@@ -10,7 +10,7 @@ const main = async ({
   const { deploy } = deployments;
   console.log("00 - Deploying ManualVolOracle on", network.name);
 
-  const { deployer, owner } = await getNamedAccounts();
+  const { deployer, keeper } = await getNamedAccounts();
 
   await deploy("ManualVolOracle", {
     from: deployer,
@@ -18,7 +18,7 @@ const main = async ({
       abi: ManualVolOracle_ABI,
       bytecode: ManualVolOracle_BYTECODE,
     },
-    args: [owner],
+    args: [keeper],
   });
 };
 main.tags = ["ManualVolOracle"];

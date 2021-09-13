@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.3;
+pragma solidity =0.8.4;
 
 contract MockStrikeSelection {
     uint256 private _strikePrice;
@@ -17,8 +17,8 @@ contract MockStrikeSelection {
         _strikePrice = strikePrice;
     }
 
-    function setDelta(uint256 delta) external {
-        _delta = delta;
+    function setDelta(uint256 newDelta) external {
+        _delta = newDelta;
     }
 
     function delta() external view returns (uint256) {
