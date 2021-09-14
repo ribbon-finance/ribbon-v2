@@ -118,7 +118,7 @@ function generateTokenSet(tokens: Array<OToken>) {
     logoURI: "https://i.imgur.com/u5z1Ev2.png",
     keywords: ["defi", "option", "opyn", "ribbon"],
     //convert to something like 2021-09-08T10:51:49Z
-    timestamp: moment.format().toString().slice(0, -6) + "Z",
+    timestamp: moment().format().toString().slice(0, -6) + "Z",
     version: { major: 1, minor: 0, patch: 0 },
     tokens: tokens,
   };
@@ -139,22 +139,28 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
 
   let newTokenSet = tokenSet;
 
-  let currentTokenSet = (JSON.parse(fs.readFileSync(filePath)) as TokenSet)
-    .tokens;
+  let currentTokenSet = (
+    JSON.parse(
+      fs.readFileSync(filePath, { encoding: "utf8", flag: "r" })
+    ) as TokenSet
+  ).tokens;
 
   // add new week's otokens to token list and remove duplicates
   newTokenSet.tokens = Array.from(
     new Set(currentTokenSet.concat(newTokenSet.tokens))
   );
 
-  await fs.writeFile(filePath, JSON.stringify(newTokenSet));
+  await fs.writeFileSync(filePath, JSON.stringify(newTokenSet), {
+    encoding: "utf8",
+    flag: "a+",
+  });
 
   await git
     .cwd("/home/ribbon-token-list")
     .addConfig("user.name", "cron job")
     .addConfig("user.email", "some@one.com")
     .add(filePath)
-    .commit(`update tokenlist ${newTokenSet.timestamp}`)
+    .commit(`update tokenset ${newTokenSet.timestamp}`)
     .push("origin", "master");
 }
 
@@ -301,7 +307,7 @@ async function updateTokenList(
 
     let oToken = new ethers.Contract(
       await vault.nextOption(),
-      ierc20Artifact.abi,
+      ierc20Abi,
       provider
     );
 
