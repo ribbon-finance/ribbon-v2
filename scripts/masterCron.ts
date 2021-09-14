@@ -152,7 +152,7 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
 
   await fs.writeFileSync(filePath, JSON.stringify(newTokenSet), {
     encoding: "utf8",
-    flag: "a+",
+    flag: "w",
   });
 
   await git
