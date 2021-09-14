@@ -150,7 +150,7 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
     new Set(currentTokenSet.concat(newTokenSet.tokens))
   );
 
-  await fs.writeFileSync(filePath, JSON.stringify(newTokenSet), {
+  await fs.writeFileSync(filePath, JSON.stringify(newTokenSet, null, 2), {
     encoding: "utf8",
     flag: "w",
   });
@@ -161,7 +161,7 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
     .addConfig("user.email", "some@one.com")
     .add(filePath)
     .commit(`update tokenset ${newTokenSet.timestamp}`)
-    .push("origin", "master");
+    .push("origin", "main");
 }
 
 async function getDeribitDelta(instrumentName: string) {
