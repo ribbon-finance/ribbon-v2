@@ -145,10 +145,12 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
     ) as TokenSet
   ).tokens;
 
-  // add new week's otokens to token list and remove duplicates
-  newTokenSet.tokens = Array.from(
-    new Set(currentTokenSet.concat(newTokenSet.tokens))
-  );
+  // add new week's otokens to token list
+  newTokenSet.tokens = currentTokenSet.concat(newTokenSet.tokens);
+  //remove duplicates
+  newTokenSet.tokens = [
+    ...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values(),
+  ];
 
   await fs.writeFileSync(filePath, JSON.stringify(newTokenSet, null, 2), {
     encoding: "utf8",
