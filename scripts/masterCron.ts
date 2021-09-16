@@ -13,6 +13,8 @@ import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import { wmul } from "../test/helpers/math";
 import * as time from "../test/helpers/time";
+import * as fs from "fs";
+import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git";
 import {
   GNOSIS_EASY_AUCTION,
   VOL_ORACLE,
@@ -55,6 +57,29 @@ let gasLimits = {
   burnRemainingOTokens: 100000,
 };
 
+interface Version {
+  major: number;
+  minor: number;
+  patch: number;
+}
+
+interface OToken {
+  chainId: number;
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+interface TokenSet {
+  name: string;
+  logoURI: string;
+  keywords: Array<string>;
+  timestamp: string;
+  version: Version;
+  tokens: Array<OToken>;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -85,6 +110,61 @@ const getNextFriday = (currentExpiry: number) => {
   }
   return friday8am;
 };
+
+function generateTokenSet(tokens: Array<OToken>) {
+  // reference: https://github.com/opynfinance/opyn-tokenlist/blob/master/opyn-v1.tokenlist.json
+  const tokenJSON: TokenSet = {
+    name: "Ribbon oTokens",
+    logoURI: "https://i.imgur.com/u5z1Ev2.png",
+    keywords: ["defi", "option", "opyn", "ribbon"],
+    //convert to something like 2021-09-08T10:51:49Z
+    timestamp: moment().format().toString().slice(0, -6) + "Z",
+    version: { major: 1, minor: 0, patch: 0 },
+    tokens: tokens,
+  };
+
+  return tokenJSON;
+}
+
+async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
+  const options: Partial<SimpleGitOptions> = {
+    baseDir: process.cwd(),
+    binary: "git",
+    maxConcurrentProcesses: 6,
+  };
+
+  // when setting all options in a single object
+  const git: SimpleGit = simpleGit(options);
+  const filePath = `/home/ribbon-token-list/${fileName}`;
+
+  let newTokenSet = tokenSet;
+
+  let currentTokenSet = (
+    JSON.parse(
+      fs.readFileSync(filePath, { encoding: "utf8", flag: "r" })
+    ) as TokenSet
+  ).tokens;
+
+  // add new week's otokens to token list
+  newTokenSet.tokens = currentTokenSet.concat(newTokenSet.tokens);
+  //remove duplicates
+  newTokenSet.tokens = [
+    ...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values(),
+  ];
+
+  await fs.writeFileSync(filePath, JSON.stringify(newTokenSet, null, 2), {
+    encoding: "utf8",
+    flag: "w",
+  });
+
+  await git
+    .cwd("/home/ribbon-token-list")
+    .addConfig("user.name", "cron job")
+    .addConfig("user.email", "some@one.com")
+    .add(filePath)
+    .commit(`update tokenset ${newTokenSet.timestamp}`)
+    .push("origin", "main");
+}
 
 async function getDeribitDelta(instrumentName: string) {
   // https://docs.deribit.com/?javascript#public-get_mark_price_history
@@ -209,6 +289,41 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   let pricePoint = 4;
   // scale to 10 ** 6
   return candles[candles.length - 1][pricePoint] * 10 ** 6;
+}
+
+async function updateTokenList(
+  fileName: string,
+  vaultArtifactAbi: any,
+  ierc20Abi: any,
+  provider: any,
+  network: string
+) {
+  let tokens = [];
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifactAbi,
+      provider
+    );
+
+    let oToken = new ethers.Contract(
+      await vault.nextOption(),
+      ierc20Abi,
+      provider
+    );
+
+    const token: OToken = {
+      chainId: 1,
+      address: oToken.address,
+      name: await oToken.name(),
+      symbol: await oToken.symbol(),
+      decimals: parseInt((await oToken.decimals()).toString()),
+    };
+    tokens.push(token);
+  }
+
+  await pushTokenListToGit(generateTokenSet(tokens), fileName);
 }
 
 async function settleAndBurn(
@@ -443,9 +558,21 @@ async function strikeForecasting() {
 
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+
+  // 2. updateTokenList
+  await updateTokenList(
+    "ribbon.tokenlist.json",
+    vaultArtifact.abi,
+    ierc20Artifact.abi,
+    provider,
+    network
+  );
 }
 
 async function rollToNextOption() {
