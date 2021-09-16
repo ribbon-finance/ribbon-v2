@@ -31,7 +31,7 @@
   },
   "resolutions": {
     "elliptic": "^6.5.3",
-    "lodash": "4.17.20",
+    "lodash": "^4.17.20",
     "underscore": "^1.9.0"
   },
   "scripts": {
@@ -86,7 +86,8 @@
     "dotenv": "^10.0.0",
     "got": "^10.7.0",
     "json-stable-stringify": "^1.0.1",
-    "moment-timezone": "^0.5.33"
+    "moment-timezone": "^0.5.33",
+    "simple-git": "^2.45.1"
   },
   "mocha": {
     "timeout": 20000
