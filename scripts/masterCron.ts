@@ -558,12 +558,16 @@ async function strikeForecasting() {
 
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-  const ierc20Artifact = await hre.artifacts.readArtifact(
-    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
-  );
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+}
+
+async function rollToNextOption() {
+  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   // 2. updateTokenList
   await updateTokenList(
@@ -573,12 +577,8 @@ async function commitAndClose() {
     provider,
     network
   );
-}
 
-async function rollToNextOption() {
-  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-
-  // 2. rollToNextOption
+  // 3. rollToNextOption
   let auctionCounters = await runTX(
     vaultArtifact.abi,
     provider,
@@ -598,7 +598,7 @@ async function settleAuctions() {
     provider
   );
 
-  // 3. settleAuction and 4. burnRemainingOTokens
+  // 4. settleAuction and 5. burnRemainingOTokens
   await settleAndBurn(
     gnosisAuction,
     vaultArtifact.abi,
