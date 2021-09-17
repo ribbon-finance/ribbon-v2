@@ -329,6 +329,7 @@ async function updateTokenList(
 async function settleAndBurn(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
+  ierc20Abi: any,
   provider: any,
   signer: Wallet,
   network: string
@@ -353,9 +354,20 @@ async function settleAndBurn(
           .settleAuction(auctionID.toString(), {
             gasPrice: newGasPrice,
             gasLimit: gasLimits["settleAuction"],
-          });
+          })
+          .wait();
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+      }
+
+      let oTokenBalance = await new ethers.Contract(
+        await vault.currentOption(),
+        ierc20Abi,
+        provider
+      ).balanceOf(vault.address);
+
+      if (parseInt(oTokenBalance.toString()) == 0) {
+        continue;
       }
 
       let newGasPrice2 = (await gas(network)).toString();
@@ -591,6 +603,9 @@ async function rollToNextOption() {
 async function settleAuctions() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   const gnosisAuction = new ethers.Contract(
     GNOSIS_EASY_AUCTION,
@@ -602,6 +617,7 @@ async function settleAuctions() {
   await settleAndBurn(
     gnosisAuction,
     vaultArtifact.abi,
+    ierc20Artifact.abi,
     provider,
     signer,
     network
