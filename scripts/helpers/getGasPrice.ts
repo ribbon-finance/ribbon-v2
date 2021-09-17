@@ -16,7 +16,9 @@ export async function getGasPrice(isFast = true) {
     ? BigNumber.from(response.data.result.FastGasPrice.toString())
     : BigNumber.from(response.data.result.ProposeGasPrice.toString());
 
-  return price.mul(BigNumber.from("10").pow(BigNumber.from("9")));
+  return price
+    .add(price.div(2))
+    .mul(BigNumber.from("10").pow(BigNumber.from("9")));
 }
 
 export async function gas(network: string) {

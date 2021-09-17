@@ -329,6 +329,7 @@ async function updateTokenList(
 async function settleAndBurn(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
+  ierc20Abi: any,
   provider: any,
   signer: Wallet,
   network: string
@@ -353,9 +354,20 @@ async function settleAndBurn(
           .settleAuction(auctionID.toString(), {
             gasPrice: newGasPrice,
             gasLimit: gasLimits["settleAuction"],
-          });
+          })
+          .wait();
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+      }
+
+      let oTokenBalance = await new ethers.Contract(
+        await vault.currentOption(),
+        ierc20Abi,
+        provider
+      ).balanceOf(vault.address);
+
+      if (parseInt(oTokenBalance.toString()) == 0) {
+        continue;
       }
 
       let newGasPrice2 = (await gas(network)).toString();
@@ -558,12 +570,16 @@ async function strikeForecasting() {
 
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-  const ierc20Artifact = await hre.artifacts.readArtifact(
-    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
-  );
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+}
+
+async function rollToNextOption() {
+  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   // 2. updateTokenList
   await updateTokenList(
@@ -573,12 +589,8 @@ async function commitAndClose() {
     provider,
     network
   );
-}
 
-async function rollToNextOption() {
-  const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-
-  // 2. rollToNextOption
+  // 3. rollToNextOption
   let auctionCounters = await runTX(
     vaultArtifact.abi,
     provider,
@@ -591,6 +603,9 @@ async function rollToNextOption() {
 async function settleAuctions() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   const gnosisAuction = new ethers.Contract(
     GNOSIS_EASY_AUCTION,
@@ -598,10 +613,11 @@ async function settleAuctions() {
     provider
   );
 
-  // 3. settleAuction and 4. burnRemainingOTokens
+  // 4. settleAuction and 5. burnRemainingOTokens
   await settleAndBurn(
     gnosisAuction,
     vaultArtifact.abi,
+    ierc20Artifact.abi,
     provider,
     signer,
     network
