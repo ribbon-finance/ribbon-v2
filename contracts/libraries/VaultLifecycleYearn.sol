@@ -1,18 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../vendor/DSMathLib.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
+import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {
-    IStrikeSelection,
-    IOptionsPremiumPricer
-} from "../interfaces/IRibbon.sol";
+import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
@@ -25,7 +21,6 @@ import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycleYearn {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
     using SupportsNonCompliantERC20 for IERC20;
 
     struct CloseParams {
@@ -33,7 +28,7 @@ library VaultLifecycleYearn {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint256 lastStrikeOverride;
+        uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
     }
 
@@ -57,8 +52,8 @@ library VaultLifecycleYearn {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
-        Vault.VaultState calldata vaultState,
+        Vault.VaultParams storage vaultParams,
+        Vault.VaultState storage vaultState,
         address collateralAsset
     )
         external
@@ -80,33 +75,27 @@ library VaultLifecycleYearn {
             );
         }
 
+        bool isPut = vaultParams.isPut;
+
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
         // calculate strike and delta
-        (strikePrice, delta) = closeParams.lastStrikeOverride ==
+        (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, vaultParams.isPut);
+            : selection.getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
-            closeParams.OTOKEN_FACTORY,
+            closeParams,
+            vaultParams,
             vaultParams.underlying,
-            closeParams.USDC,
             collateralAsset,
             strikePrice,
             expiry,
-            vaultParams.isPut
-        );
-
-        verifyOtoken(
-            otokenAddress,
-            vaultParams,
-            collateralAsset,
-            closeParams.USDC,
-            closeParams.delay
+            isPut
         );
 
         // get the black scholes premium of the option and adjust premium based on
@@ -123,6 +112,8 @@ library VaultLifecycleYearn {
         );
 
         require(premium > 0, "!premium");
+
+        return (otokenAddress, premium, strikePrice, delta);
     }
 
     /**
@@ -135,7 +126,7 @@ library VaultLifecycleYearn {
      */
     function verifyOtoken(
         address otokenAddress,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         address collateralAsset,
         address USDC,
         uint256 delay
@@ -163,7 +154,7 @@ library VaultLifecycleYearn {
     /**
      * @notice Calculate the shares to mint, new price per share, and
       amount of funds to re-allocate as collateral for the new round
-     * @param currentSupply is the total supply of shares
+     * @param currentShareSupply is the total supply of shares
      * @param currentBalance is the total balance of the vault
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
@@ -173,7 +164,7 @@ library VaultLifecycleYearn {
      * @return mintShares is the amount of shares to mint from deposits
      */
     function rollover(
-        uint256 currentSupply,
+        uint256 currentShareSupply,
         uint256 currentBalance,
         Vault.VaultParams calldata vaultParams,
         Vault.VaultState calldata vaultState
@@ -188,29 +179,30 @@ library VaultLifecycleYearn {
         )
     {
         uint256 pendingAmount = uint256(vaultState.totalPending);
-        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
+        uint256 decimals = vaultParams.decimals;
 
-        uint256 singleShare = 10**uint256(vaultParams.decimals);
-
-        newPricePerShare = getPPS(
-            currentSupply,
-            roundStartBalance,
-            singleShare
+        newPricePerShare = ShareMath.pricePerShare(
+            currentShareSupply,
+            currentBalance,
+            pendingAmount,
+            decimals
         );
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            pendingAmount.mul(singleShare).div(newPricePerShare);
+            ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
         uint256 newSupply = currentSupply.add(_mintShares);
 
         uint256 queuedAmount =
             newSupply > 0
-                ? uint256(vaultState.queuedWithdrawShares)
-                    .mul(currentBalance)
-                    .div(newSupply)
+                ? ShareMath.sharesToAsset(
+                    vaultState.queuedWithdrawShares,
+                    newPricePerShare,
+                    decimals
+                )
                 : 0;
 
         return (
@@ -220,9 +212,6 @@ library VaultLifecycleYearn {
             _mintShares
         );
     }
-
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
-    uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     /**
      * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
@@ -242,6 +231,8 @@ library VaultLifecycleYearn {
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IOtoken oToken = IOtoken(oTokenAddress);
         address collateralAsset = oToken.collateralAsset();
 
@@ -265,7 +256,7 @@ library VaultLifecycleYearn {
             // MarginCalculatorInterface(0x7A48d10f372b3D7c60f6c9770B91398e4ccfd3C7).getExcessCollateral(vault)
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
-                .mul(OTOKEN_DECIMALS)
+                .mul(10**Vault.OTOKEN_DECIMALS)
                 .mul(10**18) // we use 10**18 to give extra precision
                 .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
@@ -279,7 +270,7 @@ library VaultLifecycleYearn {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
-        collateralToken.doubleApprove(marginPool, depositAmount);
+        collateralToken.safeApproveNonCompliant(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
             new IController.ActionArgs[](3);
@@ -341,6 +332,8 @@ library VaultLifecycleYearn {
 
         require(vault.shortOtokens.length > 0, "No short");
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
         // The short position has been previously closed, or all the otokens have been burned.
@@ -349,6 +342,7 @@ library VaultLifecycleYearn {
             return 0;
         }
 
+        // This is equivalent to doing IERC20(vault.asset).balanceOf(address(this))
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
@@ -446,8 +440,56 @@ library VaultLifecycleYearn {
     }
 
     /**
+     * @notice Calculates the performance and management fee for this week's round
+     * @param vaultState is the struct with vault accounting state
+     * @param currentLockedBalance is the amount of funds currently locked in opyn
+     * @param performanceFeePercent is the performance fee pct.
+     * @param managementFeePercent is the management fee pct.
+     * @return performanceFee is the performance fee
+     * @return managementFee is the management fee
+     * @return vaultFee is the total fees
+     */
+    function getVaultFees(
+        Vault.VaultState storage vaultState,
+        uint256 currentLockedBalance,
+        uint256 performanceFeePercent,
+        uint256 managementFeePercent
+    )
+        external
+        view
+        returns (
+            uint256 performanceFee,
+            uint256 managementFee,
+            uint256 vaultFee
+        )
+    {
+        uint256 prevLockedAmount = vaultState.lastLockedAmount;
+        uint256 totalPending = vaultState.totalPending;
+
+        // Take performance fee and management fee ONLY if difference between
+        // last week and this week's vault deposits, taking into account pending
+        // deposits and withdrawals, is positive. If it is negative, last week's
+        // option expired ITM past breakeven, and the vault took a loss so we
+        // do not collect performance fee for last week
+        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
+            performanceFee = currentLockedBalance
+                .sub(totalPending)
+                .sub(prevLockedAmount)
+                .mul(performanceFeePercent)
+                .div(100 * 10**6);
+            managementFee = currentLockedBalance
+                .sub(totalPending)
+                .mul(managementFeePercent)
+                .div(100 * 10**6);
+
+            vaultFee = performanceFee.add(managementFee);
+        }
+    }
+
+    /**
      * @notice Either retrieves the option token if it already exists, or deploy it
-     * @param otokenFactory is the address of the opyn factory contract with option token blueprint
+     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param vaultParams is the struct with vault general data
      * @param underlying is the address of the underlying asset of the option
      * @param collateralAsset is the address of the collateral asset of the option
      * @param strikePrice is the strike price of the option
@@ -456,20 +498,20 @@ library VaultLifecycleYearn {
      * @return the address of the option
      */
     function getOrDeployOtoken(
-        address otokenFactory,
+        CloseParams calldata closeParams,
+        Vault.VaultParams storage vaultParams,
         address underlying,
-        address strikeAsset,
         address collateralAsset,
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(otokenFactory);
+        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
 
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                strikeAsset,
+                closeParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -483,12 +525,20 @@ library VaultLifecycleYearn {
         address otoken =
             factory.createOtoken(
                 underlying,
-                strikeAsset,
+                closeParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
             );
+
+        verifyOtoken(
+            otoken,
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
         return otoken;
     }
 
@@ -514,11 +564,12 @@ library VaultLifecycleYearn {
      * @param tokenSymbol is the symbol of the token
      * @param _vaultParams is the struct with vault general data
      */
-    function verifyConstructorParams(
+    function verifyInitializerParams(
         address owner,
         address keeper,
         address feeRecipient,
         uint256 performanceFee,
+        uint256 managementFee,
         string calldata tokenName,
         string calldata tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -526,7 +577,14 @@ library VaultLifecycleYearn {
         require(owner != address(0), "!owner");
         require(keeper != address(0), "!keeper");
         require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee < 100 * 10**6, "Invalid performance fee");
+        require(
+            performanceFee < 100 * Vault.FEE_MULTIPLIER,
+            "performanceFee >= 100%"
+        );
+        require(
+            managementFee < 100 * Vault.FEE_MULTIPLIER,
+            "managementFee >= 100%"
+        );
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
@@ -534,6 +592,10 @@ library VaultLifecycleYearn {
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
         require(_vaultParams.cap > 0, "!cap");
+        require(
+            _vaultParams.cap > _vaultParams.minimumSupply,
+            "cap has to be higher than minimumSupply"
+        );
     }
 
     /**
@@ -551,13 +613,14 @@ library VaultLifecycleYearn {
         address collateralToken,
         address recipient,
         uint256 amount
-    ) external returns (uint256 withdrawAmount) {
+    ) external returns (uint256) {
         uint256 pricePerYearnShare =
             IYearnVault(collateralToken).pricePerShare();
-        withdrawAmount = DSMath.wdiv(
-            amount,
-            pricePerYearnShare.mul(decimalShift(collateralToken))
-        );
+        uint256 withdrawAmount =
+            DSMath.wdiv(
+                amount,
+                pricePerYearnShare.mul(decimalShift(collateralToken))
+            );
         uint256 yieldTokenBalance =
             withdrawYieldToken(collateralToken, recipient, withdrawAmount);
 
@@ -574,6 +637,8 @@ library VaultLifecycleYearn {
                 pricePerYearnShare
             );
         }
+
+        return withdrawAmount;
     }
 
     /**
@@ -587,15 +652,17 @@ library VaultLifecycleYearn {
         address collateralToken,
         address recipient,
         uint256 withdrawAmount
-    ) internal returns (uint256 yieldTokenBalance) {
+    ) internal returns (uint256) {
         IERC20 collateral = IERC20(collateralToken);
 
-        yieldTokenBalance = collateral.balanceOf(address(this));
+        uint256 yieldTokenBalance = collateral.balanceOf(address(this));
         uint256 yieldTokensToWithdraw =
             DSMath.min(yieldTokenBalance, withdrawAmount);
         if (yieldTokensToWithdraw > 0) {
             collateral.safeTransfer(recipient, yieldTokensToWithdraw);
         }
+
+        return yieldTokenBalance;
     }
 
     /**
@@ -689,53 +756,6 @@ library VaultLifecycleYearn {
     }
 
     /**
-     * @notice Calculates the performance and management fee for this week's round
-     * @param vaultState is the struct with vault accounting state
-     * @param currentLockedBalance is the amount of funds currently locked in opyn
-     * @param performanceFeePercent is the performance fee pct.
-     * @param managementFeePercent is the management fee pct.
-     * @return performanceFee is the performance fee
-     * @return managementFee is the management fee
-     * @return vaultFee is the total fees
-     */
-    function getVaultFees(
-        Vault.VaultState storage vaultState,
-        uint256 currentLockedBalance,
-        uint256 performanceFeePercent,
-        uint256 managementFeePercent
-    )
-        external
-        view
-        returns (
-            uint256 performanceFee,
-            uint256 managementFee,
-            uint256 vaultFee
-        )
-    {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
-            performanceFee = currentLockedBalance
-                .sub(totalPending)
-                .sub(prevLockedAmount)
-                .mul(performanceFeePercent)
-                .div(100 * 10**6);
-            managementFee = currentLockedBalance
-                .sub(totalPending)
-                .mul(managementFeePercent)
-                .div(100 * 10**6);
-
-            vaultFee = performanceFee.add(managementFee);
-        }
-    }
-
-    /**
      * @notice Helper function to make either an ETH transfer or ERC20 transfer
      * @param weth is the weth address
      * @param asset is the vault asset address
@@ -794,15 +814,5 @@ library VaultLifecycleYearn {
             friday8am += 7 days;
         }
         return friday8am;
-    }
-
-    function getPPS(
-        uint256 currentSupply,
-        uint256 roundStartBalance,
-        uint256 singleShare
-    ) internal pure returns (uint256 newPricePerShare) {
-        newPricePerShare = currentSupply > 0
-            ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : singleShare;
     }
 }
