@@ -2,8 +2,11 @@
 pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import {DSMath} from "../vendor/DSMathLib.sol";
+import {DSMath} from "../vendor/DSMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
@@ -22,6 +25,7 @@ import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 library VaultLifecycleYearn {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -194,7 +198,7 @@ library VaultLifecycleYearn {
         uint256 _mintShares =
             ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
-        uint256 newSupply = currentSupply.add(_mintShares);
+        uint256 newSupply = currentShareSupply.add(_mintShares);
 
         uint256 queuedAmount =
             newSupply > 0

@@ -192,7 +192,7 @@ library VaultLifecycleSTETH {
         uint256 _mintShares =
             ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
-        uint256 newSupply = currentSupply.add(_mintShares);
+        uint256 newSupply = currentShareSupply.add(_mintShares);
         uint256 queuedAmount =
             newSupply > 0
                 ? ShareMath.sharesToAsset(
