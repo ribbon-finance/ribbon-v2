@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.3;
-pragma experimental ABIEncoderV2;
+pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {DSMath} from "../vendor/DSMathLib.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
+import {ShareMath} from "./ShareMath.sol";
 import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ICRV} from "../interfaces/ICRV.sol";
-import {
-    IStrikeSelection,
-    IOptionsPremiumPricer
-} from "../interfaces/IRibbon.sol";
+import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
@@ -32,7 +29,7 @@ library VaultLifecycleSTETH {
         address USDC;
         address currentOption;
         uint256 delay;
-        uint256 lastStrikeOverride;
+        uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
     }
 
@@ -56,8 +53,8 @@ library VaultLifecycleSTETH {
         address optionsPremiumPricer,
         uint256 premiumDiscount,
         CloseParams calldata closeParams,
-        Vault.VaultParams calldata vaultParams,
-        Vault.VaultState calldata vaultState,
+        Vault.VaultParams storage vaultParams,
+        Vault.VaultState storage vaultState,
         address collateralAsset
     )
         external
@@ -82,7 +79,7 @@ library VaultLifecycleSTETH {
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
         // calculate strike and delta
-        (strikePrice, delta) = closeParams.lastStrikeOverride ==
+        (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, false);
@@ -91,20 +88,12 @@ library VaultLifecycleSTETH {
 
         // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
-            closeParams.OTOKEN_FACTORY,
+            closeParams,
+            vaultParams,
             vaultParams.underlying,
-            closeParams.USDC,
             collateralAsset,
             strikePrice,
             expiry
-        );
-
-        verifyOtoken(
-            otokenAddress,
-            vaultParams,
-            collateralAsset,
-            closeParams.USDC,
-            closeParams.delay
         );
 
         // get the black scholes premium of the option and adjust premium based on
@@ -119,6 +108,8 @@ library VaultLifecycleSTETH {
         );
 
         require(premium > 0, "!premium");
+
+        return (otokenAddress, premium, strikePrice, delta);
     }
 
     /**
@@ -131,7 +122,7 @@ library VaultLifecycleSTETH {
      */
     function verifyOtoken(
         address otokenAddress,
-        Vault.VaultParams calldata vaultParams,
+        Vault.VaultParams storage vaultParams,
         address collateralAsset,
         address USDC,
         uint256 delay
@@ -159,7 +150,7 @@ library VaultLifecycleSTETH {
     /**
      * @notice Calculate the shares to mint, new price per share, and
       amount of funds to re-allocate as collateral for the new round
-     * @param currentSupply is the total supply of shares
+     * @param currentShareSupply is the total supply of shares
      * @param currentBalance is the total balance of the vault
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
@@ -169,13 +160,13 @@ library VaultLifecycleSTETH {
      * @return mintShares is the amount of shares to mint from deposits
      */
     function rollover(
-        uint256 currentSupply,
+        uint256 currentShareSupply,
         uint256 currentBalance,
         Vault.VaultParams calldata vaultParams,
         Vault.VaultState calldata vaultState
     )
         external
-        pure
+        view
         returns (
             uint256 newLockedAmount,
             uint256 queuedWithdrawAmount,
@@ -184,28 +175,29 @@ library VaultLifecycleSTETH {
         )
     {
         uint256 pendingAmount = uint256(vaultState.totalPending);
-        uint256 roundStartBalance = currentBalance.sub(pendingAmount);
+        uint256 decimals = vaultParams.decimals;
 
-        uint256 singleShare = 10**uint256(vaultParams.decimals);
-
-        newPricePerShare = getPPS(
-            currentSupply,
-            roundStartBalance,
-            singleShare
+        newPricePerShare = ShareMath.pricePerShare(
+            currentShareSupply,
+            currentBalance,
+            pendingAmount,
+            decimals
         );
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            pendingAmount.mul(singleShare).div(newPricePerShare);
+            ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
         uint256 newSupply = currentSupply.add(_mintShares);
         uint256 queuedAmount =
             newSupply > 0
-                ? uint256(vaultState.queuedWithdrawShares)
-                    .mul(currentBalance)
-                    .div(newSupply)
+                ? ShareMath.sharesToAsset(
+                    vaultState.queuedWithdrawShares,
+                    newPricePerShare,
+                    decimals
+                )
                 : 0;
 
         return (
@@ -215,9 +207,6 @@ library VaultLifecycleSTETH {
             _mintShares
         );
     }
-
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/Otoken.sol#L70
-    uint256 private constant OTOKEN_DECIMALS = 10**8;
 
     /**
      * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
@@ -237,6 +226,8 @@ library VaultLifecycleSTETH {
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IOtoken oToken = IOtoken(oTokenAddress);
         address collateralAsset = oToken.collateralAsset();
 
@@ -315,6 +306,8 @@ library VaultLifecycleSTETH {
 
         require(vault.shortOtokens.length > 0, "No short");
 
+        // An otoken's collateralAsset is the vault's `asset`
+        // So in the context of performing Opyn short operations we call them collateralAsset
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
         // The short position has been previously closed, or all the otokens have been burned.
@@ -323,6 +316,7 @@ library VaultLifecycleSTETH {
             return 0;
         }
 
+        // This is equivalent to doing IERC20(vault.asset).balanceOf(address(this))
         uint256 startCollateralBalance =
             collateralToken.balanceOf(address(this));
 
@@ -420,259 +414,6 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Either retrieves the option token if it already exists, or deploy it
-     * @param otokenFactory is the address of the opyn factory contract with option token blueprint
-     * @param underlying is the address of the underlying asset of the option
-     * @param collateralAsset is the address of the collateral asset of the option
-     * @param strikePrice is the strike price of the option
-     * @param expiry is the expiry timestamp of the option
-     * @return the address of the option
-     */
-    function getOrDeployOtoken(
-        address otokenFactory,
-        address underlying,
-        address strikeAsset,
-        address collateralAsset,
-        uint256 strikePrice,
-        uint256 expiry
-    ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(otokenFactory);
-
-        address otokenFromFactory =
-            factory.getOtoken(
-                underlying,
-                strikeAsset,
-                collateralAsset,
-                strikePrice,
-                expiry,
-                false
-            );
-
-        if (otokenFromFactory != address(0)) {
-            return otokenFromFactory;
-        }
-
-        address otoken =
-            factory.createOtoken(
-                underlying,
-                strikeAsset,
-                collateralAsset,
-                strikePrice,
-                expiry,
-                false
-            );
-        return otoken;
-    }
-
-    /**
-     * @notice Starts the gnosis auction
-     * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @return the auction id of the newly created auction
-     */
-    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
-        external
-        returns (uint256)
-    {
-        return GnosisAuction.startAuction(auctionDetails);
-    }
-
-    /**
-     * @notice Verify the constructor params satisfy requirements
-     * @param owner is the owner of the vault with critical permissions
-     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
-     * @param feeRecipient is the address to recieve vault performance and management fees
-     * @param performanceFee is the perfomance fee pct.
-     * @param tokenName is the name of the token
-     * @param tokenSymbol is the symbol of the token
-     * @param _vaultParams is the struct with vault general data
-     */
-    function verifyConstructorParams(
-        address owner,
-        address keeper,
-        address feeRecipient,
-        uint256 performanceFee,
-        string calldata tokenName,
-        string calldata tokenSymbol,
-        Vault.VaultParams calldata _vaultParams
-    ) external pure {
-        require(owner != address(0), "!owner");
-        require(keeper != address(0), "!keeper");
-        require(feeRecipient != address(0), "!feeRecipient");
-        require(performanceFee < 100 * 10**6, "Invalid performance fee");
-        require(bytes(tokenName).length > 0, "!tokenName");
-        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
-
-        require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
-        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
-        require(_vaultParams.cap > 0, "!cap");
-    }
-
-    /**
-     * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
-     * @param collateralToken is the address of the collateral token
-     * @param recipient is the recipient
-     * @param amount is the withdraw amount in `asset`
-     * @return withdrawAmount is the withdraw amount in `collateralToken`
-     */
-    function withdrawYieldAndBaseToken(
-        address collateralToken,
-        address recipient,
-        uint256 amount
-    ) external returns (uint256 withdrawAmount) {
-        IWSTETH collateral = IWSTETH(collateralToken);
-
-        withdrawAmount = collateral.getWstETHByStETH(amount);
-
-        uint256 yieldTokenBalance =
-            withdrawYieldToken(collateralToken, recipient, withdrawAmount);
-
-        // If there is not enough wstETH in the vault, it withdraws as much as possible steth
-        if (withdrawAmount > yieldTokenBalance) {
-            yieldTokenBalance = yieldTokenBalance.add(
-                withdrawYieldToken(
-                    collateral.stETH(),
-                    recipient,
-                    withdrawAmount.sub(yieldTokenBalance)
-                )
-            );
-        }
-
-        // If there is not enough stETH or wstETH in the vault, it withdraws as much as possible and
-        // transfers the rest in `asset`
-        if (withdrawAmount > yieldTokenBalance) {
-            withdrawBaseToken(
-                collateralToken,
-                recipient,
-                withdrawAmount,
-                yieldTokenBalance
-            );
-        }
-    }
-
-    /**
-     * @notice Withdraws stETH from vault
-     * @param collateralToken is the address of the collateral token
-     * @param recipient is the recipient
-     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     * @return yieldTokenBalance is the balance of the yield token
-     */
-    function withdrawYieldToken(
-        address collateralToken,
-        address recipient,
-        uint256 withdrawAmount
-    ) internal returns (uint256 yieldTokenBalance) {
-        IERC20 collateral = IERC20(collateralToken);
-
-        yieldTokenBalance = collateral.balanceOf(address(this));
-        uint256 yieldTokensToWithdraw =
-            DSMath.min(yieldTokenBalance, withdrawAmount);
-        if (yieldTokensToWithdraw > 0) {
-            collateral.safeTransfer(recipient, yieldTokensToWithdraw);
-        }
-    }
-
-    /**
-     * @notice Withdraws `asset` from vault
-     * @param collateralToken is the address of the collateral token
-     * @param recipient is the recipient
-     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
-     * @param yieldTokenBalance is the collateral token (stETH) balance of the vault
-     */
-    function withdrawBaseToken(
-        address collateralToken,
-        address recipient,
-        uint256 withdrawAmount,
-        uint256 yieldTokenBalance
-    ) internal {
-        uint256 underlyingTokensToWithdraw =
-            IWSTETH(collateralToken).getStETHByWstETH(
-                withdrawAmount.sub(yieldTokenBalance)
-            );
-
-        transferAsset(payable(recipient), underlyingTokensToWithdraw);
-    }
-
-    /**
-     * @notice Unwraps the necessary amount of the yield-bearing yearn token
-     *         and transfers amount to vault
-     * @param amount is the amount of `asset` to withdraw
-     * @param collateralToken is the address of the collateral token
-     * @param crvPool is the address of the steth <-> eth pool on curve
-     * @param minETHOut is the min eth to recieve
-     * @return amountETHOut is the amount of eth we have
-     available for the withdrawal (may incur curve slippage)
-     */
-    function unwrapYieldToken(
-        uint256 amount,
-        address collateralToken,
-        address crvPool,
-        uint256 minETHOut
-    ) external returns (uint256 amountETHOut) {
-        uint256 assetBalance = address(this).balance;
-
-        amountETHOut = DSMath.min(assetBalance, amount);
-
-        uint256 amountToUnwrap =
-            IWSTETH(collateralToken).getWstETHByStETH(
-                DSMath.max(assetBalance, amount).sub(assetBalance)
-            );
-
-        if (amountToUnwrap > 0) {
-            IWSTETH wsteth = IWSTETH(collateralToken);
-            // Unrap to stETH
-            wsteth.unwrap(amountToUnwrap);
-
-            // approve steth exchange
-            IERC20(wsteth.stETH()).safeApprove(crvPool, amountToUnwrap);
-
-            // CRV SWAP HERE from steth -> eth
-            // 0 = ETH, 1 = STETH
-            amountETHOut = amountETHOut.add(
-                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOut)
-            );
-        }
-    }
-
-    /**
-     * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
-     * @param weth is the address of weth
-     * @param collateralToken is the address of the collateral token
-     */
-    function wrapToYieldToken(address weth, address collateralToken) external {
-        // Unwrap all weth premiums transferred to contract
-        IWETH wethToken = IWETH(weth);
-        uint256 wethBalance = wethToken.balanceOf(address(this));
-
-        if (wethBalance > 0) {
-            wethToken.withdraw(wethBalance);
-        }
-
-        uint256 ethBalance = address(this).balance;
-
-        IWSTETH collateral = IWSTETH(collateralToken);
-        ISTETH stethToken = ISTETH(collateral.stETH());
-
-        if (ethBalance > 0) {
-            // Send eth to Lido, recieve steth
-            stethToken.submit{value: ethBalance}(address(this));
-        }
-
-        // Get all steth in contract
-        uint256 stethBalance = stethToken.balanceOf(address(this));
-
-        if (stethBalance > 0) {
-            // approve wrap
-            IERC20(address(stethToken)).safeApprove(
-                collateralToken,
-                stethBalance.add(1)
-            );
-            // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
-            collateral.wrap(stethBalance.add(1));
-        }
-    }
-
-    /**
      * @notice Calculates the performance and management fee for this week's round
      * @param vaultState is the struct with vault accounting state
      * @param currentLockedBalance is the amount of funds currently locked in opyn
@@ -720,6 +461,287 @@ library VaultLifecycleSTETH {
     }
 
     /**
+     * @notice Either retrieves the option token if it already exists, or deploy it
+     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param vaultParams is the struct with vault general data
+     * @param underlying is the address of the underlying asset of the option
+     * @param collateralAsset is the address of the collateral asset of the option
+     * @param strikePrice is the strike price of the option
+     * @param expiry is the expiry timestamp of the option
+     * @return the address of the option
+     */
+    function getOrDeployOtoken(
+        CloseParams calldata closeParams,
+        Vault.VaultParams storage vaultParams,
+        address underlying,
+        address collateralAsset,
+        uint256 strikePrice,
+        uint256 expiry
+    ) internal returns (address) {
+        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
+
+        address otokenFromFactory =
+            factory.getOtoken(
+                underlying,
+                closeParams.USDC,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                false
+            );
+
+        if (otokenFromFactory != address(0)) {
+            return otokenFromFactory;
+        }
+
+        address otoken =
+            factory.createOtoken(
+                underlying,
+                closeParams.USDC,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                false
+            );
+
+        verifyOtoken(
+            otoken,
+            vaultParams,
+            collateralAsset,
+            closeParams.USDC,
+            closeParams.delay
+        );
+
+        return otoken;
+    }
+
+    /**
+     * @notice Starts the gnosis auction
+     * @param auctionDetails is the struct with all the custom parameters of the auction
+     * @return the auction id of the newly created auction
+     */
+    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
+        external
+        returns (uint256)
+    {
+        return GnosisAuction.startAuction(auctionDetails);
+    }
+
+    /**
+     * @notice Verify the constructor params satisfy requirements
+     * @param owner is the owner of the vault with critical permissions
+     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
+     * @param feeRecipient is the address to recieve vault performance and management fees
+     * @param performanceFee is the perfomance fee pct.
+     * @param tokenName is the name of the token
+     * @param tokenSymbol is the symbol of the token
+     * @param _vaultParams is the struct with vault general data
+     */
+    function verifyInitializerParams(
+        address owner,
+        address keeper,
+        address feeRecipient,
+        uint256 performanceFee,
+        uint256 managementFee,
+        string calldata tokenName,
+        string calldata tokenSymbol,
+        Vault.VaultParams calldata _vaultParams
+    ) external pure {
+        require(owner != address(0), "!owner");
+        require(keeper != address(0), "!keeper");
+        require(feeRecipient != address(0), "!feeRecipient");
+        require(
+            performanceFee < 100 * Vault.FEE_MULTIPLIER,
+            "performanceFee >= 100%"
+        );
+        require(
+            managementFee < 100 * Vault.FEE_MULTIPLIER,
+            "managementFee >= 100%"
+        );
+        require(bytes(tokenName).length > 0, "!tokenName");
+        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
+
+        require(_vaultParams.asset != address(0), "!asset");
+        require(_vaultParams.underlying != address(0), "!underlying");
+        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
+        require(_vaultParams.cap > 0, "!cap");
+        require(
+            _vaultParams.cap > _vaultParams.minimumSupply,
+            "cap has to be higher than minimumSupply"
+        );
+    }
+
+    /**
+     * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param amount is the withdraw amount in `asset`
+     * @return withdrawAmount is the withdraw amount in `collateralToken`
+     */
+    function withdrawYieldAndBaseToken(
+        address collateralToken,
+        address recipient,
+        uint256 amount
+    ) external returns (uint256) {
+        IWSTETH collateral = IWSTETH(collateralToken);
+
+        uint256 withdrawAmount = collateral.getWstETHByStETH(amount);
+
+        uint256 yieldTokenBalance =
+            withdrawYieldToken(collateralToken, recipient, withdrawAmount);
+
+        // If there is not enough wstETH in the vault, it withdraws as much as possible steth
+        if (withdrawAmount > yieldTokenBalance) {
+            yieldTokenBalance = yieldTokenBalance.add(
+                withdrawYieldToken(
+                    collateral.stETH(),
+                    recipient,
+                    withdrawAmount.sub(yieldTokenBalance)
+                )
+            );
+        }
+
+        // If there is not enough stETH or wstETH in the vault, it withdraws as much as possible and
+        // transfers the rest in `asset`
+        if (withdrawAmount > yieldTokenBalance) {
+            withdrawBaseToken(
+                collateralToken,
+                recipient,
+                withdrawAmount,
+                yieldTokenBalance
+            );
+        }
+
+        return withdrawAmount;
+    }
+
+    /**
+     * @notice Withdraws stETH from vault
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @return yieldTokenBalance is the balance of the yield token
+     */
+    function withdrawYieldToken(
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount
+    ) internal returns (uint256) {
+        IERC20 collateral = IERC20(collateralToken);
+
+        uint256 yieldTokenBalance = collateral.balanceOf(address(this));
+        uint256 yieldTokensToWithdraw =
+            DSMath.min(yieldTokenBalance, withdrawAmount);
+        if (yieldTokensToWithdraw > 0) {
+            collateral.safeTransfer(recipient, yieldTokensToWithdraw);
+        }
+
+        return yieldTokenBalance;
+    }
+
+    /**
+     * @notice Withdraws `asset` from vault
+     * @param collateralToken is the address of the collateral token
+     * @param recipient is the recipient
+     * @param withdrawAmount is the withdraw amount in terms of yearn tokens
+     * @param yieldTokenBalance is the collateral token (stETH) balance of the vault
+     */
+    function withdrawBaseToken(
+        address collateralToken,
+        address recipient,
+        uint256 withdrawAmount,
+        uint256 yieldTokenBalance
+    ) internal {
+        uint256 underlyingTokensToWithdraw =
+            IWSTETH(collateralToken).getStETHByWstETH(
+                withdrawAmount.sub(yieldTokenBalance)
+            );
+
+        transferAsset(payable(recipient), underlyingTokensToWithdraw);
+    }
+
+    /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to vault
+     * @param amount is the amount of `asset` to withdraw
+     * @param collateralToken is the address of the collateral token
+     * @param crvPool is the address of the steth <-> eth pool on curve
+     * @param minETHOut is the min eth to recieve
+     * @return amountETHOut is the amount of eth we have
+     available for the withdrawal (may incur curve slippage)
+     */
+    function unwrapYieldToken(
+        uint256 amount,
+        address collateralToken,
+        address crvPool,
+        uint256 minETHOut
+    ) external returns (uint256) {
+        uint256 assetBalance = address(this).balance;
+
+        uint256 amountETHOut = DSMath.min(assetBalance, amount);
+
+        uint256 amountToUnwrap =
+            IWSTETH(collateralToken).getWstETHByStETH(
+                DSMath.max(assetBalance, amount).sub(assetBalance)
+            );
+
+        if (amountToUnwrap > 0) {
+            IWSTETH wsteth = IWSTETH(collateralToken);
+            // Unrap to stETH
+            wsteth.unwrap(amountToUnwrap);
+
+            // approve steth exchange
+            IERC20(wsteth.stETH()).safeApprove(crvPool, amountToUnwrap);
+
+            // CRV SWAP HERE from steth -> eth
+            // 0 = ETH, 1 = STETH
+            amountETHOut = amountETHOut.add(
+                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOut)
+            );
+        }
+
+        return amountETHOut;
+    }
+
+    /**
+     * @notice Wraps the necessary amount of the base token to the yield-bearing yearn token
+     * @param weth is the address of weth
+     * @param collateralToken is the address of the collateral token
+     */
+    function wrapToYieldToken(address weth, address collateralToken) external {
+        // Unwrap all weth premiums transferred to contract
+        IWETH wethToken = IWETH(weth);
+        uint256 wethBalance = wethToken.balanceOf(address(this));
+
+        if (wethBalance > 0) {
+            wethToken.withdraw(wethBalance);
+        }
+
+        uint256 ethBalance = address(this).balance;
+
+        IWSTETH collateral = IWSTETH(collateralToken);
+        ISTETH stethToken = ISTETH(collateral.stETH());
+
+        if (ethBalance > 0) {
+            // Send eth to Lido, recieve steth
+            stethToken.submit{value: ethBalance}(address(this));
+        }
+
+        // Get all steth in contract
+        uint256 stethBalance = stethToken.balanceOf(address(this));
+
+        if (stethBalance > 0) {
+            // approve wrap
+            IERC20(address(stethToken)).safeApprove(
+                collateralToken,
+                stethBalance.add(1)
+            );
+            // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
+            collateral.wrap(stethBalance.add(1));
+        }
+    }
+
+    /**
      * @notice Helper function to make either an ETH transfer or ERC20 transfer
      * @param recipient is the receiving address
      * @param amount is the transfer amount
@@ -753,15 +775,5 @@ library VaultLifecycleSTETH {
             friday8am += 7 days;
         }
         return friday8am;
-    }
-
-    function getPPS(
-        uint256 currentSupply,
-        uint256 roundStartBalance,
-        uint256 singleShare
-    ) internal pure returns (uint256 newPricePerShare) {
-        newPricePerShare = currentSupply > 0
-            ? singleShare.mul(roundStartBalance).div(currentSupply)
-            : singleShare;
     }
 }
