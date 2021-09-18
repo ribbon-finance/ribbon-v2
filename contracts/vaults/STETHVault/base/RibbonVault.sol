@@ -579,6 +579,7 @@ contract RibbonVault is
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
+        ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
 
         _mint(address(this), mintShares);
