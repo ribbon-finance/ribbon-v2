@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {DSMath} from "../vendor/DSMathLib.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
@@ -765,12 +765,12 @@ library VaultLifecycleYearn {
     function transferAsset(
         address weth,
         address asset,
-        address payable recipient,
+        address recipient,
         uint256 amount
     ) public {
         if (asset == weth) {
             IWETH(weth).withdraw(amount);
-            (bool success, ) = recipient.call{value: amount}("");
+            (bool success, ) = payable(recipient).call{value: amount}("");
             require(success, "!success");
             return;
         }

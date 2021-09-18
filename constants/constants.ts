@@ -90,7 +90,7 @@ export const BYTES_ZERO =
  */
 
 export const VOL_ORACLE = "0x4df938e57fD4Ad1dFDdDEEb1B4cFAbAB19E33A0E";
-export const MANUAL_VOL_ORACLE = "0xe24854968CDbCfa049ddd6F089b5C552D181eCC4";
+export const MANUAL_VOL_ORACLE = "0x7c0BFaB993fBD54deaDf43AdFF960E9c9e116399";
 
 /**
  * Curve Pool

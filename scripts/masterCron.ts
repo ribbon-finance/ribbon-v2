@@ -13,6 +13,8 @@ import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import { wmul } from "../test/helpers/math";
 import * as time from "../test/helpers/time";
+import * as fs from "fs";
+import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git";
 import {
   GNOSIS_EASY_AUCTION,
   VOL_ORACLE,
@@ -23,6 +25,7 @@ import {
 } from "../constants/constants";
 import { encodeOrder } from "../test/helpers/utils";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 
 import { CronJob } from "cron";
 import Discord = require("discord.js");
@@ -54,6 +57,29 @@ let gasLimits = {
   burnRemainingOTokens: 100000,
 };
 
+interface Version {
+  major: number;
+  minor: number;
+  patch: number;
+}
+
+interface OToken {
+  chainId: number;
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+interface TokenSet {
+  name: string;
+  logoURI: string;
+  keywords: Array<string>;
+  timestamp: string;
+  version: Version;
+  tokens: Array<OToken>;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -84,6 +110,61 @@ const getNextFriday = (currentExpiry: number) => {
   }
   return friday8am;
 };
+
+function generateTokenSet(tokens: Array<OToken>) {
+  // reference: https://github.com/opynfinance/opyn-tokenlist/blob/master/opyn-v1.tokenlist.json
+  const tokenJSON: TokenSet = {
+    name: "Ribbon oTokens",
+    logoURI: "https://i.imgur.com/u5z1Ev2.png",
+    keywords: ["defi", "option", "opyn", "ribbon"],
+    //convert to something like 2021-09-08T10:51:49Z
+    timestamp: moment().format().toString().slice(0, -6) + "Z",
+    version: { major: 1, minor: 0, patch: 0 },
+    tokens: tokens,
+  };
+
+  return tokenJSON;
+}
+
+async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
+  const options: Partial<SimpleGitOptions> = {
+    baseDir: process.cwd(),
+    binary: "git",
+    maxConcurrentProcesses: 6,
+  };
+
+  // when setting all options in a single object
+  const git: SimpleGit = simpleGit(options);
+  const filePath = `/home/ribbon-token-list/${fileName}`;
+
+  let newTokenSet = tokenSet;
+
+  let currentTokenSet = (
+    JSON.parse(
+      fs.readFileSync(filePath, { encoding: "utf8", flag: "r" })
+    ) as TokenSet
+  ).tokens;
+
+  // add new week's otokens to token list
+  newTokenSet.tokens = currentTokenSet.concat(newTokenSet.tokens);
+  //remove duplicates
+  newTokenSet.tokens = [
+    ...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values(),
+  ];
+
+  await fs.writeFileSync(filePath, JSON.stringify(newTokenSet, null, 2), {
+    encoding: "utf8",
+    flag: "w",
+  });
+
+  await git
+    .cwd("/home/ribbon-token-list")
+    .addConfig("user.name", "cron job")
+    .addConfig("user.email", "some@one.com")
+    .add(filePath)
+    .commit(`update tokenset ${newTokenSet.timestamp}`)
+    .push("origin", "main");
+}
 
 async function getDeribitDelta(instrumentName: string) {
   // https://docs.deribit.com/?javascript#public-get_mark_price_history
@@ -210,9 +291,45 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   return candles[candles.length - 1][pricePoint] * 10 ** 6;
 }
 
-async function settle(
+async function updateTokenList(
+  fileName: string,
+  vaultArtifactAbi: any,
+  ierc20Abi: any,
+  provider: any,
+  network: string
+) {
+  let tokens = [];
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifactAbi,
+      provider
+    );
+
+    let oToken = new ethers.Contract(
+      await vault.nextOption(),
+      ierc20Abi,
+      provider
+    );
+
+    const token: OToken = {
+      chainId: 1,
+      address: oToken.address,
+      name: await oToken.name(),
+      symbol: await oToken.symbol(),
+      decimals: parseInt((await oToken.decimals()).toString()),
+    };
+    tokens.push(token);
+  }
+
+  await pushTokenListToGit(generateTokenSet(tokens), fileName);
+}
+
+async function settleAndBurn(
   gnosisAuction: Contract,
   vaultArtifactAbi: any,
+  ierc20Abi: any,
   provider: any,
   signer: Wallet,
   network: string
@@ -232,13 +349,35 @@ async function settle(
       if (auctionDetails.initialAuctionOrder !== BYTES_ZERO) {
         let newGasPrice = (await gas(network)).toString();
 
-        const tx = await gnosisAuction.connect(signer).settleAuction({
-          gasPrice: newGasPrice,
-          gasLimit: gasLimits["settleAuction"],
-        });
+        const tx = await gnosisAuction
+          .connect(signer)
+          .settleAuction(auctionID.toString(), {
+            gasPrice: newGasPrice,
+            gasLimit: gasLimits["settleAuction"],
+          })
+          .wait();
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
       }
+
+      let oTokenBalance = await new ethers.Contract(
+        await vault.currentOption(),
+        ierc20Abi,
+        provider
+      ).balanceOf(vault.address);
+
+      if (parseInt(oTokenBalance.toString()) == 0) {
+        continue;
+      }
+
+      let newGasPrice2 = (await gas(network)).toString();
+
+      const tx2 = await vault.connect(signer).burnRemainingOTokens({
+        gasPrice: newGasPrice2,
+        gasLimit: gasLimits["burnRemainingOTokens"],
+      });
+
+      await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
     } catch (error) {
       await log(
         `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
@@ -438,8 +577,20 @@ async function commitAndClose() {
 
 async function rollToNextOption() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
-  // 2. rollToNextOption
+  // 2. updateTokenList
+  await updateTokenList(
+    "ribbon.tokenlist.json",
+    vaultArtifact.abi,
+    ierc20Artifact.abi,
+    provider,
+    network
+  );
+
+  // 3. rollToNextOption
   let auctionCounters = await runTX(
     vaultArtifact.abi,
     provider,
@@ -452,6 +603,9 @@ async function rollToNextOption() {
 async function settleAuctions() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
+  const ierc20Artifact = await hre.artifacts.readArtifact(
+    "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
+  );
 
   const gnosisAuction = new ethers.Contract(
     GNOSIS_EASY_AUCTION,
@@ -459,25 +613,21 @@ async function settleAuctions() {
     provider
   );
 
-  // 3. settleAuction
-  await settle(gnosisAuction, vaultArtifact.abi, provider, signer, network);
-
-  // 4. burnRemainingOTokens
-  await runTX(
+  // 4. settleAuction and 5. burnRemainingOTokens
+  await settleAndBurn(
+    gnosisAuction,
     vaultArtifact.abi,
+    ierc20Artifact.abi,
     provider,
     signer,
-    network,
-    "burnRemainingOTokens"
+    network
   );
 }
 
 async function updateManualVol() {
-  const volOracleArtifact = await hre.artifacts.readArtifact("ManualVolOracle");
-
   const volOracle = new ethers.Contract(
     MANUAL_VOL_ORACLE,
-    volOracleArtifact.abi,
+    ManualVolOracle_ABI,
     provider
   );
 
@@ -537,7 +687,7 @@ async function run() {
   client.login(process.env.DISCORD_TOKEN);
 
   //Atlantic/Reykjavik corresponds to UTC
-
+  const OPYN_PRICE_FINALIZATION_BUFFER = 15; // 15 minutes
   const NETWORK_CONGESTION_BUFFER = 5; // 5 minutes
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
   const COMMIT_START = 10; // 10 am UTC
@@ -547,7 +697,9 @@ async function run() {
 
   var futureStrikeForecasting = new CronJob(
     // 0 0 9 * * 5 = 9am UTC on Fridays.
-    `0 0 ${COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE} * * 5`,
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${
+      COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE
+    } * * 5`,
     async function () {
       await log(
         `\n=============================================================================`
@@ -562,7 +714,7 @@ async function run() {
 
   var commitAndCloseJob = new CronJob(
     // 0 0 10 * * 5 = 10am UTC on Fridays.
-    `0 0 ${COMMIT_START} * * 5`,
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${COMMIT_START} * * 5`,
     async function () {
       await commitAndClose();
     },
@@ -572,7 +724,9 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + TIMELOCK_DELAY} * * 5`,
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + NETWORK_CONGESTION_BUFFER} ${
+      COMMIT_START + TIMELOCK_DELAY
+    } * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -582,7 +736,7 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${NETWORK_CONGESTION_BUFFER * 3} ${
+    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + NETWORK_CONGESTION_BUFFER * 2} ${
       COMMIT_START + TIMELOCK_DELAY + AUCTION_LIFE_TIME_DELAY
     } * * 5`,
     async function () {

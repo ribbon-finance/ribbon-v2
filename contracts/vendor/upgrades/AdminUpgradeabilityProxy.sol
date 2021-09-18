@@ -16,15 +16,15 @@ contract AdminUpgradeabilityProxy is UpgradeabilityProxy {
   /**
    * Contract constructor.
    * @param _logic address of the initial implementation.
-   * @param _admin Address of the proxy administrator.
+   * @param admin_ Address of the proxy administrator.
    * @param _data Data to send as msg.data to the implementation to initialize the proxied contract.
    * It should include the signature and the parameters of the function to be called, as described in
    * https://solidity.readthedocs.io/en/v0.4.24/abi-spec.html#function-selector-and-argument-encoding.
    * This parameter is optional, if no data is given the initialization call to proxied contract will be skipped.
    */
-  constructor(address _logic, address _admin, bytes memory _data) UpgradeabilityProxy(_logic, _data) payable {
+  constructor(address _logic, address admin_, bytes memory _data) UpgradeabilityProxy(_logic, _data) payable {
     assert(ADMIN_SLOT == bytes32(uint256(keccak256('eip1967.proxy.admin')) - 1));
-    _setAdmin(_admin);
+    _setAdmin(admin_);
   }
 
   /**
@@ -56,16 +56,16 @@ contract AdminUpgradeabilityProxy is UpgradeabilityProxy {
   }
 
   /**
-   * @return The address of the proxy admin.
+   * @return adminAddress The address of the proxy admin.
    */
-  function admin() external ifAdmin returns (address) {
+  function admin() external ifAdmin returns (address adminAddress) {
     return _admin();
   }
 
   /**
-   * @return The address of the implementation.
+   * @return implementationAddress The address of the implementation.
    */
-  function implementation() external ifAdmin returns (address) {
+  function implementation() external ifAdmin returns (address implementationAddress) {
     return _implementation();
   }
 

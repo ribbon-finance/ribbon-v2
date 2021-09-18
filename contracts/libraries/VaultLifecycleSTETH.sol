@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
-import {DSMath} from "../vendor/DSMathLib.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {DSMath} from "../vendor/DSMath.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
@@ -746,8 +748,8 @@ library VaultLifecycleSTETH {
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
-    function transferAsset(address payable recipient, uint256 amount) public {
-        (bool success, ) = recipient.call{value: amount}("");
+    function transferAsset(address recipient, uint256 amount) public {
+        (bool success, ) = payable(recipient).call{value: amount}("");
         require(success, "!success");
     }
 
