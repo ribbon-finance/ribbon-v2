@@ -7,7 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {VaultLifecycle} from "./VaultLifecycle.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
@@ -359,8 +359,8 @@ library VaultLifecycleYearn {
      * @param currentLockedBalance is the amount of funds currently locked in opyn
      * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
-     * @return performanceFee is the performance fee
-     * @return managementFee is the management fee
+     * @return performanceFeeInAsset is the performance fee
+     * @return managementFeeInAsset is the management fee
      * @return vaultFee is the total fees
      */
     function getVaultFees(
@@ -368,14 +368,23 @@ library VaultLifecycleYearn {
         uint256 currentLockedBalance,
         uint256 performanceFeePercent,
         uint256 managementFeePercent
-    ) external view returns (uint256 performanceFeeInAsset, uint256 vaultFee) {
+    )
+        external
+        view
+        returns (
+            uint256 performanceFeeInAsset,
+            uint256 managementFeeInAsset,
+            uint256 vaultFee
+        )
+    {
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
 
         uint256 lockedBalanceSansPending =
             currentLockedBalance.sub(vaultState.totalPending);
 
-        uint256 performanceFeeInAsset;
-        uint256 vaultFee;
+        uint256 _performanceFeeInAsset;
+        uint256 _managementFeeInAsset;
+        uint256 _vaultFee;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
@@ -383,23 +392,22 @@ library VaultLifecycleYearn {
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
         if (lockedBalanceSansPending > prevLockedAmount) {
-            performanceFeeInAsset = performanceFee > 0
+            _performanceFeeInAsset = performanceFeePercent > 0
                 ? lockedBalanceSansPending
                     .sub(prevLockedAmount)
-                    .mul(performanceFee)
+                    .mul(performanceFeePercent)
                     .div(100 * Vault.FEE_MULTIPLIER)
                 : 0;
-            uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(
-                        100 * Vault.FEE_MULTIPLIER
-                    )
-                    : 0;
+            _managementFeeInAsset = managementFeePercent > 0
+                ? currentLockedBalance.mul(managementFeePercent).div(
+                    100 * Vault.FEE_MULTIPLIER
+                )
+                : 0;
 
-            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
+            _vaultFee = _performanceFeeInAsset.add(_managementFeeInAsset);
         }
 
-        return (performanceFeeInAsset, vaultFee);
+        return (_performanceFeeInAsset, _managementFeeInAsset, _vaultFee);
     }
 
     /**
@@ -448,7 +456,7 @@ library VaultLifecycleYearn {
                 isPut
             );
 
-        VaultLifecycle.verifyOtoken(
+        verifyOtoken(
             otoken,
             vaultParams,
             collateralAsset,
@@ -456,6 +464,41 @@ library VaultLifecycleYearn {
             closeParams.delay
         );
         return otoken;
+    }
+
+    /**
+     * @notice Verify the otoken has the correct parameters to prevent vulnerability to opyn contract changes
+     * @param otokenAddress is the address of the otoken
+     * @param vaultParams is the struct with vault general data
+     * @param collateralAsset is the address of the collateral asset
+     * @param USDC is the address of usdc
+     * @param delay is the delay between commitAndClose and rollToNextOption
+     */
+    function verifyOtoken(
+        address otokenAddress,
+        Vault.VaultParams storage vaultParams,
+        address collateralAsset,
+        address USDC,
+        uint256 delay
+    ) internal view {
+        require(otokenAddress != address(0), "!otokenAddress");
+
+        IOtoken otoken = IOtoken(otokenAddress);
+        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
+        require(
+            otoken.underlyingAsset() == vaultParams.underlying,
+            "Wrong underlyingAsset"
+        );
+        require(
+            otoken.collateralAsset() == collateralAsset,
+            "Wrong collateralAsset"
+        );
+
+        // we just assume all options use USDC as the strike
+        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+
+        uint256 readyAt = block.timestamp.add(delay);
+        require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
 
     /**
