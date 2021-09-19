@@ -943,7 +943,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when setting 10 seconds to setAuctionDuration", async function () {
         await expect(
           vault.connect(ownerSigner).setAuctionDuration("10")
-        ).to.be.revertedWith("!newAuctionDuration");
+        ).to.be.revertedWith("Invalid auction duration");
       });
 
       it("reverts when not owner call", async function () {
