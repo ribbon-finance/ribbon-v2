@@ -113,8 +113,8 @@ describe("RibbonThetaYearnVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 155000,
-      depositBestCase: 138000,
+      depositWorstCase: 155284,
+      depositBestCase: 138362,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -2162,7 +2162,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1065000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1067098);
 
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
@@ -2786,7 +2786,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not initiated", async function () {
         await expect(
           vault.connect(ownerSigner).completeWithdraw()
-        ).to.be.revertedWith("!initiated");
+        ).to.be.revertedWith("Not initiated");
       });
 
       it("reverts when round not closed", async function () {
@@ -2800,7 +2800,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.completeWithdraw();
 
-        await expect(vault.completeWithdraw()).to.be.revertedWith("!initiated");
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
+          "Not initiated"
+        );
       });
 
       it("completes the withdrawal", async function () {
@@ -2873,7 +2875,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 170193);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 170669);
         // console.log(
         //   params.name,
         //   "completeWithdraw",

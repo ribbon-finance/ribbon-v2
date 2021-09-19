@@ -227,11 +227,11 @@ contract RibbonVault is
         );
         vaultParams = _vaultParams;
 
+        _upgradeYearnVault();
+
         uint256 assetBalance = totalBalance();
         ShareMath.assertUint104(assetBalance);
         vaultState.lastLockedAmount = uint104(assetBalance);
-
-        _upgradeYearnVault();
 
         vaultState.round = 1;
     }
@@ -262,6 +262,7 @@ contract RibbonVault is
      * @param newFeeRecipient is the address of the new fee recipient
      */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
+        require(newFeeRecipient != address(0), "!newFeeRecipient");
         require(newFeeRecipient != feeRecipient, "Must be new feeRecipient");
         feeRecipient = newFeeRecipient;
     }
