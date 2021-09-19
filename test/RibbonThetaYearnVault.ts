@@ -220,6 +220,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
+  let vaultLifecycleYearnLib: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
@@ -333,10 +334,13 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      vaultLifecycleLib = await VaultLifecycle.deploy();
+
       const VaultLifecycleYearn = await ethers.getContractFactory(
         "VaultLifecycleYearn"
       );
-      vaultLifecycleLib = await VaultLifecycleYearn.deploy();
+      vaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -383,7 +387,8 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycleYearn: vaultLifecycleLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
             },
           }
         )
@@ -531,7 +536,8 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaYearnVault",
           {
             libraries: {
-              VaultLifecycleYearn: vaultLifecycleLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
             },
           }
         );
