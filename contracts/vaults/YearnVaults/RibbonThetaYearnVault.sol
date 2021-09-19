@@ -413,7 +413,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
-        optionAuctionID = VaultLifecycleYearn.startAuction(auctionDetails);
+        optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
     }
 
     /**

@@ -389,7 +389,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
-        optionAuctionID = VaultLifecycleSTETH.startAuction(auctionDetails);
+        optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
     }
 
     /**

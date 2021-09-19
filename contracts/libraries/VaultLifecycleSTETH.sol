@@ -375,18 +375,6 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Starts the gnosis auction
-     * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @return the auction id of the newly created auction
-     */
-    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
-        external
-        returns (uint256)
-    {
-        return GnosisAuction.startAuction(auctionDetails);
-    }
-
-    /**
      * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient

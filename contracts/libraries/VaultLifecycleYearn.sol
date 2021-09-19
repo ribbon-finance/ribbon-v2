@@ -402,18 +402,6 @@ library VaultLifecycleYearn {
     }
 
     /**
-     * @notice Starts the gnosis auction
-     * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @return the auction id of the newly created auction
-     */
-    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
-        external
-        returns (uint256)
-    {
-        return GnosisAuction.startAuction(auctionDetails);
-    }
-
-    /**
      * @notice Withdraws yvWETH + WETH (if necessary) from vault using vault shares
      * @param weth is the weth address
      * @param asset is the vault asset address
