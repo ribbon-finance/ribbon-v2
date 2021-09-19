@@ -382,7 +382,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycleYearn.createShort(
+        VaultLifecycle.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
