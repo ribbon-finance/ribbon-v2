@@ -10,6 +10,7 @@ import {DSMath} from "../../vendor/DSMath.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
@@ -342,7 +343,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycleYearn.settleShort(GAMMA_CONTROLLER);
+                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }

@@ -284,62 +284,6 @@ library VaultLifecycleYearn {
     }
 
     /**
-     * @notice Close the existing short otoken position. Currently this implementation is simple.
-     * It closes the most recent vault opened by the contract. This assumes that the contract will
-     * only have a single vault open at any given time. Since calling `_closeShort` deletes vaults by
-     calling SettleVault action, this assumption should hold.
-     * @param gammaController is the address of the opyn controller contract
-     * @return amount of collateral redeemed from the vault
-     */
-    function settleShort(address gammaController) external returns (uint256) {
-        IController controller = IController(gammaController);
-
-        // gets the currently active vault ID
-        uint256 vaultID = controller.getAccountVaultCounter(address(this));
-
-        GammaTypes.Vault memory vault =
-            controller.getVault(address(this), vaultID);
-
-        require(vault.shortOtokens.length > 0, "No short");
-
-        // An otoken's collateralAsset is the vault's `asset`
-        // So in the context of performing Opyn short operations we call them collateralAsset
-        IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
-
-        // The short position has been previously closed, or all the otokens have been burned.
-        // So we return early.
-        if (address(collateralToken) == address(0)) {
-            return 0;
-        }
-
-        // This is equivalent to doing IERC20(vault.asset).balanceOf(address(this))
-        uint256 startCollateralBalance =
-            collateralToken.balanceOf(address(this));
-
-        // If it is after expiry, we need to settle the short position using the normal way
-        // Delete the vault and withdraw all remaining collateral from the vault
-        IController.ActionArgs[] memory actions =
-            new IController.ActionArgs[](1);
-
-        actions[0] = IController.ActionArgs(
-            IController.ActionType.SettleVault,
-            address(this), // owner
-            address(this), // address to transfer to
-            address(0), // not used
-            vaultID, // vaultId
-            0, // not used
-            0, // not used
-            "" // not used
-        );
-
-        controller.operate(actions);
-
-        uint256 endCollateralBalance = collateralToken.balanceOf(address(this));
-
-        return endCollateralBalance.sub(startCollateralBalance);
-    }
-
-    /**
      * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.

@@ -8,6 +8,7 @@ import {
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
@@ -338,7 +339,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycleSTETH.settleShort(GAMMA_CONTROLLER);
+                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
