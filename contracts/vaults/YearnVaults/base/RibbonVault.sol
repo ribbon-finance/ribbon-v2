@@ -19,6 +19,7 @@ import {
 import {DSMath} from "../../../vendor/DSMath.sol";
 import {IYearnRegistry, IYearnVault} from "../../../interfaces/IYearn.sol";
 import {Vault} from "../../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
@@ -201,7 +202,7 @@ contract RibbonVault is
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycleYearn.verifyInitializerParams(
+        VaultLifecycle.verifyInitializerParams(
             _owner,
             _keeper,
             _feeRecipient,

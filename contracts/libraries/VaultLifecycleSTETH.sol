@@ -63,9 +63,9 @@ library VaultLifecycleSTETH {
 
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextFriday(block.timestamp);
+            expiry = VaultLifecycle.getNextFriday(block.timestamp);
         } else {
-            expiry = getNextFriday(
+            expiry = VaultLifecycle.getNextFriday(
                 IOtoken(closeParams.currentOption).expiryTimestamp()
             );
         }
@@ -387,50 +387,6 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Verify the constructor params satisfy requirements
-     * @param owner is the owner of the vault with critical permissions
-     * @param keeper is the keeper of the vault with medium permissions (weekly actions)
-     * @param feeRecipient is the address to recieve vault performance and management fees
-     * @param performanceFee is the perfomance fee pct.
-     * @param tokenName is the name of the token
-     * @param tokenSymbol is the symbol of the token
-     * @param _vaultParams is the struct with vault general data
-     */
-    function verifyInitializerParams(
-        address owner,
-        address keeper,
-        address feeRecipient,
-        uint256 performanceFee,
-        uint256 managementFee,
-        string calldata tokenName,
-        string calldata tokenSymbol,
-        Vault.VaultParams calldata _vaultParams
-    ) external pure {
-        require(owner != address(0), "!owner");
-        require(keeper != address(0), "!keeper");
-        require(feeRecipient != address(0), "!feeRecipient");
-        require(
-            performanceFee < 100 * Vault.FEE_MULTIPLIER,
-            "performanceFee >= 100%"
-        );
-        require(
-            managementFee < 100 * Vault.FEE_MULTIPLIER,
-            "managementFee >= 100%"
-        );
-        require(bytes(tokenName).length > 0, "!tokenName");
-        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
-
-        require(_vaultParams.asset != address(0), "!asset");
-        require(_vaultParams.underlying != address(0), "!underlying");
-        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
-        require(_vaultParams.cap > 0, "!cap");
-        require(
-            _vaultParams.cap > _vaultParams.minimumSupply,
-            "cap has to be higher than minimumSupply"
-        );
-    }
-
-    /**
      * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
@@ -608,31 +564,5 @@ library VaultLifecycleSTETH {
     function transferAsset(address recipient, uint256 amount) public {
         (bool success, ) = payable(recipient).call{value: amount}("");
         require(success, "!success");
-    }
-
-    /**
-     * @notice Gets the next options expiry timestamp
-     * @param currentExpiry is the expiry timestamp of the current option
-     * Reference: https://codereview.stackexchange.com/a/33532
-     * Examples:
-     * getNextFriday(week 1 thursday) -> week 1 friday
-     * getNextFriday(week 1 friday) -> week 2 friday
-     * getNextFriday(week 1 saturday) -> week 2 friday
-     */
-    function getNextFriday(uint256 currentExpiry)
-        internal
-        pure
-        returns (uint256)
-    {
-        // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
-        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
-
-        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (currentExpiry >= friday8am) {
-            friday8am += 7 days;
-        }
-        return friday8am;
     }
 }

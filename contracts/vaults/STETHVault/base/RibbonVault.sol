@@ -19,6 +19,7 @@ import {
 import {IWSTETH} from "../../../interfaces/ISTETH.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 import {Vault} from "../../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 
@@ -201,7 +202,7 @@ contract RibbonVault is
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycleSTETH.verifyInitializerParams(
+        VaultLifecycle.verifyInitializerParams(
             _owner,
             _keeper,
             _feeRecipient,
