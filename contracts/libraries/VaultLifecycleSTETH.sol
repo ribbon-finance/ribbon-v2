@@ -27,15 +27,6 @@ library VaultLifecycleSTETH {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    struct CloseParams {
-        address OTOKEN_FACTORY;
-        address USDC;
-        address currentOption;
-        uint256 delay;
-        uint16 lastStrikeOverrideRound;
-        uint256 overriddenStrikePrice;
-    }
-
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
      * @param strikeSelection is the address of the contract with strike selection logic
@@ -55,7 +46,7 @@ library VaultLifecycleSTETH {
         address strikeSelection,
         address optionsPremiumPricer,
         uint256 premiumDiscount,
-        CloseParams calldata closeParams,
+        VaultLifecycle.CloseParams calldata closeParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState,
         address collateralAsset
@@ -90,13 +81,14 @@ library VaultLifecycleSTETH {
         require(strikePrice != 0, "!strikePrice");
 
         // retrieve address if option already exists, or deploy it
-        otokenAddress = getOrDeployOtoken(
+        otokenAddress = VaultLifecycle.getOrDeployOtoken(
             closeParams,
             vaultParams,
             vaultParams.underlying,
             collateralAsset,
             strikePrice,
-            expiry
+            expiry,
+            false
         );
 
         // get the black scholes premium of the option and adjust premium based on
@@ -380,96 +372,6 @@ library VaultLifecycleSTETH {
         }
 
         return (_performanceFeeInAsset, _managementFeeInAsset, _vaultFee);
-    }
-
-    /**
-     * @notice Either retrieves the option token if it already exists, or deploy it
-     * @param closeParams is the struct with details on previous option and strike selection details
-     * @param vaultParams is the struct with vault general data
-     * @param underlying is the address of the underlying asset of the option
-     * @param collateralAsset is the address of the collateral asset of the option
-     * @param strikePrice is the strike price of the option
-     * @param expiry is the expiry timestamp of the option
-     * @return the address of the option
-     */
-    function getOrDeployOtoken(
-        CloseParams calldata closeParams,
-        Vault.VaultParams storage vaultParams,
-        address underlying,
-        address collateralAsset,
-        uint256 strikePrice,
-        uint256 expiry
-    ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
-
-        address otokenFromFactory =
-            factory.getOtoken(
-                underlying,
-                closeParams.USDC,
-                collateralAsset,
-                strikePrice,
-                expiry,
-                false
-            );
-
-        if (otokenFromFactory != address(0)) {
-            return otokenFromFactory;
-        }
-
-        address otoken =
-            factory.createOtoken(
-                underlying,
-                closeParams.USDC,
-                collateralAsset,
-                strikePrice,
-                expiry,
-                false
-            );
-
-        verifyOtoken(
-            otoken,
-            vaultParams,
-            collateralAsset,
-            closeParams.USDC,
-            closeParams.delay
-        );
-
-        return otoken;
-    }
-
-    /**
-     * @notice Verify the otoken has the correct parameters to prevent vulnerability to opyn contract changes
-     * @param otokenAddress is the address of the otoken
-     * @param vaultParams is the struct with vault general data
-     * @param collateralAsset is the address of the collateral asset
-     * @param USDC is the address of usdc
-     * @param delay is the delay between commitAndClose and rollToNextOption
-     */
-    function verifyOtoken(
-        address otokenAddress,
-        Vault.VaultParams storage vaultParams,
-        address collateralAsset,
-        address USDC,
-        uint256 delay
-    ) internal view {
-        require(otokenAddress != address(0), "!otokenAddress");
-
-        IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
-        require(
-            otoken.underlyingAsset() == vaultParams.underlying,
-            "Wrong underlyingAsset"
-        );
-        require(
-            otoken.collateralAsset() == collateralAsset,
-            "Wrong collateralAsset"
-        );
-
-        // we just assume all options use USDC as the strike
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
-
-        uint256 readyAt = block.timestamp.add(delay);
-        require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
 
     /**

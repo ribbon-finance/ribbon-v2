@@ -285,8 +285,8 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycleSTETH.CloseParams memory closeParams =
-            VaultLifecycleSTETH.CloseParams({
+        VaultLifecycle.CloseParams memory closeParams =
+            VaultLifecycle.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,

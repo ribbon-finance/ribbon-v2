@@ -289,8 +289,8 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycleYearn.CloseParams memory closeParams =
-            VaultLifecycleYearn.CloseParams({
+        VaultLifecycle.CloseParams memory closeParams =
+            VaultLifecycle.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
