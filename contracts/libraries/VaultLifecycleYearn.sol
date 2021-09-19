@@ -7,6 +7,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
@@ -118,41 +119,6 @@ library VaultLifecycleYearn {
         require(premium > 0, "!premium");
 
         return (otokenAddress, premium, strikePrice, delta);
-    }
-
-    /**
-     * @notice Verify the otoken has the correct parameters to prevent vulnerability to opyn contract changes
-     * @param otokenAddress is the address of the otoken
-     * @param vaultParams is the struct with vault general data
-     * @param collateralAsset is the address of the collateral asset
-     * @param USDC is the address of usdc
-     * @param delay is the delay between commitAndClose and rollToNextOption
-     */
-    function verifyOtoken(
-        address otokenAddress,
-        Vault.VaultParams storage vaultParams,
-        address collateralAsset,
-        address USDC,
-        uint256 delay
-    ) private view {
-        require(otokenAddress != address(0), "!otokenAddress");
-
-        IOtoken otoken = IOtoken(otokenAddress);
-        require(otoken.isPut() == vaultParams.isPut, "Type mismatch");
-        require(
-            otoken.underlyingAsset() == vaultParams.underlying,
-            "Wrong underlyingAsset"
-        );
-        require(
-            otoken.collateralAsset() == collateralAsset,
-            "Wrong collateralAsset"
-        );
-
-        // we just assume all options use USDC as the strike
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
-
-        uint256 readyAt = block.timestamp.add(delay);
-        require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
     }
 
     /**
@@ -536,7 +502,7 @@ library VaultLifecycleYearn {
                 isPut
             );
 
-        verifyOtoken(
+        VaultLifecycle.verifyOtoken(
             otoken,
             vaultParams,
             collateralAsset,
