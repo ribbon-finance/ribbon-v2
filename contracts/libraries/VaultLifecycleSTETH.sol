@@ -340,36 +340,38 @@ library VaultLifecycleSTETH {
         uint256 currentLockedBalance,
         uint256 performanceFeePercent,
         uint256 managementFeePercent
-    )
-        external
-        view
-        returns (
-            uint256 performanceFee,
-            uint256 managementFee,
-            uint256 vaultFee
-        )
-    {
+    ) external view returns (uint256 performanceFeeInAsset, uint256 vaultFee) {
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
+
+        uint256 lockedBalanceSansPending =
+            currentLockedBalance.sub(vaultState.totalPending);
+
+        uint256 performanceFeeInAsset;
+        uint256 vaultFee;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
         // deposits and withdrawals, is positive. If it is negative, last week's
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
-        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
-            performanceFee = currentLockedBalance
-                .sub(totalPending)
-                .sub(prevLockedAmount)
-                .mul(performanceFeePercent)
-                .div(100 * 10**6);
-            managementFee = currentLockedBalance
-                .sub(totalPending)
-                .mul(managementFeePercent)
-                .div(100 * 10**6);
+        if (lockedBalanceSansPending > prevLockedAmount) {
+            performanceFeeInAsset = performanceFee > 0
+                ? lockedBalanceSansPending
+                    .sub(prevLockedAmount)
+                    .mul(performanceFee)
+                    .div(100 * Vault.FEE_MULTIPLIER)
+                : 0;
+            uint256 managementFeeInAsset =
+                managementFee > 0
+                    ? currentLockedBalance.mul(managementFee).div(
+                        100 * Vault.FEE_MULTIPLIER
+                    )
+                    : 0;
 
-            vaultFee = performanceFee.add(managementFee);
+            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
         }
+
+        return (performanceFeeInAsset, vaultFee);
     }
 
     /**
