@@ -168,7 +168,7 @@ library VaultLifecycleSTETH {
         Vault.VaultState calldata vaultState
     )
         external
-        view
+        pure
         returns (
             uint256 newLockedAmount,
             uint256 queuedWithdrawAmount,

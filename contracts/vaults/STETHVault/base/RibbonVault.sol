@@ -201,7 +201,7 @@ contract RibbonVault is
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycleSTETH.verifyConstructorParams(
+        VaultLifecycleSTETH.verifyInitializerParams(
             _owner,
             _keeper,
             _feeRecipient,
@@ -347,6 +347,7 @@ contract RibbonVault is
      */
     function depositFor(uint256 amount, address creditor)
         external
+        payable
         nonReentrant
     {
         require(amount > 0, "!amount");
@@ -598,7 +599,7 @@ contract RibbonVault is
 
         (
             uint256 lockedBalance,
-            uint256 queuedWithdrawAmount,
+            uint256 _queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         ) =
@@ -629,7 +630,7 @@ contract RibbonVault is
         // Wrap entire `asset` balance to `collateralToken` balance
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
-        return (newOption, queuedWithdrawAmount);
+        return (newOption, _queuedWithdrawAmount);
     }
 
     /*

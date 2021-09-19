@@ -53,10 +53,12 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     );
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
+
     event PremiumDiscountSet(
         uint256 premiumDiscount,
         uint256 newPremiumDiscount
     );
+
     event AuctionDurationSet(
         uint256 auctionDuration,
         uint256 newAuctionDuration
