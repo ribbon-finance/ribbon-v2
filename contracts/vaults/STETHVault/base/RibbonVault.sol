@@ -618,6 +618,9 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
+        // Wrap entire `asset` balance to `collateralToken` balance
+        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
+
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
 
@@ -627,9 +630,6 @@ contract RibbonVault is
         vaultState.lockedAmount = uint104(lockedBalance);
 
         _mint(address(this), mintShares);
-
-        // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
         return (newOption, _queuedWithdrawAmount);
     }
