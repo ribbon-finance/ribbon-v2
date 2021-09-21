@@ -86,6 +86,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _wsteth is the LDO contract
      * @param _ldo is the LDO contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
@@ -96,6 +97,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     constructor(
         address _weth,
         address _usdc,
+        address _wsteth,
         address _ldo,
         address _oTokenFactory,
         address _gammaController,
@@ -106,6 +108,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         RibbonVault(
             _weth,
             _usdc,
+            _wsteth,
             _ldo,
             _gammaController,
             _marginPool,

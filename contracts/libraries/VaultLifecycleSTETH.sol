@@ -135,20 +135,20 @@ library VaultLifecycleSTETH {
         )
     {
         uint256 pendingAmount = uint256(vaultState.totalPending);
-        uint256 decimals = vaultParams.decimals;
+        uint256 _decimals = vaultParams.decimals;
 
         newPricePerShare = ShareMath.pricePerShare(
             currentShareSupply,
             currentBalance,
             pendingAmount,
-            decimals
+            _decimals
         );
 
         // After closing the short, if the options expire in-the-money
         // vault pricePerShare would go down because vault's asset balance decreased.
         // This ensures that the newly-minted shares do not take on the loss.
         uint256 _mintShares =
-            ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
+            ShareMath.assetToShares(pendingAmount, newPricePerShare, _decimals);
 
         uint256 newSupply = currentShareSupply.add(_mintShares);
         uint256 queuedAmount =
@@ -156,7 +156,7 @@ library VaultLifecycleSTETH {
                 ? ShareMath.sharesToAsset(
                     vaultState.queuedWithdrawShares,
                     newPricePerShare,
-                    decimals
+                    _decimals
                 )
                 : 0;
 

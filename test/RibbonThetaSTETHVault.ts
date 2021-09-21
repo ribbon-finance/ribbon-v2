@@ -353,6 +353,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const deployArgs = [
         WETH_ADDRESS,
         USDC_ADDRESS,
+        WSTETH_ADDRESS,
         LDO_ADDRESS,
         OTOKEN_FACTORY,
         GAMMA_CONTROLLER,
@@ -527,6 +528,7 @@ function behavesLikeRibbonOptionsVault(params: {
         testVault = await RibbonThetaVault.deploy(
           WETH_ADDRESS,
           USDC_ADDRESS,
+          WSTETH_ADDRESS,
           LDO_ADDRESS,
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,

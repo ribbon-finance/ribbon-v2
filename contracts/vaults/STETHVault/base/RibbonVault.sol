@@ -70,7 +70,7 @@ contract RibbonVault is
     uint256 public managementFee;
 
     /// @notice wstETH vault contract
-    IWSTETH public collateralToken;
+    IWSTETH public immutable collateralToken;
 
     // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
     uint256[30] private ____gap;
@@ -155,6 +155,7 @@ contract RibbonVault is
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _wsteth is the LDO contract
      * @param _ldo is the LDO contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -164,6 +165,7 @@ contract RibbonVault is
     constructor(
         address _weth,
         address _usdc,
+        address _wsteth,
         address _ldo,
         address _gammaController,
         address _marginPool,
@@ -172,6 +174,7 @@ contract RibbonVault is
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
+        require(_wsteth != address(0), "!_wsteth");
         require(_ldo != address(0), "!_ldo");
 
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
@@ -187,6 +190,7 @@ contract RibbonVault is
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
         STETH_ETH_CRV_POOL = _crvPool;
+        collateralToken = IWSTETH(_wsteth);
     }
 
     /**
@@ -226,8 +230,6 @@ contract RibbonVault is
             WEEKS_PER_YEAR
         );
         vaultParams = _vaultParams;
-
-        collateralToken = IWSTETH(0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0);
 
         uint256 assetBalance = totalBalance();
         ShareMath.assertUint104(assetBalance);
