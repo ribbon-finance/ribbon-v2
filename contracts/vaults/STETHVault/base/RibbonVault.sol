@@ -354,7 +354,7 @@ contract RibbonVault is
         nonReentrant
     {
         require(amount > 0, "!amount");
-        require(creditor != address(0));
+        require(creditor != address(0), "!creditor");
 
         _depositFor(msg.value, creditor, true);
     }
