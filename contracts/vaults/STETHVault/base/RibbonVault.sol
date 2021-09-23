@@ -646,7 +646,7 @@ contract RibbonVault is
         returns (uint256)
     {
         (uint256 performanceFeeInAsset, , uint256 vaultFee) =
-            VaultLifecycleSTETH.getVaultFees(
+            VaultLifecycle.getVaultFees(
                 vaultState,
                 currentLockedBalance,
                 performanceFee,

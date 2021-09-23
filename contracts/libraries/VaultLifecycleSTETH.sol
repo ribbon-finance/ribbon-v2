@@ -318,63 +318,6 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Calculates the performance and management fee for this week's round
-     * @param vaultState is the struct with vault accounting state
-     * @param currentLockedBalance is the amount of funds currently locked in opyn
-     * @param performanceFeePercent is the performance fee pct.
-     * @param managementFeePercent is the management fee pct.
-     * @return performanceFeeInAsset is the performance fee
-     * @return managementFeeInAsset is the management fee
-     * @return vaultFee is the total fees
-     */
-    function getVaultFees(
-        Vault.VaultState storage vaultState,
-        uint256 currentLockedBalance,
-        uint256 performanceFeePercent,
-        uint256 managementFeePercent
-    )
-        external
-        view
-        returns (
-            uint256 performanceFeeInAsset,
-            uint256 managementFeeInAsset,
-            uint256 vaultFee
-        )
-    {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-
-        uint256 lockedBalanceSansPending =
-            currentLockedBalance.sub(vaultState.totalPending);
-
-        uint256 _performanceFeeInAsset;
-        uint256 _managementFeeInAsset;
-        uint256 _vaultFee;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (lockedBalanceSansPending > prevLockedAmount) {
-            _performanceFeeInAsset = performanceFeePercent > 0
-                ? lockedBalanceSansPending
-                    .sub(prevLockedAmount)
-                    .mul(performanceFeePercent)
-                    .div(100 * Vault.FEE_MULTIPLIER)
-                : 0;
-            _managementFeeInAsset = managementFeePercent > 0
-                ? currentLockedBalance.mul(managementFeePercent).div(
-                    100 * Vault.FEE_MULTIPLIER
-                )
-                : 0;
-
-            _vaultFee = _performanceFeeInAsset.add(_managementFeeInAsset);
-        }
-
-        return (_performanceFeeInAsset, _managementFeeInAsset, _vaultFee);
-    }
-
-    /**
      * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param recipient is the recipient
