@@ -416,9 +416,7 @@ library VaultLifecycle {
         uint256 numOTokensToBurn =
             IERC20(currentOption).balanceOf(address(this));
 
-        if (numOTokensToBurn < 0) {
-            return 0;
-        }
+        require(numOTokensToBurn > 0, "No oTokens to burn");
 
         IController controller = IController(gammaController);
 

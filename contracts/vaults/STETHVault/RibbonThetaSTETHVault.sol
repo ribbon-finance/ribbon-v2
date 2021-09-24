@@ -405,11 +405,9 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
                 optionState.currentOption
             );
 
-        if (unlockedAssedAmount > 0) {
-            vaultState.lockedAmount = uint104(
-                uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
-            );
-        }
+        vaultState.lockedAmount = uint104(
+            uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
+        );
 
         // Wrap entire `asset` balance to `collateralToken` balance
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
