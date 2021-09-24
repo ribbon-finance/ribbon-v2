@@ -406,13 +406,20 @@ library VaultLifecycle {
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
      * @param gammaController is the address of the opyn controller contract
-     * @param amount is the amount of otokens to burn
+     * @param currentOption is the address of the current option
      * @return amount of collateral redeemed by burning otokens
      */
-    function burnOtokens(address gammaController, uint256 amount)
+    function burnOtokens(address gammaController, address currentOption)
         external
         returns (uint256)
     {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+
+        if (numOTokensToBurn < 0) {
+            return 0;
+        }
+
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -439,7 +446,7 @@ library VaultLifecycle {
             address(this), // address to transfer from
             address(vault.shortOtokens[0]), // otoken address
             vaultID, // vaultId
-            amount, // amount
+            numOTokensToBurn, // amount
             0, //index
             "" //data
         );
@@ -450,7 +457,9 @@ library VaultLifecycle {
             address(this), // address to transfer to
             address(collateralToken), // withdrawn asset
             vaultID, // vaultId
-            vault.collateralAmounts[0].mul(amount).div(vault.shortAmounts[0]), // amount
+            vault.collateralAmounts[0].mul(numOTokensToBurn).div(
+                vault.shortAmounts[0]
+            ), // amount
             0, //index
             "" //data
         );

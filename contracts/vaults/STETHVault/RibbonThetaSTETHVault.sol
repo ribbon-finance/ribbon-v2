@@ -400,7 +400,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssedAmount =
-            VaultLifecycleSTETH.burnOtokens(
+            VaultLifecycle.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );

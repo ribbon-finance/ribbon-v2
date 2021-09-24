@@ -421,7 +421,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssedAmount =
-            VaultLifecycleYearn.burnOtokens(
+            VaultLifecycle.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
