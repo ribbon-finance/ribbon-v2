@@ -113,8 +113,8 @@ describe("RibbonThetaYearnVault", () => {
     tokenDecimals: 6,
     isPut: true,
     gasLimits: {
-      depositWorstCase: 155000,
-      depositBestCase: 138000,
+      depositWorstCase: 155284,
+      depositBestCase: 138362,
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
@@ -220,6 +220,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
+  let vaultLifecycleYearnLib: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
@@ -333,10 +334,13 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      vaultLifecycleLib = await VaultLifecycle.deploy();
+
       const VaultLifecycleYearn = await ethers.getContractFactory(
         "VaultLifecycleYearn"
       );
-      vaultLifecycleLib = await VaultLifecycleYearn.deploy();
+      vaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -383,7 +387,8 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycleYearn: vaultLifecycleLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
             },
           }
         )
@@ -531,7 +536,8 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaYearnVault",
           {
             libraries: {
-              VaultLifecycleYearn: vaultLifecycleLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
             },
           }
         );
@@ -937,7 +943,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when setting 10 seconds to setAuctionDuration", async function () {
         await expect(
           vault.connect(ownerSigner).setAuctionDuration("10")
-        ).to.be.revertedWith("!newAuctionDuration");
+        ).to.be.revertedWith("Invalid auction duration");
       });
 
       it("reverts when not owner call", async function () {
@@ -2156,7 +2162,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1065000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1067098);
 
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
@@ -2780,7 +2786,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not initiated", async function () {
         await expect(
           vault.connect(ownerSigner).completeWithdraw()
-        ).to.be.revertedWith("!initiated");
+        ).to.be.revertedWith("Not initiated");
       });
 
       it("reverts when round not closed", async function () {
@@ -2794,7 +2800,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.completeWithdraw();
 
-        await expect(vault.completeWithdraw()).to.be.revertedWith("!initiated");
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
+          "Not initiated"
+        );
       });
 
       it("completes the withdrawal", async function () {
@@ -2867,7 +2875,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 170800);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 170669);
         // console.log(
         //   params.name,
         //   "completeWithdraw",

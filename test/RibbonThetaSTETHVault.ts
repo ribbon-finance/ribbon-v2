@@ -85,8 +85,8 @@ describe("RibbonThetaSTETHVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 173521,
-      depositBestCase: 156564,
+      depositWorstCase: 173803,
+      depositBestCase: 156881,
     },
   });
 });
@@ -198,6 +198,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
+  let vaultLifecycleSTETHLib: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
@@ -314,10 +315,13 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      vaultLifecycleLib = await VaultLifecycle.deploy();
+
       const VaultLifecycleSTETH = await ethers.getContractFactory(
         "VaultLifecycleSTETH"
       );
-      vaultLifecycleLib = await VaultLifecycleSTETH.deploy();
+      vaultLifecycleSTETHLib = await VaultLifecycleSTETH.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -349,6 +353,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const deployArgs = [
         WETH_ADDRESS,
         USDC_ADDRESS,
+        WSTETH_ADDRESS,
         LDO_ADDRESS,
         OTOKEN_FACTORY,
         GAMMA_CONTROLLER,
@@ -365,7 +370,8 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycleSTETH: vaultLifecycleLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleSTETH: vaultLifecycleSTETHLib.address,
             },
           }
         )
@@ -514,13 +520,15 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaSTETHVault",
           {
             libraries: {
-              VaultLifecycleSTETH: vaultLifecycleLib.address,
+              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleSTETH: vaultLifecycleSTETHLib.address,
             },
           }
         );
         testVault = await RibbonThetaVault.deploy(
           WETH_ADDRESS,
           USDC_ADDRESS,
+          WSTETH_ADDRESS,
           LDO_ADDRESS,
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
@@ -889,7 +897,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when setting 10 seconds to setAuctionDuration", async function () {
         await expect(
           vault.connect(ownerSigner).setAuctionDuration("10")
-        ).to.be.revertedWith("!newAuctionDuration");
+        ).to.be.revertedWith("Invalid auction duration");
       });
 
       it("reverts when not owner call", async function () {
@@ -2140,20 +2148,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
-      it("overflows when shares >uint128", async function () {
-        const redeemAmount = BigNumber.from(
-          "340282366920938463463374607431768211456"
-        );
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.depositETH({ value: depositAmount });
-        await rollToNextOption();
-        await expect(vault.redeem(redeemAmount)).to.be.revertedWith(
-          "Overflow uint128"
-        );
-      });
-
       it("reverts when redeeming more than available", async function () {
         await assetContract
           .connect(userSigner)
@@ -2554,7 +2548,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not initiated", async function () {
         await expect(
           vault.connect(ownerSigner).completeWithdraw(0)
-        ).to.be.revertedWith("!initiated");
+        ).to.be.revertedWith("Not initiated");
       });
 
       it("reverts when round not closed", async function () {
@@ -2569,7 +2563,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.completeWithdraw(minETHOut);
 
         await expect(vault.completeWithdraw(0)).to.be.revertedWith(
-          "!initiated"
+          "Not initiated"
         );
       });
 

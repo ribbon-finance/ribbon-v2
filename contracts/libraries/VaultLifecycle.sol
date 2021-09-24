@@ -406,13 +406,18 @@ library VaultLifecycle {
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
      * @param gammaController is the address of the opyn controller contract
-     * @param amount is the amount of otokens to burn
+     * @param currentOption is the address of the current option
      * @return amount of collateral redeemed by burning otokens
      */
-    function burnOtokens(address gammaController, uint256 amount)
+    function burnOtokens(address gammaController, address currentOption)
         external
         returns (uint256)
     {
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
+
+        require(numOTokensToBurn > 0, "No oTokens to burn");
+
         IController controller = IController(gammaController);
 
         // gets the currently active vault ID
@@ -439,7 +444,7 @@ library VaultLifecycle {
             address(this), // address to transfer from
             address(vault.shortOtokens[0]), // otoken address
             vaultID, // vaultId
-            amount, // amount
+            numOTokensToBurn, // amount
             0, //index
             "" //data
         );
@@ -450,7 +455,9 @@ library VaultLifecycle {
             address(this), // address to transfer to
             address(collateralToken), // withdrawn asset
             vaultID, // vaultId
-            vault.collateralAmounts[0].mul(amount).div(vault.shortAmounts[0]), // amount
+            vault.collateralAmounts[0].mul(numOTokensToBurn).div(
+                vault.shortAmounts[0]
+            ), // amount
             0, //index
             "" //data
         );
@@ -468,8 +475,8 @@ library VaultLifecycle {
      * @param currentLockedBalance is the amount of funds currently locked in opyn
      * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
-     * @return performanceFee is the performance fee
-     * @return managementFee is the management fee
+     * @return performanceFeeInAsset is the performance fee
+     * @return managementFeeInAsset is the management fee
      * @return vaultFee is the total fees
      */
     function getVaultFees(
@@ -481,32 +488,42 @@ library VaultLifecycle {
         external
         view
         returns (
-            uint256 performanceFee,
-            uint256 managementFee,
+            uint256 performanceFeeInAsset,
+            uint256 managementFeeInAsset,
             uint256 vaultFee
         )
     {
         uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 totalPending = vaultState.totalPending;
+
+        uint256 lockedBalanceSansPending =
+            currentLockedBalance.sub(vaultState.totalPending);
+
+        uint256 _performanceFeeInAsset;
+        uint256 _managementFeeInAsset;
+        uint256 _vaultFee;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
         // deposits and withdrawals, is positive. If it is negative, last week's
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
-        if (currentLockedBalance.sub(totalPending) > prevLockedAmount) {
-            performanceFee = currentLockedBalance
-                .sub(totalPending)
-                .sub(prevLockedAmount)
-                .mul(performanceFeePercent)
-                .div(100 * 10**6);
-            managementFee = currentLockedBalance
-                .sub(totalPending)
-                .mul(managementFeePercent)
-                .div(100 * 10**6);
+        if (lockedBalanceSansPending > prevLockedAmount) {
+            _performanceFeeInAsset = performanceFeePercent > 0
+                ? lockedBalanceSansPending
+                    .sub(prevLockedAmount)
+                    .mul(performanceFeePercent)
+                    .div(100 * Vault.FEE_MULTIPLIER)
+                : 0;
+            _managementFeeInAsset = managementFeePercent > 0
+                ? lockedBalanceSansPending.mul(managementFeePercent).div(
+                    100 * Vault.FEE_MULTIPLIER
+                )
+                : 0;
 
-            vaultFee = performanceFee.add(managementFee);
+            _vaultFee = _performanceFeeInAsset.add(_managementFeeInAsset);
         }
+
+        return (_performanceFeeInAsset, _managementFeeInAsset, _vaultFee);
     }
 
     /**
