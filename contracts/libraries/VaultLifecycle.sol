@@ -515,7 +515,7 @@ library VaultLifecycle {
                     .div(100 * Vault.FEE_MULTIPLIER)
                 : 0;
             _managementFeeInAsset = managementFeePercent > 0
-                ? currentLockedBalance.mul(managementFeePercent).div(
+                ? lockedBalanceSansPending.mul(managementFeePercent).div(
                     100 * Vault.FEE_MULTIPLIER
                 )
                 : 0;
