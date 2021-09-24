@@ -624,7 +624,9 @@ contract RibbonVault is
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
         // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+        lockedBalance = lockedBalance.sub(
+            _collectVaultFees(lockedBalance.add(_queuedWithdrawAmount))
+        );
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);

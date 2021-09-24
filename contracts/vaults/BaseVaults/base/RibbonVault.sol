@@ -571,7 +571,12 @@ contract RibbonVault is
         newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
-        (uint256 _lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
+        (
+            uint256 _lockedBalance,
+            uint256 queuedWithdrawAmount,
+            uint256 newPricePerShare,
+            uint256 mintShares
+        ) =
             VaultLifecycle.rollover(
                 totalSupply(),
                 vaultParams.asset,
@@ -588,7 +593,9 @@ contract RibbonVault is
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
-        lockedBalance = _lockedBalance.sub(_collectVaultFees(_lockedBalance));
+        lockedBalance = _lockedBalance.sub(
+            _collectVaultFees(_lockedBalance.add(queuedWithdrawAmount))
+        );
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
