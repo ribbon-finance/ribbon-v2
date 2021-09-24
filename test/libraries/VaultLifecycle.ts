@@ -137,7 +137,7 @@ describe("VaultLifecycle", () => {
 
   describe("rollover", () => {
     it("rolls over with correct math", async () => {
-      const [lockedAmount, pricePerShare, mintShares] =
+      const [lockedAmount, queuedWithdrawAmount, pricePerShare, mintShares] =
         await lifecycle.rollover(
           parseEther("1"),
           lifecycle.address, // pass in the lifecycle contract itself as the address to mock
@@ -145,9 +145,6 @@ describe("VaultLifecycle", () => {
           parseEther("0.1"),
           parseEther("0.1")
         );
-
-      // currentBalance - lockedAmount = queuedWithdrawAmount
-      const queuedWithdrawAmount = parseEther("1").sub(lockedAmount);
 
       const singleShare = BigNumber.from(10).pow(18);
 
