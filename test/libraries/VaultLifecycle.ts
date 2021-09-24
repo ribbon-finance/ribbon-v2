@@ -137,7 +137,7 @@ describe("VaultLifecycle", () => {
 
   describe("rollover", () => {
     it("rolls over with correct math", async () => {
-      const [lockedAmount, queuedWithdrawAmount, pricePerShare, mintShares] =
+      let [lockedAmount, queuedWithdrawAmount, pricePerShare, mintShares] =
         await lifecycle.rollover(
           parseEther("1"),
           lifecycle.address, // pass in the lifecycle contract itself as the address to mock
