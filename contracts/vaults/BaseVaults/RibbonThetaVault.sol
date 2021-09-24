@@ -381,13 +381,14 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
-        uint256 numOTokensToBurn =
-            IERC20(optionState.currentOption).balanceOf(address(this));
-        require(numOTokensToBurn > 0, "!otokens");
-        uint256 unlockedAssetAmount =
-            VaultLifecycle.burnOtokens(GAMMA_CONTROLLER, numOTokensToBurn);
+        uint256 unlockedAssedAmount =
+            VaultLifecycle.burnOtokens(
+                GAMMA_CONTROLLER,
+                optionState.currentOption
+            );
+
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
         );
     }
 }

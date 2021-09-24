@@ -1436,7 +1436,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(keeperSigner).burnRemainingOTokens()
-        ).to.be.revertedWith("!otokens");
+        ).to.be.revertedWith("No oTokens to burn");
       });
 
       it("burns all remaining oTokens", async function () {
