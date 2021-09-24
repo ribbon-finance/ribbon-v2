@@ -354,8 +354,9 @@ async function settleAndBurn(
           .settleAuction(auctionID.toString(), {
             gasPrice: newGasPrice,
             gasLimit: gasLimits["settleAuction"],
-          })
-          .wait();
+          });
+
+        await tx.wait();
 
         await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
       }
