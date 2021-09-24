@@ -1779,19 +1779,20 @@ function behavesLikeRibbonOptionsVault(params: {
         const currBalance = await assetContract.balanceOf(vault.address);
 
         let pendingAmount = (await vault.vaultState()).totalPending;
-        let secondInitialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(assetContract, vault);
 
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
         // Performance fee is included because still net positive on week
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
             .sub((await vault.vaultState()).lastLockedAmount)
             .sub(pendingAmount)
             .mul(await vault.performanceFee())
@@ -1927,18 +1928,19 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         let pendingAmount = (await vault.vaultState()).totalPending;
-        let secondInitialLockedBalance = await lockedBalanceForRollover(
-          assetContract,
-          vault
-        );
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(assetContract, vault);
 
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
             .sub((await vault.vaultState()).lastLockedAmount)
             .sub(pendingAmount)
             .mul(await vault.performanceFee())
@@ -2907,5 +2909,5 @@ async function lockedBalanceForRollover(asset: Contract, vault: Contract) {
           .mul(currentBalance)
           .div(await vault.totalSupply());
   let balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
-  return balanceSansQueued;
+  return balanceSansQueued, queuedWithdrawAmount;
 }
