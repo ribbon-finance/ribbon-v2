@@ -146,6 +146,9 @@ describe("VaultLifecycle", () => {
           parseEther("0.1")
         );
 
+      // currentBalance - lockedAmount = queuedWithdrawAmount
+      queuedWithdrawAmount = parseEther("1").sub(lockedAmount);
+
       const singleShare = BigNumber.from(10).pow(18);
 
       // (1 ether - 0.1 ether)/1 ether
