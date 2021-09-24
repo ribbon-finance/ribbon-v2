@@ -3180,7 +3180,7 @@ async function lockedBalanceForRollover(vault: Contract) {
           .mul(currentBalance)
           .div(await vault.totalSupply());
   let balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
-  return balanceSansQueued, queuedWithdrawAmount;
+  return [balanceSansQueued, queuedWithdrawAmount];
 }
 
 async function setupYieldToken(

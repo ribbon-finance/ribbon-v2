@@ -640,17 +640,17 @@ contract RibbonVault is
 
     /*
      * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param currentLockedBalance is the balance we are about to lock for next round
+     * @param pastWeekBalance is the balance we are about to lock for next round
      * @return vaultFee is the fee deducted
      */
-    function _collectVaultFees(uint256 currentLockedBalance)
+    function _collectVaultFees(uint256 pastWeekBalance)
         internal
         returns (uint256)
     {
         (uint256 performanceFeeInAsset, , uint256 vaultFee) =
             VaultLifecycle.getVaultFees(
                 vaultState,
-                currentLockedBalance,
+                pastWeekBalance,
                 performanceFee,
                 managementFee
             );
