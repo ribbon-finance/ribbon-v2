@@ -1323,6 +1323,179 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#depositFor", () => {
+      time.revertToSnapshotAfterEach();
+      let creditor: String;
+
+      beforeEach(async function () {
+        // Deposit only if asset is WETH
+        if (params.depositAsset === WETH_ADDRESS) {
+          const addressToDeposit = [userSigner, ownerSigner, adminSigner];
+
+          for (let i = 0; i < addressToDeposit.length; i++) {
+            const weth = assetContract.connect(addressToDeposit[i]);
+            await weth.deposit({ value: parseEther("10") });
+            await weth.approve(vault.address, parseEther("10"));
+          }
+        }
+
+        creditor = ownerSigner.address.toString();
+      });
+
+      it("creates a pending deposit", async function () {
+        const startBalance = await assetContract.balanceOf(user);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+
+        const res = await vault.depositFor(depositAmount, creditor);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(user),
+          startBalance.sub(depositAmount)
+        );
+        assert.isTrue((await vault.totalSupply()).isZero());
+        assert.isTrue((await vault.balanceOf(user)).isZero());
+        await expect(res)
+          .to.emit(vault, "Deposit")
+          .withArgs(creditor, depositAmount, 1);
+
+        assert.bnEqual(await vault.totalPending(), depositAmount);
+        const { round, amount } = await vault.depositReceipts(creditor);
+        assert.equal(round, 1);
+        assert.bnEqual(amount, depositAmount);
+        const { round2, amount2 } = await vault.depositReceipts(user);
+        await expect(round2).to.be.undefined;
+        await expect(amount2).to.be.undefined;
+      });
+
+      it("tops up existing deposit", async function () {
+        const startBalance = await assetContract.balanceOf(user);
+        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, totalDepositAmount);
+
+        await vault.depositFor(depositAmount, creditor);
+
+        const tx = await vault.depositFor(depositAmount, creditor);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(user),
+          startBalance.sub(totalDepositAmount)
+        );
+        assert.isTrue((await vault.totalSupply()).isZero());
+        assert.isTrue((await vault.balanceOf(creditor)).isZero());
+        await expect(tx)
+          .to.emit(vault, "Deposit")
+          .withArgs(creditor, depositAmount, 1);
+
+        assert.bnEqual(await vault.totalPending(), totalDepositAmount);
+        const { round, amount } = await vault.depositReceipts(creditor);
+        assert.equal(round, 1);
+        assert.bnEqual(amount, totalDepositAmount);
+      });
+
+      it("fits gas budget for deposits [ @skip-on-coverage ]", async function () {
+        await vault.connect(ownerSigner).depositFor(depositAmount, creditor);
+
+        const tx1 = await vault.depositFor(depositAmount, creditor);
+        const receipt1 = await tx1.wait();
+        assert.isAtMost(
+          receipt1.gasUsed.toNumber(),
+          params.gasLimits.depositWorstCase
+        );
+
+        const tx2 = await vault.depositFor(depositAmount, creditor);
+        const receipt2 = await tx2.wait();
+        assert.isAtMost(
+          receipt2.gasUsed.toNumber(),
+          params.gasLimits.depositBestCase
+        );
+
+        // Uncomment to log gas used
+        // console.log("Worst case deposit", receipt1.gasUsed.toNumber());
+        // console.log("Best case deposit", receipt2.gasUsed.toNumber());
+      });
+
+      it("does not inflate the share tokens on initialization", async function () {
+        const depositAmount = BigNumber.from("100000000000");
+
+        await assetContract
+          .connect(adminSigner)
+          .transfer(vault.address, depositAmount);
+
+        await vault
+          .connect(userSigner)
+          .depositFor(BigNumber.from("10000000000"), creditor);
+
+        // user needs to get back exactly 1 ether
+        // even though the total has been incremented
+        assert.isTrue((await vault.balanceOf(creditor)).isZero());
+      });
+
+      it("reverts when minimum shares are not minted", async function () {
+        await expect(
+          vault
+            .connect(userSigner)
+            .depositFor(
+              BigNumber.from(minimumSupply).sub(BigNumber.from("1")),
+              creditor
+            )
+        ).to.be.revertedWith("Insufficient balance");
+      });
+
+      it("updates the previous deposit receipt", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.depositFor(params.depositAmount, creditor);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(creditor);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, params.depositAmount);
+        assert.bnEqual(unredeemedShares1, BigNumber.from(0));
+
+        await rollToNextOption();
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(creditor);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, params.depositAmount);
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+
+        await vault.depositFor(params.depositAmount, creditor);
+
+        // vault will still hold the vault shares
+        assert.bnEqual(
+          await vault.balanceOf(vault.address),
+          params.depositAmount
+        );
+
+        const {
+          round: round3,
+          amount: amount3,
+          unredeemedShares: unredeemedShares3,
+        } = await vault.depositReceipts(creditor);
+
+        assert.equal(round3, 2);
+        assert.bnEqual(amount3, params.depositAmount);
+        assert.bnEqual(unredeemedShares3, params.depositAmount);
+      });
+    });
+
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
 
