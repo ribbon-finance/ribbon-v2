@@ -336,6 +336,24 @@ export async function bidForOToken(
   return [latestAuction, totalOptionsAvailableToBuy, bid];
 }
 
+export async function lockedBalanceForRollover(vault: Contract) {
+  let currentBalance = await vault.totalBalance();
+  let newPricePerShare = await vault.pricePerShare();
+
+  let queuedWithdrawAmount = await sharesToAsset(
+    (
+      await vault.vaultState()
+    ).queuedWithdrawShares,
+    newPricePerShare,
+    (
+      await vault.vaultParams()
+    ).decimals
+  );
+
+  let balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
+  return [balanceSansQueued, queuedWithdrawAmount];
+}
+
 export async function closeAuctionAndClaim(
   gnosisAuction: Contract,
   thetaVault: Contract,
@@ -370,4 +388,14 @@ export function encodeOrder(order: Order): string {
     order.buyAmount.toHexString().slice(2).padStart(24, "0") +
     order.sellAmount.toHexString().slice(2).padStart(24, "0")
   );
+}
+
+async function sharesToAsset(
+  shares: BigNumber,
+  assetPerShare: BigNumber,
+  decimals: BigNumber
+) {
+  return shares
+    .mul(assetPerShare)
+    .div(BigNumber.from(10).pow(decimals.toString()));
 }

@@ -625,7 +625,9 @@ contract RibbonVault is
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+        lockedBalance = lockedBalance.sub(
+            _collectVaultFees(lockedBalance.add(queuedWithdrawAmount))
+        );
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
@@ -645,17 +647,17 @@ contract RibbonVault is
 
     /*
      * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param currentLockedBalance is the balance we are about to lock for next round
+     * @param pastWeekBalance is the balance we are about to lock for next round
      * @return vaultFee is the fee deducted
      */
-    function _collectVaultFees(uint256 currentLockedBalance)
+    function _collectVaultFees(uint256 pastWeekBalance)
         internal
         returns (uint256)
     {
         (uint256 performanceFeeInAsset, , uint256 vaultFee) =
             VaultLifecycle.getVaultFees(
                 vaultState,
-                currentLockedBalance,
+                pastWeekBalance,
                 performanceFee,
                 managementFee
             );
