@@ -1035,6 +1035,92 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#depositFor", () => {
+      time.revertToSnapshotAfterEach();
+      let creditor: String;
+
+      beforeEach(async function () {
+        creditor = ownerSigner.address.toString();
+      });
+
+      it("creates pending deposit successfully", async function () {
+        const startBalance = await provider.getBalance(user);
+
+        const depositAmount = parseEther("1");
+        const tx = await vault.depositFor(creditor, {
+          value: depositAmount,
+          gasPrice,
+        });
+        const receipt = await tx.wait();
+        const gasFee = receipt.gasUsed.mul(gasPrice);
+
+        assert.bnEqual(
+          await provider.getBalance(user),
+          startBalance.sub(depositAmount).sub(gasFee)
+        );
+
+        // Unchanged for share balance and totalSupply
+        assert.bnEqual(await vault.totalSupply(), BigNumber.from(0));
+        assert.bnEqual(await vault.balanceOf(user), BigNumber.from(0));
+        await expect(tx)
+          .to.emit(vault, "Deposit")
+          .withArgs(creditor, depositAmount, 1);
+
+        assert.bnEqual(await vault.totalPending(), depositAmount);
+        const { round, amount } = await vault.depositReceipts(creditor);
+        assert.equal(round, 1);
+        assert.bnEqual(amount, depositAmount);
+        const { round2, amount2 } = await vault.depositReceipts(user);
+        await expect(round2).to.be.undefined;
+        await expect(amount2).to.be.undefined;
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        const tx1 = await vault
+          .connect(ownerSigner)
+          .depositFor(creditor, { value: parseEther("0.1") });
+        const receipt1 = await tx1.wait();
+        assert.isAtMost(receipt1.gasUsed.toNumber(), 168247);
+
+        const tx2 = await vault.depositFor(creditor, {
+          value: parseEther("0.1"),
+        });
+        const receipt2 = await tx2.wait();
+        assert.isAtMost(receipt2.gasUsed.toNumber(), 137674);
+
+        // Uncomment to measure precise gas numbers
+        // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
+        // console.log("Best case depositETH", receipt2.gasUsed.toNumber());
+      });
+
+      it("reverts when no value passed", async function () {
+        await expect(
+          vault.connect(userSigner).depositFor(creditor, { value: 0 })
+        ).to.be.revertedWith("!value");
+      });
+
+      it("does not inflate the share tokens on initialization", async function () {
+        adminSigner.sendTransaction({
+          to: vault.address,
+          value: parseEther("10"),
+        });
+
+        await vault
+          .connect(userSigner)
+          .depositFor(creditor, { value: parseEther("1") });
+
+        assert.isTrue((await vault.balanceOf(creditor)).isZero());
+      });
+
+      it("reverts when minimum shares are not minted", async function () {
+        await expect(
+          vault.connect(userSigner).depositFor(creditor, {
+            value: BigNumber.from(minimumSupply).sub(1),
+          })
+        ).to.be.revertedWith("Insufficient balance");
+      });
+    });
+
     describe("#depositYieldToken", () => {
       time.revertToSnapshotAfterEach();
       let depositAmountInAsset;
