@@ -1599,22 +1599,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("exercises and roll funds into next option, after expiry ITM (initiateWithdraw)", async function () {
-        const firstOptionAddress = firstOption.address;
-        const secondOptionAddress = secondOption.address;
-
         await rollToNextOptionSetup();
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
-
-        let bidAmount = (await lockedBalanceForRollover(vault))[0]
-          .mul(await vault.optionAllocation())
-          .div(BigNumber.from(10000));
-
-        let numOTokens = bidAmount
-          .mul(BigNumber.from(10).pow(tokenDecimals))
-          .mul(BigNumber.from(10).pow(8))
-          .div(optionPremium)
-          .div(BigNumber.from(10).pow(tokenDecimals));
 
         await vault
           .connect(keeperSigner)
