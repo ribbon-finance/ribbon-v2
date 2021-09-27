@@ -571,7 +571,12 @@ contract RibbonVault is
         newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
-        (uint256 _lockedBalance, uint256 newPricePerShare, uint256 mintShares) =
+        (
+            uint256 _lockedBalance,
+            uint256 queuedWithdrawAmount,
+            uint256 newPricePerShare,
+            uint256 mintShares
+        ) =
             VaultLifecycle.rollover(
                 totalSupply(),
                 vaultParams.asset,
@@ -588,7 +593,9 @@ contract RibbonVault is
         roundPricePerShare[currentRound] = newPricePerShare;
 
         // Take management / performance fee from previous round and deduct
-        lockedBalance = _lockedBalance.sub(_collectVaultFees(_lockedBalance));
+        lockedBalance = _lockedBalance.sub(
+            _collectVaultFees(_lockedBalance.add(queuedWithdrawAmount))
+        );
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
@@ -600,41 +607,20 @@ contract RibbonVault is
 
     /*
      * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param currentLockedBalance is the balance we are about to lock for next round
+     * @param pastWeekBalance is the balance we are about to lock for next round
      * @return vaultFee is the fee deducted
      */
-    function _collectVaultFees(uint256 currentLockedBalance)
+    function _collectVaultFees(uint256 pastWeekBalance)
         internal
         returns (uint256)
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-        uint256 lockedBalanceSansPending =
-            currentLockedBalance.sub(vaultState.totalPending);
-
-        uint256 vaultFee;
-        uint256 performanceFeeInAsset;
-
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (lockedBalanceSansPending > prevLockedAmount) {
-            performanceFeeInAsset = performanceFee > 0
-                ? lockedBalanceSansPending
-                    .sub(prevLockedAmount)
-                    .mul(performanceFee)
-                    .div(100 * Vault.FEE_MULTIPLIER)
-                : 0;
-            uint256 managementFeeInAsset =
-                managementFee > 0
-                    ? currentLockedBalance.mul(managementFee).div(
-                        100 * Vault.FEE_MULTIPLIER
-                    )
-                    : 0;
-
-            vaultFee = performanceFeeInAsset.add(managementFeeInAsset);
-        }
+        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
+            VaultLifecycle.getVaultFees(
+                vaultState,
+                pastWeekBalance,
+                performanceFee,
+                managementFee
+            );
 
         if (vaultFee > 0) {
             transferAsset(payable(feeRecipient), vaultFee);
