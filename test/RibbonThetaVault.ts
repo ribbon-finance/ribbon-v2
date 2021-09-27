@@ -29,6 +29,7 @@ import {
   mintToken,
   bidForOToken,
   decodeOrder,
+  lockedBalanceForRollover,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -1780,7 +1781,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let pendingAmount = (await vault.vaultState()).totalPending;
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(assetContract, vault);
+          await lockedBalanceForRollover(vault);
 
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1929,7 +1930,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let pendingAmount = (await vault.vaultState()).totalPending;
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(assetContract, vault);
+          await lockedBalanceForRollover(vault);
 
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1968,6 +1969,81 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(
           (await assetContract.balanceOf(vault.address)).toString(),
           BigNumber.from(0)
+        );
+      });
+
+      it("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+        const firstOptionAddress = firstOption.address;
+        const secondOptionAddress = secondOption.address;
+
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+
+        let bidMultiplier = 1;
+
+        const auctionDetails = await bidForOToken(
+          gnosisAuction,
+          assetContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(auctionDetails[0]);
+
+        const settlementPriceOTM = isPut
+          ? firstOptionStrike.add(1)
+          : firstOptionStrike.sub(1);
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          settlementPriceOTM
+        );
+
+        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
+
+        await vault.initiateWithdraw(params.depositAmount.div(2));
+
+        await vault.connect(ownerSigner).commitAndClose();
+
+        // Time increase to after next option available
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        let pendingAmount = (await vault.vaultState()).totalPending;
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+
+        let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
+
+        assert.equal(
+          secondInitialLockedBalance
+            .sub((await vault.vaultState()).lockedAmount)
+            .toString(),
+          vaultFees.toString()
         );
       });
 
@@ -2898,16 +2974,4 @@ async function depositIntoVault(
   } else {
     await vault.deposit(amount);
   }
-}
-
-async function lockedBalanceForRollover(asset: Contract, vault: Contract) {
-  let currentBalance = await asset.balanceOf(vault.address);
-  let queuedWithdrawAmount =
-    (await vault.totalSupply()) == 0
-      ? 0
-      : (await vault.vaultState()).queuedWithdrawShares
-          .mul(currentBalance)
-          .div(await vault.totalSupply());
-  let balanceSansQueued = currentBalance.sub(queuedWithdrawAmount);
-  return [balanceSansQueued, queuedWithdrawAmount];
 }
