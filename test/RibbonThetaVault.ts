@@ -1185,7 +1185,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#depositFor", () => {
       time.revertToSnapshotAfterEach();
-      let creditor = ownerSigner.address();
+      let creditor = ownerSigner.address;
 
       beforeEach(async function () {
         // Deposit only if asset is WETH
