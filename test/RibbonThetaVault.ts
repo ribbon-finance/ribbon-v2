@@ -1185,7 +1185,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     describe("#depositFor", () => {
       time.revertToSnapshotAfterEach();
-      let creditor: Address;
+      let creditor: String;
 
       beforeEach(async function () {
         // Deposit only if asset is WETH
@@ -1199,7 +1199,7 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         }
 
-        creditor = ownerSigner.address;
+        creditor = ownerSigner.address.toString();
       });
 
       it("creates a pending deposit", async function () {
