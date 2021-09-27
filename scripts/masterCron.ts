@@ -313,11 +313,15 @@ async function updateTokenList(
       provider
     );
 
+    let name = (await oToken.name()).split(" ");
+    name.pop();
+    name.pop();
+
     const token: OToken = {
       chainId: 1,
       address: oToken.address,
-      name: await oToken.name(),
-      symbol: await oToken.symbol(),
+      name: name.join(" "),
+      symbol: (await oToken.symbol()).split("/")[1],
       decimals: parseInt((await oToken.decimals()).toString()),
     };
     tokens.push(token);
