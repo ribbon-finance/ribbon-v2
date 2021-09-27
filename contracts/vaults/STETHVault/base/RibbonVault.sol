@@ -345,11 +345,10 @@ contract RibbonVault is
     /**
      * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
      * @notice Used for vault -> vault deposits on the user's behalf
-     * @param amount is the amount of `asset` to deposit
      * @param creditor is the address that can claim/withdraw deposited amount
      */
     function depositFor(address creditor) external payable nonReentrant {
-        require(amount > 0, "!amount");
+        require(msg.value > 0, "!value");
         require(creditor != address(0), "!creditor");
 
         _depositFor(msg.value, creditor, true);
