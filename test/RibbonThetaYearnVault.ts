@@ -2231,8 +2231,6 @@ function behavesLikeRibbonOptionsVault(params: {
           vaultFees.toString()
         );
 
-        assert.equal(await vault.currentOption(), secondOptionAddress);
-        assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
         assert.bnLt(
           (await vault.vaultState()).lockedAmount,
           depositAmount.add(auctionDetails[2]).sub(vaultFees).toString()
