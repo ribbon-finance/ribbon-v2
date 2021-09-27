@@ -1225,6 +1225,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const { round, amount } = await vault.depositReceipts(creditor);
         assert.equal(round, 1);
         assert.bnEqual(amount, depositAmount);
+        const { round2, amount2 } = await vault.depositReceipts(user);
+        assert.equal(round2, 0);
+        assert.bnEqual(amount2, 0);
       });
 
       it("tops up existing deposit", async function () {

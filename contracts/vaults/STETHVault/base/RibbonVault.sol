@@ -348,11 +348,7 @@ contract RibbonVault is
      * @param amount is the amount of `asset` to deposit
      * @param creditor is the address that can claim/withdraw deposited amount
      */
-    function depositFor(uint256 amount, address creditor)
-        external
-        payable
-        nonReentrant
-    {
+    function depositFor(address creditor) external payable nonReentrant {
         require(amount > 0, "!amount");
         require(creditor != address(0), "!creditor");
 
