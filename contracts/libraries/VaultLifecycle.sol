@@ -149,6 +149,7 @@ library VaultLifecycle {
      * @param decimals is the decimals of the asset
      * @param pendingAmount is the amount of funds pending from recent deposits
      * @return newLockedAmount is the amount of funds to allocate for the new round
+     * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
      */
@@ -163,6 +164,7 @@ library VaultLifecycle {
         view
         returns (
             uint256 newLockedAmount,
+            uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         )
@@ -195,6 +197,7 @@ library VaultLifecycle {
 
         return (
             currentBalance.sub(queuedWithdrawAmount),
+            queuedWithdrawAmount,
             newPricePerShare,
             _mintShares
         );

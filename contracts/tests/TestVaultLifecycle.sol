@@ -30,6 +30,7 @@ contract TestVaultLifecycle {
         view
         returns (
             uint256 newLockedAmount,
+            uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         )
