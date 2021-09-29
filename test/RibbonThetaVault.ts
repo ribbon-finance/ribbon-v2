@@ -1792,7 +1792,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(auctionDetails.biddingToken, collateralAsset);
         assert.equal(
           auctionDetails.orderCancellationEndDate.toString(),
-          (await time.now()).add(10800).toString()
+          (await time.now()).add(21600).toString()
         );
         assert.equal(
           auctionDetails.auctionEndDate.toString(),
