@@ -82,16 +82,18 @@ library GnosisAuction {
             "optionPremium * oTokenSellAmount > type(uint96) max value!"
         );
 
+        uint256 auctionEnd = block.timestamp.add(auctionDetails.duration);
+
         auctionID = IGnosisAuction(auctionDetails.gnosisEasyAuction)
             .initiateAuction(
             // address of oToken we minted and are selling
             auctionDetails.oTokenAddress,
             // address of asset we want in exchange for oTokens. Should match vault `asset`
             auctionDetails.asset,
-            // orders can be cancelled before the auction's halfway point
-            block.timestamp.add(auctionDetails.duration.div(2)),
+            // orders can be cancelled at any time during the auction
+            auctionEnd,
             // order will last for `duration`
-            block.timestamp.add(auctionDetails.duration),
+            auctionEnd,
             // we are selling all of the otokens minus a fee taken by gnosis
             uint96(oTokenSellAmount),
             // the minimum we are willing to sell all the oTokens for. A discount is applied on black-scholes price
