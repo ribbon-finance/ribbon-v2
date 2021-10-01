@@ -362,7 +362,7 @@ async function settleAndBurn(
 
         await tx.wait();
 
-        await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.hash}`);
+        await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.transactionHash}`);
       }
 
       let oTokenBalance = await new ethers.Contract(
