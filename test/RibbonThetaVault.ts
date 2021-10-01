@@ -1199,10 +1199,7 @@ function behavesLikeRibbonOptionsVault(params: {
             await weth.approve(vault.address, parseEther("10"));
           }
         }
-<<<<<<< HEAD
-
-=======
->>>>>>> a6db5bd7ff370cb8f734c67855517e444fa71b4b
+        
         creditor = ownerSigner.address.toString();
       });
 
