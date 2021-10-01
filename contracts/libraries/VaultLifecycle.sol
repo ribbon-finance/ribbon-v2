@@ -186,7 +186,7 @@ library VaultLifecycle {
 
         uint256 newSupply = currentShareSupply.add(_mintShares);
 
-        uint256 queuedWithdrawAmount =
+        uint256 queuedWithdraw =
             newSupply > 0
                 ? ShareMath.sharesToAsset(
                     queuedWithdrawShares,
@@ -196,8 +196,8 @@ library VaultLifecycle {
                 : 0;
 
         return (
-            currentBalance.sub(queuedWithdrawAmount),
-            queuedWithdrawAmount,
+            currentBalance.sub(queuedWithdraw),
+            queuedWithdraw,
             newPricePerShare,
             _mintShares
         );
