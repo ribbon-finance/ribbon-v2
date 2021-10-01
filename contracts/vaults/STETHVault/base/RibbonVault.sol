@@ -345,15 +345,10 @@ contract RibbonVault is
     /**
      * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
      * @notice Used for vault -> vault deposits on the user's behalf
-     * @param amount is the amount of `asset` to deposit
      * @param creditor is the address that can claim/withdraw deposited amount
      */
-    function depositFor(uint256 amount, address creditor)
-        external
-        payable
-        nonReentrant
-    {
-        require(amount > 0, "!amount");
+    function depositFor(address creditor) external payable nonReentrant {
+        require(msg.value > 0, "!value");
         require(creditor != address(0), "!creditor");
 
         _depositFor(msg.value, creditor, true);
@@ -624,7 +619,9 @@ contract RibbonVault is
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
         // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(_collectVaultFees(lockedBalance));
+        lockedBalance = lockedBalance.sub(
+            _collectVaultFees(lockedBalance.add(_queuedWithdrawAmount))
+        );
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
@@ -638,17 +635,17 @@ contract RibbonVault is
 
     /*
      * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param currentLockedBalance is the balance we are about to lock for next round
+     * @param pastWeekBalance is the balance we are about to lock for next round
      * @return vaultFee is the fee deducted
      */
-    function _collectVaultFees(uint256 currentLockedBalance)
+    function _collectVaultFees(uint256 pastWeekBalance)
         internal
         returns (uint256)
     {
         (uint256 performanceFeeInAsset, , uint256 vaultFee) =
             VaultLifecycle.getVaultFees(
                 vaultState,
-                currentLockedBalance,
+                pastWeekBalance,
                 performanceFee,
                 managementFee
             );
