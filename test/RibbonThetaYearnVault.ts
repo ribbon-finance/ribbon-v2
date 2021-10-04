@@ -44,7 +44,7 @@ const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
-const OPTION_DELAY = 60 * 60; // 1 hour
+const OPTION_DELAY = 15 * 60; // 15 minutes
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
