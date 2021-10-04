@@ -92,9 +92,8 @@ contract RibbonVault is
     /// @notice Lido DAO token 0x5a98fcbea516cf06857215779fd812ca3bef1b32
     address public immutable LDO;
 
-    /// @notice 1 hour timelock between commitAndClose and rollToNexOption.
-    /// 1 hour period allows vault depositors to leave.
-    uint256 public constant DELAY = 1 hours;
+    /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
+    uint256 public constant DELAY = 15 minutes;
 
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
