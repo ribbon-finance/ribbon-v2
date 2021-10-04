@@ -697,7 +697,7 @@ async function run() {
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
   const COMMIT_START = 10; // 10 am UTC
   const VOL_PERIOD = 12 * 3600; // 12 hours
-  const TIMELOCK_DELAY = 15; // 1 minutes
+  const TIMELOCK_DELAY = 15; // 15 minutes
   const AUCTION_LIFE_TIME_DELAY = 1; // 1 hours
 
   var futureStrikeForecasting = new CronJob(
