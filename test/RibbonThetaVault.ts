@@ -9,6 +9,7 @@ import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
   CHAINLINK_WETH_PRICER,
+  CHAINLINK_DPI_PRICER,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
@@ -17,6 +18,8 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
+  DPI_ADDRESS,
+  DPI_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
@@ -40,7 +43,7 @@ const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
-const OPTION_DELAY = 60 * 60; // 1 hour
+const OPTION_DELAY = 15 * 60; // 15 minutes
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
@@ -82,6 +85,36 @@ describe("RibbonThetaVault", () => {
     },
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS,
+    },
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon DPI Theta Vault (Call)`,
+    tokenName: "Ribbon DPI Theta Vault",
+    tokenSymbol: "rDPI-THETA",
+    asset: DPI_ADDRESS,
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: DPI_ADDRESS,
+    chainlinkPricer: CHAINLINK_DPI_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    tokenDecimals: 18,
+    depositAmount: parseEther("1"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    auctionDuration: 21600,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: DPI_OWNER_ADDRESS,
     },
   });
 
