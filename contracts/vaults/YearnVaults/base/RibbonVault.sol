@@ -90,9 +90,8 @@ contract RibbonVault is
     /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
 
-    /// @notice 1 hour timelock between commitAndClose and rollToNexOption.
-    /// 1 hour period allows vault depositors to leave.
-    uint256 public constant DELAY = 1 hours;
+    /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
+    uint256 public constant DELAY = 15 minutes;
 
     /// @notice Withdrawal buffer for yearn vault
     uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
