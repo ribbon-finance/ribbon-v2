@@ -64,6 +64,7 @@ interface Version {
 }
 
 interface OToken {
+  logoURI: string;
   chainId: number;
   address: string;
   name: string;
@@ -73,7 +74,6 @@ interface OToken {
 
 interface TokenSet {
   name: string;
-  logoURI: string;
   keywords: Array<string>;
   timestamp: string;
   version: Version;
@@ -115,7 +115,6 @@ function generateTokenSet(tokens: Array<OToken>) {
   // reference: https://github.com/opynfinance/opyn-tokenlist/blob/master/opyn-v1.tokenlist.json
   const tokenJSON: TokenSet = {
     name: "Ribbon oTokens",
-    logoURI: "https://i.imgur.com/u5z1Ev2.png",
     keywords: ["defi", "option", "opyn", "ribbon"],
     //convert to something like 2021-09-08T10:51:49Z
     timestamp: moment().format().toString().slice(0, -6) + "Z",
@@ -318,6 +317,7 @@ async function updateTokenList(
     name.pop();
 
     const token: OToken = {
+      logoURI: "https://i.imgur.com/u5z1Ev2.png",
       chainId: 1,
       address: oToken.address,
       name: name.join(" "),
@@ -362,7 +362,9 @@ async function settleAndBurn(
 
         await tx.wait();
 
-        await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.transactionHash}`);
+        await log(
+          `GnosisAuction-settleAuction()-${auctionID}: ${tx.transactionHash}`
+        );
       }
 
       let oTokenBalance = await new ethers.Contract(
@@ -729,9 +731,11 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + NETWORK_CONGESTION_BUFFER + TIMELOCK_DELAY} ${
-      COMMIT_START
-    } * * 5`,
+    `0 ${
+      OPYN_PRICE_FINALIZATION_BUFFER +
+      NETWORK_CONGESTION_BUFFER +
+      TIMELOCK_DELAY
+    } ${COMMIT_START} * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -741,9 +745,11 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + TIMELOCK_DELAY + NETWORK_CONGESTION_BUFFER * 2} ${
-      COMMIT_START + AUCTION_LIFE_TIME_DELAY
-    } * * 5`,
+    `0 ${
+      OPYN_PRICE_FINALIZATION_BUFFER +
+      TIMELOCK_DELAY +
+      NETWORK_CONGESTION_BUFFER * 2
+    } ${COMMIT_START + AUCTION_LIFE_TIME_DELAY} * * 5`,
     async function () {
       await settleAuctions();
     },
