@@ -45,6 +45,7 @@ var client = new Discord.Client();
 const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
 const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
+const auctionParticipantTag = "<@&893435203144544316>";
 
 const HOUR = 3600;
 const DAY = 24 * HOUR;
@@ -588,7 +589,7 @@ async function commitAndClose() {
 
   await sleep(5000);
 
-  let msg = "@auction-participants Strike prices have been selected\n";
+  let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -608,7 +609,7 @@ async function commitAndClose() {
     );
     msg += `Strike price for ${vaultName}
 Strike Price: ${strikePriceStr.toLocaleString()}
-Expiry: ${dateStr.toUTCString()}\n`;
+Expiry: ${dateStr.toUTCString()}\n\n`;
   }
 
   await log(msg);
@@ -634,7 +635,7 @@ async function rollToNextOption() {
 
   await sleep(5000);
 
-  let msg = "@auction-participants Auctions have begun. Happy bidding!\n";
+  let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
