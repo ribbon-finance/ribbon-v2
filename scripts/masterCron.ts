@@ -597,9 +597,9 @@ async function commitAndClose() {
       vaultArtifact.abi,
       provider
     );
-    const { currentOption } = await vault.optionState();
+    const { nextOption } = await vault.optionState();
     const otoken = new ethers.Contract(
-      currentOption,
+      nextOption,
       otokenArtifact.abi,
       provider
     );
