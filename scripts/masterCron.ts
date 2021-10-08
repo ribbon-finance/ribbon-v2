@@ -584,7 +584,7 @@ async function commitAndClose() {
   const otokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
   // 1. commitAndClose
-  // await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+  await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 
   await sleep(5000);
 
@@ -841,5 +841,4 @@ async function run() {
   // updateVolatilityJob.start();
 }
 
-// run();
-commitAndClose();
+run();
