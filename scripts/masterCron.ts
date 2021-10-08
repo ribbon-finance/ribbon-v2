@@ -30,6 +30,8 @@ import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import { CronJob } from "cron";
 import Discord = require("discord.js");
 
+const { formatUnits } = ethers.utils;
+
 const program = new Command();
 program.version("0.0.1");
 program.option("-n, --network <network>", "Network", "mainnet");
@@ -43,6 +45,7 @@ var client = new Discord.Client();
 const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
 const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
+const auctionParticipantTag = "<@&893435203144544316>";
 
 const HOUR = 3600;
 const DAY = 24 * HOUR;
@@ -387,7 +390,7 @@ async function settleAndBurn(
       await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
     } catch (error) {
       await log(
-        `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
+        `GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
       );
     }
   }
@@ -427,11 +430,11 @@ async function claimFromParticipantOrder(
         );
 
       await log(
-        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: ${tx.hash}`
+        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: https://etherscan.io/tx/${tx.hash}`
       );
     } catch (error) {
       await log(
-        `@everyone GnosisAuction-claimFromParticipantOrder()-${auctionID}: failed with error ${error}`
+        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: failed with error ${error}`
       );
     }
   }
@@ -468,10 +471,12 @@ async function runTX(
         gasPrice: newGasPrice,
         gasLimit: gasLimits[method],
       });
-      log(`ThetaVault-${method}()-${vaultName}: ${tx.hash}`);
+      log(
+        `ThetaVault-${method}()-${vaultName}: https://etherscan.io/tx/${tx.hash}`
+      );
     } catch (error) {
       await log(
-        `@everyone ThetaVault-${method}()-${vaultName}: failed with error ${error}`
+        `ThetaVault-${method}()-${vaultName}: failed with error ${error}`
       );
     }
   }
@@ -577,9 +582,37 @@ async function strikeForecasting() {
 
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const otokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+
+  await sleep(5000);
+
+  let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifact.abi,
+      provider
+    );
+    const { nextOption } = await vault.optionState();
+    const otoken = new ethers.Contract(
+      nextOption,
+      otokenArtifact.abi,
+      provider
+    );
+    const strikePriceStr = parseInt(formatUnits(await otoken.strikePrice(), 8));
+    const dateStr = new Date(
+      (await otoken.expiryTimestamp()).toNumber() * 1000
+    );
+    msg += `Strike price for ${vaultName}
+Strike Price: ${strikePriceStr.toLocaleString()}
+Expiry: ${dateStr.toUTCString()}\n\n`;
+  }
+
+  await log(msg);
 }
 
 async function rollToNextOption() {
@@ -598,13 +631,25 @@ async function rollToNextOption() {
   );
 
   // 3. rollToNextOption
-  let auctionCounters = await runTX(
-    vaultArtifact.abi,
-    provider,
-    signer,
-    network,
-    "rollToNextOption"
-  );
+  await runTX(vaultArtifact.abi, provider, signer, network, "rollToNextOption");
+
+  await sleep(5000);
+
+  let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifact.abi,
+      provider
+    );
+    const optionAuctionID = parseInt(
+      (await vault.optionAuctionID()).toString()
+    );
+    msg += `Auction for ${vaultName}: https://gnosis-auction.eth.link/#/auction?auctionId=${optionAuctionID}&chainId=1\n`;
+  }
+
+  await log(msg);
 }
 
 async function settleAuctions() {
@@ -654,7 +699,9 @@ async function updateManualVol() {
           gasLimit: gasLimits["volOracleAnnualizedVol"],
         }
       );
-    await log(`VolOracle-setAnnualizedVol()-(${univ3poolName}): ${tx.hash}`);
+    await log(
+      `VolOracle-setAnnualizedVol()-(${univ3poolName}): https://etherscan.io/tx/${tx.hash}`
+    );
   }
 }
 
@@ -675,7 +722,9 @@ async function updateVolatility() {
         gasPrice: newGasPrice,
         gasLimit: gasLimits["volOracleCommit"],
       });
-    await log(`VolOracle-commit()-(${univ3poolName}): ${tx.hash}`);
+    await log(
+      `VolOracle-commit()-(${univ3poolName}): https://etherscan.io/tx/${tx.hash}`
+    );
   }
 }
 
