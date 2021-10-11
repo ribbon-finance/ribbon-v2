@@ -743,17 +743,16 @@ async function run() {
   client.login(process.env.DISCORD_TOKEN);
 
   //Atlantic/Reykjavik corresponds to UTC
-  const OPYN_PRICE_FINALIZATION_BUFFER = 15; // 15 minutes
+  const COMMIT_START = 10; // 10 am UTC
+  const COMMIT_AND_CLOSE_MINUTE_SHIFT = 45; // 45 minutes
   const NETWORK_CONGESTION_BUFFER = 5; // 5 minutes
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
-  const COMMIT_START = 10; // 10 am UTC
-  const VOL_PERIOD = 12 * 3600; // 12 hours
-  const TIMELOCK_DELAY = 15; // 15 minutes
   const AUCTION_LIFE_TIME_DELAY = 1; // 1 hours
+  const VOL_PERIOD = 12 * 3600; // 12 hours
 
   var futureStrikeForecasting = new CronJob(
-    // 0 0 9 * * 5 = 9am UTC on Fridays.
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${
+    // 0 0 9 * * 5 = 9:45am UTC on Fridays.
+    `0 ${COMMIT_AND_CLOSE_MINUTE_SHIFT} ${
       COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE
     } * * 5`,
     async function () {
@@ -769,8 +768,8 @@ async function run() {
   );
 
   var commitAndCloseJob = new CronJob(
-    // 0 0 10 * * 5 = 10am UTC on Fridays.
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${COMMIT_START} * * 5`,
+    // 0 45 10 * * 5 = 10:45am UTC on Fridays.
+    `0 ${COMMIT_AND_CLOSE_MINUTE_SHIFT} ${COMMIT_START} * * 5`,
     async function () {
       await commitAndClose();
     },
@@ -780,11 +779,7 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 ${
-      OPYN_PRICE_FINALIZATION_BUFFER +
-      NETWORK_CONGESTION_BUFFER +
-      TIMELOCK_DELAY
-    } ${COMMIT_START} * * 5`,
+    `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + 1} * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -794,11 +789,9 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${
-      OPYN_PRICE_FINALIZATION_BUFFER +
-      TIMELOCK_DELAY +
-      NETWORK_CONGESTION_BUFFER * 2
-    } ${COMMIT_START + AUCTION_LIFE_TIME_DELAY} * * 5`,
+    `0 ${NETWORK_CONGESTION_BUFFER} ${
+      COMMIT_START + AUCTION_LIFE_TIME_DELAY + 1
+    } * * 5`,
     async function () {
       await settleAuctions();
     },
