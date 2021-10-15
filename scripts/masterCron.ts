@@ -430,7 +430,7 @@ async function claimFromParticipantOrder(
         );
 
       await log(
-        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: https://etherscan.io/tx/${tx.hash}`
+        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: <https://etherscan.io/tx/${tx.hash}>`
       );
     } catch (error) {
       await log(
@@ -472,7 +472,7 @@ async function runTX(
         gasLimit: gasLimits[method],
       });
       log(
-        `ThetaVault-${method}()-${vaultName}: https://etherscan.io/tx/${tx.hash}`
+        `ThetaVault-${method}()-${vaultName}: <https://etherscan.io/tx/${tx.hash}>`
       );
     } catch (error) {
       await log(
@@ -587,7 +587,7 @@ async function commitAndClose() {
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 
-  await sleep(5000);
+  await sleep(10000);
 
   let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
 
@@ -633,7 +633,7 @@ async function rollToNextOption() {
   // 3. rollToNextOption
   await runTX(vaultArtifact.abi, provider, signer, network, "rollToNextOption");
 
-  await sleep(5000);
+  await sleep(10000);
 
   let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
 
@@ -646,7 +646,7 @@ async function rollToNextOption() {
     const optionAuctionID = parseInt(
       (await vault.optionAuctionID()).toString()
     );
-    msg += `Auction for ${vaultName}: https://gnosis-auction.eth.link/#/auction?auctionId=${optionAuctionID}&chainId=1\n`;
+    msg += `Auction for ${vaultName}: <https://gnosis-auction.eth.link/#/auction?auctionId=${optionAuctionID}&chainId=1>\n`;
   }
 
   await log(msg);
@@ -700,7 +700,7 @@ async function updateManualVol() {
         }
       );
     await log(
-      `VolOracle-setAnnualizedVol()-(${univ3poolName}): https://etherscan.io/tx/${tx.hash}`
+      `VolOracle-setAnnualizedVol()-(${univ3poolName}): <https://etherscan.io/tx/${tx.hash}>`
     );
   }
 }
@@ -723,7 +723,7 @@ async function updateVolatility() {
         gasLimit: gasLimits["volOracleCommit"],
       });
     await log(
-      `VolOracle-commit()-(${univ3poolName}): https://etherscan.io/tx/${tx.hash}`
+      `VolOracle-commit()-(${univ3poolName}): <https://etherscan.io/tx/${tx.hash}>`
     );
   }
 }
