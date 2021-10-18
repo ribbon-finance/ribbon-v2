@@ -687,7 +687,7 @@ contract RibbonVault is
         // Unwrap old yvUSDC
         IYearnVault collateral = IYearnVault(collateralToken);
         collateral.withdraw(
-            collateral.balanceOf(this),
+            collateral.balanceOf(address(this)),
             address(this),
             YEARN_WITHDRAWAL_SLIPPAGE
         );
