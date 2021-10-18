@@ -685,13 +685,13 @@ contract RibbonVault is
     */
     function upgradeYearnVault() external onlyOwner {
         // Unwrap old yvUSDC
-        VaultLifecycleYearn.unwrapYieldToken(
-            collateralToken.balanceOf(address(this)),
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
+        IYearnVault collateral = IYearnVault(collateralToken);
+        collateral.withdraw(
+            collateral.balanceOf(this),
+            address(this),
             YEARN_WITHDRAWAL_SLIPPAGE
         );
+
         _upgradeYearnVault();
     }
 
