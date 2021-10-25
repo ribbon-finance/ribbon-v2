@@ -10,6 +10,8 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  WBTC_ADDRESS,
+  DPI_ADDRESS,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -265,10 +267,10 @@ export async function mintToken(
     value: parseEther("0.5"),
   });
 
-  if (contract.address == USDC_ADDRESS) {
-    await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
-  } else {
+  if ([WBTC_ADDRESS, DPI_ADDRESS].includes(contract.address)) {
     await contract.connect(tokenOwnerSigner).mint(recipient, amount);
+  } else {
+    await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   }
 
   const recipientSigner = await ethers.provider.getSigner(recipient);
