@@ -30,6 +30,8 @@ import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import { CronJob } from "cron";
 import Discord = require("discord.js");
 
+const { formatUnits } = ethers.utils;
+
 const program = new Command();
 program.version("0.0.1");
 program.option("-n, --network <network>", "Network", "mainnet");
@@ -43,6 +45,7 @@ var client = new Discord.Client();
 const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
 const signer = getDefaultSigner("m/44'/60'/0'/0/0", network).connect(provider);
+const auctionParticipantTag = "<@&893435203144544316>";
 
 const HOUR = 3600;
 const DAY = 24 * HOUR;
@@ -64,6 +67,7 @@ interface Version {
 }
 
 interface OToken {
+  logoURI: string;
   chainId: number;
   address: string;
   name: string;
@@ -73,7 +77,6 @@ interface OToken {
 
 interface TokenSet {
   name: string;
-  logoURI: string;
   keywords: Array<string>;
   timestamp: string;
   version: Version;
@@ -115,7 +118,6 @@ function generateTokenSet(tokens: Array<OToken>) {
   // reference: https://github.com/opynfinance/opyn-tokenlist/blob/master/opyn-v1.tokenlist.json
   const tokenJSON: TokenSet = {
     name: "Ribbon oTokens",
-    logoURI: "https://i.imgur.com/u5z1Ev2.png",
     keywords: ["defi", "option", "opyn", "ribbon"],
     //convert to something like 2021-09-08T10:51:49Z
     timestamp: moment().format().toString().slice(0, -6) + "Z",
@@ -318,6 +320,7 @@ async function updateTokenList(
     name.pop();
 
     const token: OToken = {
+      logoURI: "https://i.imgur.com/u5z1Ev2.png",
       chainId: 1,
       address: oToken.address,
       name: name.join(" "),
@@ -362,7 +365,9 @@ async function settleAndBurn(
 
         await tx.wait();
 
-        await log(`GnosisAuction-settleAuction()-${auctionID}: ${tx.transactionHash}`);
+        await log(
+          `GnosisAuction-settleAuction()-${auctionID}: ${tx.transactionHash}`
+        );
       }
 
       let oTokenBalance = await new ethers.Contract(
@@ -385,7 +390,7 @@ async function settleAndBurn(
       await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
     } catch (error) {
       await log(
-        `@everyone GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
+        `GnosisAuction-settleAuction()-${auctionID}: failed with error ${error}`
       );
     }
   }
@@ -425,11 +430,11 @@ async function claimFromParticipantOrder(
         );
 
       await log(
-        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: ${tx.hash}`
+        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: <https://etherscan.io/tx/${tx.hash}>`
       );
     } catch (error) {
       await log(
-        `@everyone GnosisAuction-claimFromParticipantOrder()-${auctionID}: failed with error ${error}`
+        `GnosisAuction-claimFromParticipantOrder()-${auctionID}: failed with error ${error}`
       );
     }
   }
@@ -466,10 +471,12 @@ async function runTX(
         gasPrice: newGasPrice,
         gasLimit: gasLimits[method],
       });
-      log(`ThetaVault-${method}()-${vaultName}: ${tx.hash}`);
+      log(
+        `ThetaVault-${method}()-${vaultName}: <https://etherscan.io/tx/${tx.hash}>`
+      );
     } catch (error) {
       await log(
-        `@everyone ThetaVault-${method}()-${vaultName}: failed with error ${error}`
+        `ThetaVault-${method}()-${vaultName}: failed with error ${error}`
       );
     }
   }
@@ -575,9 +582,37 @@ async function strikeForecasting() {
 
 async function commitAndClose() {
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
+  const otokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
+
+  await sleep(10000);
+
+  let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifact.abi,
+      provider
+    );
+    const { nextOption } = await vault.optionState();
+    const otoken = new ethers.Contract(
+      nextOption,
+      otokenArtifact.abi,
+      provider
+    );
+    const strikePriceStr = parseInt(formatUnits(await otoken.strikePrice(), 8));
+    const dateStr = new Date(
+      (await otoken.expiryTimestamp()).toNumber() * 1000
+    );
+    msg += `Strike price for ${vaultName}
+Strike Price: ${strikePriceStr.toLocaleString()}
+Expiry: ${dateStr.toUTCString()}\n\n`;
+  }
+
+  await log(msg);
 }
 
 async function rollToNextOption() {
@@ -596,13 +631,25 @@ async function rollToNextOption() {
   );
 
   // 3. rollToNextOption
-  let auctionCounters = await runTX(
-    vaultArtifact.abi,
-    provider,
-    signer,
-    network,
-    "rollToNextOption"
-  );
+  await runTX(vaultArtifact.abi, provider, signer, network, "rollToNextOption");
+
+  await sleep(10000);
+
+  let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
+
+  for (let vaultName in deployments[network].vaults) {
+    const vault = new ethers.Contract(
+      deployments[network].vaults[vaultName].address,
+      vaultArtifact.abi,
+      provider
+    );
+    const optionAuctionID = parseInt(
+      (await vault.optionAuctionID()).toString()
+    );
+    msg += `Auction for ${vaultName}: <https://gnosis-auction.eth.link/#/auction?auctionId=${optionAuctionID}&chainId=1>\n`;
+  }
+
+  await log(msg);
 }
 
 async function settleAuctions() {
@@ -652,7 +699,9 @@ async function updateManualVol() {
           gasLimit: gasLimits["volOracleAnnualizedVol"],
         }
       );
-    await log(`VolOracle-setAnnualizedVol()-(${univ3poolName}): ${tx.hash}`);
+    await log(
+      `VolOracle-setAnnualizedVol()-(${univ3poolName}): <https://etherscan.io/tx/${tx.hash}>`
+    );
   }
 }
 
@@ -673,7 +722,9 @@ async function updateVolatility() {
         gasPrice: newGasPrice,
         gasLimit: gasLimits["volOracleCommit"],
       });
-    await log(`VolOracle-commit()-(${univ3poolName}): ${tx.hash}`);
+    await log(
+      `VolOracle-commit()-(${univ3poolName}): <https://etherscan.io/tx/${tx.hash}>`
+    );
   }
 }
 
@@ -692,17 +743,16 @@ async function run() {
   client.login(process.env.DISCORD_TOKEN);
 
   //Atlantic/Reykjavik corresponds to UTC
-  const OPYN_PRICE_FINALIZATION_BUFFER = 15; // 15 minutes
+  const COMMIT_START = 10; // 10 am UTC
+  const COMMIT_AND_CLOSE_MINUTE_SHIFT = 45; // 45 minutes
   const NETWORK_CONGESTION_BUFFER = 5; // 5 minutes
   const STRIKE_FORECAST_HOURS_IN_ADVANCE = 1; // 1 hours in advance
-  const COMMIT_START = 10; // 10 am UTC
-  const VOL_PERIOD = 12 * 3600; // 12 hours
-  const TIMELOCK_DELAY = 15; // 15 minutes
   const AUCTION_LIFE_TIME_DELAY = 1; // 1 hours
+  const VOL_PERIOD = 12 * 3600; // 12 hours
 
   var futureStrikeForecasting = new CronJob(
-    // 0 0 9 * * 5 = 9am UTC on Fridays.
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${
+    // 0 0 9 * * 5 = 9:45am UTC on Fridays.
+    `0 ${COMMIT_AND_CLOSE_MINUTE_SHIFT} ${
       COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE
     } * * 5`,
     async function () {
@@ -718,8 +768,8 @@ async function run() {
   );
 
   var commitAndCloseJob = new CronJob(
-    // 0 0 10 * * 5 = 10am UTC on Fridays.
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER} ${COMMIT_START} * * 5`,
+    // 0 45 10 * * 5 = 10:45am UTC on Fridays.
+    `0 ${COMMIT_AND_CLOSE_MINUTE_SHIFT} ${COMMIT_START} * * 5`,
     async function () {
       await commitAndClose();
     },
@@ -729,9 +779,7 @@ async function run() {
   );
 
   var rollToNextOptionJob = new CronJob(
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + NETWORK_CONGESTION_BUFFER + TIMELOCK_DELAY} ${
-      COMMIT_START
-    } * * 5`,
+    `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + 1} * * 5`,
     async function () {
       await rollToNextOption();
     },
@@ -741,8 +789,8 @@ async function run() {
   );
 
   var settleAuctionJob = new CronJob(
-    `0 ${OPYN_PRICE_FINALIZATION_BUFFER + TIMELOCK_DELAY + NETWORK_CONGESTION_BUFFER * 2} ${
-      COMMIT_START + AUCTION_LIFE_TIME_DELAY
+    `0 ${NETWORK_CONGESTION_BUFFER} ${
+      COMMIT_START + AUCTION_LIFE_TIME_DELAY + 1
     } * * 5`,
     async function () {
       await settleAuctions();

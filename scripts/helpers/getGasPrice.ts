@@ -16,7 +16,7 @@ export async function getGasPrice(isFast = true) {
     ? BigNumber.from(response.data.result.FastGasPrice.toString())
     : BigNumber.from(response.data.result.ProposeGasPrice.toString());
 
-  return price.add(parseUnits("5", "gwei"));
+  return parseUnits(price.toString(), "gwei").add(parseUnits("5", "gwei"));
 }
 
 export async function gas(network: string) {
