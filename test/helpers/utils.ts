@@ -4,7 +4,7 @@ import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
 import {
   GAMMA_ORACLE,
-  GAMMA_ORACLE_STETH,
+  GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
   ORACLE_DISPUTE_PERIOD,
   ORACLE_LOCKING_PERIOD,
@@ -114,7 +114,7 @@ export async function getAssetPricer(
 export async function setAssetPricer(
   asset: string,
   pricer: string,
-  isSTETH = false
+  isNewAsset = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -125,7 +125,7 @@ export async function setAssetPricer(
 
   const oracle = await ethers.getContractAt(
     "IOracle",
-    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE
+    isNewAsset ? GAMMA_ORACLE_NEW : GAMMA_ORACLE
   );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
@@ -166,7 +166,7 @@ export async function whitelistProduct(
 export async function setupOracle(
   pricerOwner: string,
   signer: SignerWithAddress,
-  isSTETH = false
+  isNew = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -183,7 +183,7 @@ export async function setupOracle(
   await forceSend.connect(signer).go(pricerOwner, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE,
+    isNew ? GAMMA_ORACLE_NEW : GAMMA_ORACLE,
     ORACLE_ABI,
     pricerSigner
   );

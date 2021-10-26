@@ -9,7 +9,7 @@ import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
   CHAINLINK_WETH_PRICER,
-  CHAINLINK_DPI_PRICER,
+  // CHAINLINK_DPI_PRICER,
   CHAINLINK_SUSHI_PRICER,
   CHAINLINK_UNI_PRICER,
   CHAINLINK_AAVE_PRICER,
@@ -21,8 +21,8 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  DPI_ADDRESS,
-  DPI_OWNER_ADDRESS,
+  // DPI_ADDRESS,
+  // DPI_OWNER_ADDRESS,
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
   UNI_ADDRESS,
@@ -206,7 +206,7 @@ describe("RibbonThetaVault", () => {
     auctionDuration: 21600,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 104508,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -236,7 +236,7 @@ describe("RibbonThetaVault", () => {
     auctionDuration: 21600,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 248845,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -393,7 +393,11 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+      const oracle = await setupOracle(
+        params.chainlinkPricer,
+        ownerSigner,
+        [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+      );
 
       await setOpynOracleExpiryPrice(
         params.asset,
@@ -1836,7 +1840,11 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+        oracle = await setupOracle(
+          params.chainlinkPricer,
+          ownerSigner,
+          [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+        );
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2371,7 +2379,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 884384);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1082712);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2402,7 +2410,11 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+        oracle = await setupOracle(
+          params.chainlinkPricer,
+          ownerSigner,
+          [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+        );
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2751,7 +2763,11 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
+        oracle = await setupOracle(
+          params.chainlinkPricer,
+          ownerSigner,
+          [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+        );
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
