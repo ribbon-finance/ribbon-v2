@@ -86,9 +86,12 @@ export const CHAINLINK_WETH_PRICER_STETH =
 export const CHAINLINK_WBTC_PRICER =
   "0x5faCA6DF39c897802d752DfCb8c02Ea6959245Fc";
 export const CHAINLINK_DPI_PRICER = "";
-export const CHAINLINK_SUSHI_PRICER = "";
-export const CHAINLINK_UNI_PRICER = "";
-export const CHAINLINK_AAVE_PRICER = "";
+export const CHAINLINK_SUSHI_PRICER =
+  "0xe81462e3a2dc9696f678fccf3402ec135b5e6ab3";
+export const CHAINLINK_UNI_PRICER =
+  "0xb05Eaa89915Ce22F35eF44bf9A9e168DF5a51fa4";
+export const CHAINLINK_AAVE_PRICER =
+  "0x204e2F3264B5200BCF0d9AC1c466CafcFa5df182";
 /**
  * Gnosis Protocol
  */
