@@ -237,7 +237,7 @@ describe("RibbonThetaVault", () => {
     isPut: false,
     gasLimits: {
       depositWorstCase: 248845,
-      depositBestCase: 90000,
+      depositBestCase: 232483,
     },
     mintConfig: {
       contractOwnerAddress: AAVE_OWNER_ADDRESS,
@@ -396,7 +396,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const oracle = await setupOracle(
         params.chainlinkPricer,
         ownerSigner,
-        [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+        ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
       );
 
       await setOpynOracleExpiryPrice(
@@ -430,7 +430,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 13494896,
+              blockNumber: 13496126 /*12529250*/,
             },
           },
         ],
@@ -1843,7 +1843,7 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle = await setupOracle(
           params.chainlinkPricer,
           ownerSigner,
-          [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+          ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
         );
       });
 
@@ -2413,7 +2413,7 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle = await setupOracle(
           params.chainlinkPricer,
           ownerSigner,
-          [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+          ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
         );
       });
 
@@ -2766,7 +2766,7 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle = await setupOracle(
           params.chainlinkPricer,
           ownerSigner,
-          [WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
+          ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
         );
       });
 
