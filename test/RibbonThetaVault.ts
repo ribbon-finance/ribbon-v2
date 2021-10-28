@@ -9,7 +9,7 @@ import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
   CHAINLINK_WETH_PRICER,
-  // CHAINLINK_DPI_PRICER,
+  CHAINLINK_DPI_PRICER,
   CHAINLINK_SUSHI_PRICER,
   CHAINLINK_UNI_PRICER,
   CHAINLINK_AAVE_PRICER,
@@ -21,8 +21,8 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  // DPI_ADDRESS,
-  // DPI_OWNER_ADDRESS,
+  DPI_ADDRESS,
+  DPI_OWNER_ADDRESS,
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
   UNI_ADDRESS,
@@ -124,35 +124,35 @@ describe("RibbonThetaVault", () => {
     },
   });
 
-  // behavesLikeRibbonOptionsVault({
-  //   name: `Ribbon DPI Theta Vault (Call)`,
-  //   tokenName: "Ribbon DPI Theta Vault",
-  //   tokenSymbol: "rDPI-THETA",
-  //   asset: DPI_ADDRESS,
-  //   assetContractName: "IWBTC",
-  //   strikeAsset: USDC_ADDRESS,
-  //   collateralAsset: DPI_ADDRESS,
-  //   chainlinkPricer: CHAINLINK_DPI_PRICER,
-  //   deltaFirstOption: BigNumber.from("1000"),
-  //   deltaSecondOption: BigNumber.from("1000"),
-  //   deltaStep: BigNumber.from("100"),
-  //   tokenDecimals: 18,
-  //   depositAmount: parseEther("1"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   managementFee: BigNumber.from("2000000"),
-  //   performanceFee: BigNumber.from("20000000"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("100000000"),
-  //   auctionDuration: 21600,
-  //   isPut: false,
-  //   gasLimits: {
-  //     depositWorstCase: 101000,
-  //     depositBestCase: 90000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: DPI_OWNER_ADDRESS,
-  //   },
-  // });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon DPI Theta Vault (Call)`,
+    tokenName: "Ribbon DPI Theta Vault",
+    tokenSymbol: "rDPI-THETA",
+    asset: DPI_ADDRESS,
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: DPI_ADDRESS,
+    chainlinkPricer: CHAINLINK_DPI_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    tokenDecimals: 18,
+    depositAmount: parseEther("1"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    auctionDuration: 21600,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: DPI_OWNER_ADDRESS,
+    },
+  });
 
   behavesLikeRibbonOptionsVault({
     name: `Ribbon SUSHI Theta Vault (Call)`,
@@ -430,7 +430,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 13496126 /*12529250*/,
+              blockNumber: 13505726 /*12529250*/,
             },
           },
         ],
