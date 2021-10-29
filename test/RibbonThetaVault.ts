@@ -393,17 +393,14 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(
-        params.chainlinkPricer,
-        ownerSigner,
-        ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
-      );
+      const oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
       await setOpynOracleExpiryPrice(
         params.asset,
         oracle,
         await getCurrentOptionExpiry(),
-        settlementPrice
+        settlementPrice,
+        params.chainlinkPricer
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(ownerSigner).commitAndClose();
@@ -548,7 +545,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
+        // .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -586,7 +583,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(2, "week")
+        .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -1840,11 +1837,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(
-          params.chainlinkPricer,
-          ownerSigner,
-          ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
-        );
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2014,9 +2007,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith("C31");
+        // C31: can not settle vault with un-expired otoken
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
@@ -2067,7 +2059,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.chainlinkPricer
         );
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
@@ -2168,9 +2161,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith("C31");
+        // Controller: can not settle vault with un-expired otoken
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -2218,7 +2210,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM
+          settlementPriceOTM,
+          params.chainlinkPricer
         );
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
@@ -2321,7 +2314,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM
+          settlementPriceOTM,
+          params.chainlinkPricer
         );
 
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
@@ -2410,11 +2404,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(
-          params.chainlinkPricer,
-          ownerSigner,
-          ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
-        );
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2541,7 +2531,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.chainlinkPricer
         );
 
         await strikeSelection.setDelta(params.deltaSecondOption);
@@ -2763,11 +2754,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(
-          params.chainlinkPricer,
-          ownerSigner,
-          ![WETH_ADDRESS, WBTC_ADDRESS].includes(params.asset)
-        );
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -2825,7 +2812,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike
+          firstOptionStrike,
+          params.chainlinkPricer
         );
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
         await vault.connect(ownerSigner).commitAndClose();
