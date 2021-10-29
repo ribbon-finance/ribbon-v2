@@ -633,7 +633,7 @@ async function rollToNextOption() {
   // 3. rollToNextOption
   await runTX(vaultArtifact.abi, provider, signer, network, "rollToNextOption");
 
-  await sleep(10000);
+  await sleep(120000);
 
   await log(`${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`);
 
