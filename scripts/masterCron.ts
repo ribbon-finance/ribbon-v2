@@ -587,7 +587,7 @@ async function commitAndClose() {
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 
-  await sleep(30000);
+  await sleep(120000);
 
   let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
   await log(msg);
