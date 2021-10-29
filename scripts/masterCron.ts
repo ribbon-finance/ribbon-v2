@@ -587,9 +587,10 @@ async function commitAndClose() {
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 
-  await sleep(10000);
+  await sleep(30000);
 
   let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
+  await log(msg);
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -598,6 +599,7 @@ async function commitAndClose() {
       provider
     );
     const { nextOption } = await vault.optionState();
+    console.log(nextOption);
     const otoken = new ethers.Contract(
       nextOption,
       otokenArtifact.abi,
@@ -607,12 +609,10 @@ async function commitAndClose() {
     const dateStr = new Date(
       (await otoken.expiryTimestamp()).toNumber() * 1000
     );
-    msg += `Strike price for ${vaultName}
+    await log(`Strike price for ${vaultName}
 Strike Price: ${strikePriceStr.toLocaleString()}
-Expiry: ${dateStr.toUTCString()}\n\n`;
+Expiry: ${dateStr.toUTCString()}\n\n`);
   }
-
-  await log(msg);
 }
 
 async function rollToNextOption() {
@@ -635,7 +635,9 @@ async function rollToNextOption() {
 
   await sleep(10000);
 
-  let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
+  await log(`${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`);
+
+  let msg = "";
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
