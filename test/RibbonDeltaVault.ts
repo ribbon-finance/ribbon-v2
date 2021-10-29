@@ -359,7 +359,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 12529250,
+              blockNumber: 13505726,
             },
           },
         ],
@@ -519,7 +519,6 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -549,7 +548,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(2, "week")
+        .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -1605,9 +1604,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           thetaVault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith("C31");
+        // C31: can not settle vault with un-expired otoken
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
