@@ -313,7 +313,8 @@ function behavesLikeRibbonOptionsVault(params: {
         params.asset,
         oracle,
         await getCurrentOptionExpiry(),
-        settlementPrice
+        settlementPrice,
+        params.chainlinkPricer
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
       await thetaVault.connect(ownerSigner).commitAndClose();
@@ -1690,7 +1691,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.chainlinkPricer
         );
 
         // exercise because it's ITM
@@ -1810,7 +1812,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.chainlinkPricer
         );
 
         await thetaVault
@@ -1934,7 +1937,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM
+          settlementPriceOTM,
+          params.chainlinkPricer
         );
 
         // expires worthless because it is OTM
@@ -2282,7 +2286,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.chainlinkPricer
         );
 
         await strikeSelection.setDelta(params.deltaSecondOption);
@@ -2624,7 +2629,8 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike
+          firstOptionStrike,
+          params.chainlinkPricer
         );
 
         await rollToNextOption();
