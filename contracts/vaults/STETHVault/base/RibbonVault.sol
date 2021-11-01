@@ -660,6 +660,7 @@ contract RibbonVault is
         if (vaultFee > 0) {
             VaultLifecycleSTETH.withdrawYieldAndBaseToken(
                 address(collateralToken),
+                WETH,
                 feeRecipient,
                 vaultFee
             );
