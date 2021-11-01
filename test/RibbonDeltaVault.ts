@@ -134,7 +134,7 @@ describe("RibbonDeltaVault", () => {
     optionAllocation: BigNumber.from("500"),
     optionPremium: BigNumber.from("1000").mul(BigNumber.from("10").pow("6")),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("370370"),
+    expectedMintAmount: BigNumber.from("181818"),
     auctionDuration: 21600,
     isPut: true,
     gasLimits: {
@@ -165,7 +165,7 @@ describe("RibbonDeltaVault", () => {
     optionAllocation: BigNumber.from("500"),
     optionPremium: BigNumber.from("1000").mul(BigNumber.from("10").pow("6")),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("5263157894"),
+    expectedMintAmount: BigNumber.from("2702702702"),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
