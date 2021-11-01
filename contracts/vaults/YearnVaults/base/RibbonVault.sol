@@ -623,10 +623,21 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
+        uint256 lastQueuedWithdrawAmount =
+            uint256(vaultState.lastQueuedWithdrawAmount);
+
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(queuedWithdrawAmount))
+            _collectVaultFees(
+                lockedBalance.add(
+                    queuedWithdrawAmount > lastQueuedWithdrawAmount
+                        ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
+                        : 0
+                )
+            )
         );
+
+        vaultState.lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
