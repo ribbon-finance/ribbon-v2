@@ -11,13 +11,20 @@ export const MAINNET_WBTC_ORACLE = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
 export const KOVAN_WBTC_ORACLE = "0x6135b13325bfC4B00278B4abC5e20bbce2D6580e";
 export const KOVAN_WBTC = "0x50570256f0da172a1908207aAf0c80d4b279f303";
 
+export const MAINNET_AAVE = "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9";
+export const KOVAN_AAVE = "0x";
+export const AAVE_ETH_POOL = "0x5aB53EE1d50eeF2C1DD3d5402789cd27bB52c1bB";
+export const MAINNET_AAVE_ORACLE = "0x547a514d5e3769680Ce22B2361c10Ea13619e8a9";
+export const KOVAN_AAVE_ORACLE = "0x";
+
 /**
  * Vault params
  */
 export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 1000
 export const WBTC_STRIKE_STEP = 1000; // WBTC strike prices move in increments of 1000
+export const AAVE_STRIKE_STEP = 10;
 export const STRIKE_DELTA = 1000; // 0.1d
 export const PREMIUM_DISCOUNT = 800; // 0.80, 20% discount
 export const AUCTION_DURATION = 3600; // 1 hour
-export const PERFORMANCE_FEE = 0;
+export const PERFORMANCE_FEE = 10000000;
 export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result in 38356 per week.
