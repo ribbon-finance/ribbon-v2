@@ -14,10 +14,18 @@ abstract contract RibbonDeltaVaultStorageV1 {
     Vault.AuctionSellOrder public auctionSellOrder;
 }
 
+abstract contract RibbonDeltaVaultStorageV2 {
+    // Amount locked for scheduled withdrawals last week;
+    uint128 public lastQueuedWithdrawAmount;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonDeltaVaultStorage
 // e.g. RibbonDeltaVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonDeltaVaultStorage is RibbonDeltaVaultStorageV1, RibbonDeltaVaultStorageV2
-abstract contract RibbonDeltaVaultStorage is RibbonDeltaVaultStorageV1 {
+abstract contract RibbonDeltaVaultStorage is
+    RibbonDeltaVaultStorageV1,
+    RibbonDeltaVaultStorageV2
+{
 
 }

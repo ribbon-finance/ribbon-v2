@@ -60,8 +60,6 @@ library Vault {
         uint128 totalPending;
         // Amount locked for scheduled withdrawals;
         uint128 queuedWithdrawShares;
-        // Amount locked for scheduled withdrawals last week;
-        uint128 lastQueuedWithdrawAmount;
     }
 
     struct DepositReceipt {

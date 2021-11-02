@@ -558,20 +558,26 @@ contract RibbonVault is
     /*
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
+     * @param lastQueuedWithdrawAmount is old queued withdraw amount
      * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
+     * @return queuedWithdrawAmount is the new queued withdraw amount for this round
      */
-    function _rollToNextOption()
+    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
         internal
-        returns (address newOption, uint256 lockedBalance)
+        returns (
+            address,
+            uint256,
+            uint256
+        )
     {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
-        newOption = optionState.nextOption;
+        address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
         (
-            uint256 _lockedBalance,
+            uint256 lockedBalance,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
@@ -591,13 +597,10 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
-        uint256 lastQueuedWithdrawAmount =
-            uint256(vaultState.lastQueuedWithdrawAmount);
-
         // Take management / performance fee from previous round and deduct
-        lockedBalance = _lockedBalance.sub(
+        lockedBalance = lockedBalance.sub(
             _collectVaultFees(
-                _lockedBalance.add(
+                lockedBalance.add(
                     queuedWithdrawAmount > lastQueuedWithdrawAmount
                         ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
                         : 0
@@ -605,14 +608,12 @@ contract RibbonVault is
             )
         );
 
-        vaultState.lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
-
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
 
         _mint(address(this), mintShares);
 
-        return (newOption, lockedBalance);
+        return (newOption, lockedBalance, queuedWithdrawAmount);
     }
 
     /*
