@@ -39,27 +39,25 @@ const main = async ({
   const underlyingOracle = isMainnet ? MAINNET_AAVE_ORACLE : KOVAN_AAVE_ORACLE;
   const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
 
-  // const pricer = await deploy("OptionsPremiumPricerAAVE", {
-  //   from: deployer,
-  //   contract: {
-  //     abi: OptionsPremiumPricer_ABI,
-  //     bytecode: OptionsPremiumPricer_BYTECODE,
-  //   },
-  //   args: [
-  //     AAVE_ETH_POOL,
-  //     manualVolOracle.address,
-  //     underlyingOracle,
-  //     stablesOracle,
-  //   ],
-  // });
-  const pricer = await deployments.get("OptionsPremiumPricerAAVE");
+  const pricer = await deploy("OptionsPremiumPricerAAVE", {
+    from: deployer,
+    contract: {
+      abi: OptionsPremiumPricer_ABI,
+      bytecode: OptionsPremiumPricer_BYTECODE,
+    },
+    args: [
+      AAVE_ETH_POOL,
+      manualVolOracle.address,
+      underlyingOracle,
+      stablesOracle,
+    ],
+  });
 
-  // const strikeSelection = await deploy("StrikeSelectionAAVE", {
-  //   contract: "StrikeSelection",
-  //   from: deployer,
-  //   args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
-  // });
-  const strikeSelection = await deployments.get("StrikeSelectionAAVE");
+  const strikeSelection = await deploy("StrikeSelectionAAVE", {
+    contract: "StrikeSelection",
+    from: deployer,
+    args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
+  });
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
