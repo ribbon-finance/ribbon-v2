@@ -618,15 +618,14 @@ contract RibbonVault is
         // Wrap entire `asset` balance to `collateralToken` balance
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
+        uint256 withdrawAmountDiff =
+            queuedWithdrawAmount > lastQueuedWithdrawAmount
+                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
+                : 0;
+
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(
-            _collectVaultFees(
-                lockedBalance.add(
-                    queuedWithdrawAmount > lastQueuedWithdrawAmount
-                        ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
-                        : 0
-                )
-            )
+            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
         );
 
         vaultState.totalPending = 0;
