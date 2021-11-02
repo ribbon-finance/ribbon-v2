@@ -294,7 +294,13 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         onlyKeeper
         nonReentrant
     {
-        (address newOption, uint256 lockedBalance) = _rollToNextOption();
+        (
+            address newOption,
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount
+        ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+
+        lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
 
         balanceBeforePremium = lockedBalance;
 

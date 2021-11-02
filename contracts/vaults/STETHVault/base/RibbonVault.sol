@@ -582,10 +582,14 @@ contract RibbonVault is
     /*
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
+     * @param lastQueuedWithdrawAmount is old queued withdraw amount
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
-    function _rollToNextOption() internal returns (address, uint256) {
+    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
+        internal
+        returns (address, uint256)
+    {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
@@ -614,9 +618,6 @@ contract RibbonVault is
         // Wrap entire `asset` balance to `collateralToken` balance
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
-        uint256 lastQueuedWithdrawAmount =
-            uint256(vaultState.lastQueuedWithdrawAmount);
-
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(
             _collectVaultFees(
@@ -627,8 +628,6 @@ contract RibbonVault is
                 )
             )
         );
-
-        vaultState.lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
 
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
