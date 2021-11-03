@@ -355,7 +355,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         (address newOption, uint256 queuedWithdrawAmount) =
             _rollToNextOption(uint256(lastQueuedWithdrawAmount));
 
-        lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         // Locked balance denominated in `collateralToken`
         // there is a slight imprecision with regards to calculating back from yearn token -> underlying

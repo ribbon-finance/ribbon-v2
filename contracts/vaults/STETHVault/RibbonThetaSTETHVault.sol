@@ -354,7 +354,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         (address newOption, uint256 queuedWithdrawAmount) =
             _rollToNextOption(uint256(lastQueuedWithdrawAmount));
 
-        lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         // Locked balance denominated in `collateralToken`
         uint256 lockedBalance =
