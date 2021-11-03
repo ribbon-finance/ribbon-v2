@@ -22,7 +22,7 @@ abstract contract RibbonThetaYearnVaultStorageV1 {
 
 abstract contract RibbonThetaYearnVaultStorageV2 {
     // Amount locked for scheduled withdrawals last week;
-    uint128 public lastQueuedWithdrawAmount;
+    uint256 public lastQueuedWithdrawAmount;
 }
 
 // We are following Compound's method of upgrading new contract implementations

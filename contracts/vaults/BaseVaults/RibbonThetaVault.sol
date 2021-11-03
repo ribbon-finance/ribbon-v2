@@ -342,7 +342,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             uint256 queuedWithdrawAmount
         ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
 
-        lastQueuedWithdrawAmount = uint128(queuedWithdrawAmount);
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
