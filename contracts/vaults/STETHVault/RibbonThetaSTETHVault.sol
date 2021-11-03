@@ -351,7 +351,10 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyKeeper nonReentrant {
-        (address newOption, uint256 queuedWithdrawAmount) = _rollToNextOption();
+        (address newOption, uint256 queuedWithdrawAmount) =
+            _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         // Locked balance denominated in `collateralToken`
         uint256 lockedBalance =

@@ -20,12 +20,18 @@ abstract contract RibbonThetaYearnVaultStorageV1 {
     uint256 public optionAuctionID;
 }
 
+abstract contract RibbonThetaYearnVaultStorageV2 {
+    // Amount locked for scheduled withdrawals last week;
+    uint256 public lastQueuedWithdrawAmount;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonThetaVaultStorage is RibbonThetaVaultStorageV1, RibbonThetaVaultStorageV2
 abstract contract RibbonThetaYearnVaultStorage is
-    RibbonThetaYearnVaultStorageV1
+    RibbonThetaYearnVaultStorageV1,
+    RibbonThetaYearnVaultStorageV2
 {
 
 }

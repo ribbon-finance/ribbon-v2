@@ -582,21 +582,22 @@ contract RibbonVault is
     /*
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
+     * @param lastQueuedWithdrawAmount is old queued withdraw amount
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
-    function _rollToNextOption()
+    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
         internal
-        returns (address newOption, uint256 queuedWithdrawAmount)
+        returns (address, uint256)
     {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
-        newOption = optionState.nextOption;
+        address newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
         (
             uint256 lockedBalance,
-            uint256 _queuedWithdrawAmount,
+            uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
         ) =
@@ -617,9 +618,14 @@ contract RibbonVault is
         // Wrap entire `asset` balance to `collateralToken` balance
         VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
 
+        uint256 withdrawAmountDiff =
+            queuedWithdrawAmount > lastQueuedWithdrawAmount
+                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
+                : 0;
+
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(_queuedWithdrawAmount))
+            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
         );
 
         vaultState.totalPending = 0;
@@ -629,7 +635,7 @@ contract RibbonVault is
 
         _mint(address(this), mintShares);
 
-        return (newOption, _queuedWithdrawAmount);
+        return (newOption, queuedWithdrawAmount);
     }
 
     /*
@@ -652,6 +658,7 @@ contract RibbonVault is
         if (vaultFee > 0) {
             VaultLifecycleSTETH.withdrawYieldAndBaseToken(
                 address(collateralToken),
+                WETH,
                 feeRecipient,
                 vaultFee
             );

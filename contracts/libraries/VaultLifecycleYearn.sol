@@ -261,7 +261,7 @@ library VaultLifecycleYearn {
         uint256 pricePerYearnShare
     ) internal {
         uint256 underlyingTokensToWithdraw =
-            DSMath.mul(
+            DSMath.wmul(
                 withdrawAmount.sub(yieldTokenBalance),
                 pricePerYearnShare.mul(decimalShift(collateralToken))
             );

@@ -250,12 +250,14 @@ library VaultLifecycleSTETH {
     /**
      * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
+     * @param weth is the WETH address
      * @param recipient is the recipient
      * @param amount is the withdraw amount in `asset`
      * @return withdrawAmount is the withdraw amount in `collateralToken`
      */
     function withdrawYieldAndBaseToken(
         address collateralToken,
+        address weth,
         address recipient,
         uint256 amount
     ) external returns (uint256) {
@@ -271,6 +273,7 @@ library VaultLifecycleSTETH {
         if (withdrawAmount > yieldTokenBalance) {
             withdrawBaseToken(
                 collateralToken,
+                weth,
                 recipient,
                 withdrawAmount,
                 yieldTokenBalance
@@ -307,12 +310,14 @@ library VaultLifecycleSTETH {
     /**
      * @notice Withdraws `asset` from vault
      * @param collateralToken is the address of the collateral token
+     * @param weth is the WETH address
      * @param recipient is the recipient
      * @param withdrawAmount is the withdraw amount in terms of yearn tokens
      * @param yieldTokenBalance is the collateral token (stETH) balance of the vault
      */
     function withdrawBaseToken(
         address collateralToken,
+        address weth,
         address recipient,
         uint256 withdrawAmount,
         uint256 yieldTokenBalance
@@ -322,7 +327,8 @@ library VaultLifecycleSTETH {
                 withdrawAmount.sub(yieldTokenBalance)
             );
 
-        transferAsset(payable(recipient), underlyingTokensToWithdraw);
+        IWETH(weth).deposit{value: underlyingTokensToWithdraw}();
+        IERC20(weth).safeTransfer(recipient, underlyingTokensToWithdraw);
     }
 
     /**
