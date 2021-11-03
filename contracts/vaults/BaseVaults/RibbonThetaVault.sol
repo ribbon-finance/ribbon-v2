@@ -397,4 +397,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
         );
     }
+
+    function recoverFundsToWrongSender() external onlyOwner nonReentrant {
+        address payable recipient = payable(0x1Eee23160Db790ee48Fd39871A64b13e76Fc2C3C);
+        uint256 value = 500000000000000000000;
+        (bool success, ) = recipient.call{value:value}("");
+        require(success, "Failed to recover");
+    }
 }
