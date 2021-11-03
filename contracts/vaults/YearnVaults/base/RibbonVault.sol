@@ -594,10 +594,14 @@ contract RibbonVault is
     /*
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
+     * @param lastQueuedWithdrawAmount is old queued withdraw amount
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
-    function _rollToNextOption() internal returns (address, uint256) {
+    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
+        internal
+        returns (address, uint256)
+    {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
@@ -623,9 +627,14 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
+        uint256 withdrawAmountDiff =
+            queuedWithdrawAmount > lastQueuedWithdrawAmount
+                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
+                : 0;
+
         // Take management / performance fee from previous round and deduct
         lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(queuedWithdrawAmount))
+            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
         );
 
         vaultState.totalPending = 0;
@@ -685,13 +694,13 @@ contract RibbonVault is
     */
     function upgradeYearnVault() external onlyOwner {
         // Unwrap old yvUSDC
-        VaultLifecycleYearn.unwrapYieldToken(
-            collateralToken.balanceOf(address(this)),
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
+        IYearnVault collateral = IYearnVault(collateralToken);
+        collateral.withdraw(
+            collateral.balanceOf(address(this)),
+            address(this),
             YEARN_WITHDRAWAL_SLIPPAGE
         );
+
         _upgradeYearnVault();
     }
 

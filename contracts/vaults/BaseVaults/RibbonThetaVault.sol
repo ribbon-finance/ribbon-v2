@@ -336,7 +336,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyKeeper nonReentrant {
-        (address newOption, uint256 lockedBalance) = _rollToNextOption();
+        (
+            address newOption,
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount
+        ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
