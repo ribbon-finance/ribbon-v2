@@ -30,11 +30,14 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
+  const RibbonThetaVaultYearn = await ethers.getContractFactory(
+    "RibbonThetaVaultYearn",
+    {
+      libraries: {
+        VaultLifecycle: lifecycle.address,
+      },
+    }
+  );
 
   const initArgs = [
     owner,
@@ -57,7 +60,7 @@ const main = async ({
       cap: ethers.utils.parseUnits("1000000", 6),
     },
   ];
-  const initData = RibbonThetaVault.interface.encodeFunctionData(
+  const initData = RibbonThetaVaultYearn.interface.encodeFunctionData(
     "initialize",
     initArgs
   );
@@ -69,6 +72,6 @@ const main = async ({
   });
 };
 main.tags = ["RibbonThetaVaultETHPutYearn"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultYearnLogic"];
 
 export default main;
