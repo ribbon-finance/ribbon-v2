@@ -17,6 +17,8 @@ export const AAVE_ETH_POOL = "0x5aB53EE1d50eeF2C1DD3d5402789cd27bB52c1bB";
 export const MAINNET_AAVE_ORACLE = "0x547a514d5e3769680Ce22B2361c10Ea13619e8a9";
 export const KOVAN_AAVE_ORACLE = "0x";
 
+export const YVUSDC = "0x5f18C75AbDAe578b483E5F43f12a39cF75b973a9";
+
 /**
  * Vault params
  */
