@@ -49,6 +49,7 @@ const auctionParticipantTag = "<@&893435203144544316>";
 
 const HOUR = 3600;
 const DAY = 24 * HOUR;
+const TX_SLEEP_TIME = 300000; // 5 minutes
 
 let gasLimits = {
   volOracleCommit: 85000,
@@ -587,9 +588,9 @@ async function commitAndClose() {
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 
-  await sleep(10000);
+  await sleep(TX_SLEEP_TIME);
 
-  let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
+  let msg = `${auctionParticipantTag} Strike prices have been selected. Auction begins at 11.15am UTC\n\n`;
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -633,9 +634,9 @@ async function rollToNextOption() {
   // 3. rollToNextOption
   await runTX(vaultArtifact.abi, provider, signer, network, "rollToNextOption");
 
-  await sleep(10000);
+  await sleep(TX_SLEEP_TIME);
 
-  let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
+  let msg = `Auctions have begun. Happy bidding!\n\n`;
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
