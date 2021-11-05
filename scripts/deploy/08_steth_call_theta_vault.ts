@@ -29,7 +29,7 @@ const main = async ({
 
   const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  const logicDeployment = await deployments.get("RibbonThetaVaultSTETHLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
   const lifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
 
