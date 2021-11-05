@@ -479,6 +479,7 @@ async function runTX(
       log(
         `ThetaVault-${method}()-${vaultName}: <https://etherscan.io/tx/${tx.hash}>`
       );
+      await tx.wait();
     } catch (error) {
       await log(
         `ThetaVault-${method}()-${vaultName}: failed with error ${error}`
