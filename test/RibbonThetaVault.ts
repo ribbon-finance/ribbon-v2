@@ -2894,7 +2894,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(endQueuedShares, BigNumber.from(0));
         assert.bnEqual(
-          lastQueuedWithdrawAmount,
+          await vault.lastQueuedWithdrawAmount(),
           lastQueuedWithdrawAmount.sub(withdrawAmount)
         );
         assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
