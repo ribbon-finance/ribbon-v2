@@ -89,6 +89,10 @@ function sleep(ms: number) {
 }
 
 async function log(msg: string) {
+  if (msg.length >= 2000) {
+    console.log("EXCEEDED LENGTH");
+    console.log(msg);
+  }
   (client.channels.cache.get(auth.channel_id) as Discord.TextChannel).send(msg);
 }
 
