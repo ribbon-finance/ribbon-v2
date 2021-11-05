@@ -19,7 +19,6 @@ const KOVAN_WETH = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 const KOVAN_USDC = "0x7e6edA50d1c833bE936492BF42C1BF376239E9e2";
 
 const main = async ({
-  ethers,
   network,
   deployments,
   getNamedAccounts,
@@ -34,12 +33,10 @@ const main = async ({
   const lifecycle = await deploy("VaultLifecycle", {
     contract: "VaultLifecycle",
     from: deployer,
-    gasPrice: ethers.utils.parseUnits("140", "gwei"),
   });
   const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
     contract: "VaultLifecycle",
     from: deployer,
-    gasPrice: ethers.utils.parseUnits("140", "gwei"),
   });
 
   await deploy("RibbonThetaVaultSTETHLogic", {
@@ -60,7 +57,6 @@ const main = async ({
       VaultLifecycle: lifecycle.address,
       VaultLifecycleSTETH: lifecycleSTETH.address,
     },
-    gasPrice: ethers.utils.parseUnits("140", "gwei"),
   });
 };
 main.tags = ["RibbonThetaVaultSTETHLogic"];
