@@ -2854,6 +2854,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const withdrawAmount = depositAmount
           .mul(pricePerShare)
           .div(BigNumber.from(10).pow(await vault.decimals()));
+        const lastQueuedWithdrawAmount = await vault.lastQueuedWithdrawAmount();
 
         let beforeBalance: BigNumber;
         if (collateralAsset === WETH_ADDRESS) {
@@ -2892,6 +2893,10 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.vaultState();
 
         assert.bnEqual(endQueuedShares, BigNumber.from(0));
+        assert.bnEqual(
+          await vault.lastQueuedWithdrawAmount(),
+          lastQueuedWithdrawAmount.sub(withdrawAmount)
+        );
         assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
 
         let actualWithdrawAmount: BigNumber;
@@ -2913,7 +2918,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 84200);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 84549);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
