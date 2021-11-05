@@ -2913,7 +2913,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 84200);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 84549);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
