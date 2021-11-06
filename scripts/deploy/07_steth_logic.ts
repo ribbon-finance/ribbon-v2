@@ -30,14 +30,17 @@ const main = async ({
   const isMainnet = network.name === "mainnet";
   const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
 
-  const lifecycle = await deploy("VaultLifecycle", {
-    contract: "VaultLifecycle",
-    from: deployer,
-  });
-  const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
-    contract: "VaultLifecycle",
-    from: deployer,
-  });
+  // const lifecycle = await deploy("VaultLifecycle", {
+  //   contract: "VaultLifecycle",
+  //   from: deployer,
+  // });
+  const lifecycle = await deployments.get("VaultLifecycle");
+
+  // const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
+  //   contract: "VaultLifecycleSTETH",
+  //   from: deployer,
+  // });
+  const lifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
 
   await deploy("RibbonThetaVaultSTETHLogic", {
     contract: "RibbonThetaSTETHVault",
