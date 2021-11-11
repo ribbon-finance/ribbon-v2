@@ -337,7 +337,7 @@ library VaultLifecycleSTETH {
      * @param amount is the amount of `asset` to withdraw
      * @param collateralToken is the address of the collateral token
      * @param crvPool is the address of the steth <-> eth pool on curve
-     * @param minETHOut is the min eth to recieve
+     * @param minETHOut is the minimum eth amount to receive from the swap
      * @return amountETHOut is the amount of eth we have
      available for the withdrawal (may incur curve slippage)
      */
@@ -347,10 +347,28 @@ library VaultLifecycleSTETH {
         address crvPool,
         uint256 minETHOut
     ) external returns (uint256) {
+        require(
+            amount >= minETHOut,
+            "Amount withdrawn smaller than minETHOut from swap"
+        );
+
+        // We need to find out the ratio between the amount/minETHOut
+        // For eg,
+        // amount = 10, minETHOut = 9
+        // swapRatio = 0.9
+        // swapRatio is in the units of 10**18, which is used to determine how much
+        // the swap output should be
+        uint256 swapRatio = amount.mul(10**18).div(minETHOut);
+
         uint256 assetBalance = address(this).balance;
 
         uint256 amountETHOut = DSMath.min(assetBalance, amount);
 
+        // Here we make the assumption that we unwrap the same amount
+        // of wstETH as the amount of ETH we want to withdraw.
+        // It is obviously inaccurate because stETH != ETH.
+        // But since stETH is usually more valuable than ETH, 1 stETH >= 1 ETH
+        // this is a fine assumption to make.
         uint256 amountToUnwrap =
             IWSTETH(collateralToken).getWstETHByStETH(
                 DSMath.max(assetBalance, amount).sub(assetBalance)
@@ -358,8 +376,12 @@ library VaultLifecycleSTETH {
 
         if (amountToUnwrap > 0) {
             IWSTETH wsteth = IWSTETH(collateralToken);
-            // Unrap to stETH
+            // Unwrap to stETH
             wsteth.unwrap(amountToUnwrap);
+
+            // minETHOutFromSwap
+            uint256 minETHOutFromSwap =
+                amountToUnwrap.mul(swapRatio).div(10**18);
 
             // approve steth exchange
             IERC20(wsteth.stETH()).safeApprove(crvPool, amountToUnwrap);
@@ -367,9 +389,18 @@ library VaultLifecycleSTETH {
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
             amountETHOut = amountETHOut.add(
-                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOut)
+                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOutFromSwap)
             );
         }
+
+        // This revert does not account for the ETH that is already unwrapped
+        // Since minETHOut is derived from calling the Curve pool's getter,
+        // it reverts in the worst case where the user needs to unwrap and sell
+        // 100% of their ETH withdrawal amount
+        require(
+            amountETHOut > minETHOut,
+            "Output ETH amount smaller than minETHOut"
+        );
 
         return amountETHOut;
     }
