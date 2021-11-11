@@ -384,6 +384,7 @@ library VaultLifecycleSTETH {
 
             // Post-unwrap, the stETH balance will not completely match the stethNeeded
             // due to precision issues.
+            // E.g. 0.5 ETH is 499999999999999998 instead of 500000000000000000 
             // We just send the entire stETH balance for the swap
             uint256 stETHAmount =
                 steth.balanceOf(address(this)).sub(startStethBalance);
