@@ -22,7 +22,6 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import "hardhat/console.sol";
 
 library VaultLifecycleSTETH {
     using SafeMath for uint256;
