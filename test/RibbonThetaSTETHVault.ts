@@ -81,7 +81,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("10"),
-    crvETHAmountAfterSlippage: BigNumber.from("963435544683405430"),
+    crvETHAmountAfterSlippage: BigNumber.from("998258752506440113"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -2821,7 +2821,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 267165);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 272085);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
