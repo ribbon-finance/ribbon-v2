@@ -22,7 +22,7 @@ describe("VaultLifecycleSTETH", () => {
   let signer: SignerWithAddress;
   let stETH: Contract;
   let wstETH: Contract;
-  let crv: Contract;
+  // let crv: Contract;
 
   beforeEach(async () => {
     [signer] = await ethers.getSigners();
@@ -41,7 +41,7 @@ describe("VaultLifecycleSTETH", () => {
 
     stETH = await ethers.getContractAt("ISTETH", STETH_ADDRESS, signer);
     wstETH = await ethers.getContractAt("IWSTETH", WSTETH_ADDRESS, signer);
-    crv = await ethers.getContractAt("ICRV", STETH_ETH_CRV_POOL, signer);
+    // crv = await ethers.getContractAt("ICRV", STETH_ETH_CRV_POOL, signer);
   });
 
   describe("unwrapYieldToken", () => {
