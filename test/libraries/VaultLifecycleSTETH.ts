@@ -6,11 +6,7 @@ import * as time from "../helpers/time";
 import { parseEther } from "ethers/lib/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { expect } from "chai";
-import {
-  STETH_ADDRESS,
-  STETH_ETH_CRV_POOL,
-  WSTETH_ADDRESS,
-} from "../../constants/constants";
+import { STETH_ADDRESS, WSTETH_ADDRESS } from "../../constants/constants";
 
 moment.tz.setDefault("UTC");
 
@@ -91,7 +87,6 @@ describe("VaultLifecycleSTETH", () => {
         parseEther("1"),
         parseEther("0.995") // 0.5% slippage
       );
-      console.log((await lifecycle.output()).toString());
 
       assert.bnGte(await lifecycle.output(), parseEther("0.995"));
     });

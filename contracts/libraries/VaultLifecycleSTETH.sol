@@ -352,14 +352,6 @@ library VaultLifecycleSTETH {
             "Amount withdrawn smaller than minETHOut from swap"
         );
 
-        // We need to find out the ratio between the amount/minETHOut
-        // For eg,
-        // amount = 10, minETHOut = 9
-        // swapRatio = 0.9
-        // swapRatio is in the units of 10**18, which is used to determine how much
-        // the swap output should be
-        uint256 swapRatio = minETHOut.mul(10**18).div(amount);
-
         uint256 assetBalance = address(this).balance;
 
         uint256 amountETHOut = DSMath.min(assetBalance, amount);
@@ -384,20 +376,21 @@ library VaultLifecycleSTETH {
 
             // Post-unwrap, the stETH balance will not completely match the stethNeeded
             // due to precision issues.
-            // E.g. 0.5 ETH is 499999999999999998 instead of 500000000000000000 
+            // E.g. 0.5 ETH is 499999999999999998 instead of 500000000000000000
             // We just send the entire stETH balance for the swap
             uint256 stETHAmount =
                 steth.balanceOf(address(this)).sub(startStethBalance);
-
-            uint256 minETHOutFromSwap = stETHAmount.mul(swapRatio).div(10**18);
 
             // approve steth exchange
             steth.safeApprove(crvPool, stETHAmount);
 
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
+            // We are setting 1, which is the smallest possible value for the _minAmountOut parameter
+            // However it is fine because we check that the amountETHOut >= minETHOut at the end
+            // which makes sandwich attacks not possible
             uint256 swappedAmount =
-                ICRV(crvPool).exchange(1, 0, stETHAmount, minETHOutFromSwap);
+                ICRV(crvPool).exchange(1, 0, stETHAmount, 1);
 
             amountETHOut = amountETHOut.add(swappedAmount);
         }
