@@ -22,6 +22,7 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import "hardhat/console.sol";
 
 library VaultLifecycleSTETH {
     using SafeMath for uint256;
@@ -358,39 +359,47 @@ library VaultLifecycleSTETH {
         // swapRatio = 0.9
         // swapRatio is in the units of 10**18, which is used to determine how much
         // the swap output should be
-        uint256 swapRatio = amount.mul(10**18).div(minETHOut);
+        uint256 swapRatio = minETHOut.mul(10**18).div(amount);
 
         uint256 assetBalance = address(this).balance;
 
         uint256 amountETHOut = DSMath.min(assetBalance, amount);
 
-        // Here we make the assumption that we unwrap the same amount
-        // of wstETH as the amount of ETH we want to withdraw.
-        // It is obviously inaccurate because stETH != ETH.
-        // But since stETH is usually more valuable than ETH, 1 stETH >= 1 ETH
-        // this is a fine assumption to make.
+        // We pass in the amount of stETH we want to unwrap from wstETH
+        // Though stETH != ETH, we assume that they are equivalent here
+        // by passing in the amount of ETH we need to withdraw
+        // This assumption is fine because we will be swapping the stETH to ETH.
+        uint256 stethNeeded =
+            DSMath.max(assetBalance, amount).sub(assetBalance);
         uint256 amountToUnwrap =
-            IWSTETH(collateralToken).getWstETHByStETH(
-                DSMath.max(assetBalance, amount).sub(assetBalance)
-            );
+            IWSTETH(collateralToken).getWstETHByStETH(stethNeeded);
 
         if (amountToUnwrap > 0) {
             IWSTETH wsteth = IWSTETH(collateralToken);
+            IERC20 steth = IERC20(wsteth.stETH());
+
+            uint256 startStethBalance = steth.balanceOf(address(this));
+
             // Unwrap to stETH
             wsteth.unwrap(amountToUnwrap);
 
-            // minETHOutFromSwap
-            uint256 minETHOutFromSwap =
-                amountToUnwrap.mul(swapRatio).div(10**18);
+            // Post-unwrap, the stETH balance will not completely match the stethNeeded
+            // due to precision issues.
+            // We just send the entire stETH balance for the swap
+            uint256 stETHAmount =
+                steth.balanceOf(address(this)).sub(startStethBalance);
+
+            uint256 minETHOutFromSwap = stETHAmount.mul(swapRatio).div(10**18);
 
             // approve steth exchange
-            IERC20(wsteth.stETH()).safeApprove(crvPool, amountToUnwrap);
+            steth.safeApprove(crvPool, stETHAmount);
+
+            uint256 swappedAmount =
+                ICRV(crvPool).exchange(1, 0, stETHAmount, minETHOutFromSwap);
 
             // CRV SWAP HERE from steth -> eth
             // 0 = ETH, 1 = STETH
-            amountETHOut = amountETHOut.add(
-                ICRV(crvPool).exchange(1, 0, amountToUnwrap, minETHOutFromSwap)
-            );
+            amountETHOut = amountETHOut.add(swappedAmount);
         }
 
         // This revert does not account for the ETH that is already unwrapped
@@ -398,7 +407,7 @@ library VaultLifecycleSTETH {
         // it reverts in the worst case where the user needs to unwrap and sell
         // 100% of their ETH withdrawal amount
         require(
-            amountETHOut > minETHOut,
+            amountETHOut >= minETHOut,
             "Output ETH amount smaller than minETHOut"
         );
 
