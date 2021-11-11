@@ -141,7 +141,7 @@ contract RibbonVault is
 
     event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
 
-    event CapSet(uint256 oldCap, uint256 newCap, address manager);
+    event CapSet(uint256 oldCap, uint256 newCap);
 
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
@@ -275,10 +275,14 @@ contract RibbonVault is
             newManagementFee < 100 * Vault.FEE_MULTIPLIER,
             "Invalid management fee"
         );
+
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.mul(Vault.FEE_MULTIPLIER).div(
-            WEEKS_PER_YEAR
-        );
+        uint256 tmpManagementFee =
+            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
+
+        emit ManagementFeeSet(managementFee, newManagementFee);
+
+        managementFee = tmpManagementFee;
     }
 
     /**
@@ -301,6 +305,7 @@ contract RibbonVault is
     function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
         ShareMath.assertUint104(newCap);
+        emit CapSet(vaultParams.cap, newCap);
         vaultParams.cap = uint104(newCap);
     }
 
