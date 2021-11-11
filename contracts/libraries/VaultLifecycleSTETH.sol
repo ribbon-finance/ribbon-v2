@@ -393,11 +393,11 @@ library VaultLifecycleSTETH {
             // approve steth exchange
             steth.safeApprove(crvPool, stETHAmount);
 
+            // CRV SWAP HERE from steth -> eth
+            // 0 = ETH, 1 = STETH
             uint256 swappedAmount =
                 ICRV(crvPool).exchange(1, 0, stETHAmount, minETHOutFromSwap);
 
-            // CRV SWAP HERE from steth -> eth
-            // 0 = ETH, 1 = STETH
             amountETHOut = amountETHOut.add(swappedAmount);
         }
 
