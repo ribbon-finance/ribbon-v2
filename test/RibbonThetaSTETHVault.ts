@@ -1146,7 +1146,11 @@ function behavesLikeRibbonOptionsVault(params: {
             : depositAmount.mul(3)
         );
 
-        depositAmountInAsset = depositAmount.sub(1);
+        depositAmountInAsset = BigNumber.from(
+          (await collateralContract.getStETHByWstETH(depositAmount))
+            .sub(1)
+            .toString()
+        );
       });
 
       it("creates a pending deposit", async function () {
@@ -1696,6 +1700,29 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmountInAsset, keeper);
 
+        let bidMultiplier = 1;
+
+        const auctionDetails = await bidForOToken(
+          gnosisAuction,
+          assetContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(auctionDetails[0]);
+
+        // only the premium should be left over because the funds are locked into Opyn
+        assert.isAbove(
+          parseInt((await assetContract.balanceOf(vault.address)).toString()),
+          (parseInt(auctionDetails[2].toString()) * 99) / 100
+        );
+
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
           : firstOptionStrike.add(1);
@@ -1733,7 +1760,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const startBalance = await vault.totalBalance();
+        const currBalance = await vault.totalBalance();
+
+        let pendingAmount = (await vault.vaultState()).totalPending;
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
 
         let startMarginBalance = await collateralContract.balanceOf(
           MARGIN_POOL[chainId]
@@ -1743,11 +1774,26 @@ function behavesLikeRibbonOptionsVault(params: {
           MARGIN_POOL[chainId]
         );
 
+        let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        // Performance fee is included because still net positive on week
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
+
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
         assert.equal(
           (await vault.vaultState()).lockedAmount.toString(),
-          startBalance.toString()
+          currBalance.sub(vaultFees).toString()
         );
 
         await expect(secondTx)
@@ -2009,8 +2055,6 @@ function behavesLikeRibbonOptionsVault(params: {
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
           await lockedBalanceForRollover(vault);
 
-        const secondStartBalance = await vault.totalBalance();
-
         await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
@@ -2027,9 +2071,11 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
         );
 
-        assert.bnEqual(
-          secondStartBalance.sub(await vault.totalBalance()).sub(1), // off by 1
-          vaultFees
+        assert.equal(
+          secondInitialLockedBalance
+            .sub((await vault.vaultState()).lockedAmount)
+            .toString(),
+          vaultFees.toString()
         );
 
         assert.bnLt(
@@ -2855,7 +2901,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("10"));
         await expect(tx)
           .to.emit(vault, "CapSet")
-          .withArgs(parseEther("500"), parseEther("10"));
+          .withArgs(parseEther("5000"), parseEther("10"));
       });
 
       it("should revert when depositing over the cap", async function () {

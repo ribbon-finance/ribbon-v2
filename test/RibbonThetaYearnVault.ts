@@ -2393,45 +2393,47 @@ function behavesLikeRibbonOptionsVault(params: {
         // Time increase to after next option available
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        // let pendingAmount = (await vault.vaultState()).totalPending;
+        let pendingAmount = (await vault.vaultState()).totalPending;
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
 
-        // TO DO: Actually fix the test cases
-        // let [secondInitialLockedBalance, queuedWithdrawAmount] =
-        //   await lockedBalanceForRollover(vault);
-        // const startBalance = await vault.totalBalance();
+        await vault.connect(keeperSigner).rollToNextOption();
 
-        // await vault.connect(keeperSigner).rollToNextOption();
+        let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
 
-        // let vaultFees = secondInitialLockedBalance
-        //   .add(queuedWithdrawAmount)
-        //   .sub(pendingAmount)
-        //   .mul(await vault.managementFee())
-        //   .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-        // vaultFees = vaultFees.add(
-        //   secondInitialLockedBalance
-        //     .add(queuedWithdrawAmount)
-        //     .sub((await vault.vaultState()).lastLockedAmount)
-        //     .sub(pendingAmount)
-        //     .mul(await vault.performanceFee())
-        //     .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-        // );
+        assert.equal(
+          secondInitialLockedBalance
+            .sub((await vault.vaultState()).lockedAmount)
+            .toString(),
+          vaultFees.toString()
+        );
 
-        // assert.bnEqual(startBalance.sub(await vault.totalBalance()), vaultFees);
-
-        // assert.bnLt(
-        //   (await vault.vaultState()).lockedAmount,
-        //   depositAmount.add(auctionDetails[2]).sub(vaultFees).toString()
-        // );
-        // assert.bnGt(
-        //   (await vault.vaultState()).lockedAmount,
-        //   depositAmount
-        //     .add(auctionDetails[2])
-        //     .sub(vaultFees)
-        //     .mul(99)
-        //     .div(100)
-        //     .sub(queuedWithdrawAmount)
-        //     .toString()
-        // );
+        assert.bnLt(
+          (await vault.vaultState()).lockedAmount,
+          depositAmount.add(auctionDetails[2]).sub(vaultFees).toString()
+        );
+        assert.bnGt(
+          (await vault.vaultState()).lockedAmount,
+          depositAmount
+            .add(auctionDetails[2])
+            .sub(vaultFees)
+            .mul(99)
+            .div(100)
+            .sub(queuedWithdrawAmount)
+            .toString()
+        );
       });
 
       it("is not able to roll to new option consecutively without setNextOption", async function () {
@@ -3268,7 +3270,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("10"));
         await expect(tx)
           .to.emit(vault, "CapSet")
-          .withArgs(parseEther("500"), parseEther("10"));
+          .withArgs(parseEther("5000"), parseEther("10"));
       });
 
       it("should revert when depositing over the cap", async function () {
