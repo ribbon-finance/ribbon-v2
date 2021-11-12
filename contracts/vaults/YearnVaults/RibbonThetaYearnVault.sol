@@ -336,7 +336,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      */
     function _closeShort(address oldOption) private {
         uint256 lockedAmount = vaultState.lockedAmount;
-        if (optionState.currentOption != address(0)) {
+        if (oldOption != address(0)) {
             vaultState.lastLockedAmount = uint104(lockedAmount);
         }
         vaultState.lockedAmount = 0;
