@@ -2901,7 +2901,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("10"));
         await expect(tx)
           .to.emit(vault, "CapSet")
-          .withArgs(parseEther("5000"), parseEther("10"));
+          .withArgs(parseEther("500"), parseEther("10"));
       });
 
       it("should revert when depositing over the cap", async function () {
