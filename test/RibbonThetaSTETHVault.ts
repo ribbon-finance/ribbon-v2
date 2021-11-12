@@ -1310,6 +1310,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const optionState = await vault.optionState();
         const vaultState = await vault.vaultState();
 
+        assert.equal(optionState.currentOption, constants.AddressZero);
         assert.equal(optionState.nextOption, defaultOtokenAddress);
         assert.equal(
           optionState.nextOptionReadyAt,
@@ -2858,8 +2859,11 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("should set the new cap", async function () {
-        await vault.connect(ownerSigner).setCap(parseEther("10"));
+        const tx = await vault.connect(ownerSigner).setCap(parseEther("10"));
         assert.equal((await vault.cap()).toString(), parseEther("10"));
+        await expect(tx)
+          .to.emit(vault, "CapSet")
+          .withArgs(parseEther("500"), parseEther("10"));
       });
 
       it("should revert when depositing over the cap", async function () {
