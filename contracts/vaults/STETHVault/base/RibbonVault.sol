@@ -17,7 +17,6 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {IWSTETH} from "../../../interfaces/ISTETH.sol";
-import {IWETH} from "../../../interfaces/IWETH.sol";
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../../libraries/VaultLifecycleSTETH.sol";
