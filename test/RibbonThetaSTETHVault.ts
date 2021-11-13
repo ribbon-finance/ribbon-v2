@@ -3021,6 +3021,35 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#totalBalance", () => {
+      beforeEach(async function () {
+        const addressToDeposit = [userSigner, ownerSigner, adminSigner];
+
+        await setupYieldToken(
+          addressToDeposit,
+          intermediaryAsset,
+          vault,
+          params.depositAsset == WETH_ADDRESS
+            ? parseEther("7")
+            : depositAmount.mul(3)
+        );
+      });
+
+      it("should return correct balance", async () => {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+
+        await vault.depositETH({ value: depositAmount });
+
+        assert.bnEqual(await vault.totalBalance(), depositAmount);
+
+        await vault.depositYieldToken(depositAmount);
+
+        assert.bnEqual(await vault.totalBalance(), depositAmount.mul(2).sub(1));
+      });
+    });
+
     describe("#decimals", () => {
       it("should return 18 for decimals", async function () {
         assert.equal(
