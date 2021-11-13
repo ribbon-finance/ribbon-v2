@@ -248,7 +248,7 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
+     * @notice Withdraws stETH + WETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param weth is the WETH address
      * @param recipient is the recipient
