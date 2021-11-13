@@ -331,11 +331,8 @@ contract RibbonVault is
     function depositYieldToken(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _depositFor(
-            amount,
-            msg.sender,
-            false
-        );
+        // stETH transfers suffer from an off-by-1 error
+        _depositFor(amount.sub(1), msg.sender, false);
 
         IERC20(collateralToken.stETH()).safeTransferFrom(
             msg.sender,
@@ -747,18 +744,21 @@ contract RibbonVault is
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        uint256 ethBalance =
-            IWETH(WETH).balanceOf(address(this)).add(address(this).balance);
+        uint256 ethBalance = address(this).balance;
 
-        uint256 wstethToeth =
+        uint256 stethFromWsteth =
             collateralToken.getStETHByWstETH(
-                collateralToken.balanceOf(address(this)).add(
-                    IERC20(collateralToken.stETH()).balanceOf(address(this))
-                )
+                collateralToken.balanceOf(address(this))
             );
 
+        uint256 stEthBalance =
+            IERC20(collateralToken.stETH()).balanceOf(address(this));
+
         return
-            uint256(vaultState.lockedAmount).add(ethBalance).add(wstethToeth);
+            uint256(vaultState.lockedAmount)
+                .add(ethBalance)
+                .add(stethFromWsteth)
+                .add(stEthBalance);
     }
 
     /**
