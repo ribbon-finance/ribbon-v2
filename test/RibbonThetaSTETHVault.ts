@@ -1137,11 +1137,7 @@ function behavesLikeRibbonOptionsVault(params: {
             : depositAmount.mul(3)
         );
 
-        depositAmountInAsset = BigNumber.from(
-          (await collateralContract.getStETHByWstETH(depositAmount))
-            .sub(1)
-            .toString()
-        );
+        depositAmountInAsset = depositAmount;
       });
 
       it("creates a pending deposit", async function () {

@@ -332,8 +332,7 @@ contract RibbonVault is
         require(amount > 0, "!amount");
 
         _depositFor(
-            // off by one
-            collateralToken.getStETHByWstETH(amount).sub(1),
+            amount,
             msg.sender,
             false
         );
