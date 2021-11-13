@@ -196,13 +196,13 @@ library VaultLifecycleSTETH {
         uint256 mintAmount;
 
         mintAmount = depositAmount;
-        uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
-
-        if (mintAmount > scaleBy && collateralDecimals > 8) {
-            mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+        if (collateralDecimals > 8) {
+            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
+            if (mintAmount > scaleBy) {
+                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
+            }
         }
 
-        // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
         collateralToken.safeApprove(marginPool, depositAmount);
 
@@ -235,7 +235,7 @@ library VaultLifecycleSTETH {
             IController.ActionType.MintShortOption,
             address(this), // owner
             address(this), // address to transfer to
-            oTokenAddress, // deposited asset
+            oTokenAddress, // option address
             newVaultID, // vaultId
             mintAmount, // amount
             0, //index

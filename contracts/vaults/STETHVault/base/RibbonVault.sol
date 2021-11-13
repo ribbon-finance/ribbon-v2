@@ -135,7 +135,7 @@ contract RibbonVault is
 
     event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
     event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
-    event CapSet(uint256 oldCap, uint256 newCap, address manager);
+    event CapSet(uint256 oldCap, uint256 newCap);
 
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
@@ -154,7 +154,7 @@ contract RibbonVault is
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _wsteth is the LDO contract
+     * @param _wsteth is the wstETH contract
      * @param _ldo is the LDO contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -279,9 +279,12 @@ contract RibbonVault is
         );
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee = newManagementFee.mul(Vault.FEE_MULTIPLIER).div(
-            WEEKS_PER_YEAR
-        );
+        uint256 tmpManagementFee =
+            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
+
+        emit ManagementFeeSet(managementFee, newManagementFee);
+
+        managementFee = tmpManagementFee;
     }
 
     /**
@@ -304,6 +307,7 @@ contract RibbonVault is
     function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
         ShareMath.assertUint104(newCap);
+        emit CapSet(vaultParams.cap, newCap);
         vaultParams.cap = uint104(newCap);
     }
 
@@ -543,9 +547,9 @@ contract RibbonVault is
         // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
         // we debit from the unredeemedShares, but leave the amount field intact
         // If the round has past, with no new deposits, we just zero it out for new deposits.
-        depositReceipts[msg.sender].amount = depositReceipt.round < currentRound
-            ? 0
-            : depositReceipt.amount;
+        if (depositReceipt.round < currentRound) {
+            depositReceipts[msg.sender].amount = 0;
+        }
 
         ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
@@ -573,7 +577,6 @@ contract RibbonVault is
         uint256 _round = vaultState.round;
         for (uint256 i = 0; i < numRounds; i++) {
             uint256 index = _round + i;
-            require(index >= _round, "Overflow");
             require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
             roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
         }

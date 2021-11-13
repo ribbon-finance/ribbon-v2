@@ -334,11 +334,13 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
-        optionState.currentOption = address(0);
-
         uint256 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = uint104(lockedAmount);
+        if (oldOption != address(0)) {
+            vaultState.lastLockedAmount = uint104(lockedAmount);
+        }
         vaultState.lockedAmount = 0;
+
+        optionState.currentOption = address(0);
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
@@ -402,14 +404,14 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
-        uint256 unlockedAssedAmount =
+        uint256 unlockedAssetAmount =
             VaultLifecycle.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
 
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssedAmount)
+            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
         );
 
         // Wrap entire `asset` balance to `collateralToken` balance
