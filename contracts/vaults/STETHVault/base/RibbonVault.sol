@@ -594,7 +594,7 @@ contract RibbonVault is
         require(newOption != address(0), "!nextOption");
 
         (
-            uint256 lockedBalance,
+            uint256 newLockedBalanceInETH,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares,
@@ -745,19 +745,23 @@ contract RibbonVault is
     function totalBalance() public view returns (uint256) {
         uint256 ethBalance = address(this).balance;
 
+        // To save multiple calls of getStETHByWstETH
+        // We simply get the ratio
+        uint256 stEthPerToken = collateralToken.stEthPerToken();
+
         uint256 stethFromWsteth =
-            collateralToken.getStETHByWstETH(
-                collateralToken.balanceOf(address(this))
+            collateralToken.balanceOf(address(this)).mul(stEthPerToken).div(
+                10**18
             );
+
+        uint256 stEthLocked =
+            uint256(vaultState.lockedAmount).mul(stEthPerToken).div(10**18);
 
         uint256 stEthBalance =
             IERC20(collateralToken.stETH()).balanceOf(address(this));
 
         return
-            uint256(vaultState.lockedAmount)
-                .add(ethBalance)
-                .add(stethFromWsteth)
-                .add(stEthBalance);
+            stEthLocked.add(ethBalance).add(stethFromWsteth).add(stEthBalance);
     }
 
     /**
