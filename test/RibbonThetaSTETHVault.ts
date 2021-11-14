@@ -1137,7 +1137,7 @@ function behavesLikeRibbonOptionsVault(params: {
             : depositAmount.mul(3)
         );
 
-        depositAmountInAsset = depositAmount;
+        depositAmountInAsset = depositAmount.sub(1);
       });
 
       it("creates a pending deposit", async function () {

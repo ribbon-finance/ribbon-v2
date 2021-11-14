@@ -594,7 +594,7 @@ contract RibbonVault is
         require(newOption != address(0), "!nextOption");
 
         (
-            uint256 lockedBalance,
+            uint256 newLockedBalanceInETH,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares
@@ -626,10 +626,13 @@ contract RibbonVault is
             _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
         );
 
+        uint256 lockedBalanceWsteth =
+            collateralToken.getWstETHByStETH(newLockedBalanceInETH);
+
         vaultState.totalPending = 0;
         vaultState.round = uint16(currentRound + 1);
         ShareMath.assertUint104(lockedBalance);
-        vaultState.lockedAmount = uint104(lockedBalance);
+        vaultState.lockedAmount = uint104(lockedBalanceWsteth);
 
         _mint(address(this), mintShares);
 
@@ -637,9 +640,9 @@ contract RibbonVault is
     }
 
     /*
-     * @notice Helper function that transfers management fees and performance fees from previous round.
+     * @notice Helper function that transfers management fees and performance fees in wstETH from previous round.
      * @param pastWeekBalance is the balance we are about to lock for next round
-     * @return vaultFee is the fee deducted
+     * @return vaultFee is the fee deducted in wstETH
      */
     function _collectVaultFees(uint256 pastWeekBalance)
         internal
@@ -762,19 +765,23 @@ contract RibbonVault is
     function totalBalance() public view returns (uint256) {
         uint256 ethBalance = address(this).balance;
 
+        // To save multiple calls of getStETHByWstETH
+        // We simply get the ratio
+        uint256 stEthPerToken = collateralToken.stEthPerToken();
+
         uint256 stethFromWsteth =
-            collateralToken.getStETHByWstETH(
-                collateralToken.balanceOf(address(this))
+            collateralToken.balanceOf(address(this)).mul(stEthPerToken).div(
+                10**18
             );
+
+        uint256 stEthLocked =
+            uint256(vaultState.lockedAmount).mul(stEthPerToken).div(10**18);
 
         uint256 stEthBalance =
             IERC20(collateralToken.stETH()).balanceOf(address(this));
 
         return
-            uint256(vaultState.lockedAmount)
-                .add(ethBalance)
-                .add(stethFromWsteth)
-                .add(stEthBalance);
+            stEthLocked.add(ethBalance).add(stethFromWsteth).add(stEthBalance);
     }
 
     /**
