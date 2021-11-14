@@ -586,14 +586,18 @@ contract RibbonVault is
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
-            uint256 mintShares
+            uint256 mintShares,
+            uint256 performanceFeeInAsset,
+            uint256 totalVaultFee
         ) =
             VaultLifecycle.rollover(
+                vaultState,
                 totalSupply(),
                 vaultParams.asset,
                 vaultParams.decimals,
-                uint256(vaultState.totalPending),
-                vaultState.queuedWithdrawShares
+                lastQueuedWithdrawAmount,
+                performanceFee,
+                managementFee
             );
 
         optionState.currentOption = newOption;
@@ -603,14 +607,13 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
-        uint256 withdrawAmountDiff =
-            queuedWithdrawAmount > lastQueuedWithdrawAmount
-                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
-                : 0;
+        address recipient = feeRecipient;
 
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
+        emit CollectVaultFees(
+            performanceFeeInAsset,
+            totalVaultFee,
+            currentRound,
+            recipient
         );
 
         vaultState.totalPending = 0;
@@ -618,37 +621,9 @@ contract RibbonVault is
 
         _mint(address(this), mintShares);
 
+        transferAsset(payable(recipient), totalVaultFee);
+
         return (newOption, lockedBalance, queuedWithdrawAmount);
-    }
-
-    /*
-     * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param pastWeekBalance is the balance we are about to lock for next round
-     * @return vaultFee is the fee deducted
-     */
-    function _collectVaultFees(uint256 pastWeekBalance)
-        internal
-        returns (uint256)
-    {
-        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
-            VaultLifecycle.getVaultFees(
-                vaultState,
-                pastWeekBalance,
-                performanceFee,
-                managementFee
-            );
-
-        if (vaultFee > 0) {
-            transferAsset(payable(feeRecipient), vaultFee);
-            emit CollectVaultFees(
-                performanceFeeInAsset,
-                vaultFee,
-                vaultState.round,
-                feeRecipient
-            );
-        }
-
-        return vaultFee;
     }
 
     /**
