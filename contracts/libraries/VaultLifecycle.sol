@@ -144,21 +144,28 @@ library VaultLifecycle {
     /**
      * @notice Calculate the shares to mint, new price per share, and
       amount of funds to re-allocate as collateral for the new round
-     * @param currentShareSupply is the total supply of shares
+     * @param vaultState is the storage variable vaultState passed from RibbonVault
+     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
      * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
-     * @param pendingAmount is the amount of funds pending from recent deposits
+     * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
+     * @param performanceFee is the perf fee percent to charge on premiums
+     * @param managementFee is the management fee percent to charge on the AUM
      * @return newLockedAmount is the amount of funds to allocate for the new round
      * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
+     * @return performanceFeeInAsset is the performance fee charged by vault
+     * @return totalVaultFee is the total amount of fee charged by vault
      */
     function rollover(
+        Vault.VaultState storage vaultState,
         uint256 currentShareSupply,
         address asset,
         uint256 decimals,
-        uint256 pendingAmount,
-        uint256 queuedWithdrawShares
+        uint256 lastQueuedWithdrawAmount,
+        uint256 performanceFee,
+        uint256 managementFee
     )
         external
         view
@@ -166,10 +173,51 @@ library VaultLifecycle {
             uint256 newLockedAmount,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
-            uint256 mintShares
+            uint256 mintShares,
+            uint256 performanceFeeInAsset,
+            uint256 totalVaultFee
         )
     {
         uint256 currentBalance = IERC20(asset).balanceOf(address(this));
+        uint256 pendingAmount = vaultState.totalPending;
+        uint256 lockedAmount = vaultState.lockedAmount;
+        uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
+        uint256 lastQueuedAmount = lastQueuedWithdrawAmount;
+
+        uint256 pricePerShareBeforeFee =
+            ShareMath.pricePerShare(
+                currentShareSupply,
+                currentBalance,
+                pendingAmount,
+                decimals
+            );
+
+        uint256 queuedWithdrawBeforeFee =
+            ShareMath.sharesToAsset(
+                queuedWithdrawShares,
+                pricePerShareBeforeFee,
+                decimals
+            );
+
+        // Deduct the difference between the newly scheduled withdrawals
+        // and the older withdrawals
+        // so we can charge them fees before they leave
+        uint256 withdrawAmountDiff =
+            queuedWithdrawBeforeFee > lastQueuedAmount
+                ? queuedWithdrawBeforeFee.sub(lastQueuedAmount)
+                : 0;
+
+        (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle.getVaultFees(
+            lockedAmount.add(withdrawAmountDiff),
+            vaultState.lastLockedAmount,
+            vaultState.totalPending,
+            performanceFee,
+            managementFee
+        );
+
+        // Take into account the fee
+        // so we can calculate the newPricePerShare
+        currentBalance = currentBalance.sub(totalVaultFee);
 
         newPricePerShare = ShareMath.pricePerShare(
             currentShareSupply,
@@ -199,7 +247,9 @@ library VaultLifecycle {
             currentBalance.sub(queuedWithdraw),
             queuedWithdraw,
             newPricePerShare,
-            _mintShares
+            _mintShares,
+            performanceFeeInAsset,
+            totalVaultFee
         );
     }
 
@@ -476,8 +526,9 @@ library VaultLifecycle {
 
     /**
      * @notice Calculates the performance and management fee for this week's round
-     * @param vaultState is the struct with vault accounting state
-     * @param currentLockedBalance is the amount of funds currently locked in opyn
+     * @param currentLockedAmount is the amount of funds currently locked in opyn
+     * @param lastLockedAmount is the amount of funds locked from the previous round
+     * @param pendingAmount is the pending deposit amount
      * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
      * @return performanceFeeInAsset is the performance fee
@@ -485,8 +536,9 @@ library VaultLifecycle {
      * @return vaultFee is the total fees
      */
     function getVaultFees(
-        Vault.VaultState storage vaultState,
-        uint256 currentLockedBalance,
+        uint256 currentLockedAmount,
+        uint256 lastLockedAmount,
+        uint256 pendingAmount,
         uint256 performanceFeePercent,
         uint256 managementFeePercent
     )
@@ -498,10 +550,8 @@ library VaultLifecycle {
             uint256 vaultFee
         )
     {
-        uint256 prevLockedAmount = vaultState.lastLockedAmount;
-
         uint256 lockedBalanceSansPending =
-            currentLockedBalance.sub(vaultState.totalPending);
+            currentLockedAmount.sub(pendingAmount);
 
         uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
@@ -512,10 +562,10 @@ library VaultLifecycle {
         // deposits and withdrawals, is positive. If it is negative, last week's
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
-        if (lockedBalanceSansPending > prevLockedAmount) {
+        if (lockedBalanceSansPending > lastLockedAmount) {
             _performanceFeeInAsset = performanceFeePercent > 0
                 ? lockedBalanceSansPending
-                    .sub(prevLockedAmount)
+                    .sub(lastLockedAmount)
                     .mul(performanceFeePercent)
                     .div(100 * Vault.FEE_MULTIPLIER)
                 : 0;
