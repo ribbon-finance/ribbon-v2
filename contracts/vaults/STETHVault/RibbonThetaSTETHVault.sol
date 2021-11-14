@@ -411,7 +411,9 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             );
 
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            uint256(vaultState.lockedAmount).sub(
+                collateralToken.getStETHByWstETH(unlockedAssetAmount)
+            )
         );
 
         // Wrap entire `asset` balance to `collateralToken` balance
