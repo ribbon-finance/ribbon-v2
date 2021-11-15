@@ -193,11 +193,13 @@ library VaultLifecycle {
             );
 
         uint256 queuedWithdrawBeforeFee =
-            ShareMath.sharesToAsset(
-                queuedWithdrawShares,
-                pricePerShareBeforeFee,
-                decimals
-            );
+            currentShareSupply > 0
+                ? ShareMath.sharesToAsset(
+                    queuedWithdrawShares,
+                    pricePerShareBeforeFee,
+                    decimals
+                )
+                : 0;
 
         // Deduct the difference between the newly scheduled withdrawals
         // and the older withdrawals
