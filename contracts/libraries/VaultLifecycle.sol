@@ -544,7 +544,7 @@ library VaultLifecycle {
         uint256 performanceFeePercent,
         uint256 managementFeePercent
     )
-        external
+        internal
         view
         returns (
             uint256 performanceFeeInAsset,

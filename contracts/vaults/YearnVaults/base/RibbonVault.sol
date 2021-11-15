@@ -615,13 +615,18 @@ contract RibbonVault is
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
-            uint256 mintShares
+            uint256 mintShares,
+            uint256 performanceFeeInAsset,
+            uint256 totalVaultFee
         ) =
-            VaultLifecycleYearn.rollover(
+            VaultLifecycle.rollover(
+                vaultState,
                 totalSupply(),
-                totalBalance(),
-                vaultParams,
-                vaultState
+                vaultParams.asset,
+                vaultParams.decimals,
+                lastQueuedWithdrawAmount,
+                performanceFee,
+                managementFee
             );
 
         optionState.currentOption = newOption;
@@ -631,14 +636,13 @@ contract RibbonVault is
         uint256 currentRound = vaultState.round;
         roundPricePerShare[currentRound] = newPricePerShare;
 
-        uint256 withdrawAmountDiff =
-            queuedWithdrawAmount > lastQueuedWithdrawAmount
-                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
-                : 0;
+        address recipient = feeRecipient;
 
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
+        emit CollectVaultFees(
+            performanceFeeInAsset,
+            totalVaultFee,
+            currentRound,
+            recipient
         );
 
         vaultState.totalPending = 0;
@@ -648,49 +652,19 @@ contract RibbonVault is
 
         _mint(address(this), mintShares);
 
+        address collateral = address(collateralToken);
+
         // Wrap entire `asset` balance to `collateralToken` balance
         VaultLifecycleYearn.wrapToYieldToken(
             vaultParams.asset,
-            address(collateralToken)
+            collateral
         );
 
-        return (newOption, queuedWithdrawAmount);
-    }
-
-    /*
-     * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param pastWeekBalance is the balance we are about to lock for next round
-     * @return vaultFee is the fee deducted
-     */
-    function _collectVaultFees(uint256 pastWeekBalance)
-        internal
-        returns (uint256)
-    {
-        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
-            VaultLifecycle.getVaultFees(
-                vaultState,
-                pastWeekBalance,
-                performanceFee,
-                managementFee
-            );
-
-        if (vaultFee > 0) {
-            VaultLifecycleYearn.withdrawYieldAndBaseToken(
-                WETH,
-                vaultParams.asset,
-                address(collateralToken),
-                feeRecipient,
-                vaultFee
-            );
-            emit CollectVaultFees(
-                performanceFeeInAsset,
-                vaultFee,
-                vaultState.round,
-                feeRecipient
-            );
+        if (totalVaultFee > 0) {
+            VaultLifecycleYearn.transferAsset(WETH, collateral, payable(recipient), totalVaultFee);
         }
 
-        return vaultFee;
+        return (newOption, queuedWithdrawAmount);
     }
 
     /*
