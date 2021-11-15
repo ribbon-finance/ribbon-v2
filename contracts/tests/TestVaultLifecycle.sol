@@ -27,14 +27,7 @@ contract TestVaultLifecycle {
         vaultState.queuedWithdrawShares = newVaultState.queuedWithdrawShares;
     }
 
-    function rollover(
-        uint256 currentSupply,
-        address asset,
-        uint8 decimals,
-        uint256 lastQueuedWithdrawAmount,
-        uint256 performanceFee,
-        uint256 managementFee
-    )
+    function rollover(VaultLifecycle.RolloverParams calldata params)
         external
         view
         returns (
@@ -46,15 +39,6 @@ contract TestVaultLifecycle {
             uint256 totalVaultFee
         )
     {
-        return
-            VaultLifecycle.rollover(
-                vaultState,
-                currentSupply,
-                asset,
-                decimals,
-                lastQueuedWithdrawAmount,
-                performanceFee,
-                managementFee
-            );
+        return VaultLifecycle.rollover(vaultState, params);
     }
 }
