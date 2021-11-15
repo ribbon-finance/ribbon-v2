@@ -490,18 +490,30 @@ contract RibbonVault is
 
         IERC20 steth = IERC20(collateralToken.stETH());
         uint256 startStethBalance = steth.balanceOf(address(this));
+        bool enoughSTETH = true;
 
         if (withdrawYieldToken && withdrawAmount > startStethBalance) {
-            collateralToken.unwrap(
-                collateralToken.getStETHByWstETH(
-                    withdrawAmount.sub(startStethBalance)
+            if (
+                withdrawAmount >
+                startStethBalance.add(
+                    collateralToken.getStETHByWstETH(
+                        collateralToken.balanceOf(address(this))
+                    )
                 )
-            );
+            ) {
+                enoughSTETH = false;
+            } else {
+                collateralToken.unwrap(
+                    collateralToken.getWstETHByStETH(
+                        withdrawAmount.sub(startStethBalance)
+                    )
+                );
+            }
         }
 
         // Unwrap may incur curve pool slippage
         uint256 amountETHOut =
-            withdrawYieldToken
+            withdrawYieldToken && enoughSTETH
                 ? withdrawAmount
                 : VaultLifecycleSTETH.unwrapYieldToken(
                     withdrawAmount,
@@ -516,7 +528,7 @@ contract RibbonVault is
 
         require(amountETHOut > 0, "!amountETHOut");
 
-        if (withdrawYieldToken) {
+        if (withdrawYieldToken && enoughSTETH) {
             steth.transfer(msg.sender, amountETHOut);
         } else {
             VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
