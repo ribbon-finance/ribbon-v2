@@ -245,11 +245,13 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     * @param withdrawYieldToken is whether we want to directly withdraw the yield token
      */
-    function withdrawInstantly(uint256 amount, uint256 minETHOut)
-        external
-        nonReentrant
-    {
+    function withdrawInstantly(
+        uint256 amount,
+        uint256 minETHOut,
+        bool withdrawYieldToken
+    ) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -269,16 +271,31 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
+        IERC20 steth = IERC20(collateralToken.stETH());
+        uint256 startStethBalance = steth.balanceOf(address(this));
+
+        if (withdrawYieldToken && amount > startStethBalance) {
+            collateralToken.unwrap(
+                collateralToken.getStETHByWstETH(amount.sub(startStethBalance))
+            );
+        }
+
         // Unwrap may incur curve pool slippage
         uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
-                amount,
-                address(collateralToken),
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
+            withdrawYieldToken
+                ? amount
+                : VaultLifecycleSTETH.unwrapYieldToken(
+                    amount,
+                    address(collateralToken),
+                    STETH_ETH_CRV_POOL,
+                    minETHOut
+                );
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        if (withdrawYieldToken) {
+            steth.transfer(msg.sender, amountETHOut);
+        } else {
+            VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        }
     }
 
     /**
