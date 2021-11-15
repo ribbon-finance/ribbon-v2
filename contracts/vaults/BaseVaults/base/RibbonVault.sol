@@ -621,7 +621,9 @@ contract RibbonVault is
 
         _mint(address(this), mintShares);
 
-        transferAsset(payable(recipient), totalVaultFee);
+        if (totalVaultFee > 0) {
+            transferAsset(payable(recipient), totalVaultFee);
+        }
 
         return (newOption, lockedBalance, queuedWithdrawAmount);
     }
