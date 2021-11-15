@@ -142,27 +142,15 @@ library VaultLifecycle {
     }
 
     /**
+     * @notice Calculate the shares to mint, new price per share, and
+      amount of funds to re-allocate as collateral for the new round
+     * @param vaultState is the storage variable vaultState passed from RibbonVault
      * @param currentShareSupply is the supply of the shares invoked with totalSupply()
      * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
      * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
-     */
-    struct RolloverParams {
-        uint256 decimals;
-        uint256 totalBalance;
-        uint256 currentShareSupply;
-        uint256 lastQueuedWithdrawAmount;
-        uint256 performanceFee;
-        uint256 managementFee;
-    }
-
-    /**
-     * @notice Calculate the shares to mint, new price per share, and
-      amount of funds to re-allocate as collateral for the new round
-     * @param vaultState is the storage variable vaultState passed from RibbonVault
-     * @param params is the rollover parameters passed to compute the next state
      * @return newLockedAmount is the amount of funds to allocate for the new round
      * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
@@ -172,7 +160,12 @@ library VaultLifecycle {
      */
     function rollover(
         Vault.VaultState storage vaultState,
-        RolloverParams calldata params
+        uint256 currentShareSupply,
+        address asset,
+        uint256 decimals,
+        uint256 lastQueuedWithdrawAmount,
+        uint256 performanceFee,
+        uint256 managementFee
     )
         external
         view
@@ -185,86 +178,78 @@ library VaultLifecycle {
             uint256 totalVaultFee
         )
     {
-        uint256 currentBalance = params.totalBalance;
+        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
         uint256 pendingAmount = vaultState.totalPending;
+        uint256 lockedAmount = vaultState.lockedAmount;
         uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
+        uint256 lastQueuedAmount = lastQueuedWithdrawAmount;
 
-        uint256 withdrawAmountDiff;
-        {
-            uint256 pricePerShareBeforeFee =
-                ShareMath.pricePerShare(
-                    params.currentShareSupply,
-                    currentBalance,
-                    pendingAmount,
-                    params.decimals
-                );
-
-            uint256 queuedWithdrawBeforeFee =
-                params.currentShareSupply > 0
-                    ? ShareMath.sharesToAsset(
-                        queuedWithdrawShares,
-                        pricePerShareBeforeFee,
-                        params.decimals
-                    )
-                    : 0;
-
-            // Deduct the difference between the newly scheduled withdrawals
-            // and the older withdrawals
-            // so we can charge them fees before they leave
-            withdrawAmountDiff = queuedWithdrawBeforeFee >
-                params.lastQueuedWithdrawAmount
-                ? queuedWithdrawBeforeFee.sub(params.lastQueuedWithdrawAmount)
-                : 0;
-        }
-
-        {
-            (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
-                .getVaultFees(
+        uint256 pricePerShareBeforeFee =
+            ShareMath.pricePerShare(
+                currentShareSupply,
                 currentBalance,
-                vaultState.lastLockedAmount,
-                vaultState.totalPending,
-                params.performanceFee,
-                params.managementFee
+                pendingAmount,
+                decimals
             );
-        }
+
+        uint256 queuedWithdrawBeforeFee =
+            currentShareSupply > 0
+                ? ShareMath.sharesToAsset(
+                    queuedWithdrawShares,
+                    pricePerShareBeforeFee,
+                    decimals
+                )
+                : 0;
+
+        // Deduct the difference between the newly scheduled withdrawals
+        // and the older withdrawals
+        // so we can charge them fees before they leave
+        uint256 withdrawAmountDiff =
+            queuedWithdrawBeforeFee > lastQueuedAmount
+                ? queuedWithdrawBeforeFee.sub(lastQueuedAmount)
+                : 0;
+
+        (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle.getVaultFees(
+            lockedAmount.add(withdrawAmountDiff),
+            vaultState.lastLockedAmount,
+            vaultState.totalPending,
+            performanceFee,
+            managementFee
+        );
 
         // Take into account the fee
         // so we can calculate the newPricePerShare
         currentBalance = currentBalance.sub(totalVaultFee);
 
-        {
-            newPricePerShare = ShareMath.pricePerShare(
-                params.currentShareSupply,
-                currentBalance,
-                pendingAmount,
-                params.decimals
-            );
+        newPricePerShare = ShareMath.pricePerShare(
+            currentShareSupply,
+            currentBalance,
+            pendingAmount,
+            decimals
+        );
 
-            // After closing the short, if the options expire in-the-money
-            // vault pricePerShare would go down because vault's asset balance decreased.
-            // This ensures that the newly-minted shares do not take on the loss.
-            mintShares = ShareMath.assetToShares(
-                pendingAmount,
-                newPricePerShare,
-                params.decimals
-            );
+        // After closing the short, if the options expire in-the-money
+        // vault pricePerShare would go down because vault's asset balance decreased.
+        // This ensures that the newly-minted shares do not take on the loss.
+        uint256 _mintShares =
+            ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
-            uint256 newSupply = params.currentShareSupply.add(mintShares);
+        uint256 newSupply = currentShareSupply.add(_mintShares);
 
-            queuedWithdrawAmount = newSupply > 0
+        uint256 queuedWithdraw =
+            newSupply > 0
                 ? ShareMath.sharesToAsset(
                     queuedWithdrawShares,
                     newPricePerShare,
-                    params.decimals
+                    decimals
                 )
                 : 0;
-        }
 
         return (
-            currentBalance.sub(queuedWithdrawAmount), // new locked balance subtracts the queued withdrawals
-            queuedWithdrawAmount,
+            currentBalance.sub(queuedWithdraw),
+            queuedWithdraw,
             newPricePerShare,
-            mintShares,
+            _mintShares,
             performanceFeeInAsset,
             totalVaultFee
         );
@@ -543,7 +528,7 @@ library VaultLifecycle {
 
     /**
      * @notice Calculates the performance and management fee for this week's round
-     * @param currentBalance is the balance of funds held on the vault after closing short
+     * @param currentLockedAmount is the amount of funds currently locked in opyn
      * @param lastLockedAmount is the amount of funds locked from the previous round
      * @param pendingAmount is the pending deposit amount
      * @param performanceFeePercent is the performance fee pct.
@@ -553,26 +538,22 @@ library VaultLifecycle {
      * @return vaultFee is the total fees
      */
     function getVaultFees(
-        uint256 currentBalance,
+        uint256 currentLockedAmount,
         uint256 lastLockedAmount,
         uint256 pendingAmount,
         uint256 performanceFeePercent,
         uint256 managementFeePercent
     )
         internal
-        pure
+        view
         returns (
             uint256 performanceFeeInAsset,
             uint256 managementFeeInAsset,
             uint256 vaultFee
         )
     {
-        // At the first round, currentBalance=0, pendingAmount>0
-        // so we just do not charge anything on the first round
         uint256 lockedBalanceSansPending =
-            currentBalance > pendingAmount
-                ? currentBalance.sub(pendingAmount)
-                : 0;
+            currentLockedAmount.sub(pendingAmount);
 
         uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
