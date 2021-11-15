@@ -621,14 +621,12 @@ contract RibbonVault is
         ) =
             VaultLifecycle.rollover(
                 vaultState,
-                VaultLifecycle.RolloverParams(
-                    vaultParams.decimals,
-                    totalBalance(),
-                    totalSupply(),
-                    lastQueuedWithdrawAmount,
-                    performanceFee,
-                    managementFee
-                )
+                totalSupply(),
+                vaultParams.asset,
+                vaultParams.decimals,
+                lastQueuedWithdrawAmount,
+                performanceFee,
+                managementFee
             );
 
         optionState.currentOption = newOption;
@@ -657,16 +655,13 @@ contract RibbonVault is
         address collateral = address(collateralToken);
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
+        VaultLifecycleYearn.wrapToYieldToken(
+            vaultParams.asset,
+            collateral
+        );
 
         if (totalVaultFee > 0) {
-            VaultLifecycleYearn.withdrawYieldAndBaseToken(
-                WETH,
-                vaultParams.asset,
-                collateral,
-                recipient,
-                totalVaultFee
-            );
+            VaultLifecycleYearn.transferAsset(WETH, collateral, payable(recipient), totalVaultFee);
         }
 
         return (newOption, queuedWithdrawAmount);
