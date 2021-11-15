@@ -592,12 +592,14 @@ contract RibbonVault is
         ) =
             VaultLifecycle.rollover(
                 vaultState,
-                totalSupply(),
-                vaultParams.asset,
-                vaultParams.decimals,
-                lastQueuedWithdrawAmount,
-                performanceFee,
-                managementFee
+                VaultLifecycle.RolloverParams(
+                    vaultParams.asset,
+                    vaultParams.decimals,
+                    totalSupply(),
+                    lastQueuedWithdrawAmount,
+                    performanceFee,
+                    managementFee
+                )
             );
 
         optionState.currentOption = newOption;
