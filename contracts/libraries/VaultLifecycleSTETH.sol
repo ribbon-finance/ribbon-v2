@@ -371,8 +371,13 @@ library VaultLifecycleSTETH {
 
             uint256 startStethBalance = steth.balanceOf(address(this));
 
-            // Unwrap to stETH
-            wsteth.unwrap(amountToUnwrap);
+            if (stethNeeded > startStethBalance) {
+                amountToUnwrap = IWSTETH(collateralToken).getWstETHByStETH(
+                    stethNeeded.sub(startStethBalance)
+                );
+                // Unwrap to stETH
+                wsteth.unwrap(amountToUnwrap);
+            }
 
             // Post-unwrap, the stETH balance will not completely match the stethNeeded
             // due to precision issues.
