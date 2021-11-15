@@ -459,8 +459,12 @@ contract RibbonVault is
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     * @param withdrawYieldToken is whether we want to directly withdraw the yield token
      */
-    function completeWithdraw(uint256 minETHOut) external nonReentrant {
+    function completeWithdraw(uint256 minETHOut, bool withdrawYieldToken)
+        external
+        nonReentrant
+    {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -484,14 +488,27 @@ contract RibbonVault is
                 vaultParams.decimals
             );
 
+        IERC20 steth = IERC20(collateralToken.stETH());
+        uint256 startStethBalance = steth.balanceOf(address(this));
+
+        if (withdrawYieldToken && withdrawAmount > startStethBalance) {
+            collateralToken.unwrap(
+                collateralToken.getStETHByWstETH(
+                    withdrawAmount.sub(startStethBalance)
+                )
+            );
+        }
+
         // Unwrap may incur curve pool slippage
         uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
-                withdrawAmount,
-                address(collateralToken),
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
+            withdrawYieldToken
+                ? withdrawAmount
+                : VaultLifecycleSTETH.unwrapYieldToken(
+                    withdrawAmount,
+                    address(collateralToken),
+                    STETH_ETH_CRV_POOL,
+                    minETHOut
+                );
 
         emit Withdraw(msg.sender, amountETHOut, withdrawalShares);
 
@@ -499,7 +516,11 @@ contract RibbonVault is
 
         require(amountETHOut > 0, "!amountETHOut");
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        if (withdrawYieldToken) {
+            steth.transfer(msg.sender, amountETHOut);
+        } else {
+            VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        }
     }
 
     /**
