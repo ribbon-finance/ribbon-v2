@@ -220,7 +220,7 @@ library VaultLifecycle {
         {
             (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
                 .getVaultFees(
-                uint256(vaultState.lockedAmount).add(withdrawAmountDiff),
+                currentBalance,
                 vaultState.lastLockedAmount,
                 vaultState.totalPending,
                 params.performanceFee,
@@ -543,7 +543,7 @@ library VaultLifecycle {
 
     /**
      * @notice Calculates the performance and management fee for this week's round
-     * @param currentLockedAmount is the amount of funds currently locked in opyn
+     * @param currentBalance is the balance of funds held on the vault after closing short
      * @param lastLockedAmount is the amount of funds locked from the previous round
      * @param pendingAmount is the pending deposit amount
      * @param performanceFeePercent is the performance fee pct.
@@ -553,7 +553,7 @@ library VaultLifecycle {
      * @return vaultFee is the total fees
      */
     function getVaultFees(
-        uint256 currentLockedAmount,
+        uint256 currentBalance,
         uint256 lastLockedAmount,
         uint256 pendingAmount,
         uint256 performanceFeePercent,
@@ -567,11 +567,11 @@ library VaultLifecycle {
             uint256 vaultFee
         )
     {
-        // At the first round, currentLockedAmount=0, pendingAmount>0
+        // At the first round, currentBalance=0, pendingAmount>0
         // so we just do not charge anything on the first round
         uint256 lockedBalanceSansPending =
-            currentLockedAmount > pendingAmount
-                ? currentLockedAmount.sub(pendingAmount)
+            currentBalance > pendingAmount
+                ? currentBalance.sub(pendingAmount)
                 : 0;
 
         uint256 _performanceFeeInAsset;
