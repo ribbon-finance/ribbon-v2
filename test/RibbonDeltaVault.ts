@@ -1724,10 +1724,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const currBalance = await assetContract.balanceOf(vault.address);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-
-        let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(vault);
+        let [secondInitialLockedBalance] = await lockedBalanceForRollover(
+          vault
+        );
 
         // no fees due to loss
         let vaultFees = BigNumber.from(0);
@@ -1810,10 +1809,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-
-        let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(vault);
+        let [secondInitialLockedBalance] = await lockedBalanceForRollover(
+          vault
+        );
 
         await thetaVault.connect(keeperSigner).rollToNextOption();
 
