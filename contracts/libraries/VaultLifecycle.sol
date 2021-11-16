@@ -567,8 +567,12 @@ library VaultLifecycle {
             uint256 vaultFee
         )
     {
+        // At the first round, currentLockedAmount=0, pendingAmount>0
+        // so we just do not charge anything on the first round
         uint256 lockedBalanceSansPending =
-            currentLockedAmount.sub(pendingAmount);
+            currentLockedAmount > pendingAmount
+                ? currentLockedAmount.sub(pendingAmount)
+                : 0;
 
         uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
