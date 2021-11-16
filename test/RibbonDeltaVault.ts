@@ -1729,21 +1729,8 @@ function behavesLikeRibbonOptionsVault(params: {
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
           await lockedBalanceForRollover(vault);
 
-        // Management / Performance fee is included because net positive on week
-
-        let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
-          .sub(pendingAmount)
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-        vaultFees = vaultFees.add(
-          secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
-            .sub((await vault.vaultState()).lastLockedAmount)
-            .sub(pendingAmount)
-            .mul(await vault.performanceFee())
-            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-        );
+        // no fees due to loss
+        let vaultFees = BigNumber.from(0);
 
         let newBidAmount = secondInitialLockedBalance
           .sub(vaultFees)
@@ -1834,20 +1821,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
-        // Management / Performance fee is included because net positive on week
-        let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
-          .sub(pendingAmount)
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-        vaultFees = vaultFees.add(
-          secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
-            .sub((await vault.vaultState()).lastLockedAmount)
-            .sub(pendingAmount)
-            .mul(await vault.performanceFee())
-            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-        );
+        // No vault fees charged because ITM
+        const vaultFees = 0;
 
         assert.equal(
           secondInitialLockedBalance
@@ -1990,7 +1965,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .rollToNextOption(optionPremium.toString());
 
         // Vault fees are 0 because vault is negative on the week
-        let vaultFees = 0;
+        const vaultFees = 0;
 
         assert.equal(
           secondInitialLockedBalance
