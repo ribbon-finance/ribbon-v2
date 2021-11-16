@@ -2207,6 +2207,33 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!nextOption");
       });
 
+      it("does not debit the user on first deposit", async () => {
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        // totalBalance should remain the same before and after roll
+        const startBalance = await vault.totalBalance();
+
+        await vault.connect(keeperSigner).rollToNextOption();
+
+        assert.bnEqual(await vault.totalBalance(), startBalance);
+        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
+
+        // simulate a profit by transferring some tokens
+        await assetContract
+          .connect(userSigner)
+          .transfer(vault.address, BigNumber.from(1));
+
+        // totalBalance should remain the same before and after roll
+        const secondStartBalance = await vault.totalBalance();
+
+        await rollToSecondOption(firstOptionStrike);
+
+        // After the first round, the user is charged the fee
+        assert.bnLt(await vault.totalBalance(), secondStartBalance);
+        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
