@@ -2290,9 +2290,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
-        const expectedMintAmountAfterLoss = params.depositAmount
-          .mul(BigNumber.from(10).pow(params.tokenDecimals))
-          .div(afterPps);
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await thetaVault.connect(keeperSigner).rollToNextOption();
@@ -2321,7 +2318,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // User deposit in round 2 so no loss
         // we should use the pps after the loss which is the lower pps
-        // TODO: FIX THIS TEST CASE
+        // TO DO: FIX THIS TEST CASE
         // const tx2 = await vault.connect(userSigner).maxRedeem();
         // await expect(tx2)
         //   .to.emit(vault, "Redeem")
