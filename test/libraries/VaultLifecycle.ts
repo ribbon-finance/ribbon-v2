@@ -1,9 +1,8 @@
 import { ethers } from "hardhat";
-import { BigNumber, Contract } from "ethers";
+import { Contract } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
 import * as time from "../helpers/time";
-import { parseEther } from "ethers/lib/utils";
 
 moment.tz.setDefault("UTC");
 
