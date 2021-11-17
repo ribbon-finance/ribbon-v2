@@ -22,6 +22,7 @@ import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
+import "hardhat/console.sol";
 
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
@@ -609,8 +610,8 @@ contract RibbonVault is
             VaultLifecycle.rollover(
                 vaultState,
                 VaultLifecycle.RolloverParams(
-                    vaultParams.asset,
                     vaultParams.decimals,
+                    totalBalance(),
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,
@@ -621,34 +622,39 @@ contract RibbonVault is
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
 
-        // Finalize the pricePerShare at the end of the round
-        uint256 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
+        {
+            address vaultFeeRecipient = feeRecipient;
+            address collateral = address(collateralToken);
 
-        // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
+            // Finalize the pricePerShare at the end of the round
+            uint256 currentRound = vaultState.round;
+            roundPricePerShare[currentRound] = newPricePerShare;
 
-        address recipient = feeRecipient;
+            // Wrap entire `asset` balance to `collateralToken` balance
+            VaultLifecycleSTETH.wrapToYieldToken(WETH, collateral);
 
-        emit CollectVaultFees(
-            performanceFeeInAsset,
-            totalVaultFee,
-            currentRound,
-            recipient
-        );
-
-        vaultState.totalPending = 0;
-        vaultState.round = uint16(currentRound + 1);
-        ShareMath.assertUint104(lockedBalance);
-        vaultState.lockedAmount = uint104(lockedBalance);
-
-        _mint(address(this), mintShares);
-
-        if (totalVaultFee > 0) {
-            VaultLifecycleSTETH.transferAsset(
-                payable(recipient),
-                totalVaultFee
+            emit CollectVaultFees(
+                performanceFeeInAsset,
+                totalVaultFee,
+                currentRound,
+                vaultFeeRecipient
             );
+
+            vaultState.totalPending = 0;
+            vaultState.round = uint16(currentRound + 1);
+            ShareMath.assertUint104(lockedBalance);
+            vaultState.lockedAmount = uint104(lockedBalance);
+
+            _mint(address(this), mintShares);
+
+            if (totalVaultFee > 0) {
+                VaultLifecycleSTETH.withdrawYieldAndBaseToken(
+                    collateral,
+                    WETH,
+                    vaultFeeRecipient,
+                    totalVaultFee
+                );
+            }
         }
 
         return (newOption, queuedWithdrawAmount);
