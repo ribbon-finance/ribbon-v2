@@ -660,10 +660,11 @@ contract RibbonVault is
         VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
 
         if (totalVaultFee > 0) {
-            VaultLifecycleYearn.transferAsset(
+            VaultLifecycleYearn.withdrawYieldAndBaseToken(
                 WETH,
+                vaultParams.asset,
                 collateral,
-                payable(recipient),
+                recipient,
                 totalVaultFee
             );
         }
