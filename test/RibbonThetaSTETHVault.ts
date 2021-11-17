@@ -1763,26 +1763,11 @@ function behavesLikeRibbonOptionsVault(params: {
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
         let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL);
 
-        let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
-          .sub(pendingAmount)
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-        // Performance fee is included because still net positive on week
-        vaultFees = vaultFees.add(
-          secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
-            .sub((await vault.vaultState()).lastLockedAmount)
-            .sub(pendingAmount)
-            .mul(await vault.performanceFee())
-            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-        );
-
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
         assert.equal(
           (await vault.vaultState()).lockedAmount.toString(),
-          currBalance.sub(vaultFees).toString()
+          currBalance.toString()
         );
 
         await expect(secondTx)
