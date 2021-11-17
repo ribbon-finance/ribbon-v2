@@ -22,7 +22,6 @@ import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
-import "hardhat/console.sol";
 
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
