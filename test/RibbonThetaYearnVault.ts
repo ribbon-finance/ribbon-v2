@@ -2383,7 +2383,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // TO DO: Actually fix the test cases
         // let [secondInitialLockedBalance, queuedWithdrawAmount] =
         //   await lockedBalanceForRollover(vault);
-        // const startBalance = await vault.totalBalance();
+        // // const startBalance = await vault.totalBalance();
 
         // await vault.connect(keeperSigner).rollToNextOption();
 
