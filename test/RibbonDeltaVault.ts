@@ -1724,12 +1724,26 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const currBalance = await assetContract.balanceOf(vault.address);
 
-        let [secondInitialLockedBalance] = await lockedBalanceForRollover(
-          vault
-        );
+        let pendingAmount = (await vault.vaultState()).totalPending;
 
-        // no fees due to loss
-        let vaultFees = BigNumber.from(0);
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
+
+        // Management / Performance fee is included because net positive on week
+
+        let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
 
         let newBidAmount = secondInitialLockedBalance
           .sub(vaultFees)
@@ -1809,9 +1823,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let [secondInitialLockedBalance] = await lockedBalanceForRollover(
-          vault
-        );
+        let pendingAmount = (await vault.vaultState()).totalPending;
+
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
 
         await thetaVault.connect(keeperSigner).rollToNextOption();
 
@@ -1819,8 +1834,20 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
 
-        // No vault fees charged because ITM
-        const vaultFees = 0;
+        // Management / Performance fee is included because net positive on week
+        let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount)
+          .sub(pendingAmount)
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .add(queuedWithdrawAmount)
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
 
         assert.equal(
           secondInitialLockedBalance
@@ -1963,7 +1990,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .rollToNextOption(optionPremium.toString());
 
         // Vault fees are 0 because vault is negative on the week
-        const vaultFees = 0;
+        let vaultFees = 0;
 
         assert.equal(
           secondInitialLockedBalance
@@ -2263,6 +2290,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
+        const expectedMintAmountAfterLoss = params.depositAmount
+          .mul(BigNumber.from(10).pow(params.tokenDecimals))
+          .div(afterPps);
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await thetaVault.connect(keeperSigner).rollToNextOption();
@@ -2291,7 +2321,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // User deposit in round 2 so no loss
         // we should use the pps after the loss which is the lower pps
-        // TO DO: FIX THIS TEST CASE
+        // TODO: FIX THIS TEST CASE
         // const tx2 = await vault.connect(userSigner).maxRedeem();
         // await expect(tx2)
         //   .to.emit(vault, "Redeem")
