@@ -622,8 +622,8 @@ contract RibbonVault is
             VaultLifecycle.rollover(
                 vaultState,
                 VaultLifecycle.RolloverParams(
-                    vaultParams.asset,
                     vaultParams.decimals,
+                    totalBalance(),
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,

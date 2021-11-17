@@ -150,8 +150,8 @@ library VaultLifecycle {
      * @param managementFee is the management fee percent to charge on the AUM
      */
     struct RolloverParams {
-        address asset;
         uint256 decimals;
+        uint256 totalBalance;
         uint256 currentShareSupply;
         uint256 lastQueuedWithdrawAmount;
         uint256 performanceFee;
@@ -185,7 +185,7 @@ library VaultLifecycle {
             uint256 totalVaultFee
         )
     {
-        uint256 currentBalance = IERC20(params.asset).balanceOf(address(this));
+        uint256 currentBalance = params.totalBalance;
         uint256 pendingAmount = vaultState.totalPending;
         uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
 
