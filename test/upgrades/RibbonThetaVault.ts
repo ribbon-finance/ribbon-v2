@@ -1,5 +1,13 @@
 import { assert } from "chai";
 import { ethers, network } from "hardhat";
+import {
+  GAMMA_CONTROLLER,
+  GNOSIS_EASY_AUCTION,
+  MARGIN_POOL,
+  OTOKEN_FACTORY,
+  USDC_ADDRESS,
+  WETH_ADDRESS,
+} from "../../constants/constants";
 import { parseLog } from "../helpers/utils";
 
 const { parseEther } = ethers.utils;
@@ -220,6 +228,31 @@ function checkIfStorageNotCorrupted(
   ];
 
   describe(`Vault ${vaultAddress}`, () => {
+    let newImplementation: string;
+
+    before(async () => {
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      const vaultLifecycleLib = await VaultLifecycle.deploy();
+
+      const RibbonThetaVault = await ethers.getContractFactory(
+        "RibbonThetaVault",
+        {
+          libraries: {
+            VaultLifecycle: vaultLifecycleLib.address,
+          },
+        }
+      );
+      const newImplementationContract = await RibbonThetaVault.deploy(
+        WETH_ADDRESS,
+        USDC_ADDRESS,
+        OTOKEN_FACTORY,
+        GAMMA_CONTROLLER,
+        MARGIN_POOL,
+        GNOSIS_EASY_AUCTION
+      );
+      newImplementation = newImplementationContract.address;
+    });
+
     it("has the correct storage state after an upgrade", async () => {
       const vaultProxy = await ethers.getContractAt(
         "AdminUpgradeabilityProxy",
@@ -229,15 +262,15 @@ function checkIfStorageNotCorrupted(
 
       const res = await vaultProxy
         .connect(adminSigner)
-        .upgradeTo(NEW_IMPLEMENTATION);
+        .upgradeTo(newImplementation);
 
       const receipt = await res.wait();
 
       const log = await parseLog("AdminUpgradeabilityProxy", receipt.logs[0]);
-      assert.equal(log.args.implementation, NEW_IMPLEMENTATION);
+      assert.equal(log.args.implementation, newImplementation);
       assert.equal(
         await getVaultStorage(IMPLEMENTATION_SLOT),
-        "0x000000000000000000000000" + NEW_IMPLEMENTATION.slice(2).toLowerCase()
+        "0x000000000000000000000000" + newImplementation.slice(2).toLowerCase()
       );
 
       // Now we verify that the storage values are not corrupted
