@@ -2,8 +2,11 @@
 pragma solidity =0.8.4;
 
 import {VaultLifecycle} from "../libraries/VaultLifecycle.sol";
+import {Vault} from "../libraries/Vault.sol";
 
 contract TestVaultLifecycle {
+    Vault.VaultState public vaultState;
+
     function getNextFriday(uint256 currentExpiry)
         external
         pure
@@ -19,29 +22,23 @@ contract TestVaultLifecycle {
         return 0;
     }
 
-    function rollover(
-        uint256 currentSupply,
-        address asset,
-        uint8 decimals,
-        uint256 pendingAmount,
-        uint128 queuedWithdrawShares
-    )
+    function setVaultState(Vault.VaultState calldata newVaultState) public {
+        vaultState.totalPending = newVaultState.totalPending;
+        vaultState.queuedWithdrawShares = newVaultState.queuedWithdrawShares;
+    }
+
+    function rollover(VaultLifecycle.RolloverParams calldata params)
         external
         view
         returns (
             uint256 newLockedAmount,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
-            uint256 mintShares
+            uint256 mintShares,
+            uint256 performanceFeeInAsset,
+            uint256 totalVaultFee
         )
     {
-        return
-            VaultLifecycle.rollover(
-                currentSupply,
-                asset,
-                decimals,
-                pendingAmount,
-                queuedWithdrawShares
-            );
+        return VaultLifecycle.rollover(vaultState, params);
     }
 }

@@ -602,78 +602,61 @@ contract RibbonVault is
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
-            uint256 mintShares
+            uint256 mintShares,
+            uint256 performanceFeeInAsset,
+            uint256 totalVaultFee
         ) =
-            VaultLifecycleSTETH.rollover(
-                totalSupply(),
-                totalBalance(),
-                vaultParams,
-                vaultState
+            VaultLifecycle.rollover(
+                vaultState,
+                VaultLifecycle.RolloverParams(
+                    vaultParams.decimals,
+                    totalBalance(),
+                    totalSupply(),
+                    lastQueuedWithdrawAmount,
+                    performanceFee,
+                    managementFee
+                )
             );
 
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
 
-        // Finalize the pricePerShare at the end of the round
-        uint256 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
+        {
+            address vaultFeeRecipient = feeRecipient;
+            address collateral = address(collateralToken);
 
-        // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
+            // Finalize the pricePerShare at the end of the round
+            uint256 currentRound = vaultState.round;
+            roundPricePerShare[currentRound] = newPricePerShare;
 
-        uint256 withdrawAmountDiff =
-            queuedWithdrawAmount > lastQueuedWithdrawAmount
-                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
-                : 0;
+            // Wrap entire `asset` balance to `collateralToken` balance
+            VaultLifecycleSTETH.wrapToYieldToken(WETH, collateral);
 
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
-        );
-
-        vaultState.totalPending = 0;
-        vaultState.round = uint16(currentRound + 1);
-        ShareMath.assertUint104(lockedBalance);
-        vaultState.lockedAmount = uint104(lockedBalance);
-
-        _mint(address(this), mintShares);
-
-        return (newOption, queuedWithdrawAmount);
-    }
-
-    /*
-     * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param pastWeekBalance is the balance we are about to lock for next round
-     * @return vaultFee is the fee deducted
-     */
-    function _collectVaultFees(uint256 pastWeekBalance)
-        internal
-        returns (uint256)
-    {
-        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
-            VaultLifecycle.getVaultFees(
-                vaultState,
-                pastWeekBalance,
-                performanceFee,
-                managementFee
-            );
-
-        if (vaultFee > 0) {
-            VaultLifecycleSTETH.withdrawYieldAndBaseToken(
-                address(collateralToken),
-                WETH,
-                feeRecipient,
-                vaultFee
-            );
             emit CollectVaultFees(
                 performanceFeeInAsset,
-                vaultFee,
-                vaultState.round,
-                feeRecipient
+                totalVaultFee,
+                currentRound,
+                vaultFeeRecipient
             );
+
+            vaultState.totalPending = 0;
+            vaultState.round = uint16(currentRound + 1);
+            ShareMath.assertUint104(lockedBalance);
+            vaultState.lockedAmount = uint104(lockedBalance);
+
+            _mint(address(this), mintShares);
+
+            if (totalVaultFee > 0) {
+                VaultLifecycleSTETH.withdrawYieldAndBaseToken(
+                    collateral,
+                    WETH,
+                    vaultFeeRecipient,
+                    totalVaultFee
+                );
+            }
         }
 
-        return vaultFee;
+        return (newOption, queuedWithdrawAmount);
     }
 
     /*
