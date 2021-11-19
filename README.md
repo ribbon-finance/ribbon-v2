@@ -1,4 +1,4 @@
-# Ribbon v2
+vi README.md    # Ribbon v2
 
 Ribbon v2 is the next version for Ribbon's Theta Vault product. It brings several major improvements to the vault and makes the vault operations decentralized.
 
@@ -36,7 +36,6 @@ yarn test
 
 # Run specific test that matches the pattern -g
 yarn run ts-mocha test/RibbonThetaYearnVault.ts --timeout 500000 -g 'rollToNextOption'
-```
 
 ## Deployment
 
@@ -58,4 +57,21 @@ Finally, we can verify the contracts on Etherscan:
 
 ```
 yarn etherscan-verify --network kovan
+```
+
+## Testing
+
+Will run all tests on Ethereum mainnet and a subset of tests on Avax
+```
+yarn test
+```
+
+Runs Ethereum mainnet
+```
+yarn test:eth-mainnet
+```
+
+Runs Avax testnet
+```
+yarn test:avax-fuji
 ```
