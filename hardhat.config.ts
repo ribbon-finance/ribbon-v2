@@ -32,10 +32,14 @@ export default {
   },
   networks: {
     hardhat: {
+      accounts: {
+        mnemonic: process.env.TEST_MNEMONIC,
+      },
+      chainId: +process.env.CHAINID,
       forking: {
         url: process.env.TEST_URI,
         gasLimit: 8e6,
-        blockNumber: 12570201,
+        blockNumber: process.env.BLOCK_NUMBER ? +process.env.BLOCK_NUMBER : undefined,
       },
     },
     mainnet: {
@@ -48,6 +52,13 @@ export default {
       url: process.env.KOVAN_URI,
       accounts: {
         mnemonic: process.env.KOVAN_MNEMONIC,
+      },
+    },
+    fuji: {
+      url: 'https://api.avax-test.network/ext/bc/C/rpc',
+      chainId: 43113,
+      accounts: {
+        mnemonic: process.env.FUJI_MNEMONIC,
       },
     },
   },
