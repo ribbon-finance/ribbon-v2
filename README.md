@@ -9,6 +9,14 @@ v2 changes include:
 - No more withdrawal fees, switching to performance fee
 - Meta-Vault strategies by composing multiple Theta Vaults
 
+
+## Installation
+
+Install the dependencies
+```
+yarn install
+```
+
 ## Deployment
 
 Ribbon v2 uses [hardhat-deploy](https://github.com/wighawag/hardhat-deploy) to manage contract deployments to the blockchain.
@@ -29,4 +37,21 @@ Finally, we can verify the contracts on Etherscan:
 
 ```
 yarn etherscan-verify --network kovan
+```
+
+## Testing
+
+Will run all tests on Ethereum mainnet and a subset of tests on Avax
+```
+yarn test
+```
+
+Runs Ethereum mainnet
+```
+yarn test:eth-mainnet
+```
+
+Runs Avax testnet
+```
+yarn test:avax-fuji
 ```
