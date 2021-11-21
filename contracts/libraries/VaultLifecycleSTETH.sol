@@ -365,10 +365,6 @@ library VaultLifecycleSTETH {
             DSMath.max(assetBalance, amount).sub(assetBalance);
 
         uint256 wstETHPerStETH = IWSTETH(collateralToken).tokensPerStEth();
-
-        // uint256 amountToUnwrap =
-        //     IWSTETH(collateralToken).getWstETHByStETH(stethNeeded);
-
         uint256 amountToUnwrap = stethNeeded.mul(wstETHPerStETH).div(10**18);
 
         if (amountToUnwrap > 0) {
@@ -378,9 +374,6 @@ library VaultLifecycleSTETH {
             uint256 startStethBalance = steth.balanceOf(address(this));
 
             if (stethNeeded > startStethBalance) {
-                // amountToUnwrap = IWSTETH(collateralToken).getWstETHByStETH(
-                //     stethNeeded.sub(startStethBalance)
-                // );
                 amountToUnwrap = stethNeeded
                     .sub(startStethBalance)
                     .mul(wstETHPerStETH)
