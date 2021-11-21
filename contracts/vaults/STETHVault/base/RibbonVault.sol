@@ -118,6 +118,9 @@ contract RibbonVault is
     // Curve stETH / ETH stables pool
     address public immutable STETH_ETH_CRV_POOL;
 
+    /// @notice STETH contract address
+    address public immutable STETH;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -183,6 +186,7 @@ contract RibbonVault is
         WETH = _weth;
         USDC = _usdc;
         LDO = _ldo;
+        STETH = IWSTETH(_wsteth).stETH();
 
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
@@ -333,11 +337,7 @@ contract RibbonVault is
         // stETH transfers suffer from an off-by-1 error
         _depositFor(amount.sub(1), msg.sender, false);
 
-        IERC20(collateralToken.stETH()).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        IERC20(STETH).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -484,6 +484,7 @@ contract RibbonVault is
             VaultLifecycleSTETH.unwrapYieldToken(
                 withdrawAmount,
                 address(collateralToken),
+                STETH,
                 STETH_ETH_CRV_POOL,
                 minETHOut
             );
@@ -625,7 +626,7 @@ contract RibbonVault is
             roundPricePerShare[currentRound] = newPricePerShare;
 
             // Wrap entire `asset` balance to `collateralToken` balance
-            VaultLifecycleSTETH.wrapToYieldToken(WETH, collateral);
+            VaultLifecycleSTETH.wrapToYieldToken(WETH, collateral, STETH);
 
             emit CollectVaultFees(
                 performanceFeeInAsset,
@@ -745,25 +746,16 @@ contract RibbonVault is
     function totalBalance() public view returns (uint256) {
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
         uint256 ethBalance = address(this).balance;
-
-        // To save multiple calls of getStETHByWstETH
-        // We simply get the ratio
-        uint256 stEthPerToken = collateralToken.stEthPerToken();
-
         uint256 stethFromWsteth =
-            collateralToken.balanceOf(address(this)).mul(stEthPerToken).div(
-                10**18
+            collateralToken.getStETHByWstETH(
+                collateralToken.balanceOf(address(this))
             );
 
-        uint256 stEthLocked =
-            uint256(vaultState.lockedAmount).mul(stEthPerToken).div(10**18);
-
-        uint256 stEthBalance =
-            IERC20(collateralToken.stETH()).balanceOf(address(this));
+        uint256 stEthBalance = IERC20(STETH).balanceOf(address(this));
 
         return
             wethBalance
-                .add(stEthLocked)
+                .add(vaultState.lockedAmount)
                 .add(ethBalance)
                 .add(stethFromWsteth)
                 .add(stEthBalance);
