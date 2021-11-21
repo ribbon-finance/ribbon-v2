@@ -448,10 +448,7 @@ library VaultLifecycleSTETH {
 
         if (stethBalance > 0) {
             // approve wrap
-            stethToken.safeApprove(
-                collateralToken,
-                stethBalance.add(1)
-            );
+            stethToken.safeApprove(collateralToken, stethBalance.add(1));
             // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
             collateral.wrap(stethBalance.add(1));
         }
