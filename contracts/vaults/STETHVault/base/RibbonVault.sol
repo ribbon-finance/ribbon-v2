@@ -636,8 +636,8 @@ contract RibbonVault is
 
             vaultState.totalPending = 0;
             vaultState.round = uint16(currentRound + 1);
-            ShareMath.assertUint104(lockedBalance);
-            vaultState.lockedAmount = uint104(lockedBalance);
+            ShareMath.assertUint104(newLockedBalanceInETH);
+            vaultState.lockedAmount = uint104(newLockedBalanceInETH);
 
             _mint(address(this), mintShares);
 
@@ -743,6 +743,7 @@ contract RibbonVault is
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
+        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
         uint256 ethBalance = address(this).balance;
 
         // To save multiple calls of getStETHByWstETH
@@ -761,7 +762,11 @@ contract RibbonVault is
             IERC20(collateralToken.stETH()).balanceOf(address(this));
 
         return
-            stEthLocked.add(ethBalance).add(stethFromWsteth).add(stEthBalance);
+            wethBalance
+                .add(stEthLocked)
+                .add(ethBalance)
+                .add(stethFromWsteth)
+                .add(stEthBalance);
     }
 
     /**
