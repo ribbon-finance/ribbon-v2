@@ -423,7 +423,7 @@ library VaultLifecycleSTETH {
     function wrapToYieldToken(
         address weth,
         address collateralToken,
-        address stethToken
+        address steth
     ) external {
         // Unwrap all weth premiums transferred to contract
         IWETH wethToken = IWETH(weth);
@@ -436,19 +436,19 @@ library VaultLifecycleSTETH {
         uint256 ethBalance = address(this).balance;
 
         IWSTETH collateral = IWSTETH(collateralToken);
-        ISTETH steth = ISTETH(stethToken);
+        IERC20 stethToken = IERC20(steth);
 
         if (ethBalance > 0) {
             // Send eth to Lido, recieve steth
-            steth.submit{value: ethBalance}(address(this));
+            ISTETH(steth).submit{value: ethBalance}(address(this));
         }
 
         // Get all steth in contract
-        uint256 stethBalance = steth.balanceOf(address(this));
+        uint256 stethBalance = stethToken.balanceOf(address(this));
 
         if (stethBalance > 0) {
             // approve wrap
-            IERC20(stethToken).safeApprove(
+            stethToken.safeApprove(
                 collateralToken,
                 stethBalance.add(1)
             );
