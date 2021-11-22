@@ -274,6 +274,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             VaultLifecycleSTETH.unwrapYieldToken(
                 amount,
                 address(collateralToken),
+                STETH,
                 STETH_ETH_CRV_POOL,
                 minETHOut
             );
@@ -411,10 +412,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             );
 
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            uint256(vaultState.lockedAmount).sub(
+                collateralToken.getStETHByWstETH(unlockedAssetAmount)
+            )
         );
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
+        VaultLifecycleSTETH.wrapToYieldToken(
+            WETH,
+            address(collateralToken),
+            STETH
+        );
     }
 }

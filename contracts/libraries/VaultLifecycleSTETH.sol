@@ -248,7 +248,7 @@ library VaultLifecycleSTETH {
     }
 
     /**
-     * @notice Withdraws stETH + ETH (if necessary) from vault using vault shares
+     * @notice Withdraws stETH + WETH (if necessary) from vault using vault shares
      * @param collateralToken is the address of the collateral token
      * @param weth is the WETH address
      * @param recipient is the recipient
@@ -344,6 +344,7 @@ library VaultLifecycleSTETH {
     function unwrapYieldToken(
         uint256 amount,
         address collateralToken,
+        address stethToken,
         address crvPool,
         uint256 minETHOut
     ) external returns (uint256) {
@@ -362,17 +363,24 @@ library VaultLifecycleSTETH {
         // This assumption is fine because we will be swapping the stETH to ETH.
         uint256 stethNeeded =
             DSMath.max(assetBalance, amount).sub(assetBalance);
-        uint256 amountToUnwrap =
-            IWSTETH(collateralToken).getWstETHByStETH(stethNeeded);
+
+        uint256 wstETHPerStETH = IWSTETH(collateralToken).tokensPerStEth();
+        uint256 amountToUnwrap = stethNeeded.mul(wstETHPerStETH).div(10**18);
 
         if (amountToUnwrap > 0) {
             IWSTETH wsteth = IWSTETH(collateralToken);
-            IERC20 steth = IERC20(wsteth.stETH());
+            IERC20 steth = IERC20(stethToken);
 
             uint256 startStethBalance = steth.balanceOf(address(this));
 
-            // Unwrap to stETH
-            wsteth.unwrap(amountToUnwrap);
+            if (stethNeeded > startStethBalance) {
+                amountToUnwrap = stethNeeded
+                    .sub(startStethBalance)
+                    .mul(wstETHPerStETH)
+                    .div(10**18);
+                // Unwrap to stETH
+                wsteth.unwrap(amountToUnwrap);
+            }
 
             // Post-unwrap, the stETH balance will not completely match the stethNeeded
             // due to precision issues.
@@ -412,7 +420,11 @@ library VaultLifecycleSTETH {
      * @param weth is the address of weth
      * @param collateralToken is the address of the collateral token
      */
-    function wrapToYieldToken(address weth, address collateralToken) external {
+    function wrapToYieldToken(
+        address weth,
+        address collateralToken,
+        address steth
+    ) external {
         // Unwrap all weth premiums transferred to contract
         IWETH wethToken = IWETH(weth);
         uint256 wethBalance = wethToken.balanceOf(address(this));
@@ -424,11 +436,11 @@ library VaultLifecycleSTETH {
         uint256 ethBalance = address(this).balance;
 
         IWSTETH collateral = IWSTETH(collateralToken);
-        ISTETH stethToken = ISTETH(collateral.stETH());
+        IERC20 stethToken = IERC20(steth);
 
         if (ethBalance > 0) {
             // Send eth to Lido, recieve steth
-            stethToken.submit{value: ethBalance}(address(this));
+            ISTETH(steth).submit{value: ethBalance}(address(this));
         }
 
         // Get all steth in contract
@@ -436,10 +448,7 @@ library VaultLifecycleSTETH {
 
         if (stethBalance > 0) {
             // approve wrap
-            IERC20(address(stethToken)).safeApprove(
-                collateralToken,
-                stethBalance.add(1)
-            );
+            stethToken.safeApprove(collateralToken, stethBalance.add(1));
             // Wrap to wstETH - need to add 1 to steth balance as it is innacurate
             collateral.wrap(stethBalance.add(1));
         }

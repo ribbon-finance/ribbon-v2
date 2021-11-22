@@ -17,7 +17,6 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {IWSTETH} from "../../../interfaces/ISTETH.sol";
-import {IWETH} from "../../../interfaces/IWETH.sol";
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../../libraries/VaultLifecycleSTETH.sol";
@@ -119,6 +118,9 @@ contract RibbonVault is
     // Curve stETH / ETH stables pool
     address public immutable STETH_ETH_CRV_POOL;
 
+    /// @notice STETH contract address
+    address public immutable STETH;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -184,6 +186,7 @@ contract RibbonVault is
         WETH = _weth;
         USDC = _usdc;
         LDO = _ldo;
+        STETH = IWSTETH(_wsteth).stETH();
 
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
@@ -331,18 +334,10 @@ contract RibbonVault is
     function depositYieldToken(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _depositFor(
-            // off by one
-            collateralToken.getStETHByWstETH(amount).sub(1),
-            msg.sender,
-            false
-        );
+        // stETH transfers suffer from an off-by-1 error
+        _depositFor(amount.sub(1), msg.sender, false);
 
-        IERC20(collateralToken.stETH()).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+        IERC20(STETH).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**
@@ -489,6 +484,7 @@ contract RibbonVault is
             VaultLifecycleSTETH.unwrapYieldToken(
                 withdrawAmount,
                 address(collateralToken),
+                STETH,
                 STETH_ETH_CRV_POOL,
                 minETHOut
             );
@@ -599,7 +595,7 @@ contract RibbonVault is
         require(newOption != address(0), "!nextOption");
 
         (
-            uint256 lockedBalance,
+            uint256 newLockedBalanceInETH,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares,
@@ -630,7 +626,7 @@ contract RibbonVault is
             roundPricePerShare[currentRound] = newPricePerShare;
 
             // Wrap entire `asset` balance to `collateralToken` balance
-            VaultLifecycleSTETH.wrapToYieldToken(WETH, collateral);
+            VaultLifecycleSTETH.wrapToYieldToken(WETH, collateral, STETH);
 
             emit CollectVaultFees(
                 performanceFeeInAsset,
@@ -641,8 +637,8 @@ contract RibbonVault is
 
             vaultState.totalPending = 0;
             vaultState.round = uint16(currentRound + 1);
-            ShareMath.assertUint104(lockedBalance);
-            vaultState.lockedAmount = uint104(lockedBalance);
+            ShareMath.assertUint104(newLockedBalanceInETH);
+            vaultState.lockedAmount = uint104(newLockedBalanceInETH);
 
             _mint(address(this), mintShares);
 
@@ -748,18 +744,21 @@ contract RibbonVault is
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        uint256 ethBalance =
-            IWETH(WETH).balanceOf(address(this)).add(address(this).balance);
-
-        uint256 wstethToeth =
+        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
+        uint256 ethBalance = address(this).balance;
+        uint256 stethFromWsteth =
             collateralToken.getStETHByWstETH(
-                collateralToken.balanceOf(address(this)).add(
-                    IERC20(collateralToken.stETH()).balanceOf(address(this))
-                )
+                collateralToken.balanceOf(address(this))
             );
 
+        uint256 stEthBalance = IERC20(STETH).balanceOf(address(this));
+
         return
-            uint256(vaultState.lockedAmount).add(ethBalance).add(wstethToeth);
+            wethBalance
+                .add(vaultState.lockedAmount)
+                .add(ethBalance)
+                .add(stethFromWsteth)
+                .add(stEthBalance);
     }
 
     /**
