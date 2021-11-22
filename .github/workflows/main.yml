@@ -39,6 +39,7 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
           CI: true
       - run: yarn test
         env:
