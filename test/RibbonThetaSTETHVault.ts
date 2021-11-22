@@ -81,7 +81,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("10"),
-    crvETHAmountAfterSlippage: BigNumber.from("998258752506440113"),
+    crvETHAmountAfterSlippage: BigNumber.from("998258752506440112"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -1137,11 +1137,7 @@ function behavesLikeRibbonOptionsVault(params: {
             : depositAmount.mul(3)
         );
 
-        depositAmountInAsset = BigNumber.from(
-          (await collateralContract.getStETHByWstETH(depositAmount))
-            .sub(1)
-            .toString()
-        );
+        depositAmountInAsset = depositAmount.sub(1);
       });
 
       it("creates a pending deposit", async function () {
@@ -2780,7 +2776,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 272085);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 272000);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
@@ -2980,6 +2976,35 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.accountVaultBalance(user),
           BigNumber.from(depositAmount)
         );
+      });
+    });
+
+    describe("#totalBalance", () => {
+      beforeEach(async function () {
+        const addressToDeposit = [userSigner, ownerSigner, adminSigner];
+
+        await setupYieldToken(
+          addressToDeposit,
+          intermediaryAsset,
+          vault,
+          params.depositAsset == WETH_ADDRESS
+            ? parseEther("7")
+            : depositAmount.mul(3)
+        );
+      });
+
+      it("should return correct balance", async () => {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+
+        await vault.depositETH({ value: depositAmount });
+
+        assert.bnEqual(await vault.totalBalance(), depositAmount);
+
+        await vault.depositYieldToken(depositAmount);
+
+        assert.bnEqual(await vault.totalBalance(), depositAmount.mul(2).sub(1));
       });
     });
 
