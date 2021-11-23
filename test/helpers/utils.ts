@@ -2,9 +2,10 @@ import hre, { ethers, artifacts } from "hardhat";
 import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
+import CHAINLINK_PRICER_ABI from "../../constants/abis/ChainLinkPricer.json";
 import {
   GAMMA_ORACLE,
-  GAMMA_ORACLE_STETH,
+  GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
   ORACLE_DISPUTE_PERIOD,
   ORACLE_LOCKING_PERIOD,
@@ -123,7 +124,7 @@ export async function setAssetPricer(
 
   const oracle = await ethers.getContractAt(
     "IOracle",
-    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE
+    isSTETH ? GAMMA_ORACLE_NEW : GAMMA_ORACLE
   );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
@@ -162,26 +163,26 @@ export async function whitelistProduct(
 }
 
 export async function setupOracle(
-  pricerOwner: string,
+  chainlinkPricer: string,
   signer: SignerWithAddress,
-  isSTETH = false
+  useNew = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [pricerOwner],
+    params: [chainlinkPricer],
   });
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER],
   });
-  const pricerSigner = await provider.getSigner(pricerOwner);
+  const pricerSigner = await provider.getSigner(chainlinkPricer);
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
-  await forceSend.connect(signer).go(pricerOwner, { value: parseEther("0.5") });
+  await forceSend.connect(signer).go(chainlinkPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE,
+    useNew ? GAMMA_ORACLE_NEW : GAMMA_ORACLE,
     ORACLE_ABI,
     pricerSigner
   );
@@ -197,6 +198,16 @@ export async function setupOracle(
     .connect(oracleOwnerSigner)
     .setStablePrice(USDC_ADDRESS, "100000000");
 
+  const pricer = new ethers.Contract(
+    chainlinkPricer,
+    CHAINLINK_PRICER_ABI,
+    oracleOwnerSigner
+  );
+
+  await oracle
+    .connect(oracleOwnerSigner)
+    .setAssetPricer(await pricer.asset(), chainlinkPricer);
+
   return oracle;
 }
 
@@ -204,11 +215,21 @@ export async function setOpynOracleExpiryPrice(
   asset: string,
   oracle: Contract,
   expiry: BigNumber,
-  settlePrice: BigNumber
+  settlePrice: BigNumber,
+  chainlinkPricer?: string
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+  let res: any;
+
+  if (chainlinkPricer) {
+    res = await oracle.setExpiryPrice(asset, expiry, settlePrice, {
+      from: chainlinkPricer,
+    });
+  } else {
+    res = await oracle.setExpiryPrice(asset, expiry, settlePrice)
+  }
+
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
