@@ -369,7 +369,7 @@ library VaultLifecycleSTETH {
 
         // We unwrap if necessary first, then do the swap
         uint256 ethstEthSum = ethAvailable.add(stethAvailable);
-        bool hasEnoughETHForWithdrawal = ethstEthSum >= amount.sub(1);
+        bool hasEnoughETHForWithdrawal = ethstEthSum >= amount.sub(1); // off by 1
 
         // Scenario 3
         {
@@ -380,7 +380,6 @@ library VaultLifecycleSTETH {
                         stethNeededFromUnwrap
                     );
 
-                // We unwrap an additional wei because the unwrap process is off by 1
                 IWSTETH(collateralToken).unwrap(wstAmountToUnwrap);
 
                 // We do a final double check that we have enough to satisfy the amount
