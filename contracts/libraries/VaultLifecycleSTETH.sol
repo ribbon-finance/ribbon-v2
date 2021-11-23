@@ -333,12 +333,12 @@ library VaultLifecycleSTETH {
 
     /**
      * @notice Unwraps the necessary amount of the wstETH token
-     *         and transfers amount to vault
+     *         and transfers `asset` amount to vault
      * @param amount is the amount of `asset` to withdraw
      * @param collateralToken is the address of the collateral token
      * @param crvPool is the address of the steth <-> eth pool on curve
      * @param minETHOut is the minimum eth amount to receive from the swap
-     * @return amountETHOut is the amount of eth we have
+     * @return amountETHOut is the amount of eth unwrapped
      available for the withdrawal (may incur curve slippage)
      */
     function unwrapYieldToken(
@@ -405,14 +405,13 @@ library VaultLifecycleSTETH {
         // CRV SWAP HERE from steth -> eth
         // 0 = ETH, 1 = STETH
         // We are setting 1, which is the smallest possible value for the _minAmountOut parameter
-        // However it is fine because we check that the amountETHOut >= minETHOut at the end
+        // However it is fine because we check that the totalETHOut >= minETHOut at the end
         // which makes sandwich attacks not possible
         uint256 ethAmountOutFromSwap =
             ICRV(crvPool).exchange(1, 0, stEthAmountToSwap, 1);
 
         uint256 totalETHOut = ethAvailable.add(ethAmountOutFromSwap);
 
-        // This revert does not account for the ETH that is already unwrapped
         // Since minETHOut is derived from calling the Curve pool's getter,
         // it reverts in the worst case where the user needs to unwrap and sell
         // 100% of their ETH withdrawal amount
