@@ -171,8 +171,8 @@ describe("VaultLifecycleSTETH", () => {
 
     it("reverts when minETHOut is <0.95 of the amount", async () => {
       await expect(
-        lifecycle.unwrapYieldToken(parseEther("1"), parseEther("1.051"))
-      ).to.be.revertedWith("Amount withdrawn smaller than minETHOut from swap");
+        lifecycle.unwrapYieldToken(parseEther("1"), parseEther("0.949"))
+      ).to.be.revertedWith("Slippage on minETHOut too high");
     });
   });
 });

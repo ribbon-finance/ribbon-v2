@@ -354,7 +354,7 @@ library VaultLifecycleSTETH {
             "Amount withdrawn smaller than minETHOut from swap"
         );
         require(
-            minETHOut.mul(10**18).div(amount) > 0.05 ether,
+            minETHOut.mul(10**18).div(amount) >= 0.95 ether,
             "Slippage on minETHOut too high"
         );
 
