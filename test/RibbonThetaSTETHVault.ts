@@ -81,7 +81,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("10"),
-    crvETHAmountAfterSlippage: BigNumber.from("998258752506440112"),
+    crvETHAmountAfterSlippage: BigNumber.from("998258752506440113"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
