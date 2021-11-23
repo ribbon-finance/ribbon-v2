@@ -387,17 +387,22 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       const initializeArgs = [
-        owner,
-        keeper,
-        feeRecipient,
-        managementFee,
-        performanceFee,
-        tokenName,
-        tokenSymbol,
-        optionsPremiumPricer.address,
-        strikeSelection.address,
-        premiumDiscount,
-        auctionDuration,
+        [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          false,
+          "0x0000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000001",
+        ],
         [
           isPut,
           tokenDecimals,
@@ -616,17 +621,22 @@ function behavesLikeRibbonOptionsVault(params: {
       it("cannot be initialized twice", async function () {
         await expect(
           vault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              false,
+              "0x0000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000001",
+            ],
             [
               isPut,
               tokenDecimals,
@@ -634,7 +644,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
-            ]
+            ],
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
       });
@@ -642,17 +652,22 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when initializing with 0 owner", async function () {
         await expect(
           testVault.initialize(
-            constants.AddressZero,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
+            [
+              constants.AddressZero,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              false,
+              "0x0000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000001",
+            ],
             [
               isPut,
               tokenDecimals,
@@ -660,7 +675,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
-            ]
+            ],
           )
         ).to.be.revertedWith("!owner");
       });
@@ -668,17 +683,22 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when initializing with 0 keeper", async function () {
         await expect(
           testVault.initialize(
-            owner,
-            constants.AddressZero,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
+            [
+              owner,
+              constants.AddressZero,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              false,
+              "0x0000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000001",
+            ],
             [
               isPut,
               tokenDecimals,
@@ -694,25 +714,30 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when initializing with 0 feeRecipient", async function () {
         await expect(
           testVault.initialize(
-            owner,
-            keeper,
-            constants.AddressZero,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
+            [
+              owner,
+              keeper,
+              constants.AddressZero,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              false,
+              "0x0000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000001",
+            ],
             [
               isPut,
               tokenDecimals,
               isPut ? USDC_ADDRESS : asset,
               asset,
               minimumSupply,
-              0,
-            ]
+              parseEther("500"),
+            ],
           )
         ).to.be.revertedWith("!feeRecipient");
       });
@@ -720,17 +745,22 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when initializing with 0 initCap", async function () {
         await expect(
           testVault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              false,
+              "0x0000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000001",
+            ],
             [
               isPut,
               tokenDecimals,
@@ -738,7 +768,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               0,
-            ]
+            ],
           )
         ).to.be.revertedWith("!cap");
       });
@@ -746,17 +776,22 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when asset is 0x", async function () {
         await expect(
           testVault.initialize(
-            owner,
-            keeper,
-            feeRecipient,
-            managementFee,
-            performanceFee,
-            tokenName,
-            tokenSymbol,
-            optionsPremiumPricer.address,
-            strikeSelection.address,
-            premiumDiscount,
-            auctionDuration,
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              false,
+              "0x0000000000000000000000000000000000000001",
+              "0x0000000000000000000000000000000000000001",
+            ],
             [
               isPut,
               tokenDecimals,
@@ -764,7 +799,7 @@ function behavesLikeRibbonOptionsVault(params: {
               asset,
               minimumSupply,
               parseEther("500"),
-            ]
+            ],
           )
         ).to.be.revertedWith("!asset");
       });

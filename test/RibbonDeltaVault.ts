@@ -415,17 +415,22 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       const thetaVaultInitializeArgs = [
-        owner,
-        keeper,
-        feeRecipient,
-        managementFee,
-        performanceFee,
-        tokenName,
-        tokenSymbol,
-        optionsPremiumPricer.address,
-        strikeSelection.address,
-        premiumDiscount,
-        auctionDuration,
+        [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          false,
+          "0x0000000000000000000000000000000000000001",
+          "0x0000000000000000000000000000000000000001",
+        ],
         [
           isPut,
           tokenDecimals,
