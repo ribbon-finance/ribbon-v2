@@ -73,7 +73,6 @@ const main = async ({
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
-    gasPrice: ethers.utils.parseUnits("120", "gwei"),
   });
 };
 main.tags = ["RibbonThetaVaultSTETHCall"];
