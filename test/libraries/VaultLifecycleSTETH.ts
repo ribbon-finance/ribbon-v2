@@ -168,5 +168,11 @@ describe("VaultLifecycleSTETH", () => {
         lifecycle.unwrapYieldToken(parseEther("1"), parseEther("1.001"))
       ).to.be.revertedWith("Amount withdrawn smaller than minETHOut from swap");
     });
+
+    it("reverts when minETHOut is <0.95 of the amount", async () => {
+      await expect(
+        lifecycle.unwrapYieldToken(parseEther("1"), parseEther("1.051"))
+      ).to.be.revertedWith("Amount withdrawn smaller than minETHOut from swap");
+    });
   });
 });

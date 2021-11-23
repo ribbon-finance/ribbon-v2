@@ -335,7 +335,7 @@ library VaultLifecycleSTETH {
      * @notice Unwraps the necessary amount of the wstETH token
      *         and transfers ETH amount to vault
      * @param amount is the amount of ETH to withdraw
-     * @param collateralToken is the address of the collateral token
+     * @param wstEth is the address of wstETH
      * @param stethToken is the address of stETH
      * @param crvPool is the address of the steth <-> eth pool on curve
      * @param minETHOut is the minimum eth amount to receive from the swap
@@ -344,7 +344,7 @@ library VaultLifecycleSTETH {
      */
     function unwrapYieldToken(
         uint256 amount,
-        address collateralToken,
+        address wstEth,
         address stethToken,
         address crvPool,
         uint256 minETHOut
@@ -353,10 +353,14 @@ library VaultLifecycleSTETH {
             amount >= minETHOut,
             "Amount withdrawn smaller than minETHOut from swap"
         );
+        require(
+            minETHOut.mul(10**18).div(amount) > 0.05 ether,
+            "Slippage on minETHOut too high"
+        );
 
-        uint256 ethAvailable = address(this).balance;
+        uint256 ethBalance = address(this).balance;
         IERC20 steth = IERC20(stethToken);
-        uint256 stethAvailable = steth.balanceOf(address(this));
+        uint256 stethBalance = steth.balanceOf(address(this));
 
         // 3 different success scenarios
         // Scenario 1. We hold enough ETH to satisfy withdrawal. Send it out directly
@@ -364,54 +368,32 @@ library VaultLifecycleSTETH {
         // Scenario 3. We hold enough ETH + stETH to satisfy withdrawal. Do a swap
 
         // Scenario 1
-        if (ethAvailable >= amount) {
+        if (ethBalance >= amount) {
             return amount;
         }
 
-        // We unwrap if necessary first, then do the swap
-        uint256 ethstEthSum = ethAvailable.add(stethAvailable);
-        bool hasEnoughETHForWithdrawal = ethstEthSum >= minETHOut;
-
         // Scenario 2
-        {
-            if (!hasEnoughETHForWithdrawal) {
-                uint256 stethNeededFromUnwrap = amount.sub(ethstEthSum);
-                uint256 wstAmountToUnwrap =
-                    IWSTETH(collateralToken).getWstETHByStETH(
-                        stethNeededFromUnwrap
-                    );
-
-                IWSTETH(collateralToken).unwrap(wstAmountToUnwrap);
-
-                // We do a final double check that we have enough to satisfy the amount
-                // We account for the off by 1 error
-                stethAvailable = steth.balanceOf(address(this));
-                require(
-                    ethAvailable.add(stethAvailable) >= minETHOut,
-                    "Unwrapping wstETH did not return sufficient stETH"
-                );
-            }
-        }
+        stethBalance = unwrapWstethForWithdrawal(
+            wstEth,
+            steth,
+            ethBalance,
+            stethBalance,
+            amount,
+            minETHOut
+        );
 
         // Scenario 3
         // Now that we satisfied the ETH + stETH sum, we swap the stETH amounts necessary
         // to facilitate a withdrawal
 
-        // This won't underflow since we already asserted that ethAvailable < amount before this
+        // This won't underflow since we already asserted that ethBalance < amount before this
         uint256 stEthAmountToSwap =
-            DSMath.min(amount.sub(ethAvailable), stethAvailable);
+            DSMath.min(amount.sub(ethBalance), stethBalance);
 
-        steth.safeApprove(crvPool, stEthAmountToSwap);
-
-        // CRV SWAP HERE from steth -> eth
-        // 0 = ETH, 1 = STETH
-        // We are setting 1, which is the smallest possible value for the _minAmountOut parameter
-        // However it is fine because we check that the totalETHOut >= minETHOut at the end
-        // which makes sandwich attacks not possible
         uint256 ethAmountOutFromSwap =
-            ICRV(crvPool).exchange(1, 0, stEthAmountToSwap, 1);
+            swapStEthToEth(steth, crvPool, stEthAmountToSwap);
 
-        uint256 totalETHOut = ethAvailable.add(ethAmountOutFromSwap);
+        uint256 totalETHOut = ethBalance.add(ethAmountOutFromSwap);
 
         // Since minETHOut is derived from calling the Curve pool's getter,
         // it reverts in the worst case where the user needs to unwrap and sell
@@ -422,6 +404,68 @@ library VaultLifecycleSTETH {
         );
 
         return totalETHOut;
+    }
+
+    /**
+     * @notice Unwraps the required amount of wstETH to a target ETH amount
+     * @param wstEthAddress is the address for wstETH
+     * @param steth is the ERC20 of stETH
+     * @param startStEthBalance is the starting stETH balance used to determine how much more to unwrap
+     * @param ethAmount is the ETH amount needed for the contract
+     * @param minETHOut is the ETH amount but adjusted for slippage
+     * @return the new stETH balance
+     */
+    function unwrapWstethForWithdrawal(
+        address wstEthAddress,
+        IERC20 steth,
+        uint256 ethBalance,
+        uint256 startStEthBalance,
+        uint256 ethAmount,
+        uint256 minETHOut
+    ) internal returns (uint256) {
+        uint256 ethstEthSum = ethBalance.add(startStEthBalance);
+
+        if (ethstEthSum < minETHOut) {
+            uint256 stethNeededFromUnwrap = ethAmount.sub(ethstEthSum);
+            IWSTETH wstEth = IWSTETH(wstEthAddress);
+            uint256 wstAmountToUnwrap =
+                wstEth.getWstETHByStETH(stethNeededFromUnwrap);
+
+            wstEth.unwrap(wstAmountToUnwrap);
+
+            uint256 newStEthBalance = steth.balanceOf(address(this));
+            require(
+                ethBalance.add(newStEthBalance) >= minETHOut,
+                "Unwrapping wstETH did not return sufficient stETH"
+            );
+            return newStEthBalance;
+        }
+        return startStEthBalance;
+    }
+
+    /**
+     * @notice Swaps from stEth to ETH on the Lido Curve pool
+     * @param steth is the address for the Lido staked ether
+     * @param crvPool is the Curve pool address to do the swap
+     * @param stEthAmount is the stEth amount to be swapped to Ether
+     * @return ethAmountOutFromSwap is the returned ETH amount from swap
+     */
+    function swapStEthToEth(
+        IERC20 steth,
+        address crvPool,
+        uint256 stEthAmount
+    ) internal returns (uint256) {
+        steth.safeApprove(crvPool, stEthAmount);
+
+        // CRV SWAP HERE from steth -> eth
+        // 0 = ETH, 1 = STETH
+        // We are setting 1, which is the smallest possible value for the _minAmountOut parameter
+        // However it is fine because we check that the totalETHOut >= minETHOut at the end
+        // which makes sandwich attacks not possible
+        uint256 ethAmountOutFromSwap =
+            ICRV(crvPool).exchange(1, 0, stEthAmount, 1);
+
+        return ethAmountOutFromSwap;
     }
 
     /**
