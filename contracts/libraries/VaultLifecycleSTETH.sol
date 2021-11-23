@@ -333,9 +333,10 @@ library VaultLifecycleSTETH {
 
     /**
      * @notice Unwraps the necessary amount of the wstETH token
-     *         and transfers `asset` amount to vault
-     * @param amount is the amount of `asset` to withdraw
+     *         and transfers ETH amount to vault
+     * @param amount is the amount of ETH to withdraw
      * @param collateralToken is the address of the collateral token
+     * @param stethToken is the address of stETH
      * @param crvPool is the address of the steth <-> eth pool on curve
      * @param minETHOut is the minimum eth amount to receive from the swap
      * @return amountETHOut is the amount of eth unwrapped
@@ -359,8 +360,8 @@ library VaultLifecycleSTETH {
 
         // 3 different success scenarios
         // Scenario 1. We hold enough ETH to satisfy withdrawal. Send it out directly
-        // Scenario 2. We hold enough ETH + stETH to satisfy withdrawal. Do a swap
-        // Scenario 3. We hold enough wstETH to satisy withdrawal. Unwrap then swap
+        // Scenario 2. We hold enough wstETH to satisy withdrawal. Unwrap then swap
+        // Scenario 3. We hold enough ETH + stETH to satisfy withdrawal. Do a swap
 
         // Scenario 1
         if (ethAvailable >= amount) {
@@ -369,9 +370,9 @@ library VaultLifecycleSTETH {
 
         // We unwrap if necessary first, then do the swap
         uint256 ethstEthSum = ethAvailable.add(stethAvailable);
-        bool hasEnoughETHForWithdrawal = ethstEthSum >= amount.sub(1); // off by 1
+        bool hasEnoughETHForWithdrawal = ethstEthSum >= minETHOut;
 
-        // Scenario 3
+        // Scenario 2
         {
             if (!hasEnoughETHForWithdrawal) {
                 uint256 stethNeededFromUnwrap = amount.sub(ethstEthSum);
@@ -386,13 +387,13 @@ library VaultLifecycleSTETH {
                 // We account for the off by 1 error
                 stethAvailable = steth.balanceOf(address(this));
                 require(
-                    ethAvailable.add(stethAvailable) >= amount.sub(2),
+                    ethAvailable.add(stethAvailable) >= minETHOut,
                     "Unwrapping wstETH did not return sufficient stETH"
                 );
             }
         }
 
-        // Scenario 2
+        // Scenario 3
         // Now that we satisfied the ETH + stETH sum, we swap the stETH amounts necessary
         // to facilitate a withdrawal
 
