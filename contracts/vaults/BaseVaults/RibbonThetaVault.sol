@@ -15,6 +15,9 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
+import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
+import {ISwapRouter} from "../../interfaces/ISwapRouter.sol";
+
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -78,6 +81,34 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         address indexed manager
     );
 
+    event Swap(
+        address indexed tokenIn,
+        address indexed tokenOut,
+        uint256 amountIn,
+        uint256 amountOut
+    );
+
+    /************************************************
+     *  STRUCTS
+     ***********************************************/
+
+    struct initParams {
+        address _owner;
+        address _keeper;
+        address _feeRecipient;
+        uint256 _managementFee;
+        uint256 _performanceFee;
+        string _tokenName;
+        string _tokenSymbol;
+        address _optionsPremiumPricer;
+        address _strikeSelection;
+        uint32 _premiumDiscount;
+        uint256 _auctionDuration;
+        bool _usdcAuction;
+        address _uniswapRouter;
+        bytes _path;
+    }
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -111,57 +142,56 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         OTOKEN_FACTORY = _oTokenFactory;
     }
 
-    /**
-     * @notice Initializes the OptionVault contract with storage variables.
-     * @param _owner is the owner of the vault with critical permissions
-     * @param _feeRecipient is the address to recieve vault performance and management fees
-     * @param _managementFee is the management fee pct.
-     * @param _performanceFee is the perfomance fee pct.
-     * @param _tokenName is the name of the token
-     * @param _tokenSymbol is the symbol of the token
-     * @param _optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param _strikeSelection is the address of the contract with strike selection logic
-     * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
-     * @param _vaultParams is the struct with vault general data
-     */
+    // /**
+    //  * @notice Initializes the OptionVault contract with storage variables.
+    //  * @param _owner is the owner of the vault with critical permissions
+    //  * @param _feeRecipient is the address to recieve vault performance and management fees
+    //  * @param _managementFee is the management fee pct.
+    //  * @param _performanceFee is the perfomance fee pct.
+    //  * @param _tokenName is the name of the token
+    //  * @param _tokenSymbol is the symbol of the token
+    //  * @param _optionsPremiumPricer is the address of the contract with the
+    //    black-scholes premium calculation logic
+    //  * @param _strikeSelection is the address of the contract with strike selection logic
+    //  * @param _premiumDiscount is the vault's discount applied to the premium
+    //  * @param _auctionDuration is the duration of the gnosis auction
+    //  * @param _vaultParams is the struct with vault general data
+    //  */
     function initialize(
-        address _owner,
-        address _keeper,
-        address _feeRecipient,
-        uint256 _managementFee,
-        uint256 _performanceFee,
-        string memory _tokenName,
-        string memory _tokenSymbol,
-        address _optionsPremiumPricer,
-        address _strikeSelection,
-        uint32 _premiumDiscount,
-        uint256 _auctionDuration,
+        initParams memory _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
-            _owner,
-            _keeper,
-            _feeRecipient,
-            _managementFee,
-            _performanceFee,
-            _tokenName,
-            _tokenSymbol,
+            _initParams._owner,
+            _initParams._keeper,
+            _initParams._feeRecipient,
+            _initParams._managementFee,
+            _initParams._performanceFee,
+            _initParams._tokenName,
+            _initParams._tokenSymbol,
             _vaultParams
         );
-        require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
-        require(_strikeSelection != address(0), "!_strikeSelection");
+        require(_initParams._optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
+        require(_initParams._strikeSelection != address(0), "!_strikeSelection");
         require(
-            _premiumDiscount > 0 &&
-                _premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+            _initParams._premiumDiscount > 0 &&
+                _initParams._premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
         );
-        require(_auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
-        optionsPremiumPricer = _optionsPremiumPricer;
-        strikeSelection = _strikeSelection;
-        premiumDiscount = _premiumDiscount;
-        auctionDuration = _auctionDuration;
+        require(_initParams._auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
+        optionsPremiumPricer = _initParams._optionsPremiumPricer;
+        strikeSelection = _initParams._strikeSelection;
+        premiumDiscount = _initParams._premiumDiscount;
+        auctionDuration = _initParams._auctionDuration;
+
+        usdcAuction = _initParams._usdcAuction;
+        if (usdcAuction) {
+            require(_initParams._uniswapRouter != address(0), "!_uniswapRouter");
+            // require(_initParams._path != address(0), "!_path"); TODO
+
+            uniswapRouter = _initParams._uniswapRouter;
+            path = _initParams._path;
+        }
     }
 
     /************************************************
@@ -235,6 +265,32 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
+    }
+
+    /**
+     * @notice Sets a new Uniswap Router V3 address
+     * @param newRouter is the address of the new router
+     */
+    function setUniswapRouter(address newRouter)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(newRouter != address(0), "!newRouter");
+        uniswapRouter = newRouter;
+    }
+
+    /**
+     * @notice Sets a new path for swaps
+     * @param newPath is the new path 
+     */
+    function setPath(bytes memory newPath)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        // require(slippage > 0, "!slippage"); TODO
+        path = newPath;
     }
 
     /************************************************
@@ -407,6 +463,40 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         vaultState.lockedAmount = uint104(
             uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+        );
+    }
+
+    /**
+     * @notice Settle auction and swap if necessary
+     */
+    function settleAuctionAndSwap(uint256 minOut) external onlyKeeper nonReentrant {
+        require(usdcAuction, "!usdcAuction");
+        IGnosisAuction auction = IGnosisAuction(GNOSIS_EASY_AUCTION);
+        auction.settleAuction(optionAuctionID);
+
+        uint256 usdcBalance = IERC20(USDC).balanceOf(address(this));
+
+        IERC20(USDC).safeIncreaseAllowance(
+            address(this), 
+            usdcBalance
+        );
+
+        ISwapRouter.ExactInputParams memory params =
+            ISwapRouter.ExactInputParams({
+                recipient: address(this),
+                path: path,
+                deadline: block.timestamp.add(15 minutes),
+                amountIn: usdcBalance,
+                amountOutMinimum: minOut
+            });
+
+        uint256 amountOut = ISwapRouter(uniswapRouter).exactInput(params);
+
+        emit Swap(USDC, vaultParams.asset, usdcBalance, amountOut);
+
+        IERC20(USDC).safeDecreaseAllowance(
+            address(this), 
+            usdcBalance
         );
     }
 }
