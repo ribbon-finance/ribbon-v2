@@ -31,18 +31,16 @@ const main = async ({
   const isMainnet = network.name === "mainnet";
   const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
 
-  // const lifecycle = await deploy("VaultLifecycle", {
-  //   contract: "VaultLifecycle",
-  //   from: deployer,
-  // });
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycle = await deploy("VaultLifecycle", {
+    contract: "VaultLifecycle",
+    from: deployer,
+  });
 
-  // const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
-  //   contract: "VaultLifecycleSTETH",
-  //   from: deployer,
-  //   gasPrice: ethers.utils.parseUnits("140", "gwei"),
-  // });
-  const lifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
+  const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
+    contract: "VaultLifecycleSTETH",
+    from: deployer,
+    gasPrice: ethers.utils.parseUnits("140", "gwei"),
+  });
 
   await deploy("RibbonThetaVaultSTETHLogic", {
     contract: "RibbonThetaSTETHVault",
@@ -62,7 +60,6 @@ const main = async ({
       VaultLifecycle: lifecycle.address,
       VaultLifecycleSTETH: lifecycleSTETH.address,
     },
-    gasPrice: ethers.utils.parseUnits("85", "gwei"),
   });
 };
 main.tags = ["RibbonThetaVaultSTETHLogic"];
