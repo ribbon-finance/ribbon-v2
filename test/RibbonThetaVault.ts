@@ -11,6 +11,7 @@ import {
   CHAINLINK_WETH_PRICER,
   CHAINLINK_WBTC_PRICER_NEW,
   CHAINLINK_WETH_PRICER_NEW,
+  CHAINLINK_SUSHI_PRICER,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
@@ -19,6 +20,8 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
+  SUSHI_ADDRESS,
+  SUSHI_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
@@ -141,6 +144,36 @@ describe("RibbonThetaVault", () => {
     },
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS,
+    },
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon SUSHI Theta Vault (Call)`,
+    tokenName: "Ribbon SUSHI Theta Vault",
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS,
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: SUSHI_ADDRESS,
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS,
     },
   });
 });
