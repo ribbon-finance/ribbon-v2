@@ -388,7 +388,7 @@ library VaultLifecycleSTETH {
                 stethAvailable = steth.balanceOf(address(this));
                 require(
                     ethAvailable.add(stethAvailable) >= amount.sub(2),
-                    "Unwrapping wstETH did not result in sufficient stETH"
+                    "Unwrapping wstETH did not return sufficient stETH"
                 );
             }
         }
