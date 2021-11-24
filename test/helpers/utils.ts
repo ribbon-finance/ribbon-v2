@@ -3,6 +3,7 @@ import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
 import {
+  CHAINID,
   GAMMA_ORACLE,
   GAMMA_ORACLE_STETH,
   GAMMA_WHITELIST,
@@ -10,6 +11,7 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  WBTC_ADDRESS,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -124,7 +126,7 @@ export async function setAssetPricer(
 
   const oracle = await ethers.getContractAt(
     "IOracle",
-    isSTETH ? GAMMA_ORACLE_STETH[chainId] : GAMMA_ORACLE[chainId]
+    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE[chainId]
   );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
@@ -147,7 +149,7 @@ export async function whitelistProduct(
 
   const whitelist = await ethers.getContractAt(
     "IGammaWhitelist",
-    GAMMA_WHITELIST[chainId],
+    GAMMA_WHITELIST[chainId]
   );
 
   await adminSigner.sendTransaction({
@@ -182,7 +184,7 @@ export async function setupOracle(
   await forceSend.connect(signer).go(pricerOwner, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    isSTETH ? GAMMA_ORACLE_STETH[chainId] : GAMMA_ORACLE[chainId],
+    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE[chainId],
     ORACLE_ABI,
     pricerSigner
   );
@@ -266,7 +268,12 @@ export async function mintToken(
     value: parseEther("0.5"),
   });
 
-  if (contract.address == USDC_ADDRESS[chainId]) {
+  if (chainId === CHAINID.AVAX_MAINNET && (contract.address === WBTC_ADDRESS[chainId] ||
+                                           contract.address === USDC_ADDRESS[chainId])) {
+    // Avax mainnet uses BridgeTokens which have a special mint function
+    const txid = ethers.utils.formatBytes32String('Hello World!');
+    await contract.connect(tokenOwnerSigner).mint(recipient, amount, recipient, 0, txid);
+  } else if (contract.address === USDC_ADDRESS[chainId]) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
     await contract.connect(tokenOwnerSigner).mint(recipient, amount);

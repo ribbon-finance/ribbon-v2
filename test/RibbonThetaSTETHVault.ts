@@ -72,7 +72,7 @@ describe("RibbonThetaSTETHVault", () => {
     intermediaryAsset: STETH_ADDRESS,
     depositAsset: WETH_ADDRESS[chainId],
     collateralPricer: WSTETH_PRICER,
-    underlyingPricer: CHAINLINK_WETH_PRICER_STETH[chainId],
+    underlyingPricer: CHAINLINK_WETH_PRICER_STETH,
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -383,7 +383,10 @@ function behavesLikeRibbonOptionsVault(params: {
       // Update volatility
       await updateVol(params.asset);
 
-      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY[chainId]);
+      oTokenFactory = await getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY[chainId]
+      );
 
       await whitelistProduct(
         params.asset,
@@ -1736,7 +1739,9 @@ function behavesLikeRibbonOptionsVault(params: {
           MARGIN_POOL[chainId]
         );
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL[chainId]);
+        let endMarginBalance = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
@@ -1894,7 +1899,9 @@ function behavesLikeRibbonOptionsVault(params: {
           MARGIN_POOL[chainId]
         );
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL[chainId]);
+        let endMarginBalance = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         let vaultFees = secondInitialLockedBalance
           .add(queuedWithdrawAmount)

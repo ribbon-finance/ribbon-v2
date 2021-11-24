@@ -39,7 +39,6 @@ export default {
       forking: {
         url: process.env.TEST_URI,
         gasLimit: 8e6,
-        blockNumber: process.env.BLOCK_NUMBER ? +process.env.BLOCK_NUMBER : undefined,
       },
     },
     mainnet: {
@@ -52,6 +51,13 @@ export default {
       url: process.env.KOVAN_URI,
       accounts: {
         mnemonic: process.env.KOVAN_MNEMONIC,
+      },
+    },
+    avax: {
+      url: 'https://api.avax.network/ext/bc/C/rpc',
+      chainId: 43114,
+      accounts: {
+        mnemonic: process.env.AVAX_MNEMONIC,
       },
     },
     fuji: {

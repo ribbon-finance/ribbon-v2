@@ -289,7 +289,9 @@ function behavesLikeRibbonOptionsVault(params: {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
               blockNumber:
-                params.depositAsset == WETH_ADDRESS[chainId] ? 12474917 : 12655142,
+                params.depositAsset == WETH_ADDRESS[chainId]
+                  ? 12474917
+                  : 12655142,
             },
           },
         ],
@@ -400,7 +402,10 @@ function behavesLikeRibbonOptionsVault(params: {
       // Update volatility
       await updateVol(params.asset);
 
-      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY[chainId]);
+      oTokenFactory = await getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY[chainId]
+      );
 
       await whitelistProduct(
         params.asset,
@@ -2101,7 +2106,9 @@ function behavesLikeRibbonOptionsVault(params: {
           MARGIN_POOL[chainId]
         );
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL[chainId]);
+        let endMarginBalance = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         let vaultFees = secondInitialLockedBalance
           .add(queuedWithdrawAmount)
@@ -2276,7 +2283,9 @@ function behavesLikeRibbonOptionsVault(params: {
           MARGIN_POOL[chainId]
         );
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        let endMarginBalance = await collateralContract.balanceOf(MARGIN_POOL[chainId]);
+        let endMarginBalance = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         let vaultFees = secondInitialLockedBalance
           .add(queuedWithdrawAmount)

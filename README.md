@@ -1,4 +1,4 @@
-vi README.md    # Ribbon v2
+# Ribbon v2
 
 Ribbon v2 is the next version for Ribbon's Theta Vault product. It brings several major improvements to the vault and makes the vault operations decentralized.
 
@@ -17,7 +17,9 @@ First, install the dependencies with yarn:
 yarn install
 ```
 
-Next, we need to populate the .env file with these values. Reach out to the team if you need help on these variables. The `TEST_URI` needs to be an archive node.
+Next, we need to populate the .env file with these values.
+Copy the .env.example -> .env and fill out the value.
+Reach out to the team if you need help on these variables. The `TEST_URI` needs to be an archive node.
 
 ```bash
 TEST_URI=

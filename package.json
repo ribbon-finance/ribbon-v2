@@ -36,8 +36,9 @@
   },
   "scripts": {
     "test": "yarn test:eth && yarn test:avax",
-    "test:eth": "CHAINID=1 BLOCK_NUMBER=12570201 npx hardhat test test/*.ts test/libraries/*.ts",
-    "test:avax": "cd ../rvol && yarn compile && cd - && TEST_URI=https://api.avax-test.network/ext/bc/C/rpc CHAINID=43113 npx hardhat test test/RibbonThetaVault.ts",
+    "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
+    "test:fuji": "cd ../rvol && yarn compile && cd - && CHAINID=43113 npx hardhat test test/RibbonThetaVault.ts",
+    "test:avax": "cd ../rvol && yarn compile && cd - && CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
     "compile": "npx hardhat compile",
     "deploy": "npx hardhat deploy",

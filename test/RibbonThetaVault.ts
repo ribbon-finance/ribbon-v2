@@ -4,6 +4,8 @@ import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import OptionsPremiumPricer_JSON from "../../rvol/artifacts/contracts/core/OptionsPremiumPricer.sol/OptionsPremiumPricer.json";
 import TestVolOracle_JSON from "../../rvol/artifacts/contracts/tests/TestVolOracle.sol/TestVolOracle.json";
+import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -25,6 +27,7 @@ import {
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
   TestVolOracle_BYTECODE,
+  OptionsPremiumPricer_BYTECODE,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -54,13 +57,19 @@ const PERIOD = 43200; // 12 hours
 
 const chainId = network.config.chainId;
 
+const BLOCK_NUMBER = {
+  [CHAINID.ETH_MAINNET]: 12529250,
+  [CHAINID.AVAX_MAINNET]: 7397082,
+  [CHAINID.AVAX_FUJI]: 2823963,
+};
+
 describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
     asset: WBTC_ADDRESS[chainId],
-    assetContractName: "IWBTC",
+    assetContractName: chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WBTC_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_WBTC_PRICER[chainId],
@@ -117,7 +126,7 @@ describe("RibbonThetaVault", () => {
     tokenName: "Ribbon ETH Theta Vault Put",
     tokenSymbol: "rETH-THETA-P",
     asset: WETH_ADDRESS[chainId],
-    assetContractName: "IERC20",
+    assetContractName: chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
@@ -129,7 +138,9 @@ describe("RibbonThetaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("5263157894"),
+    expectedMintAmount: BigNumber.from(
+      chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2702702702"
+    ),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -294,7 +305,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              ...(chainId === CHAINID.ETH_MAINNET && { blockNumber: 12529250 }),
+              blockNumber: BLOCK_NUMBER[chainId],
             },
           },
         ],
@@ -309,27 +320,47 @@ function behavesLikeRibbonOptionsVault(params: {
       user = userSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
-      const TestVolOracle = await getContractFactory(
-        TestVolOracle_JSON.abi,
-        TestVolOracle_JSON.bytecode,
-        ownerSigner
-      );
-
-      const OptionsPremiumPricer = await getContractFactory(
-        OptionsPremiumPricer_JSON.abi,
-        OptionsPremiumPricer_JSON.bytecode,
-        ownerSigner
-      );
+      let OptionsPremiumPricer;
+      if (chainId === CHAINID.ETH_MAINNET) {
+        const TestVolOracle = await getContractFactory(
+          TestVolOracle_ABI,
+          TestVolOracle_BYTECODE,
+          ownerSigner
+        );
+        volOracle = await TestVolOracle.deploy(PERIOD);
+        OptionsPremiumPricer = await getContractFactory(
+          OptionsPremiumPricer_ABI,
+          OptionsPremiumPricer_BYTECODE,
+          ownerSigner
+        );
+      } else {
+        const TestVolOracle = await getContractFactory(
+          TestVolOracle_JSON.abi,
+          TestVolOracle_JSON.bytecode,
+          ownerSigner
+        );
+        volOracle = await TestVolOracle.deploy(PERIOD, 7);
+        await volOracle.initPool(
+          asset === WETH_ADDRESS[chainId]
+            ? ETH_USDC_POOL[chainId]
+            : WBTC_USDC_POOL[chainId]
+        );
+        OptionsPremiumPricer = await getContractFactory(
+          OptionsPremiumPricer_JSON.abi,
+          OptionsPremiumPricer_JSON.bytecode,
+          ownerSigner
+        );
+      }
 
       const StrikeSelection = await getContractFactory(
         "StrikeSelection",
         ownerSigner
       );
 
-      volOracle = await TestVolOracle.deploy(PERIOD, 7);
-
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset === WETH_ADDRESS[chainId] ? ETH_USDC_POOL[chainId] : WBTC_USDC_POOL[chainId],
+        params.asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId],
         volOracle.address,
         params.asset === WETH_ADDRESS[chainId]
           ? ETH_PRICE_ORACLE[chainId]
@@ -399,7 +430,10 @@ function behavesLikeRibbonOptionsVault(params: {
       // Update volatility
       await updateVol(params.asset);
 
-      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY[chainId]);
+      oTokenFactory = await getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY[chainId]
+      );
 
       await whitelistProduct(
         params.asset,
@@ -413,7 +447,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
+        .add(chainId === CHAINID.ETH_MAINNET ? 1 : 0, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -433,7 +467,6 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       );
 
-
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
         params.strikeAsset,
@@ -452,7 +485,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(2, "week")
+        .add(chainId === CHAINID.ETH_MAINNET ? 2 : 1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -1407,6 +1440,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset === WETH_ADDRESS[chainId]
             ? BigNumber.from("250000000000")
             : BigNumber.from("4050000000000");
+
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
         assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
@@ -1546,7 +1580,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1055000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1121205);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -1737,7 +1771,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
-        const startMarginBalance = await assetContract.balanceOf(MARGIN_POOL[chainId]);
+        const startMarginBalance = await assetContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -1860,6 +1896,14 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
+        // We have a newer version of Opyn deployed, error messages are different
+        const EXPECTED_ERROR = {
+          [CHAINID.ETH_MAINNET]:
+            "Controller: can not settle vault with un-expired otoken",
+          [CHAINID.AVAX_MAINNET]: "C31",
+          [CHAINID.AVAX_FUJI]: "C31",
+        };
+
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -1880,9 +1924,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith(EXPECTED_ERROR[chainId]);
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
@@ -1982,6 +2024,14 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
+        // We have a newer version of Opyn deployed, error messages are different
+        const EXPECTED_ERROR = {
+          [CHAINID.ETH_MAINNET]:
+            "Controller: can not settle vault with un-expired otoken",
+          [CHAINID.AVAX_MAINNET]: "C31",
+          [CHAINID.AVAX_FUJI]: "C31",
+        };
+
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -2002,9 +2052,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith(EXPECTED_ERROR[chainId]);
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -2243,7 +2291,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 892000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 963542);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -3139,14 +3187,14 @@ function behavesLikeRibbonOptionsVault(params: {
       BigNumber.from("2650000000"),
     ];
 
-    await volOracle.initPool(asset === WETH_ADDRESS[chainId] ? ETH_USDC_POOL[chainId] : WBTC_USDC_POOL[chainId]);
-
     for (let i = 0; i < values.length; i++) {
       await volOracle.setPrice(values[i]);
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
       await time.increaseTo(topOfPeriod);
       await volOracle.mockCommit(
-        asset === WETH_ADDRESS[chainId] ? ETH_USDC_POOL[chainId] : WBTC_USDC_POOL[chainId]
+        asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId]
       );
     }
   };
