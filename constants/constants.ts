@@ -61,6 +61,11 @@ export const ORACLE_DISPUTE_PERIOD = 7200;
 export const ORACLE_LOCKING_PERIOD = 300;
 
 /**
+ * Uniswap V3
+ */
+export const UNISWAP_ROUTER = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
+
+/**
  * Kovan Addresses
  */
 export const OTOKEN_FACTORY_KOVAN =
