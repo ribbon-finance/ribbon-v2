@@ -97,7 +97,7 @@ library UniswapRouter {
         SwapParams memory swapParams
     ) internal returns (uint256 amountOut) {
 
-        IERC20(swapParams.tokenIn).safeIncreaseAllowance(address(this), swapParams.amountIn);
+        IERC20(swapParams.tokenIn).safeApprove(swapParams.router, swapParams.amountIn);
 
         ISwapRouter.ExactInputParams memory params =
             ISwapRouter.ExactInputParams({
@@ -112,7 +112,7 @@ library UniswapRouter {
         
         emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.amountIn, amountOut);
 
-        IERC20(swapParams.tokenIn).safeDecreaseAllowance(address(this), swapParams.amountIn);
+        // IERC20(swapParams.tokenIn).safeDecreaseAllowance(address(this), swapParams.amountIn);
 
         return amountOut;
     }
