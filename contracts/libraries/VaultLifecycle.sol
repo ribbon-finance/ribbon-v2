@@ -15,6 +15,7 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
+import {UniswapRouter} from "./UniswapRouter.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -669,6 +670,31 @@ library VaultLifecycle {
         returns (uint256)
     {
         return GnosisAuction.startAuction(auctionDetails);
+    }
+
+    function settleAuctionAndSwap(
+        address gnosisEasyAuction,
+        uint256 auctionID,
+        bytes memory _path,
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _minAmountOut,
+        address _router
+    )   external returns (uint256) 
+    {
+        GnosisAuction.settleAuction(gnosisEasyAuction, auctionID);
+
+        UniswapRouter.SwapParams memory swapParams;
+
+        swapParams.path = _path;
+        swapParams.recipient = address(this);
+        swapParams.tokenIn = _tokenIn;
+        swapParams.tokenOut = _tokenOut;
+        swapParams.amountIn = IERC20(_tokenIn).balanceOf(address(this));
+        swapParams.minAmountOut = _minAmountOut;
+        swapParams.router = _router;
+
+        return UniswapRouter.swap(swapParams);
     }
 
     /**

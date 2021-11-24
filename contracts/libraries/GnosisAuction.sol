@@ -118,6 +118,15 @@ library GnosisAuction {
         );
     }
 
+    function settleAuction(
+        address gnosisEasyAuction, 
+        uint256 auctionID
+    ) internal returns (bytes32 clearingOrder)
+    {
+        clearingOrder = IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
+    }
+
+
     function placeBid(BidDetails calldata bidDetails)
         internal
         returns (
