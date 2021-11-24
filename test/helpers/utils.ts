@@ -179,7 +179,9 @@ export async function setupOracle(
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
-  await forceSend.connect(signer).go(chainlinkPricer, { value: parseEther("0.5") });
+  await forceSend
+    .connect(signer)
+    .go(chainlinkPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
     useNew ? GAMMA_ORACLE_NEW : GAMMA_ORACLE,
@@ -216,7 +218,7 @@ export async function setOpynOracleExpiryPrice(
   oracle: Contract,
   expiry: BigNumber,
   settlePrice: BigNumber,
-  chainlinkPricer?: string
+  // chainlinkPricer?: string
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
@@ -229,7 +231,7 @@ export async function setOpynOracleExpiryPrice(
   // } else {
   //   res = await oracle.setExpiryPrice(asset, expiry, settlePrice)
   // }
-  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice)
+  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
 
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;

@@ -17,7 +17,6 @@ import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
 
-
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
@@ -72,7 +71,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         uint256 amount,
         uint256 round
     );
-    
+
     /************************************************
      *  STRUCTS
      ***********************************************/
@@ -163,14 +162,21 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             params._tokenSymbol,
             _vaultParams
         );
-        require(params._optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
+        require(
+            params._optionsPremiumPricer != address(0),
+            "!_optionsPremiumPricer"
+        );
         require(params._strikeSelection != address(0), "!_strikeSelection");
         require(
             params._premiumDiscount > 0 &&
-                params._premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+                params._premiumDiscount <
+                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
         );
-        require(params._auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
+        require(
+            params._auctionDuration >= MIN_AUCTION_DURATION,
+            "!_auctionDuration"
+        );
         optionsPremiumPricer = params._optionsPremiumPricer;
         strikeSelection = params._strikeSelection;
         premiumDiscount = params._premiumDiscount;
@@ -181,7 +187,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             require(params._uniswapRouter != address(0), "!_uniswapRouter");
 
             // bool rightPath = UniswapRouter.checkPath(params._path, USDC, vaultParams.asset);
-            require(UniswapRouter.checkPath(params._path, USDC, vaultParams.asset), "!_path");
+            require(
+                UniswapRouter.checkPath(params._path, USDC, vaultParams.asset),
+                "!_path"
+            );
             // require(UniswapRouter.getTokenOut(params._path) == vaultParams.asset, "!path");
             // (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
             // require(tokenIn == address(0), "!tokenIn");
@@ -268,17 +277,15 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         lastStrikeOverrideRound = vaultState.round;
     }
 
-
     /**
      * @notice Sets a new path for swaps
-     * @param newPath is the new path 
+     * @param newPath is the new path
      */
-    function setPath(bytes memory newPath)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(UniswapRouter.checkPath(newPath, USDC, vaultParams.asset), "!newPath");
+    function setPath(bytes memory newPath) external onlyOwner nonReentrant {
+        require(
+            UniswapRouter.checkPath(newPath, USDC, vaultParams.asset),
+            "!newPath"
+        );
         path = newPath;
     }
 
@@ -458,15 +465,17 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Settle auction and swap
      */
-    function settleAuctionAndSwap(
-        uint256 _minAmountOut
-    ) external onlyKeeper nonReentrant {
+    function settleAuctionAndSwap(uint256 _minAmountOut)
+        external
+        onlyKeeper
+        nonReentrant
+    {
         require(usdcAuction, "!usdcAuction");
         require(_minAmountOut > 0, "!_minAmountOut");
 
         VaultLifecycle.settleAuctionAndSwap(
-            GNOSIS_EASY_AUCTION, 
-            optionAuctionID, 
+            GNOSIS_EASY_AUCTION,
+            optionAuctionID,
             path,
             USDC,
             vaultParams.asset,
