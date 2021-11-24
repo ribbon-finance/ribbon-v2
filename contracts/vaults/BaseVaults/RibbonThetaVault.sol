@@ -16,7 +16,7 @@ import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
-import {ISwapRouter} from "../../interfaces/ISwapRouter.sol";
+import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
 
 
 /**
@@ -73,21 +73,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         uint256 amount,
         uint256 round
     );
-
-    event InitiateGnosisAuction(
-        address indexed auctioningToken,
-        address indexed biddingToken,
-        uint256 auctionCounter,
-        address indexed manager
-    );
-
-    event Swap(
-        address indexed tokenIn,
-        address indexed tokenOut,
-        uint256 amountIn,
-        uint256 amountOut
-    );
-
+    
     /************************************************
      *  STRUCTS
      ***********************************************/
@@ -158,39 +144,45 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     //  * @param _vaultParams is the struct with vault general data
     //  */
     function initialize(
-        initParams memory _initParams,
+        initParams memory params,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
-            _initParams._owner,
-            _initParams._keeper,
-            _initParams._feeRecipient,
-            _initParams._managementFee,
-            _initParams._performanceFee,
-            _initParams._tokenName,
-            _initParams._tokenSymbol,
+            params._owner,
+            params._keeper,
+            params._feeRecipient,
+            params._managementFee,
+            params._performanceFee,
+            params._tokenName,
+            params._tokenSymbol,
             _vaultParams
         );
-        require(_initParams._optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
-        require(_initParams._strikeSelection != address(0), "!_strikeSelection");
+        require(params._optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
+        require(params._strikeSelection != address(0), "!_strikeSelection");
         require(
-            _initParams._premiumDiscount > 0 &&
-                _initParams._premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+            params._premiumDiscount > 0 &&
+                params._premiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
         );
-        require(_initParams._auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
-        optionsPremiumPricer = _initParams._optionsPremiumPricer;
-        strikeSelection = _initParams._strikeSelection;
-        premiumDiscount = _initParams._premiumDiscount;
-        auctionDuration = _initParams._auctionDuration;
+        require(params._auctionDuration >= MIN_AUCTION_DURATION, "!_auctionDuration");
+        optionsPremiumPricer = params._optionsPremiumPricer;
+        strikeSelection = params._strikeSelection;
+        premiumDiscount = params._premiumDiscount;
+        auctionDuration = params._auctionDuration;
 
-        usdcAuction = _initParams._usdcAuction;
+        usdcAuction = params._usdcAuction;
         if (usdcAuction) {
-            require(_initParams._uniswapRouter != address(0), "!_uniswapRouter");
-            // require(_initParams._path != address(0), "!_path"); TODO
+            require(params._uniswapRouter != address(0), "!_uniswapRouter");
 
-            uniswapRouter = _initParams._uniswapRouter;
-            path = _initParams._path;
+            // bool rightPath = UniswapRouter.checkPath(params._path, USDC, vaultParams.asset);
+            // require(UniswapRouter.checkPath(params._path, USDC, vaultParams.asset), "!_uniswapRouter");
+            // require(UniswapRouter.getTokenOut(params._path) == vaultParams.asset, "!path");
+            (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
+            require(tokenIn == USDC, "!tokenIn");
+            require(tokenOut == vaultParams.asset, "!tokenOut");
+
+            uniswapRouter = params._uniswapRouter;
+            path = params._path;
         }
     }
 
@@ -267,18 +259,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         lastStrikeOverrideRound = vaultState.round;
     }
 
-    /**
-     * @notice Sets a new Uniswap Router V3 address
-     * @param newRouter is the address of the new router
-     */
-    function setUniswapRouter(address newRouter)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(newRouter != address(0), "!newRouter");
-        uniswapRouter = newRouter;
-    }
 
     /**
      * @notice Sets a new path for swaps
@@ -289,7 +269,9 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         onlyOwner
         nonReentrant
     {
-        // require(slippage > 0, "!slippage"); TODO
+        (address tokenIn, address tokenOut) = UniswapRouter.decodePath(newPath);
+        require(tokenIn == USDC, "!tokenIn");
+        require(tokenOut == vaultParams.asset, "!tokenOut");
         path = newPath;
     }
 
@@ -443,8 +425,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = vaultParams.asset;
-        auctionDetails.assetDecimals = vaultParams.decimals;
+        auctionDetails.asset = usdcAuction ? USDC : vaultParams.asset;
+        auctionDetails.assetDecimals = usdcAuction ? 6 : vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
@@ -467,36 +449,21 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
-     * @notice Settle auction and swap if necessary
+     * @notice Settle auction and swap
      */
     function settleAuctionAndSwap(uint256 minOut) external onlyKeeper nonReentrant {
         require(usdcAuction, "!usdcAuction");
         IGnosisAuction auction = IGnosisAuction(GNOSIS_EASY_AUCTION);
         auction.settleAuction(optionAuctionID);
 
-        uint256 usdcBalance = IERC20(USDC).balanceOf(address(this));
-
-        IERC20(USDC).safeIncreaseAllowance(
+        UniswapRouter.swap(
+            path, 
             address(this), 
-            usdcBalance
-        );
-
-        ISwapRouter.ExactInputParams memory params =
-            ISwapRouter.ExactInputParams({
-                recipient: address(this),
-                path: path,
-                deadline: block.timestamp.add(15 minutes),
-                amountIn: usdcBalance,
-                amountOutMinimum: minOut
-            });
-
-        uint256 amountOut = ISwapRouter(uniswapRouter).exactInput(params);
-
-        emit Swap(USDC, vaultParams.asset, usdcBalance, amountOut);
-
-        IERC20(USDC).safeDecreaseAllowance(
-            address(this), 
-            usdcBalance
+            USDC, 
+            vaultParams.asset,
+            IERC20(USDC).balanceOf(address(this)),
+            minOut, 
+            uniswapRouter
         );
     }
 }

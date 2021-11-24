@@ -46,6 +46,41 @@ library UniswapRouter {
         return (tokenIn, tokenOut);
     }
 
+    function getTokenOut(
+        bytes memory path
+    ) internal pure returns (address tokenOut) {
+
+        (, tokenOut, ) = path.decodeFirstPool();
+        bool hasMultiplePools = path.hasMultiplePools();
+
+        if (hasMultiplePools) {
+            path = path.skipToken();
+            while (true) {
+                (, tokenOut, ) = path.decodeFirstPool();
+
+                hasMultiplePools = path.hasMultiplePools();
+
+                if (hasMultiplePools) {
+                    path = path.skipToken();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        return tokenOut;
+    }
+
+    function checkPath(
+        bytes memory path,
+        address _tokenIn,
+        address _tokenOut
+    ) internal pure returns (bool rightPath) {
+        (address tokenIn, address tokenOut) = decodePath(path);
+        return tokenIn == _tokenIn &&
+            tokenOut == _tokenOut;
+    }
+
     function swap(
         bytes memory path,
         address recipient,
@@ -55,6 +90,8 @@ library UniswapRouter {
         uint256 minAmountOut,
         address router
     ) internal returns (uint256 amountOut) {
+
+        IERC20(tokenIn).safeIncreaseAllowance(address(this), amountIn);
 
         ISwapRouter.ExactInputParams memory params =
             ISwapRouter.ExactInputParams({
@@ -66,8 +103,10 @@ library UniswapRouter {
             });
 
         amountOut = ISwapRouter(router).exactInput(params);
-
+        
         emit Swap(tokenIn, tokenOut, amountIn, amountOut);
+
+        IERC20(tokenIn).safeDecreaseAllowance(address(this), amountIn);
 
         return amountOut;
     }
