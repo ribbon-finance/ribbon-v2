@@ -23,6 +23,7 @@ import {
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
+  UNISWAP_ROUTER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
 } from "../constants/constants";
@@ -176,6 +177,39 @@ describe("RibbonThetaVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS,
     },
   });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon SUSHI Theta Vault (Call-USDC)`,
+    tokenName: "Ribbon SUSHI Theta Vault",
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS,
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS,
+    collateralAsset: SUSHI_ADDRESS,
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    usdcAuction: true,
+    uniswapRouter: UNISWAP_ROUTER,
+    path: encodePath([USDC_ADDRESS, SUSHI_ADDRESS], [10000]),
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS,
+    },
+  });
 });
 
 type Option = {
@@ -231,6 +265,9 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   isPut: boolean;
+  usdcAuction?: boolean,
+  uniswapRouter?: string,
+  path?: string,
   gasLimits: {
     depositWorstCase: number;
     depositBestCase: number;
@@ -262,6 +299,9 @@ function behavesLikeRibbonOptionsVault(params: {
   let performanceFee = params.performanceFee;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
+  let usdcAuction = params.usdcAuction;
+  let uniswapRouter = usdcAuction ? params.uniswapRouter : constants.AddressZero;
+  let path = usdcAuction ? params.path : "0x";
   let isPut = params.isPut;
 
   // Contracts
@@ -399,9 +439,9 @@ function behavesLikeRibbonOptionsVault(params: {
           strikeSelection.address,
           premiumDiscount,
           auctionDuration,
-          false,
-          "0x0000000000000000000000000000000000000001",
-          "0x0000000000000000000000000000000000000001",
+          usdcAuction,
+          uniswapRouter,
+          path,
         ],
         [
           isPut,
@@ -616,6 +656,9 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
         assert.equal(await vault.auctionDuration(), auctionDuration);
+        assert.equal(await vault.usdcAuction(), usdcAuction ? true : false);
+        assert.equal(await vault.uniswapRouter(), uniswapRouter)
+        assert.equal((await vault.path()).toString(), path.toString())
       });
 
       it("cannot be initialized twice", async function () {
@@ -633,9 +676,9 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              false,
-              "0x0000000000000000000000000000000000000001",
-              "0x0000000000000000000000000000000000000001",
+              usdcAuction,
+              uniswapRouter,
+              path,
             ],
             [
               isPut,
@@ -664,9 +707,9 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              false,
-              "0x0000000000000000000000000000000000000001",
-              "0x0000000000000000000000000000000000000001",
+              usdcAuction,
+              uniswapRouter,
+              path,
             ],
             [
               isPut,
@@ -695,9 +738,9 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              false,
-              "0x0000000000000000000000000000000000000001",
-              "0x0000000000000000000000000000000000000001",
+              usdcAuction,
+              uniswapRouter,
+              path,
             ],
             [
               isPut,
@@ -726,9 +769,9 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              false,
-              "0x0000000000000000000000000000000000000001",
-              "0x0000000000000000000000000000000000000001",
+              usdcAuction,
+              uniswapRouter,
+              path,
             ],
             [
               isPut,
@@ -757,9 +800,9 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              false,
-              "0x0000000000000000000000000000000000000001",
-              "0x0000000000000000000000000000000000000001",
+              usdcAuction,
+              uniswapRouter,
+              path,
             ],
             [
               isPut,
@@ -788,9 +831,9 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              false,
-              "0x0000000000000000000000000000000000000001",
-              "0x0000000000000000000000000000000000000001",
+              usdcAuction,
+              uniswapRouter,
+              path,
             ],
             [
               isPut,
@@ -804,6 +847,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!asset");
       });
     });
+
 
     describe("#name", () => {
       it("returns the name", async function () {
@@ -1002,6 +1046,45 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    if (usdcAuction) {
+      describe("#setPath", () => {
+        time.revertToSnapshotAfterTest();
+  
+        it("reverts when tokenIn is not USDC", async function () {
+          await expect(
+            vault.connect(ownerSigner).setPath(
+              encodePath([WETH_ADDRESS, asset], [10000])
+            )
+          ).to.be.revertedWith("!newPath");
+        });
+
+        it("reverts when tokenIn is not underlying", async function () {
+          await expect(
+            vault.connect(ownerSigner).setPath(
+              encodePath([USDC_ADDRESS, WETH_ADDRESS], [10000])
+            )
+          ).to.be.revertedWith("!newPath");
+        });
+  
+        it("reverts when not owner call", async function () {
+          await expect(
+            vault.setPath(
+              encodePath([USDC_ADDRESS, asset], [10000])
+            )
+          ).to.be.revertedWith("caller is not the owner");
+        });
+  
+        it("changes the auction duration", async function () {
+          await vault.connect(ownerSigner).setPath(
+            encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000,10000])
+          );
+          assert.equal(
+            (await vault.path()).toString(), 
+            encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000,10000])
+          );
+        });
+      });
+    }
     // Only apply to when assets is WETH
     if (params.collateralAsset === WETH_ADDRESS) {
       describe("#depositETH", () => {
@@ -3236,4 +3319,24 @@ async function depositIntoVault(
   } else {
     await vault.deposit(amount);
   }
+}
+
+function encodePath(tokenAddresses, fees) {
+  const FEE_SIZE = 3
+
+  if (tokenAddresses.length != fees.length + 1) {
+    throw new Error('path/fee lengths do not match')
+  }
+
+  let encoded = '0x'
+  for (let i = 0; i < fees.length; i++) {
+    // 20 byte encoding of the address
+    encoded += tokenAddresses[i].slice(2)
+    // 3 byte encoding of the fee
+    encoded += fees[i].toString(16).padStart(2 * FEE_SIZE, '0')
+  }
+  // encode the final token
+  encoded += tokenAddresses[tokenAddresses.length - 1].slice(2)
+
+  return encoded.toLowerCase()
 }
