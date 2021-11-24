@@ -428,8 +428,8 @@ function behavesLikeRibbonOptionsVault(params: {
           premiumDiscount,
           auctionDuration,
           false,
-          "0x0000000000000000000000000000000000000001",
-          "0x0000000000000000000000000000000000000001",
+          constants.AddressZero,
+          constants.HashZero,
         ],
         [
           isPut,

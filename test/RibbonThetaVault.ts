@@ -119,7 +119,7 @@ describe("RibbonThetaVault", () => {
   });
 
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Put) `,
+    name: `Ribbon ETH Theta Vault (Put)`,
     tokenName: "Ribbon ETH Theta Vault Put",
     tokenSymbol: "rETH-THETA-P",
     asset: WETH_ADDRESS,
@@ -201,7 +201,7 @@ describe("RibbonThetaVault", () => {
     isPut: false,
     usdcAuction: true,
     uniswapRouter: UNISWAP_ROUTER,
-    path: encodePath([USDC_ADDRESS, SUSHI_ADDRESS], [10000]),
+    path: encodePath([USDC_ADDRESS, WETH_ADDRESS, SUSHI_ADDRESS], [10000, 10000]),
     gasLimits: {
       depositWorstCase: 101000,
       depositBestCase: 90000,
@@ -314,6 +314,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
   let assetContract: Contract;
+  let usdcContract: Contract;
 
   // Variables
   let defaultOtokenAddress: string;
@@ -565,6 +566,10 @@ function behavesLikeRibbonOptionsVault(params: {
         params.assetContractName,
         collateralAsset
       );
+      usdcContract = await getContractAt(
+        "IERC20",
+        USDC_ADDRESS
+      );
 
       // If mintable token, then mine the token
       if (params.mintConfig) {
@@ -579,6 +584,13 @@ function behavesLikeRibbonOptionsVault(params: {
             params.collateralAsset == USDC_ADDRESS
               ? BigNumber.from("10000000000000")
               : parseEther("200")
+          );
+          await mintToken(
+            usdcContract,
+            USDC_OWNER_ADDRESS,
+            addressToDeposit[i].address,
+            vault.address,
+            BigNumber.from("10000000000000")
           );
         }
       } else if (params.asset === WETH_ADDRESS) {
@@ -1611,7 +1623,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .settleAuction(await vault.optionAuctionID());
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
-
+        
         await rollToSecondOption(firstOption.strikePrice);
 
         const controller = await ethers.getContractAt(
@@ -1647,20 +1659,25 @@ function behavesLikeRibbonOptionsVault(params: {
             )
           )
           .div(bidMultiplier);
-
+        
+        let decimals = usdcAuction ? 6 : params.tokenDecimals;
         const bid = wmul(
           totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
           firstOptionPremium
         )
-          .div(BigNumber.from(10).pow(18 - params.tokenDecimals))
+          .div(BigNumber.from(10).pow(18 - decimals))
           .toString();
 
         const queueStartElement =
           "0x0000000000000000000000000000000000000000000000000000000000000001";
-
-        await assetContract
+        
+        usdcAuction
+        ? await usdcContract
           .connect(userSigner)
-          .approve(gnosisAuction.address, bid);
+          .approve(gnosisAuction.address, bid)
+        : await assetContract
+          .connect(userSigner)
+          .approve(gnosisAuction.address, bid)
 
         // BID OTOKENS HERE
         await gnosisAuction
@@ -1737,18 +1754,20 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          assetContract,
+          usdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          tokenDecimals,
+          usdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
+        
+        let assetBalanceBeforeSettle: any;
 
-        const assetBalanceBeforeSettle = await assetContract.balanceOf(
-          vault.address
-        );
+        usdcAuction
+        ? assetBalanceBeforeSettle = await usdcContract.balanceOf(vault.address)
+        : assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address)
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
@@ -1763,8 +1782,15 @@ function behavesLikeRibbonOptionsVault(params: {
           (await defaultOtoken.balanceOf(vault.address)).toString(),
           "0"
         );
+
+        let assetBalanceAfterSettle: any;
+
+        usdcAuction
+        ? assetBalanceAfterSettle = await usdcContract.balanceOf(vault.address)
+        : assetBalanceAfterSettle = await assetContract.balanceOf(vault.address)
+
         assert.equal(
-          (await assetContract.balanceOf(vault.address)).toString(),
+          assetBalanceAfterSettle.toString(),
           assetBalanceBeforeSettle
             .add(BigNumber.from(auctionDetails[2]))
             .toString()
@@ -1786,11 +1812,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          assetContract,
+          usdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          tokenDecimals,
+          usdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
@@ -1803,10 +1829,15 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceBeforeSettle = await assetContract.balanceOf(
           vault.address
         );
-
-        await gnosisAuction
+        
+        usdcAuction
+        ? await vault
+          .connect(keeperSigner)
+          .settleAuctionAndSwap(1)
+        : await gnosisAuction
           .connect(userSigner)
           .settleAuction(auctionDetails[0]);
+        
 
         assert.isAbove(
           parseInt((await defaultOtoken.balanceOf(vault.address)).toString()),
@@ -1947,7 +1978,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const feeDenominator = await gnosisAuction.FEE_DENOMINATOR();
 
         assert.equal(auctionDetails.auctioningToken, defaultOtokenAddress);
-        assert.equal(auctionDetails.biddingToken, collateralAsset);
+        assert.equal(auctionDetails.biddingToken, usdcAuction ? USDC_ADDRESS : collateralAsset);
         assert.equal(
           auctionDetails.orderCancellationEndDate.toString(),
           (await time.now()).add(21600).toString()
@@ -1996,10 +2027,11 @@ function behavesLikeRibbonOptionsVault(params: {
           initialAuctionOrder.sellAmount.toString(),
           oTokenSellAmount.toString()
         );
+        let decimals = usdcAuction ? 6 :tokenDecimals;
         assert.equal(
           initialAuctionOrder.buyAmount.toString(),
           wmul(oTokenSellAmount.mul(BigNumber.from(10).pow(10)), oTokenPremium)
-            .div(BigNumber.from(10).pow(18 - tokenDecimals))
+            .div(BigNumber.from(10).pow(18 - decimals))
             .toString()
         );
 
@@ -2060,9 +2092,16 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // We just settle the auction without any bids
         // So we simulate a loss when the options expire in the money
-        await gnosisAuction
+        usdcAuction
+        ? await vault
+          .connect(keeperSigner)
+          .settleAuctionAndSwap(1)
+        : await gnosisAuction
           .connect(userSigner)
           .settleAuction(await gnosisAuction.auctionCounter());
+        // await gnosisAuction
+        //   .connect(userSigner)
+        //   .settleAuction(await gnosisAuction.auctionCounter());
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
@@ -2179,18 +2218,27 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          assetContract,
+          usdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          tokenDecimals,
+          usdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
-
-        await gnosisAuction
+        
+        usdcAuction
+        ? await vault
+          .connect(keeperSigner)
+          .settleAuctionAndSwap(1)
+        : await gnosisAuction
           .connect(userSigner)
           .settleAuction(auctionDetails[0]);
+        // await gnosisAuction
+        //   .connect(userSigner)
+        //   .settleAuction(auctionDetails[0]);
+        
+        let swapProceeds = await assetContract.balanceOf(vault.address)
 
         // only the premium should be left over because the funds are locked into Opyn
         assert.isAbove(
@@ -2272,7 +2320,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(
             secondOptionAddress,
-            depositAmount.add(auctionDetails[2]).sub(vaultFees),
+            depositAmount.add(usdcAuction ? swapProceeds : auctionDetails[2]).sub(vaultFees),
             keeper
           );
 
@@ -2292,16 +2340,23 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          assetContract,
+          usdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          tokenDecimals,
+          usdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
 
-        await gnosisAuction
+        // await gnosisAuction
+        //   .connect(userSigner)
+        //   .settleAuction(auctionDetails[0]);
+          usdcAuction
+        ? await vault
+          .connect(keeperSigner)
+          .settleAuctionAndSwap(1)
+        : await gnosisAuction
           .connect(userSigner)
           .settleAuction(auctionDetails[0]);
 
