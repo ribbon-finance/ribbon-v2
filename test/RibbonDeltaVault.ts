@@ -506,7 +506,10 @@ function behavesLikeRibbonOptionsVault(params: {
       // Update volatility
       await updateVol(params.asset);
 
-      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY[chainId]);
+      oTokenFactory = await getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY[chainId]
+      );
 
       await whitelistProduct(
         params.asset,
@@ -595,7 +598,7 @@ function behavesLikeRibbonOptionsVault(params: {
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             vault.address,
-            params.collateralAsset == USDC_ADDRESS[chainId]
+            params.collateralAsset === USDC_ADDRESS[chainId]
               ? BigNumber.from("10000000000000")
               : parseEther("200")
           );
