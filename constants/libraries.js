@@ -1,4 +1,4 @@
 module.exports = {
   VaultLifecycle: "0x35a3e0F233587F6E515bcE363E0a5E42cD69EcC0",
-  VaultLifecycleSTETH: "0x2C5dD86B524DDe4C9b2D0F36D72bDEc7EA089BF1",
+  VaultLifecycleSTETH: "0x5CbB58FBd5E53A8db156C1261403b14dc618F3db",
 };

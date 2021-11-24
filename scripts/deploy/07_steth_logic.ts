@@ -39,7 +39,6 @@ const main = async ({
   const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
     contract: "VaultLifecycleSTETH",
     from: deployer,
-    gasPrice: ethers.utils.parseUnits("140", "gwei"),
   });
 
   await deploy("RibbonThetaVaultSTETHLogic", {
