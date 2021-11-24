@@ -80,8 +80,8 @@ describe("RibbonThetaSTETHVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
-    crvSlippage: BigNumber.from("10"),
-    crvETHAmountAfterSlippage: BigNumber.from("998258752506440112"),
+    crvSlippage: BigNumber.from("1"),
+    crvETHAmountAfterSlippage: BigNumber.from("998258752506440113"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -2447,6 +2447,25 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount, BigNumber.from(0));
         // Should decrement the pending amounts
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
+      });
+
+      it("is able to withdraw the deposited stETH instantly", async () => {
+        const steth = await ethers.getContractAt(
+          "ISTETH",
+          intermediaryAsset,
+          userSigner
+        );
+
+        await steth.submit(user, { value: depositAmount });
+
+        await steth.approve(vault.address, depositAmount);
+
+        await vault.depositYieldToken(depositAmount);
+
+        await vault.withdrawInstantly(
+          depositAmount.sub(1),
+          depositAmount.mul(BigNumber.from(100).sub(crvSlippage)).div(100)
+        );
       });
     });
 
