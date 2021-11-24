@@ -680,21 +680,28 @@ library VaultLifecycle {
         address _tokenOut,
         uint256 _minAmountOut,
         address _router
-    )   external returns (uint256) 
-    {
+    )   external returns (uint256 amountIn, uint256 amountOut) 
+    {   
         GnosisAuction.settleAuction(gnosisEasyAuction, auctionID);
 
         UniswapRouter.SwapParams memory swapParams;
 
-        swapParams.path = _path;
-        swapParams.recipient = address(this);
-        swapParams.tokenIn = _tokenIn;
-        swapParams.tokenOut = _tokenOut;
-        swapParams.amountIn = IERC20(_tokenIn).balanceOf(address(this));
-        swapParams.minAmountOut = _minAmountOut;
-        swapParams.router = _router;
+        uint256 balance = IERC20(_tokenIn).balanceOf(address(this));
+        
+        if (balance > 0) {
+            swapParams.path = _path;
+            swapParams.recipient = address(this);
+            swapParams.tokenIn = _tokenIn;
+            swapParams.tokenOut = _tokenOut;
+            swapParams.amountIn = balance;
+            swapParams.minAmountOut = _minAmountOut;
+            swapParams.router = _router;
 
-        return UniswapRouter.swap(swapParams);
+            return (balance, UniswapRouter.swap(swapParams));
+        }
+        else {
+            return (0, 0);
+        }
     }
 
     /**

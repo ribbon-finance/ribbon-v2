@@ -58,40 +58,40 @@ library UniswapRouter {
         // return (address(0), address(0));
     }
 
-    // function getTokenOut(
-    //     bytes memory path
-    // ) internal pure returns (address tokenOut) {
+    function getTokenOut(
+        bytes memory path
+    ) internal pure returns (address tokenOut) {
 
-    //     (, tokenOut, ) = path.decodeFirstPool();
-    //     bool hasMultiplePools = path.hasMultiplePools();
+        (, tokenOut, ) = path.decodeFirstPool();
+        bool hasMultiplePools = path.hasMultiplePools();
 
-    //     if (hasMultiplePools) {
-    //         path = path.skipToken();
-    //         while (true) {
-    //             (, tokenOut, ) = path.decodeFirstPool();
+        if (hasMultiplePools) {
+            path = path.skipToken();
+            while (true) {
+                (, tokenOut, ) = path.decodeFirstPool();
 
-    //             hasMultiplePools = path.hasMultiplePools();
+                hasMultiplePools = path.hasMultiplePools();
 
-    //             if (hasMultiplePools) {
-    //                 path = path.skipToken();
-    //             } else {
-    //                 break;
-    //             }
-    //         }
-    //     }
+                if (hasMultiplePools) {
+                    path = path.skipToken();
+                } else {
+                    break;
+                }
+            }
+        }
 
-    //     return tokenOut;
-    // }
+        return tokenOut;
+    }
 
-    // function checkPath(
-    //     bytes memory path,
-    //     address _tokenIn,
-    //     address _tokenOut
-    // ) internal pure returns (bool rightPath) {
-    //     (address tokenIn, address tokenOut) = decodePath(path);
-    //     return tokenIn == _tokenIn &&
-    //         tokenOut == _tokenOut;
-    // }
+    function checkPath(
+        bytes memory path,
+        address _tokenIn,
+        address _tokenOut
+    ) internal pure returns (bool rightPath) {
+        (address tokenIn, address tokenOut) = decodePath(path);
+        return tokenIn == _tokenIn &&
+            tokenOut == _tokenOut;
+    }
 
     function swap(
         SwapParams memory swapParams

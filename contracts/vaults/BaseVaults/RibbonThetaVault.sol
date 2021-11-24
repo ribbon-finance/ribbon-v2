@@ -15,7 +15,6 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {IGnosisAuction} from "../../interfaces/IGnosisAuction.sol";
 import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
 
 
@@ -78,6 +77,23 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      *  STRUCTS
      ***********************************************/
 
+    // /**
+    //  * @notice Initialization parameters for the vault.
+    //  * @param _owner is the owner of the vault with critical permissions
+    //  * @param _feeRecipient is the address to recieve vault performance and management fees
+    //  * @param _managementFee is the management fee pct.
+    //  * @param _performanceFee is the perfomance fee pct.
+    //  * @param _tokenName is the name of the token
+    //  * @param _tokenSymbol is the symbol of the token
+    //  * @param _optionsPremiumPricer is the address of the contract with the
+    //    black-scholes premium calculation logic
+    //  * @param _strikeSelection is the address of the contract with strike selection logic
+    //  * @param _premiumDiscount is the vault's discount applied to the premium
+    //  * @param _auctionDuration is the duration of the gnosis auction
+    //  * @param _usdcAuction is the boolean flag whether auction should be denominated in USDC
+    //  * @param _uniswapRouter is the address of the contract for UniswapV3 Router
+    //  * @param _path is the path for swapping
+    //  */
     struct initParams {
         address _owner;
         address _keeper;
@@ -130,17 +146,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     // /**
     //  * @notice Initializes the OptionVault contract with storage variables.
-    //  * @param _owner is the owner of the vault with critical permissions
-    //  * @param _feeRecipient is the address to recieve vault performance and management fees
-    //  * @param _managementFee is the management fee pct.
-    //  * @param _performanceFee is the perfomance fee pct.
-    //  * @param _tokenName is the name of the token
-    //  * @param _tokenSymbol is the symbol of the token
-    //  * @param _optionsPremiumPricer is the address of the contract with the
-    //    black-scholes premium calculation logic
-    //  * @param _strikeSelection is the address of the contract with strike selection logic
-    //  * @param _premiumDiscount is the vault's discount applied to the premium
-    //  * @param _auctionDuration is the duration of the gnosis auction
+    //  * @param params is the struct with initialization parameters
     //  * @param _vaultParams is the struct with vault general data
     //  */
     function initialize(
@@ -175,11 +181,14 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             require(params._uniswapRouter != address(0), "!_uniswapRouter");
 
             // bool rightPath = UniswapRouter.checkPath(params._path, USDC, vaultParams.asset);
-            // require(UniswapRouter.checkPath(params._path, USDC, vaultParams.asset), "!_uniswapRouter");
+            require(UniswapRouter.checkPath(params._path, USDC, vaultParams.asset), "!_path");
             // require(UniswapRouter.getTokenOut(params._path) == vaultParams.asset, "!path");
-            (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
-            require(tokenIn == USDC, "!tokenIn");
-            require(tokenOut == vaultParams.asset, "!tokenOut");
+            // (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
+            // require(tokenIn == address(0), "!tokenIn");
+            // require(tokenOut == address(0), "!tokenOut");
+            // (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
+            // require(tokenIn == USDC, "!tokenIn");
+            // require(tokenOut == vaultParams.asset, "!tokenOut");
 
             uniswapRouter = params._uniswapRouter;
             path = params._path;
@@ -269,9 +278,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         onlyOwner
         nonReentrant
     {
-        (address tokenIn, address tokenOut) = UniswapRouter.decodePath(newPath);
-        require(tokenIn == USDC, "!tokenIn");
-        require(tokenOut == vaultParams.asset, "!tokenOut");
+        require(UniswapRouter.checkPath(newPath, USDC, vaultParams.asset), "!newPath");
         path = newPath;
     }
 
@@ -451,18 +458,19 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Settle auction and swap
      */
-    function settleAuctionAndSwap(uint256 minOut) external onlyKeeper nonReentrant {
+    function settleAuctionAndSwap(
+        uint256 _minAmountOut
+    ) external onlyKeeper nonReentrant {
         require(usdcAuction, "!usdcAuction");
-        IGnosisAuction auction = IGnosisAuction(GNOSIS_EASY_AUCTION);
-        auction.settleAuction(optionAuctionID);
+        require(_minAmountOut > 0, "!_minAmountOut");
 
-        UniswapRouter.swap(
-            path, 
-            address(this), 
-            USDC, 
+        VaultLifecycle.settleAuctionAndSwap(
+            GNOSIS_EASY_AUCTION, 
+            optionAuctionID, 
+            path,
+            USDC,
             vaultParams.asset,
-            IERC20(USDC).balanceOf(address(this)),
-            minOut, 
+            _minAmountOut,
             uniswapRouter
         );
     }
