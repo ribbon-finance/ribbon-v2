@@ -58,7 +58,9 @@ describe("StrikeSelectionE2E", () => {
     );
     const StrikeSelection = await getContractFactory("StrikeSelection", signer);
 
-    volOracle = await TestVolOracle.deploy(PERIOD);
+    volOracle = await TestVolOracle.deploy(PERIOD, 7);
+
+    await volOracle.initPool(ethusdcPool);
 
     optionsPremiumPricer = await OptionsPremiumPricer.deploy(
       ethusdcPool,

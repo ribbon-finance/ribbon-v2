@@ -58,5 +58,11 @@ interface IBridgeToken {
         uint256 amount
     ) external returns (bool);
 
-    function mint(address to, uint256 amount, address feeAddress, uint256 feeAmount, bytes32 originTxId) external returns (bool);
+    function mint(
+        address to,
+        uint256 amount,
+        address feeAddress,
+        uint256 feeAmount,
+        bytes32 originTxId
+    ) external returns (bool);
 }

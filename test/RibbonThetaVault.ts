@@ -2,8 +2,6 @@ import { ethers, network } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
-import OptionsPremiumPricer_JSON from "../../rvol/artifacts/contracts/core/OptionsPremiumPricer.sol/OptionsPremiumPricer.json";
-import TestVolOracle_JSON from "../../rvol/artifacts/contracts/tests/TestVolOracle.sol/TestVolOracle.json";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import moment from "moment-timezone";
@@ -320,37 +318,25 @@ function behavesLikeRibbonOptionsVault(params: {
       user = userSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
-      let OptionsPremiumPricer;
-      if (chainId === CHAINID.ETH_MAINNET) {
-        const TestVolOracle = await getContractFactory(
-          TestVolOracle_ABI,
-          TestVolOracle_BYTECODE,
-          ownerSigner
-        );
-        volOracle = await TestVolOracle.deploy(PERIOD);
-        OptionsPremiumPricer = await getContractFactory(
-          OptionsPremiumPricer_ABI,
-          OptionsPremiumPricer_BYTECODE,
-          ownerSigner
-        );
-      } else {
-        const TestVolOracle = await getContractFactory(
-          TestVolOracle_JSON.abi,
-          TestVolOracle_JSON.bytecode,
-          ownerSigner
-        );
-        volOracle = await TestVolOracle.deploy(PERIOD, 7);
-        await volOracle.initPool(
-          asset === WETH_ADDRESS[chainId]
-            ? ETH_USDC_POOL[chainId]
-            : WBTC_USDC_POOL[chainId]
-        );
-        OptionsPremiumPricer = await getContractFactory(
-          OptionsPremiumPricer_JSON.abi,
-          OptionsPremiumPricer_JSON.bytecode,
-          ownerSigner
-        );
-      }
+      const TestVolOracle = await getContractFactory(
+        TestVolOracle_ABI,
+        TestVolOracle_BYTECODE,
+        ownerSigner
+      );
+
+      volOracle = await TestVolOracle.deploy(PERIOD, 7);
+
+      await volOracle.initPool(
+        asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId]
+      );
+
+      const OptionsPremiumPricer = await getContractFactory(
+        OptionsPremiumPricer_ABI,
+        OptionsPremiumPricer_BYTECODE,
+        ownerSigner
+      );
 
       const StrikeSelection = await getContractFactory(
         "StrikeSelection",

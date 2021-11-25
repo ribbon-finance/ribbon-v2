@@ -70,10 +70,10 @@ yarn test
 
 Runs Ethereum mainnet
 ```
-yarn test:eth-mainnet
+yarn test:eth
 ```
 
 Runs Avax testnet
 ```
-yarn test:avax-fuji
+yarn test:avax
 ```

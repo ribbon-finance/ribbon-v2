@@ -322,7 +322,13 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner
       );
 
-      volOracle = await TestVolOracle.deploy(PERIOD);
+      volOracle = await TestVolOracle.deploy(PERIOD, 7);
+
+      await volOracle.initPool(
+        asset === WETH_ADDRESS[chainId]
+          ? ethusdcPool
+          : wbtcusdcPool
+      );
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
         params.asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool,
