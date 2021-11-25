@@ -217,7 +217,7 @@ export async function setOpynOracleExpiryPrice(
   asset: string,
   oracle: Contract,
   expiry: BigNumber,
-  settlePrice: BigNumber,
+  settlePrice: BigNumber
   // chainlinkPricer?: string
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);

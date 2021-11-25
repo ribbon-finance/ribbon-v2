@@ -199,9 +199,8 @@ describe("RibbonThetaVault", () => {
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
-    usdcAuction: true,
-    uniswapRouter: UNISWAP_ROUTER,
-    path: encodePath(
+    isUsdcAuction: true,
+    swapPath: encodePath(
       [USDC_ADDRESS, WETH_ADDRESS, SUSHI_ADDRESS],
       [10000, 10000]
     ),
@@ -221,32 +220,34 @@ type Option = {
   expiry: number;
 };
 
-/**
- *
- * @param {Object} params - Parameter of option vault
- * @param {string} params.name - Name of test
- * @param {string} params.tokenName - Name of Option Vault
- * @param {string} params.tokenSymbol - Symbol of Option Vault
- * @param {number} params.tokenDecimals - Decimals of the vault shares
- * @param {string} params.asset - Address of assets
- * @param {string} params.assetContractName - Name of collateral asset contract
- * @param {string} params.strikeAsset - Address of strike assets
- * @param {string} params.collateralAsset - Address of asset used for collateral
- * @param {string} params.chainlinkPricer - Address of chainlink pricer
- * @param {BigNumber} params.deltaFirstOption - Delta of first option
- * @param {BigNumber} params.deltaSecondOption - Delta of second option
- * @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
- * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
- * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
- * @param {BigNumber} params.depositAmount - Deposit amount
- * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
- * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
- * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
- * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
- * @param {BigNumber} params.managementFee - Management fee (6 decimals)
- * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
- * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
- */
+//
+//
+// @param {Object} params - Parameter of option vault
+// @param {string} params.name - Name of test
+// @param {string} params.tokenName - Name of Option Vault
+// @param {string} params.tokenSymbol - Symbol of Option Vault
+// @param {number} params.tokenDecimals - Decimals of the vault shares
+// @param {string} params.asset - Address of assets
+// @param {string} params.assetContractName - Name of collateral asset contract
+// @param {string} params.strikeAsset - Address of strike assets
+// @param {string} params.collateralAsset - Address of asset used for collateral
+// @param {string} params.chainlinkPricer - Address of chainlink pricer
+// @param {BigNumber} params.deltaFirstOption - Delta of first option
+// @param {BigNumber} params.deltaSecondOption - Delta of second option
+// @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
+// @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
+// @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
+// @param {BigNumber} params.depositAmount - Deposit amount
+// @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
+// @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
+// @param {number} params.auctionDuration - Duration of gnosis auction in seconds
+// @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
+// @param {BigNumber} params.managementFee - Management fee (6 decimals)
+// @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
+// @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
+// @param {boolean} params.isUsdcAuction - Boolean flag whether auction is denominated in USDC
+// @param {string} params.swapPath - Bytes representation of the swap route
+//
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
   tokenName: string;
@@ -268,9 +269,9 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   isPut: boolean;
-  usdcAuction?: boolean;
+  isUsdcAuction?: boolean;
   uniswapRouter?: string;
-  path?: string;
+  swapPath?: string;
   gasLimits: {
     depositWorstCase: number;
     depositBestCase: number;
@@ -302,12 +303,9 @@ function behavesLikeRibbonOptionsVault(params: {
   let performanceFee = params.performanceFee;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
-  let usdcAuction = params.usdcAuction;
-  let uniswapRouter = usdcAuction
-    ? params.uniswapRouter
-    : constants.AddressZero;
-  let path = usdcAuction ? params.path : "0x";
   let isPut = params.isPut;
+  let isUsdcAuction = params.isUsdcAuction;
+  let swapPath = isUsdcAuction ? params.swapPath : "0x";
 
   // Contracts
   let strikeSelection: Contract;
@@ -352,7 +350,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.asset,
         oracle,
         await getCurrentOptionExpiry(),
-        settlementPrice,
+        settlementPrice
         // params.chainlinkPricer
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
@@ -449,9 +447,8 @@ function behavesLikeRibbonOptionsVault(params: {
           strikeSelection.address,
           premiumDiscount,
           auctionDuration,
-          usdcAuction,
-          uniswapRouter,
-          path,
+          isUsdcAuction,
+          swapPath,
         ],
         [
           isPut,
@@ -470,6 +467,7 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER,
         MARGIN_POOL,
         GNOSIS_EASY_AUCTION,
+        UNISWAP_ROUTER,
       ];
 
       vault = (
@@ -628,7 +626,8 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
           MARGIN_POOL,
-          GNOSIS_EASY_AUCTION
+          GNOSIS_EASY_AUCTION,
+          UNISWAP_ROUTER
         );
       });
 
@@ -674,9 +673,8 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
         assert.equal(await vault.auctionDuration(), auctionDuration);
-        assert.equal(await vault.usdcAuction(), Boolean(usdcAuction));
-        assert.equal(await vault.uniswapRouter(), uniswapRouter);
-        assert.equal((await vault.path()).toString(), path.toString());
+        assert.equal(await vault.isUsdcAuction(), Boolean(isUsdcAuction));
+        assert.equal((await vault.swapPath()).toString(), swapPath.toString());
       });
 
       it("cannot be initialized twice", async function () {
@@ -694,9 +692,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              usdcAuction,
-              uniswapRouter,
-              path,
+              isUsdcAuction,
+              swapPath,
             ],
             [
               isPut,
@@ -725,9 +722,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              usdcAuction,
-              uniswapRouter,
-              path,
+              isUsdcAuction,
+              swapPath,
             ],
             [
               isPut,
@@ -756,9 +752,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              usdcAuction,
-              uniswapRouter,
-              path,
+              isUsdcAuction,
+              swapPath,
             ],
             [
               isPut,
@@ -787,9 +782,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              usdcAuction,
-              uniswapRouter,
-              path,
+              isUsdcAuction,
+              swapPath,
             ],
             [
               isPut,
@@ -818,9 +812,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              usdcAuction,
-              uniswapRouter,
-              path,
+              isUsdcAuction,
+              swapPath,
             ],
             [
               isPut,
@@ -849,9 +842,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              usdcAuction,
-              uniswapRouter,
-              path,
+              isUsdcAuction,
+              swapPath,
             ],
             [
               isPut,
@@ -1063,40 +1055,40 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    if (usdcAuction) {
-      describe("#setPath", () => {
+    if (isUsdcAuction) {
+      describe("#setSwapPath", () => {
         time.revertToSnapshotAfterTest();
 
         it("reverts when tokenIn is not USDC", async function () {
           await expect(
             vault
               .connect(ownerSigner)
-              .setPath(encodePath([WETH_ADDRESS, asset], [10000]))
-          ).to.be.revertedWith("!newPath");
+              .setSwapPath(encodePath([WETH_ADDRESS, asset], [10000]))
+          ).to.be.revertedWith("Invalid swap path");
         });
 
-        it("reverts when tokenIn is not underlying", async function () {
+        it("reverts when tokenOut is not underlying", async function () {
           await expect(
             vault
               .connect(ownerSigner)
-              .setPath(encodePath([USDC_ADDRESS, WETH_ADDRESS], [10000]))
-          ).to.be.revertedWith("!newPath");
+              .setSwapPath(encodePath([USDC_ADDRESS, WETH_ADDRESS], [10000]))
+          ).to.be.revertedWith("Invalid swap path");
         });
 
         it("reverts when not owner call", async function () {
           await expect(
-            vault.setPath(encodePath([USDC_ADDRESS, asset], [10000]))
+            vault.setSwapPath(encodePath([USDC_ADDRESS, asset], [10000]))
           ).to.be.revertedWith("caller is not the owner");
         });
 
         it("changes the auction duration", async function () {
           await vault
             .connect(ownerSigner)
-            .setPath(
+            .setSwapPath(
               encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000, 10000])
             );
           assert.equal(
-            (await vault.path()).toString(),
+            (await vault.swapPath()).toString(),
             encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000, 10000])
           );
         });
@@ -1665,7 +1657,7 @@ function behavesLikeRibbonOptionsVault(params: {
           )
           .div(bidMultiplier);
 
-        let decimals = usdcAuction ? 6 : params.tokenDecimals;
+        let decimals = isUsdcAuction ? 6 : params.tokenDecimals;
         const bid = wmul(
           totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
           firstOptionPremium
@@ -1676,7 +1668,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const queueStartElement =
           "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-        if (usdcAuction) {
+        if (isUsdcAuction) {
           await usdcContract
             .connect(userSigner)
             .approve(gnosisAuction.address, bid);
@@ -1761,18 +1753,18 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          usdcAuction ? usdcContract : assetContract,
+          isUsdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          usdcAuction ? 6 : tokenDecimals,
+          isUsdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
 
         let assetBalanceBeforeSettle: any;
 
-        if (usdcAuction) {
+        if (isUsdcAuction) {
           assetBalanceBeforeSettle = await usdcContract.balanceOf(
             vault.address
           );
@@ -1798,10 +1790,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let assetBalanceAfterSettle: any;
 
-        if (usdcAuction) {
-          assetBalanceAfterSettle = await usdcContract.balanceOf(
-            vault.address
-          );
+        if (isUsdcAuction) {
+          assetBalanceAfterSettle = await usdcContract.balanceOf(vault.address);
         } else {
           assetBalanceAfterSettle = await assetContract.balanceOf(
             vault.address
@@ -1831,11 +1821,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          usdcAuction ? usdcContract : assetContract,
+          isUsdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          usdcAuction ? 6 : tokenDecimals,
+          isUsdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
@@ -1849,10 +1839,8 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.address
         );
 
-        if (usdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -2000,7 +1988,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(auctionDetails.auctioningToken, defaultOtokenAddress);
         assert.equal(
           auctionDetails.biddingToken,
-          usdcAuction ? USDC_ADDRESS : collateralAsset
+          isUsdcAuction ? USDC_ADDRESS : collateralAsset
         );
         assert.equal(
           auctionDetails.orderCancellationEndDate.toString(),
@@ -2050,7 +2038,7 @@ function behavesLikeRibbonOptionsVault(params: {
           initialAuctionOrder.sellAmount.toString(),
           oTokenSellAmount.toString()
         );
-        let decimals = usdcAuction ? 6 : tokenDecimals;
+        let decimals = isUsdcAuction ? 6 : tokenDecimals;
         assert.equal(
           initialAuctionOrder.buyAmount.toString(),
           wmul(oTokenSellAmount.mul(BigNumber.from(10).pow(10)), oTokenPremium)
@@ -2115,10 +2103,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // We just settle the auction without any bids
         // So we simulate a loss when the options expire in the money
-        if (usdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -2138,7 +2124,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM,
+          settlementPriceITM
           // params.chainlinkPricer
         );
 
@@ -2244,19 +2230,17 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          usdcAuction ? usdcContract : assetContract,
+          isUsdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          usdcAuction ? 6 : tokenDecimals,
+          isUsdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
 
-        if (usdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -2284,7 +2268,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM,
+          settlementPriceOTM
           // params.chainlinkPricer
         );
 
@@ -2350,7 +2334,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             secondOptionAddress,
             depositAmount
-              .add(usdcAuction ? swapProceeds : auctionDetails[2])
+              .add(isUsdcAuction ? swapProceeds : auctionDetails[2])
               .sub(vaultFees),
             keeper
           );
@@ -2371,11 +2355,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
-          usdcAuction ? usdcContract : assetContract,
+          isUsdcAuction ? usdcContract : assetContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          usdcAuction ? 6 : tokenDecimals,
+          isUsdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
         );
@@ -2383,10 +2367,8 @@ function behavesLikeRibbonOptionsVault(params: {
         // await gnosisAuction
         //   .connect(userSigner)
         //   .settleAuction(auctionDetails[0]);
-        if (usdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -2402,7 +2384,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM,
+          settlementPriceOTM
           // params.chainlinkPricer
         );
 
@@ -2646,7 +2628,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM,
+          settlementPriceITM
           // params.chainlinkPricer
         );
 
@@ -2927,7 +2909,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike,
+          firstOptionStrike
           // params.chainlinkPricer
         );
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);

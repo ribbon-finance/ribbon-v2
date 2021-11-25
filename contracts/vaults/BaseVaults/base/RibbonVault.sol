@@ -109,6 +109,10 @@ contract RibbonVault is
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
+    // UNISWAP_ROUTER is the contract address of UniswapV3 Router which handles swaps
+    // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
+    address public immutable UNISWAP_ROUTER;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -149,13 +153,15 @@ contract RibbonVault is
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
      */
     constructor(
         address _weth,
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _uniswapRouter
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
@@ -168,6 +174,7 @@ contract RibbonVault is
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+        UNISWAP_ROUTER = _uniswapRouter;
     }
 
     /**

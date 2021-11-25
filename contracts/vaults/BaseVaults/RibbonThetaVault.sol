@@ -89,11 +89,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     //  * @param _strikeSelection is the address of the contract with strike selection logic
     //  * @param _premiumDiscount is the vault's discount applied to the premium
     //  * @param _auctionDuration is the duration of the gnosis auction
-    //  * @param _usdcAuction is the boolean flag whether auction should be denominated in USDC
-    //  * @param _uniswapRouter is the address of the contract for UniswapV3 Router
-    //  * @param _path is the path for swapping
+    //  * @param _isUsdcAuction is whether Gnosis auction should be denominated in USDC
+    //  * @param _swapPath is the path for swapping
     //  */
-    struct initParams {
+    struct InitParams {
         address _owner;
         address _keeper;
         address _feeRecipient;
@@ -105,9 +104,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         address _strikeSelection;
         uint32 _premiumDiscount;
         uint256 _auctionDuration;
-        bool _usdcAuction;
-        address _uniswapRouter;
-        bytes _path;
+        bool _isUsdcAuction;
+        bytes _swapPath;
     }
 
     /************************************************
@@ -122,6 +120,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
      */
     constructor(
         address _weth,
@@ -129,14 +128,16 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _uniswapRouter
     )
         RibbonVault(
             _weth,
             _usdc,
             _gammaController,
             _marginPool,
-            _gnosisEasyAuction
+            _gnosisEasyAuction,
+            _uniswapRouter
         )
     {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
@@ -145,62 +146,57 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     // /**
     //  * @notice Initializes the OptionVault contract with storage variables.
-    //  * @param params is the struct with initialization parameters
+    //  * @param _initParams is the struct with initialization parameters
     //  * @param _vaultParams is the struct with vault general data
     //  */
     function initialize(
-        initParams memory params,
+        InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         baseInitialize(
-            params._owner,
-            params._keeper,
-            params._feeRecipient,
-            params._managementFee,
-            params._performanceFee,
-            params._tokenName,
-            params._tokenSymbol,
+            _initParams._owner,
+            _initParams._keeper,
+            _initParams._feeRecipient,
+            _initParams._managementFee,
+            _initParams._performanceFee,
+            _initParams._tokenName,
+            _initParams._tokenSymbol,
             _vaultParams
         );
         require(
-            params._optionsPremiumPricer != address(0),
+            _initParams._optionsPremiumPricer != address(0),
             "!_optionsPremiumPricer"
         );
-        require(params._strikeSelection != address(0), "!_strikeSelection");
         require(
-            params._premiumDiscount > 0 &&
-                params._premiumDiscount <
+            _initParams._strikeSelection != address(0),
+            "!_strikeSelection"
+        );
+        require(
+            _initParams._premiumDiscount > 0 &&
+                _initParams._premiumDiscount <
                 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
         );
         require(
-            params._auctionDuration >= MIN_AUCTION_DURATION,
+            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
             "!_auctionDuration"
         );
-        optionsPremiumPricer = params._optionsPremiumPricer;
-        strikeSelection = params._strikeSelection;
-        premiumDiscount = params._premiumDiscount;
-        auctionDuration = params._auctionDuration;
+        optionsPremiumPricer = _initParams._optionsPremiumPricer;
+        strikeSelection = _initParams._strikeSelection;
+        premiumDiscount = _initParams._premiumDiscount;
+        auctionDuration = _initParams._auctionDuration;
 
-        usdcAuction = params._usdcAuction;
-        if (usdcAuction) {
-            require(params._uniswapRouter != address(0), "!_uniswapRouter");
-
-            // bool rightPath = UniswapRouter.checkPath(params._path, USDC, vaultParams.asset);
+        isUsdcAuction = _initParams._isUsdcAuction;
+        if (_initParams._isUsdcAuction) {
             require(
-                UniswapRouter.checkPath(params._path, USDC, vaultParams.asset),
+                UniswapRouter.checkPath(
+                    _initParams._swapPath,
+                    USDC,
+                    vaultParams.asset
+                ),
                 "!_path"
             );
-            // require(UniswapRouter.getTokenOut(params._path) == vaultParams.asset, "!path");
-            // (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
-            // require(tokenIn == address(0), "!tokenIn");
-            // require(tokenOut == address(0), "!tokenOut");
-            // (address tokenIn, address tokenOut) = UniswapRouter.decodePath(params._path);
-            // require(tokenIn == USDC, "!tokenIn");
-            // require(tokenOut == vaultParams.asset, "!tokenOut");
-
-            uniswapRouter = params._uniswapRouter;
-            path = params._path;
+            swapPath = _initParams._swapPath;
         }
     }
 
@@ -279,14 +275,18 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Sets a new path for swaps
-     * @param newPath is the new path
+     * @param newSwapPath is the new path
      */
-    function setPath(bytes memory newPath) external onlyOwner nonReentrant {
+    function setSwapPath(bytes memory newSwapPath)
+        external
+        onlyOwner
+        nonReentrant
+    {
         require(
-            UniswapRouter.checkPath(newPath, USDC, vaultParams.asset),
-            "!newPath"
+            UniswapRouter.checkPath(newSwapPath, USDC, vaultParams.asset),
+            "Invalid swap path"
         );
-        path = newPath;
+        swapPath = newSwapPath;
     }
 
     /************************************************
@@ -439,8 +439,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = usdcAuction ? USDC : vaultParams.asset;
-        auctionDetails.assetDecimals = usdcAuction ? 6 : vaultParams.decimals;
+        auctionDetails.asset = isUsdcAuction ? USDC : vaultParams.asset;
+        auctionDetails.assetDecimals = isUsdcAuction ? 6 : vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
@@ -465,22 +465,21 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Settle auction and swap
      */
-    function settleAuctionAndSwap(uint256 _minAmountOut)
+    function settleAuctionAndSwap(uint256 minAmountOut)
         external
         onlyKeeper
         nonReentrant
     {
-        require(usdcAuction, "!usdcAuction");
-        require(_minAmountOut > 0, "!_minAmountOut");
+        require(isUsdcAuction, "!isUsdcAuction");
+        require(minAmountOut > 0, "!_minAmountOut");
 
         VaultLifecycle.settleAuctionAndSwap(
             GNOSIS_EASY_AUCTION,
             optionAuctionID,
-            path,
-            USDC,
-            vaultParams.asset,
-            _minAmountOut,
-            uniswapRouter
+            swapPath,
+            USDC, //Token In
+            minAmountOut,
+            UNISWAP_ROUTER
         );
     }
 }

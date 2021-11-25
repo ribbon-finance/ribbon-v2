@@ -78,14 +78,16 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _uniswapRouter
     )
         RibbonVault(
             _weth,
             _usdc,
             _gammaController,
             _marginPool,
-            _gnosisEasyAuction
+            _gnosisEasyAuction,
+            _uniswapRouter
         )
     {}
 

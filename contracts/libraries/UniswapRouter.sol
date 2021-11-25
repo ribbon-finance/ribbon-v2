@@ -14,115 +14,41 @@ library UniswapRouter {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    struct SwapParams {
-        bytes path;
-        address recipient;
-        address tokenIn;
-        address tokenOut;
-        uint256 amountIn;
-        uint256 minAmountOut;
-        address router;
-    }
-
-    event Swap(
-        address indexed tokenIn,
-        address indexed tokenOut,
-        uint256 amountIn,
-        uint256 amountOut
-    );
-
-    function decodePath(bytes memory path)
-        internal
-        pure
-        returns (address tokenIn, address tokenOut)
-    {
-        uint24 fee;
-
-        (tokenIn, tokenOut, fee) = path.decodeFirstPool();
-        bool hasMultiplePools = path.hasMultiplePools();
-
-        if (hasMultiplePools) {
-            path = path.skipToken();
-            while (true) {
-                (, tokenOut, ) = path.decodeFirstPool();
-
-                hasMultiplePools = path.hasMultiplePools();
-
-                if (hasMultiplePools) {
-                    path = path.skipToken();
-                } else {
-                    break;
-                }
-            }
-        }
-
-        return (tokenIn, tokenOut);
-        // return (address(0), address(0));
-    }
-
-    function getTokenOut(bytes memory path)
-        internal
-        pure
-        returns (address tokenOut)
-    {
-        (, tokenOut, ) = path.decodeFirstPool();
-        bool hasMultiplePools = path.hasMultiplePools();
-
-        if (hasMultiplePools) {
-            path = path.skipToken();
-            while (true) {
-                (, tokenOut, ) = path.decodeFirstPool();
-
-                hasMultiplePools = path.hasMultiplePools();
-
-                if (hasMultiplePools) {
-                    path = path.skipToken();
-                } else {
-                    break;
-                }
-            }
-        }
-
-        return tokenOut;
-    }
-
     function checkPath(
-        bytes memory path,
-        address _tokenIn,
-        address _tokenOut
-    ) internal pure returns (bool rightPath) {
-        (address tokenIn, address tokenOut) = decodePath(path);
-        return tokenIn == _tokenIn && tokenOut == _tokenOut;
+        bytes memory swapPath,
+        address validTokenIn,
+        address validTokenOut
+    ) internal pure returns (bool isValidPath) {
+        (address tokenIn, address tokenOut, ) = swapPath.decodeFirstPool();
+
+        while (swapPath.hasMultiplePools()) {
+            swapPath = swapPath.skipToken();
+            (, tokenOut, ) = swapPath.decodeFirstPool();
+        }
+
+        return tokenIn == validTokenIn && tokenOut == validTokenOut;
     }
 
-    function swap(SwapParams memory swapParams)
-        internal
-        returns (uint256 amountOut)
-    {
-        IERC20(swapParams.tokenIn).safeApprove(
-            swapParams.router,
-            swapParams.amountIn
-        );
+    function swap(
+        address recipient,
+        address tokenIn,
+        uint256 amountIn,
+        uint256 minAmountOut,
+        address router,
+        bytes calldata swapPath
+    ) internal returns (uint256 amountOut) {
+        IERC20(tokenIn).safeApprove(router, amountIn);
 
-        ISwapRouter.ExactInputParams memory params =
+        ISwapRouter.ExactInputParams memory swapParams =
             ISwapRouter.ExactInputParams({
-                recipient: swapParams.recipient,
-                path: swapParams.path,
-                deadline: block.timestamp + 15,
-                amountIn: swapParams.amountIn,
-                amountOutMinimum: swapParams.minAmountOut
+                recipient: recipient,
+                path: swapPath,
+                deadline: block.timestamp.add(10 minutes),
+                amountIn: amountIn,
+                amountOutMinimum: minAmountOut
             });
 
-        amountOut = ISwapRouter(swapParams.router).exactInput(params);
-
-        emit Swap(
-            swapParams.tokenIn,
-            swapParams.tokenOut,
-            swapParams.amountIn,
-            amountOut
-        );
-
-        // IERC20(swapParams.tokenIn).safeDecreaseAllowance(address(this), swapParams.amountIn);
+        amountOut = ISwapRouter(router).exactInput(swapParams);
 
         return amountOut;
     }

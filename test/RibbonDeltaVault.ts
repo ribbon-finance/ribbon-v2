@@ -20,6 +20,7 @@ import {
   GNOSIS_EASY_AUCTION,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
+  UNISWAP_ROUTER,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -271,6 +272,8 @@ function behavesLikeRibbonOptionsVault(params: {
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
+  let isUsdcAuction = false;
+  let swapPath = constants.HashZero;
 
   // Contracts
   let strikeSelection: Contract;
@@ -427,9 +430,8 @@ function behavesLikeRibbonOptionsVault(params: {
           strikeSelection.address,
           premiumDiscount,
           auctionDuration,
-          false,
-          constants.AddressZero,
-          constants.HashZero,
+          isUsdcAuction,
+          swapPath,
         ],
         [
           isPut,
@@ -448,6 +450,7 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER,
         MARGIN_POOL,
         GNOSIS_EASY_AUCTION,
+        UNISWAP_ROUTER,
       ];
 
       thetaVault = (
@@ -490,6 +493,7 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER,
         MARGIN_POOL,
         GNOSIS_EASY_AUCTION,
+        UNISWAP_ROUTER,
       ];
 
       vault = (
@@ -641,7 +645,8 @@ function behavesLikeRibbonOptionsVault(params: {
           USDC_ADDRESS,
           GAMMA_CONTROLLER,
           MARGIN_POOL,
-          GNOSIS_EASY_AUCTION
+          GNOSIS_EASY_AUCTION,
+          UNISWAP_ROUTER
         );
       });
 

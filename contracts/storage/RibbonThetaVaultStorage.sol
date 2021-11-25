@@ -27,11 +27,9 @@ abstract contract RibbonThetaVaultStorageV2 {
 
 abstract contract RibbonThetaVaultStorageV3 {
     // Auction will be denominated in USDC if true
-    bool public usdcAuction;
-    // Uniswap Router V3 contract for swaps
-    address public uniswapRouter;
+    bool public isUsdcAuction;
     // Path for swaps
-    bytes public path;
+    bytes public swapPath;
 }
 
 // We are following Compound's method of upgrading new contract implementations

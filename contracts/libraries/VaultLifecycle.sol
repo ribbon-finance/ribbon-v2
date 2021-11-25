@@ -14,6 +14,7 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {UniswapRouter} from "./UniswapRouter.sol";
 
@@ -675,31 +676,47 @@ library VaultLifecycle {
     function settleAuctionAndSwap(
         address gnosisEasyAuction,
         uint256 auctionID,
-        bytes memory _path,
+        bytes calldata _path,
         address _tokenIn,
-        address _tokenOut,
+        // address _tokenOut,
         uint256 _minAmountOut,
         address _router
-    ) external returns (uint256 amountIn, uint256 amountOut) {
-        GnosisAuction.settleAuction(gnosisEasyAuction, auctionID);
+    ) external {
+        IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
 
-        UniswapRouter.SwapParams memory swapParams;
+        // UniswapRouter.SwapParams memory swapParams;
 
         uint256 balance = IERC20(_tokenIn).balanceOf(address(this));
 
         if (balance > 0) {
-            swapParams.path = _path;
-            swapParams.recipient = address(this);
-            swapParams.tokenIn = _tokenIn;
-            swapParams.tokenOut = _tokenOut;
-            swapParams.amountIn = balance;
-            swapParams.minAmountOut = _minAmountOut;
-            swapParams.router = _router;
+            // swapParams.recipient = address(this);
+            // swapParams.tokenIn = _tokenIn;
+            // swapParams.tokenOut = _tokenOut;
+            // swapParams.amountIn = balance;
+            // swapParams.minAmountOut = _minAmountOut;
+            // swapParams.router = _router;
 
-            return (balance, UniswapRouter.swap(swapParams));
-        } else {
-            return (0, 0);
+            // return (balance, UniswapRouter.swap(swapParams, _path));
+            // UniswapRouter.swap(
+            //     address(this),
+            //     _tokenIn,
+            //     balance,
+            //     _minAmountOut,
+            //     _router,
+            //     _path,
+            // );
+            UniswapRouter.swap(
+                address(this),
+                _tokenIn,
+                balance,
+                _minAmountOut,
+                _router,
+                _path
+            );
         }
+        //  else {
+        //     return (0, 0);
+        // }
     }
 
     /**
