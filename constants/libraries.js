@@ -1,3 +1,3 @@
 module.exports = {
-  VaultLifecycle: "0x14Cc2c0b624e437202B53E533147982842865511",
+  VaultLifecycle: "0x35a3e0F233587F6E515bcE363E0a5E42cD69EcC0",
 };

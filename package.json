@@ -37,7 +37,6 @@
   "scripts": {
     "test": "yarn test:eth && yarn test:avax",
     "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
-    "test:fuji": "cd ../rvol && yarn compile && cd - && CHAINID=43113 npx hardhat test test/RibbonThetaVault.ts",
     "test:avax": "cd ../rvol && yarn compile && cd - && CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
     "compile": "npx hardhat compile",
