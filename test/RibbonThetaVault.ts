@@ -2353,7 +2353,9 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         if (isUsdcAuction) {
-          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
+          await vault
+            .connect(keeperSigner)
+            .settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
