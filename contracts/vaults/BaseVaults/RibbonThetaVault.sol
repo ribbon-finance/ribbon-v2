@@ -76,22 +76,22 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      *  STRUCTS
      ***********************************************/
 
-    // /**
-    //  * @notice Initialization parameters for the vault.
-    //  * @param _owner is the owner of the vault with critical permissions
-    //  * @param _feeRecipient is the address to recieve vault performance and management fees
-    //  * @param _managementFee is the management fee pct.
-    //  * @param _performanceFee is the perfomance fee pct.
-    //  * @param _tokenName is the name of the token
-    //  * @param _tokenSymbol is the symbol of the token
-    //  * @param _optionsPremiumPricer is the address of the contract with the
-    //    black-scholes premium calculation logic
-    //  * @param _strikeSelection is the address of the contract with strike selection logic
-    //  * @param _premiumDiscount is the vault's discount applied to the premium
-    //  * @param _auctionDuration is the duration of the gnosis auction
-    //  * @param _isUsdcAuction is whether Gnosis auction should be denominated in USDC
-    //  * @param _swapPath is the path for swapping
-    //  */
+    /**
+     * @notice Initialization parameters for the vault.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
+     * @param _optionsPremiumPricer is the address of the contract with the
+       black-scholes premium calculation logic
+     * @param _strikeSelection is the address of the contract with strike selection logic
+     * @param _premiumDiscount is the vault's discount applied to the premium
+     * @param _auctionDuration is the duration of the gnosis auction
+     * @param _isUsdcAuction is whether Gnosis auction should be denominated in USDC
+     * @param _swapPath is the path for swapping
+     */
     struct InitParams {
         address _owner;
         address _keeper;
@@ -144,11 +144,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         OTOKEN_FACTORY = _oTokenFactory;
     }
 
-    // /**
-    //  * @notice Initializes the OptionVault contract with storage variables.
-    //  * @param _initParams is the struct with initialization parameters
-    //  * @param _vaultParams is the struct with vault general data
-    //  */
+    /**
+     * @notice Initializes the OptionVault contract with storage variables.
+     * @param _initParams is the struct with initialization parameters
+     * @param _vaultParams is the struct with vault general data
+     */
     function initialize(
         InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
@@ -463,7 +463,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
-     * @notice Settle auction and swap
+     * @notice Settle USDC auction and swap the proceeds to underlying asset
+     * @param minAmountOut is the minimum amount of underlying acceptable for the swap
      */
     function settleAuctionAndSwap(uint256 minAmountOut)
         external
@@ -476,10 +477,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         VaultLifecycle.settleAuctionAndSwap(
             GNOSIS_EASY_AUCTION,
             optionAuctionID,
-            swapPath,
             USDC, //Token In
             minAmountOut,
-            UNISWAP_ROUTER
+            UNISWAP_ROUTER,
+            swapPath
         );
     }
 }

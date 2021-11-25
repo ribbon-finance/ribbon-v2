@@ -218,21 +218,10 @@ export async function setOpynOracleExpiryPrice(
   oracle: Contract,
   expiry: BigNumber,
   settlePrice: BigNumber
-  // chainlinkPricer?: string
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  // let res: any;
-
-  // if (chainlinkPricer) {
-  //   res = await oracle.setExpiryPrice(asset, expiry, settlePrice, {
-  //     from: chainlinkPricer,
-  //   });
-  // } else {
-  //   res = await oracle.setExpiryPrice(asset, expiry, settlePrice)
-  // }
   const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
-
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 

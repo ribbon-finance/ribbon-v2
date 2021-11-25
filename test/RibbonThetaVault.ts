@@ -220,34 +220,34 @@ type Option = {
   expiry: number;
 };
 
-//
-//
-// @param {Object} params - Parameter of option vault
-// @param {string} params.name - Name of test
-// @param {string} params.tokenName - Name of Option Vault
-// @param {string} params.tokenSymbol - Symbol of Option Vault
-// @param {number} params.tokenDecimals - Decimals of the vault shares
-// @param {string} params.asset - Address of assets
-// @param {string} params.assetContractName - Name of collateral asset contract
-// @param {string} params.strikeAsset - Address of strike assets
-// @param {string} params.collateralAsset - Address of asset used for collateral
-// @param {string} params.chainlinkPricer - Address of chainlink pricer
-// @param {BigNumber} params.deltaFirstOption - Delta of first option
-// @param {BigNumber} params.deltaSecondOption - Delta of second option
-// @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
-// @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
-// @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
-// @param {BigNumber} params.depositAmount - Deposit amount
-// @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
-// @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
-// @param {number} params.auctionDuration - Duration of gnosis auction in seconds
-// @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
-// @param {BigNumber} params.managementFee - Management fee (6 decimals)
-// @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
-// @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
-// @param {boolean} params.isUsdcAuction - Boolean flag whether auction is denominated in USDC
-// @param {string} params.swapPath - Bytes representation of the swap route
-//
+/**
+ *
+ * @param {Object} params - Parameter of option vault
+ * @param {string} params.name - Name of test
+ * @param {string} params.tokenName - Name of Option Vault
+ * @param {string} params.tokenSymbol - Symbol of Option Vault
+ * @param {number} params.tokenDecimals - Decimals of the vault shares
+ * @param {string} params.asset - Address of assets
+ * @param {string} params.assetContractName - Name of collateral asset contract
+ * @param {string} params.strikeAsset - Address of strike assets
+ * @param {string} params.collateralAsset - Address of asset used for collateral
+ * @param {string} params.chainlinkPricer - Address of chainlink pricer
+ * @param {BigNumber} params.deltaFirstOption - Delta of first option
+ * @param {BigNumber} params.deltaSecondOption - Delta of second option
+ * @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
+ * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
+ * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
+ * @param {BigNumber} params.depositAmount - Deposit amount
+ * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
+ * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
+ * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
+ * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
+ * @param {BigNumber} params.managementFee - Management fee (6 decimals)
+ * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
+ * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
+ * @param {boolean} params.isUsdcAuction - Boolean flag whether auction is denominated in USDC
+ * @param {string} params.swapPath - Bytes representation of the swap route
+ */
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
   tokenName: string;
@@ -270,7 +270,6 @@ function behavesLikeRibbonOptionsVault(params: {
   performanceFee: BigNumber;
   isPut: boolean;
   isUsdcAuction?: boolean;
-  uniswapRouter?: string;
   swapPath?: string;
   gasLimits: {
     depositWorstCase: number;
@@ -351,7 +350,6 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle,
         await getCurrentOptionExpiry(),
         settlementPrice
-        // params.chainlinkPricer
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(ownerSigner).commitAndClose();
@@ -2111,10 +2109,6 @@ function behavesLikeRibbonOptionsVault(params: {
             .settleAuction(await gnosisAuction.auctionCounter());
         }
 
-        // await gnosisAuction
-        //   .connect(userSigner)
-        //   .settleAuction(await gnosisAuction.auctionCounter());
-
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
           : firstOptionStrike.add(1);
@@ -2125,7 +2119,6 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceITM
-          // params.chainlinkPricer
         );
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
@@ -2247,10 +2240,6 @@ function behavesLikeRibbonOptionsVault(params: {
             .settleAuction(auctionDetails[0]);
         }
 
-        // await gnosisAuction
-        //   .connect(userSigner)
-        //   .settleAuction(auctionDetails[0]);
-
         let swapProceeds = await assetContract.balanceOf(vault.address);
 
         // only the premium should be left over because the funds are locked into Opyn
@@ -2269,7 +2258,6 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
-          // params.chainlinkPricer
         );
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
@@ -2364,9 +2352,6 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        // await gnosisAuction
-        //   .connect(userSigner)
-        //   .settleAuction(auctionDetails[0]);
         if (isUsdcAuction) {
           await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
@@ -2385,7 +2370,6 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
-          // params.chainlinkPricer
         );
 
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
@@ -2629,7 +2613,6 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceITM
-          // params.chainlinkPricer
         );
 
         await strikeSelection.setDelta(params.deltaSecondOption);
@@ -2910,7 +2893,6 @@ function behavesLikeRibbonOptionsVault(params: {
           oracle,
           await getCurrentOptionExpiry(),
           firstOptionStrike
-          // params.chainlinkPricer
         );
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
         await vault.connect(ownerSigner).commitAndClose();
