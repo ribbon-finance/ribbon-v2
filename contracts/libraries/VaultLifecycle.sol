@@ -220,7 +220,9 @@ library VaultLifecycle {
         {
             (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
                 .getVaultFees(
-                currentBalance,
+                currentBalance.sub(queuedWithdrawAmount).add(
+                    withdrawAmountDiff
+                ),
                 vaultState.lastLockedAmount,
                 vaultState.totalPending,
                 params.performanceFee,
