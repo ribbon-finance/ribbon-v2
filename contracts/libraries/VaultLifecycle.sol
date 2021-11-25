@@ -673,50 +673,37 @@ library VaultLifecycle {
         return GnosisAuction.startAuction(auctionDetails);
     }
 
+    /**
+     * @notice Settle Gnosis auction and swap the proceeds, if any, to underlying
+     * @param gnosisEasyAuction is the contract address of Gnosis Easy Auction protocol
+     * @param auctionID is the auction ID of gnosis auction started by the vault
+     * @param tokenIn is contract address of stables (USDC)
+     * @param minAmountOut is the minimum amount of underlying acceptable for the swap
+     * @param router is the contract address of UniswapV3 router
+     * @param swapPath is the path for the swaps
+     */
     function settleAuctionAndSwap(
         address gnosisEasyAuction,
         uint256 auctionID,
-        bytes calldata _path,
-        address _tokenIn,
-        // address _tokenOut,
-        uint256 _minAmountOut,
-        address _router
+        address tokenIn,
+        uint256 minAmountOut,
+        address router,
+        bytes calldata swapPath
     ) external {
         IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
 
-        // UniswapRouter.SwapParams memory swapParams;
-
-        uint256 balance = IERC20(_tokenIn).balanceOf(address(this));
+        uint256 balance = IERC20(tokenIn).balanceOf(address(this));
 
         if (balance > 0) {
-            // swapParams.recipient = address(this);
-            // swapParams.tokenIn = _tokenIn;
-            // swapParams.tokenOut = _tokenOut;
-            // swapParams.amountIn = balance;
-            // swapParams.minAmountOut = _minAmountOut;
-            // swapParams.router = _router;
-
-            // return (balance, UniswapRouter.swap(swapParams, _path));
-            // UniswapRouter.swap(
-            //     address(this),
-            //     _tokenIn,
-            //     balance,
-            //     _minAmountOut,
-            //     _router,
-            //     _path,
-            // );
             UniswapRouter.swap(
                 address(this),
-                _tokenIn,
+                tokenIn,
                 balance,
-                _minAmountOut,
-                _router,
-                _path
+                minAmountOut,
+                router,
+                swapPath
             );
         }
-        //  else {
-        //     return (0, 0);
-        // }
     }
 
     /**
