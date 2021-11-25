@@ -8,6 +8,7 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
   CHAINID,
+  BLOCK_NUMBER,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
@@ -40,7 +41,7 @@ import {
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
-
+import { TEST_URI } from '../scripts/helpers/getDefaultEthersProvider';
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -54,12 +55,6 @@ const WEEKS_PER_YEAR = 52142857;
 const PERIOD = 43200; // 12 hours
 
 const chainId = network.config.chainId;
-
-const BLOCK_NUMBER = {
-  [CHAINID.ETH_MAINNET]: 12529250,
-  [CHAINID.AVAX_MAINNET]: 7397082,
-  [CHAINID.AVAX_FUJI]: 2823963,
-};
 
 describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
@@ -137,7 +132,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from(
-      chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2857142857"
+      chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2702702702"
     ),
     auctionDuration: 21600,
     tokenDecimals: 6,
@@ -302,7 +297,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params: [
           {
             forking: {
-              jsonRpcUrl: process.env.TEST_URI,
+              jsonRpcUrl: TEST_URI[chainId],
               blockNumber: BLOCK_NUMBER[chainId],
             },
           },

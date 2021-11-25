@@ -7,6 +7,8 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
+import { BLOCK_NUMBER, CHAINID } from './constants/constants';
+import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
 require("dotenv").config();
 
@@ -37,14 +39,15 @@ export default {
       },
       chainId: +process.env.CHAINID,
       forking: {
-        url: process.env.TEST_URI,
+        url: TEST_URI[+process.env.CHAINID],
+        blockNumber: BLOCK_NUMBER[+process.env.CHAINID],
         gasLimit: 8e6,
       },
     },
     mainnet: {
-      url: process.env.MAINNET_URI,
+      url: process.env.TEST_URI,
       accounts: {
-        mnemonic: process.env.MAINNET_MNEMONIC,
+        mnemonic: process.env.TEST_MNEMONIC,
       },
     },
     kovan: {
@@ -54,14 +57,14 @@ export default {
       },
     },
     avax: {
-      url: 'https://api.avax.network/ext/bc/C/rpc',
+      url: process.env.AVAX_URI,
       chainId: 43114,
       accounts: {
         mnemonic: process.env.AVAX_MNEMONIC,
       },
     },
     fuji: {
-      url: 'https://api.avax-test.network/ext/bc/C/rpc',
+      url: process.env.FUJI_URI,
       chainId: 43113,
       accounts: {
         mnemonic: process.env.FUJI_MNEMONIC,
