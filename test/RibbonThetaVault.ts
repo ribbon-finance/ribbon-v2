@@ -139,7 +139,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from(
-      chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2702702702"
+      chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2857142857"
     ),
     auctionDuration: 21600,
     tokenDecimals: 6,
@@ -1580,7 +1580,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1121205);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1162951);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });

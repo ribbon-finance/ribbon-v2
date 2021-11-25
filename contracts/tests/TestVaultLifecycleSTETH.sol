@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
+import {IWSTETH} from "../interfaces/ISTETH.sol";
 import {VaultLifecycleSTETH} from "../libraries/VaultLifecycleSTETH.sol";
 
 contract TestVaultLifecycleSTETH {
@@ -16,6 +17,7 @@ contract TestVaultLifecycleSTETH {
             VaultLifecycleSTETH.unwrapYieldToken(
                 amount,
                 wstETH,
+                IWSTETH(wstETH).stETH(),
                 crvPool,
                 minETHOut
             );
