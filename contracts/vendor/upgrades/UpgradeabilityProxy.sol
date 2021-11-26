@@ -26,7 +26,7 @@ contract UpgradeabilityProxy is Proxy {
       (bool success,) = _logic.delegatecall(_data);
       require(success);
     }
-  }  
+  }
 
   /**
    * @dev Emitted when the implementation is upgraded.
