@@ -10,7 +10,6 @@ import {
     IVolatilityOracle
 } from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "hardhat/console.sol";
 
 contract StrikeSelection is Ownable {
     using SafeMath for uint256;

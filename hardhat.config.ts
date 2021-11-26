@@ -7,13 +7,16 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
-import { BLOCK_NUMBER, CHAINID } from './constants/constants';
+import { BLOCK_NUMBER } from "./constants/constants";
 import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
 require("dotenv").config();
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
+
+// Defaults to CHAINID=1 so things will run with mainnet fork if not specified
+const CHAINID = process.env.CHAINID ? +process.env.CHAINID : 1;
 
 export default {
   accounts: {
@@ -37,10 +40,10 @@ export default {
       accounts: {
         mnemonic: process.env.TEST_MNEMONIC,
       },
-      chainId: +process.env.CHAINID,
+      chainId: CHAINID,
       forking: {
-        url: TEST_URI[+process.env.CHAINID],
-        blockNumber: BLOCK_NUMBER[+process.env.CHAINID],
+        url: TEST_URI[CHAINID],
+        blockNumber: BLOCK_NUMBER[CHAINID],
         gasLimit: 8e6,
       },
     },
