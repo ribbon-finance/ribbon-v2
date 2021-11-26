@@ -467,8 +467,9 @@ contract RibbonVault is
 
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     * @return withdrawAmount the current withdrawal amount
      */
-    function completeWithdraw() external nonReentrant {
+    function _completeWithdraw() internal returns (uint256) {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -512,6 +513,8 @@ contract RibbonVault is
             msg.sender,
             withdrawAmount
         );
+
+        return withdrawAmount;
     }
 
     /**
