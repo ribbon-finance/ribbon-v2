@@ -7,11 +7,16 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
+import { BLOCK_NUMBER } from "./constants/constants";
+import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
 require("dotenv").config();
 
 process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
+
+// Defaults to CHAINID=1 so things will run with mainnet fork if not specified
+const CHAINID = process.env.CHAINID ? +process.env.CHAINID : 1;
 
 export default {
   accounts: {
@@ -32,22 +37,40 @@ export default {
   },
   networks: {
     hardhat: {
+      accounts: {
+        mnemonic: process.env.TEST_MNEMONIC,
+      },
+      chainId: CHAINID,
       forking: {
-        url: process.env.TEST_URI,
+        url: TEST_URI[CHAINID],
+        blockNumber: BLOCK_NUMBER[CHAINID],
         gasLimit: 8e6,
-        blockNumber: 12570201,
       },
     },
     mainnet: {
-      url: process.env.MAINNET_URI,
+      url: process.env.TEST_URI,
       accounts: {
-        mnemonic: process.env.MAINNET_MNEMONIC,
+        mnemonic: process.env.TEST_MNEMONIC,
       },
     },
     kovan: {
       url: process.env.KOVAN_URI,
       accounts: {
         mnemonic: process.env.KOVAN_MNEMONIC,
+      },
+    },
+    avax: {
+      url: process.env.AVAX_URI,
+      chainId: 43114,
+      accounts: {
+        mnemonic: process.env.AVAX_MNEMONIC,
+      },
+    },
+    fuji: {
+      url: process.env.FUJI_URI,
+      chainId: 43113,
+      accounts: {
+        mnemonic: process.env.FUJI_MNEMONIC,
       },
     },
   },

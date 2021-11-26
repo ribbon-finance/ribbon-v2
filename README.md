@@ -17,7 +17,9 @@ First, install the dependencies with yarn:
 yarn install
 ```
 
-Next, we need to populate the .env file with these values. Reach out to the team if you need help on these variables. The `TEST_URI` needs to be an archive node.
+Next, we need to populate the .env file with these values.
+Copy the .env.example -> .env and fill out the value.
+Reach out to the team if you need help on these variables. The `TEST_URI` needs to be an archive node.
 
 ```bash
 TEST_URI=
@@ -36,7 +38,6 @@ yarn test
 
 # Run specific test that matches the pattern -g
 yarn run ts-mocha test/RibbonThetaYearnVault.ts --timeout 500000 -g 'rollToNextOption'
-```
 
 ## Deployment
 
@@ -58,4 +59,21 @@ Finally, we can verify the contracts on Etherscan:
 
 ```
 yarn etherscan-verify --network kovan
+```
+
+## Testing
+
+Will run all tests on Ethereum mainnet and a subset of tests on Avax
+```
+yarn test
+```
+
+Runs Ethereum mainnet
+```
+yarn test:eth
+```
+
+Runs Avax testnet
+```
+yarn test:avax
 ```
