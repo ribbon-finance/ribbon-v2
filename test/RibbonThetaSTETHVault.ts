@@ -304,9 +304,7 @@ function behavesLikeRibbonOptionsVault(params: {
       volOracle = await TestVolOracle.deploy(PERIOD, 7);
 
       await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId]
-          ? ethusdcPool
-          : wbtcusdcPool
+        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
       );
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
@@ -2753,6 +2751,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToSecondOption(settlePriceITM);
 
+        const lastQueuedWithdrawAmount = await vault.lastQueuedWithdrawAmount();
+
         let beforeBalance: BigNumber;
         if (depositAsset === WETH_ADDRESS[chainId]) {
           beforeBalance = await provider.getBalance(user);
@@ -2787,6 +2787,10 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.vaultState();
 
         assert.bnEqual(endQueuedShares, BigNumber.from(0));
+        assert.bnEqual(
+          await vault.lastQueuedWithdrawAmount(),
+          lastQueuedWithdrawAmount.sub(crvETHAmountAfterSlippage)
+        );
         assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
 
         let actualWithdrawAmount: BigNumber;
@@ -2810,7 +2814,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 272000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 277018);
         // console.log(
         //   params.name,
         //   "completeWithdraw",

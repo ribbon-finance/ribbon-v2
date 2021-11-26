@@ -283,6 +283,17 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     }
 
     /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     */
+    function completeWithdraw(uint256 minETHOut) external nonReentrant {
+        uint256 withdrawAmount = _completeWithdraw(minETHOut);
+        lastQueuedWithdrawAmount = uint128(
+            uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
+        );
+    }
+
+    /**
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
