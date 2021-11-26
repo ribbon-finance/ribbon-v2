@@ -287,7 +287,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      */
     function completeWithdraw(uint256 minETHOut) external nonReentrant {
-        uint256 withdrawAmount = _completeWithdraw();
+        uint256 withdrawAmount = _completeWithdraw(minETHOut);
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
