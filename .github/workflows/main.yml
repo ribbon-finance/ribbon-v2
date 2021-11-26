@@ -39,6 +39,10 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
+          AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
+          FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
+          FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
           CI: true
       - run: yarn test
         env:
@@ -47,6 +51,10 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
+          AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
+          FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
+          FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
           CI: true
   lint:
     runs-on: ubuntu-latest
