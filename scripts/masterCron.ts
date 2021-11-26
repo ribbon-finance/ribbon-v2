@@ -49,6 +49,7 @@ const auctionParticipantTag = "<@&893435203144544316>";
 
 const HOUR = 3600;
 const DAY = 24 * HOUR;
+const TX_SLEEP_TIME = 300000; // 5 minutes
 
 let gasLimits = {
   volOracleCommit: 85000,
@@ -88,6 +89,10 @@ function sleep(ms: number) {
 }
 
 async function log(msg: string) {
+  if (msg.length >= 2000) {
+    console.log("EXCEEDED LENGTH");
+    console.log(msg);
+  }
   (client.channels.cache.get(auth.channel_id) as Discord.TextChannel).send(msg);
 }
 
@@ -474,6 +479,7 @@ async function runTX(
       log(
         `ThetaVault-${method}()-${vaultName}: <https://etherscan.io/tx/${tx.hash}>`
       );
+      await tx.wait();
     } catch (error) {
       await log(
         `ThetaVault-${method}()-${vaultName}: failed with error ${error}`
@@ -483,6 +489,8 @@ async function runTX(
 }
 
 async function strikeForecasting() {
+  console.log("Forecasting strikes");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("GnosisAuction");
   const strikeSelectionArtifact = await hre.artifacts.readArtifact(
@@ -581,15 +589,17 @@ async function strikeForecasting() {
 }
 
 async function commitAndClose() {
+  console.log("Calling commitAndClose");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const otokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
   // 1. commitAndClose
   await runTX(vaultArtifact.abi, provider, signer, network, "commitAndClose");
 
-  await sleep(10000);
+  await sleep(TX_SLEEP_TIME);
 
-  let msg = `${auctionParticipantTag} Strike prices have been selected\n\n`;
+  let msg = `${auctionParticipantTag} Strike prices have been selected. Auction begins at 11.15am UTC\n\n`;
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -616,6 +626,8 @@ Expiry: ${dateStr.toUTCString()}\n\n`;
 }
 
 async function rollToNextOption() {
+  console.log("Calling rollToNextOption");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const ierc20Artifact = await hre.artifacts.readArtifact(
     "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
@@ -633,9 +645,9 @@ async function rollToNextOption() {
   // 3. rollToNextOption
   await runTX(vaultArtifact.abi, provider, signer, network, "rollToNextOption");
 
-  await sleep(10000);
+  await sleep(TX_SLEEP_TIME);
 
-  let msg = `${auctionParticipantTag} Auctions have begun. Happy bidding!\n\n`;
+  let msg = `Auctions have begun. Happy bidding!\n\n`;
 
   for (let vaultName in deployments[network].vaults) {
     const vault = new ethers.Contract(
@@ -653,6 +665,8 @@ async function rollToNextOption() {
 }
 
 async function settleAuctions() {
+  console.log("Calling settleAuctions");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
   const ierc20Artifact = await hre.artifacts.readArtifact(
@@ -677,6 +691,8 @@ async function settleAuctions() {
 }
 
 async function updateManualVol() {
+  console.log("Updating ManualVolOracle");
+
   const volOracle = new ethers.Contract(
     MANUAL_VOL_ORACLE,
     ManualVolOracle_ABI,
