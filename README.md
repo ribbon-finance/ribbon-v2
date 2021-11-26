@@ -38,6 +38,7 @@ yarn test
 
 # Run specific test that matches the pattern -g
 yarn run ts-mocha test/RibbonThetaYearnVault.ts --timeout 500000 -g 'rollToNextOption'
+```
 
 ## Deployment
 
