@@ -489,6 +489,8 @@ async function runTX(
 }
 
 async function strikeForecasting() {
+  console.log("Forecasting strikes");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("GnosisAuction");
   const strikeSelectionArtifact = await hre.artifacts.readArtifact(
@@ -587,6 +589,8 @@ async function strikeForecasting() {
 }
 
 async function commitAndClose() {
+  console.log("Calling commitAndClose");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const otokenArtifact = await hre.artifacts.readArtifact("IOtoken");
 
@@ -622,6 +626,8 @@ Expiry: ${dateStr.toUTCString()}\n\n`;
 }
 
 async function rollToNextOption() {
+  console.log("Calling rollToNextOption");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const ierc20Artifact = await hre.artifacts.readArtifact(
     "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
@@ -659,6 +665,8 @@ async function rollToNextOption() {
 }
 
 async function settleAuctions() {
+  console.log("Calling settleAuctions");
+
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
   const gnosisArtifact = await hre.artifacts.readArtifact("IGnosisAuction");
   const ierc20Artifact = await hre.artifacts.readArtifact(
@@ -683,6 +691,8 @@ async function settleAuctions() {
 }
 
 async function updateManualVol() {
+  console.log("Updating ManualVolOracle");
+
   const volOracle = new ethers.Contract(
     MANUAL_VOL_ORACLE,
     ManualVolOracle_ABI,
