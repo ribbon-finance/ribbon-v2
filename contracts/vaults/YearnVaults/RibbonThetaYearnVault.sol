@@ -283,6 +283,16 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     }
 
     /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     */
+    function completeWithdraw() external nonReentrant {
+        uint256 withdrawAmount = _completeWithdraw();
+        lastQueuedWithdrawAmount = uint128(
+            uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
+        );
+    }
+
+    /**
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
