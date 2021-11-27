@@ -4,6 +4,7 @@ import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
 import CHAINLINK_PRICER_ABI from "../../constants/abis/ChainLinkPricer.json";
 import {
+  CHAINID,
   GAMMA_ORACLE,
   GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
@@ -11,6 +12,7 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  WBTC_ADDRESS,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -18,6 +20,7 @@ import { wmul } from "../helpers/math";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
+const chainId = hre.network.config.chainId;
 
 export async function deployProxy(
   logicContractName: string,
@@ -117,14 +120,14 @@ export async function setAssetPricer(
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
   const oracle = await ethers.getContractAt(
     "IOracle",
-    isSTETH ? GAMMA_ORACLE_NEW : GAMMA_ORACLE
+    isSTETH ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId]
   );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
@@ -140,19 +143,19 @@ export async function whitelistProduct(
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
   const whitelist = await ethers.getContractAt(
     "IGammaWhitelist",
-    GAMMA_WHITELIST
+    GAMMA_WHITELIST[chainId]
   );
 
   await adminSigner.sendTransaction({
-    to: ORACLE_OWNER,
-    value: parseEther("0.5"),
+    to: ORACLE_OWNER[chainId],
+    value: parseEther("1"),
   });
 
   await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
@@ -173,7 +176,7 @@ export async function setupOracle(
   });
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
   const pricerSigner = await provider.getSigner(chainlinkPricer);
 
@@ -184,21 +187,21 @@ export async function setupOracle(
     .go(chainlinkPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    useNew ? GAMMA_ORACLE_NEW : GAMMA_ORACLE,
+    useNew ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
     ORACLE_ABI,
     pricerSigner
   );
 
-  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
   await signer.sendTransaction({
-    to: ORACLE_OWNER,
+    to: ORACLE_OWNER[chainId],
     value: parseEther("0.5"),
   });
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setStablePrice(USDC_ADDRESS, "100000000");
+    .setStablePrice(USDC_ADDRESS[chainId], "100000000");
 
   const pricer = new ethers.Contract(
     chainlinkPricer,
@@ -245,9 +248,9 @@ export async function setOpynOracleExpiryPriceYearn(
   await res.wait();
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
-  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
   const res2 = await collateralPricer
     .connect(oracleOwnerSigner)
     .setExpiryPriceInOracle(expiry);
@@ -278,7 +281,12 @@ export async function mintToken(
     value: parseEther("0.5"),
   });
 
-  if (contract.address == USDC_ADDRESS) {
+  if (chainId === CHAINID.AVAX_MAINNET && (contract.address === WBTC_ADDRESS[chainId] ||
+                                           contract.address === USDC_ADDRESS[chainId])) {
+    // Avax mainnet uses BridgeTokens which have a special mint function
+    const txid = ethers.utils.formatBytes32String('Hello World!');
+    await contract.connect(tokenOwnerSigner).mint(recipient, amount, recipient, 0, txid);
+  } else if (contract.address === USDC_ADDRESS[chainId]) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
     await contract.connect(tokenOwnerSigner).mint(recipient, amount);

@@ -2,16 +2,23 @@ import { ethers, network } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
-import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  // CHAINLINK_WBTC_PRICER,
-  // CHAINLINK_WETH_PRICER,
   CHAINLINK_WBTC_PRICER_NEW,
   CHAINLINK_WETH_PRICER_NEW,
   CHAINLINK_SUSHI_PRICER,
+  CHAINID,
+  BLOCK_NUMBER_NEW,
+  ETH_PRICE_ORACLE,
+  BTC_PRICE_ORACLE,
+  USDC_PRICE_ORACLE,
+  ETH_USDC_POOL,
+  WBTC_USDC_POOL,
+  // CHAINLINK_WBTC_PRICER,
+  // CHAINLINK_WETH_PRICER,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
@@ -25,8 +32,8 @@ import {
   GNOSIS_EASY_AUCTION,
   UNISWAP_ROUTER,
   UNISWAP_FACTORY,
-  OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
+  OptionsPremiumPricer_BYTECODE,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -41,7 +48,7 @@ import {
 import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
-
+import { TEST_URI } from '../scripts/helpers/getDefaultEthersProvider';
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -54,23 +61,18 @@ const WEEKS_PER_YEAR = 52142857;
 
 const PERIOD = 43200; // 12 hours
 
-const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
-const wbtcusdcPool = "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35";
-
-const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
-const wbtcPriceOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
-const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
+const chainId = network.config.chainId;
 
 describe("RibbonThetaVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
-    asset: WBTC_ADDRESS,
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WBTC_ADDRESS,
-    chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW,
+    asset: WBTC_ADDRESS[chainId],
+    assetContractName: chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: WBTC_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("1000"),
@@ -88,7 +90,7 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 90000,
     },
     mintConfig: {
-      contractOwnerAddress: WBTC_OWNER_ADDRESS,
+      contractOwnerAddress: WBTC_OWNER_ADDRESS[chainId],
     },
   });
 
@@ -96,11 +98,11 @@ describe("RibbonThetaVault", () => {
     name: `Ribbon ETH Theta Vault (Call)`,
     tokenName: "Ribbon ETH Theta Vault",
     tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS,
+    asset: WETH_ADDRESS[chainId],
     assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: WETH_ADDRESS,
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW,
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: WETH_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -123,11 +125,11 @@ describe("RibbonThetaVault", () => {
     name: `Ribbon ETH Theta Vault (Put)`,
     tokenName: "Ribbon ETH Theta Vault Put",
     tokenSymbol: "rETH-THETA-P",
-    asset: WETH_ADDRESS,
-    assetContractName: "IERC20",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: USDC_ADDRESS,
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW,
+    asset: WETH_ADDRESS[chainId],
+    assetContractName: chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: USDC_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -136,7 +138,9 @@ describe("RibbonThetaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("2702702702"),
+    expectedMintAmount: BigNumber.from(
+      "2702702702" //chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2702702702"
+    ),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -145,74 +149,76 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 98000,
     },
     mintConfig: {
-      contractOwnerAddress: USDC_OWNER_ADDRESS,
+      contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
   });
+  
+  if (chainId == 1) {
+    behavesLikeRibbonOptionsVault({
+      name: `Ribbon SUSHI Theta Vault (Call)`,
+      tokenName: "Ribbon SUSHI Theta Vault",
+      tokenSymbol: "rSUSHI-THETA",
+      asset: SUSHI_ADDRESS[chainId],
+      assetContractName: "IWBTC",
+      strikeAsset: USDC_ADDRESS[chainId],
+      collateralAsset: SUSHI_ADDRESS[chainId],
+      chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+      deltaFirstOption: BigNumber.from("1000"),
+      deltaSecondOption: BigNumber.from("1000"),
+      deltaStep: BigNumber.from("100"),
+      depositAmount: parseEther("1"),
+      minimumSupply: BigNumber.from("10").pow("10").toString(),
+      expectedMintAmount: BigNumber.from("100000000"),
+      premiumDiscount: BigNumber.from("997"),
+      managementFee: BigNumber.from("2000000"),
+      performanceFee: BigNumber.from("20000000"),
+      auctionDuration: 21600,
+      tokenDecimals: 18,
+      isPut: false,
+      gasLimits: {
+        depositWorstCase: 101000,
+        depositBestCase: 90000,
+      },
+      mintConfig: {
+        contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+      },
+    });
 
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon SUSHI Theta Vault (Call)`,
-    tokenName: "Ribbon SUSHI Theta Vault",
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS,
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: SUSHI_ADDRESS,
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER,
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon SUSHI Theta Vault (Call-USDC)`,
-    tokenName: "Ribbon SUSHI Theta Vault",
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS,
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS,
-    collateralAsset: SUSHI_ADDRESS,
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER,
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    isUsdcAuction: true,
-    swapPath: encodePath(
-      [USDC_ADDRESS, SUSHI_ADDRESS],
-      [10000]
-    ),
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS,
-    },
-  });
+    behavesLikeRibbonOptionsVault({
+      name: `Ribbon SUSHI Theta Vault (Call-USDC)`,
+      tokenName: "Ribbon SUSHI Theta Vault",
+      tokenSymbol: "rSUSHI-THETA",
+      asset: SUSHI_ADDRESS[chainId],
+      assetContractName: "IWBTC",
+      strikeAsset: USDC_ADDRESS[chainId],
+      collateralAsset: SUSHI_ADDRESS[chainId],
+      chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+      deltaFirstOption: BigNumber.from("1000"),
+      deltaSecondOption: BigNumber.from("1000"),
+      deltaStep: BigNumber.from("100"),
+      depositAmount: parseEther("1"),
+      minimumSupply: BigNumber.from("10").pow("10").toString(),
+      expectedMintAmount: BigNumber.from("100000000"),
+      premiumDiscount: BigNumber.from("997"),
+      managementFee: BigNumber.from("2000000"),
+      performanceFee: BigNumber.from("20000000"),
+      auctionDuration: 21600,
+      tokenDecimals: 18,
+      isPut: false,
+      isUsdcAuction: true,
+      swapPath: encodePath(
+        [USDC_ADDRESS[chainId], SUSHI_ADDRESS[chainId]],
+        [10000]
+      ),
+      gasLimits: {
+        depositWorstCase: 101000,
+        depositBestCase: 90000,
+      },
+      mintConfig: {
+        contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+      },
+    });
+  }
 });
 
 type Option = {
@@ -378,8 +384,8 @@ function behavesLikeRibbonOptionsVault(params: {
         params: [
           {
             forking: {
-              jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 13505726,
+              jsonRpcUrl: TEST_URI[chainId],
+              blockNumber: BLOCK_NUMBER_NEW[chainId],
             },
           },
         ],
@@ -400,25 +406,34 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner
       );
 
+      volOracle = await TestVolOracle.deploy(PERIOD, 7);
+
+      await volOracle.initPool(
+        asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId]
+      );
+
       const OptionsPremiumPricer = await getContractFactory(
         OptionsPremiumPricer_ABI,
         OptionsPremiumPricer_BYTECODE,
         ownerSigner
       );
+
       const StrikeSelection = await getContractFactory(
         "StrikeSelection",
         ownerSigner
       );
 
-      volOracle = await TestVolOracle.deploy(PERIOD);
-
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset === WETH_ADDRESS ? ethusdcPool : wbtcusdcPool,
+        params.asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId],
         volOracle.address,
-        params.asset === WETH_ADDRESS
-          ? wethPriceOracleAddress
-          : wbtcPriceOracleAddress,
-        usdcPriceOracleAddress
+        params.asset === WETH_ADDRESS[chainId]
+          ? ETH_PRICE_ORACLE[chainId]
+          : BTC_PRICE_ORACLE[chainId],
+        USDC_PRICE_ORACLE[chainId]
       );
 
       strikeSelection = await StrikeSelection.deploy(
@@ -440,7 +455,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
-        GNOSIS_EASY_AUCTION
+        GNOSIS_EASY_AUCTION[chainId]
       );
 
       const initializeArgs = [
@@ -462,7 +477,7 @@ function behavesLikeRibbonOptionsVault(params: {
         [
           isPut,
           tokenDecimals,
-          isPut ? USDC_ADDRESS : asset,
+          isPut ? USDC_ADDRESS[chainId] : asset,
           asset,
           minimumSupply,
           parseEther("500"),
@@ -470,12 +485,12 @@ function behavesLikeRibbonOptionsVault(params: {
       ];
 
       const deployArgs = [
-        WETH_ADDRESS,
-        USDC_ADDRESS,
-        OTOKEN_FACTORY,
-        GAMMA_CONTROLLER,
-        MARGIN_POOL,
-        GNOSIS_EASY_AUCTION,
+        WETH_ADDRESS[chainId],
+        USDC_ADDRESS[chainId],
+        OTOKEN_FACTORY[chainId],
+        GAMMA_CONTROLLER[chainId],
+        MARGIN_POOL[chainId],
+        GNOSIS_EASY_AUCTION[chainId],
         UNISWAP_ROUTER,
         UNISWAP_FACTORY
       ];
@@ -498,7 +513,10 @@ function behavesLikeRibbonOptionsVault(params: {
       // Update volatility
       await updateVol(params.asset);
 
-      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
+      oTokenFactory = await getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY[chainId]
+      );
 
       await whitelistProduct(
         params.asset,
@@ -512,7 +530,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        // .add(1, "week")
+        // .add(chainId === CHAINID.ETH_MAINNET ? 1 : 0, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -550,6 +568,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
+        // .add(chainId === CHAINID.ETH_MAINNET ? 2 : 1, "week")
         .add(1, "week")
         .day("friday")
         .hours(8)
@@ -584,7 +603,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.assetContractName,
         collateralAsset
       );
-      usdcContract = await getContractAt("IERC20", USDC_ADDRESS);
+      usdcContract = await getContractAt("IERC20", USDC_ADDRESS[chainId]);
 
       // If mintable token, then mine the token
       if (params.mintConfig) {
@@ -596,19 +615,21 @@ function behavesLikeRibbonOptionsVault(params: {
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             vault.address,
-            params.collateralAsset == USDC_ADDRESS
+            params.collateralAsset === USDC_ADDRESS[chainId]
               ? BigNumber.from("10000000000000")
               : parseEther("200")
           );
-          await mintToken(
-            usdcContract,
-            USDC_OWNER_ADDRESS,
-            addressToDeposit[i].address,
-            vault.address,
-            BigNumber.from("10000000000000")
-          );
+          if (chainId == 1) {
+            await mintToken(
+              usdcContract,
+              USDC_OWNER_ADDRESS[chainId],
+              addressToDeposit[i].address,
+              vault.address,
+              BigNumber.from("10000000000000")
+            );
+          }
         }
-      } else if (params.asset === WETH_ADDRESS) {
+      } else if (params.asset === WETH_ADDRESS[chainId]) {
         await assetContract
           .connect(userSigner)
           .deposit({ value: parseEther("100") });
@@ -633,12 +654,12 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         );
         testVault = await RibbonThetaVault.deploy(
-          WETH_ADDRESS,
-          USDC_ADDRESS,
-          OTOKEN_FACTORY,
-          GAMMA_CONTROLLER,
-          MARGIN_POOL,
-          GNOSIS_EASY_AUCTION,
+          WETH_ADDRESS[chainId],
+          USDC_ADDRESS[chainId],
+          OTOKEN_FACTORY[chainId],
+          GAMMA_CONTROLLER[chainId],
+          MARGIN_POOL[chainId],
+          GNOSIS_EASY_AUCTION[chainId],
           UNISWAP_ROUTER,
           UNISWAP_FACTORY
         );
@@ -670,8 +691,8 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(decimals, tokenDecimals);
         assert.equal(assetFromContract, collateralAsset);
         assert.equal(underlying, asset);
-        assert.equal(await vault.WETH(), WETH_ADDRESS);
-        assert.equal(await vault.USDC(), USDC_ADDRESS);
+        assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
+        assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);
@@ -711,7 +732,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
+              isPut ? USDC_ADDRESS[chainId] : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -741,7 +762,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
+              isPut ? USDC_ADDRESS[chainId] : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -771,7 +792,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
+              isPut ? USDC_ADDRESS[chainId] : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -801,7 +822,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
+              isPut ? USDC_ADDRESS[chainId] : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -831,7 +852,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS : asset,
+              isPut ? USDC_ADDRESS[chainId] : asset,
               asset,
               minimumSupply,
               0,
@@ -1085,7 +1106,7 @@ function behavesLikeRibbonOptionsVault(params: {
             vault
               .connect(ownerSigner)
               .setSwapPath(encodePath(
-                [USDC_ADDRESS, WETH_ADDRESS, USDC_ADDRESS, WETH_ADDRESS, asset], 
+                [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], 
                 [10000, 10000, 10000, 10000]
                 )
               )
@@ -1110,7 +1131,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await expect(
             vault
               .connect(ownerSigner)
-              .setSwapPath(encodePath([WETH_ADDRESS, asset], [10000]))
+              .setSwapPath(encodePath([WETH_ADDRESS[chainId], asset], [10000]))
           ).to.be.revertedWith("Invalid swap path");
         });
 
@@ -1118,13 +1139,13 @@ function behavesLikeRibbonOptionsVault(params: {
           await expect(
             vault
               .connect(ownerSigner)
-              .setSwapPath(encodePath([USDC_ADDRESS, WETH_ADDRESS], [10000]))
+              .setSwapPath(encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId]], [10000]))
           ).to.be.revertedWith("Invalid swap path");
         });
 
         it("reverts when not owner call", async function () {
           await expect(
-            vault.setSwapPath(encodePath([USDC_ADDRESS, asset], [10000]))
+            vault.setSwapPath(encodePath([USDC_ADDRESS[chainId], asset], [10000]))
           ).to.be.revertedWith("caller is not the owner");
         });
 
@@ -1132,11 +1153,11 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault
             .connect(ownerSigner)
             .setSwapPath(
-              encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000, 10000])
+              encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], [10000, 10000])
             );
           assert.equal(
             (await vault.swapPath()).toString(),
-            encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000, 10000])
+            encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], [10000, 10000])
           );
         });
 
@@ -1145,7 +1166,7 @@ function behavesLikeRibbonOptionsVault(params: {
           let tx = await vault
             .connect(ownerSigner)
             .setSwapPath(
-              encodePath([USDC_ADDRESS, WETH_ADDRESS, asset], [10000, 10000])
+              encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], [10000, 10000])
           );
 
           const receipt = await tx.wait()
@@ -1155,7 +1176,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     }
     // Only apply to when assets is WETH
-    if (params.collateralAsset === WETH_ADDRESS) {
+    if (params.collateralAsset === WETH_ADDRESS[chainId]) {
       describe("#depositETH", () => {
         time.revertToSnapshotAfterEach();
 
@@ -1249,7 +1270,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       beforeEach(async function () {
         // Deposit only if asset is WETH
-        if (params.collateralAsset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS[chainId]) {
           const addressToDeposit = [userSigner, ownerSigner, adminSigner];
 
           for (let i = 0; i < addressToDeposit.length; i++) {
@@ -1416,7 +1437,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       beforeEach(async function () {
         // Deposit only if asset is WETH
-        if (params.collateralAsset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS[chainId]) {
           const addressToDeposit = [userSigner, ownerSigner, adminSigner];
 
           for (let i = 0; i < addressToDeposit.length; i++) {
@@ -1625,9 +1646,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("sets the correct strike when overriding strike price", async function () {
         const newStrikePrice =
-          params.asset === WETH_ADDRESS
+          params.asset === WETH_ADDRESS[chainId]
             ? BigNumber.from("250000000000")
             : BigNumber.from("4050000000000");
+
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
         assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
@@ -1685,7 +1707,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const controller = await ethers.getContractAt(
           "IController",
-          GAMMA_CONTROLLER
+          GAMMA_CONTROLLER[chainId]
         );
 
         assert.equal(await controller.getAccountVaultCounter(vault.address), 2);
@@ -1774,7 +1796,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1055000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1162951);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -1783,7 +1805,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        if (params.collateralAsset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS[chainId]) {
           const weth = assetContract.connect(userSigner);
           await weth.deposit({ value: depositAmount });
           return;
@@ -1994,7 +2016,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
-        const startMarginBalance = await assetContract.balanceOf(MARGIN_POOL);
+        const startMarginBalance = await assetContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -2018,14 +2042,14 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         assert.equal(
-          (await assetContract.balanceOf(MARGIN_POOL))
+          (await assetContract.balanceOf(MARGIN_POOL[chainId]))
             .sub(startMarginBalance)
             .toString(),
           depositAmount.toString()
         );
 
         assert.bnEqual(
-          await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION),
+          await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION[chainId]),
           params.expectedMintAmount
         );
 
@@ -2054,7 +2078,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(auctionDetails.auctioningToken, defaultOtokenAddress);
         assert.equal(
           auctionDetails.biddingToken,
-          isUsdcAuction ? USDC_ADDRESS : collateralAsset
+          isUsdcAuction ? USDC_ADDRESS[chainId] : collateralAsset
         );
         assert.equal(
           auctionDetails.orderCancellationEndDate.toString(),
@@ -2121,6 +2145,14 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
+        // We have a newer version of Opyn deployed, error messages are different
+        const EXPECTED_ERROR = {
+          [CHAINID.ETH_MAINNET]: "C31",
+            // "Controller: can not settle vault with un-expired otoken",
+          [CHAINID.AVAX_MAINNET]: "C31",
+          [CHAINID.AVAX_FUJI]: "C31",
+        };
+
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -2141,10 +2173,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          // "Controller: can not settle vault with un-expired otoken"
-          "C31"
-        );
+        ).to.be.revertedWith(EXPECTED_ERROR[chainId]);
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
@@ -2248,6 +2277,14 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
+        // We have a newer version of Opyn deployed, error messages are different
+        const EXPECTED_ERROR = {
+          [CHAINID.ETH_MAINNET]: "C31",
+            // "Controller: can not settle vault with un-expired otoken",
+          [CHAINID.AVAX_MAINNET]: "C31",
+          [CHAINID.AVAX_FUJI]: "C31",
+        };
+
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -2268,10 +2305,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          // "Controller: can not settle vault with un-expired otoken"
-          "C31"
-        );
+        ).to.be.revertedWith(EXPECTED_ERROR[chainId]);
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -2528,7 +2562,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1082712);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 966023); //963542, 1082712
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2871,7 +2905,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let startBalance: BigNumber;
         let withdrawAmount: BigNumber;
-        if (collateralAsset === WETH_ADDRESS) {
+        if (collateralAsset === WETH_ADDRESS[chainId]) {
           startBalance = await provider.getBalance(user);
         } else {
           startBalance = await assetContract.balanceOf(user);
@@ -2880,7 +2914,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.withdrawInstantly(depositAmount, { gasPrice });
         const receipt = await tx.wait();
 
-        if (collateralAsset === WETH_ADDRESS) {
+        if (collateralAsset === WETH_ADDRESS[chainId]) {
           const endBalance = await provider.getBalance(user);
           withdrawAmount = endBalance
             .sub(startBalance)
@@ -3146,7 +3180,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const lastQueuedWithdrawAmount = await vault.lastQueuedWithdrawAmount();
 
         let beforeBalance: BigNumber;
-        if (collateralAsset === WETH_ADDRESS) {
+        if (collateralAsset === WETH_ADDRESS[chainId]) {
           beforeBalance = await provider.getBalance(user);
         } else {
           beforeBalance = await assetContract.balanceOf(user);
@@ -3163,7 +3197,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Withdraw")
           .withArgs(user, withdrawAmount.toString(), depositAmount);
 
-        if (collateralAsset !== WETH_ADDRESS) {
+        if (collateralAsset !== WETH_ADDRESS[chainId]) {
           const collateralERC20 = await getContractAt(
             "IERC20",
             collateralAsset
@@ -3189,7 +3223,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
 
         let actualWithdrawAmount: BigNumber;
-        if (collateralAsset === WETH_ADDRESS) {
+        if (collateralAsset === WETH_ADDRESS[chainId]) {
           const afterBalance = await provider.getBalance(user);
           actualWithdrawAmount = afterBalance.sub(beforeBalance).add(gasFee);
         } else {
@@ -3257,7 +3291,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).setCap(capAmount);
 
         // Provide some WETH to the account
-        if (params.collateralAsset === WETH_ADDRESS) {
+        if (params.collateralAsset === WETH_ADDRESS[chainId]) {
           const weth = assetContract.connect(userSigner);
           await weth.deposit({ value: depositAmount });
           await weth.approve(vault.address, depositAmount);
@@ -3538,7 +3572,9 @@ function behavesLikeRibbonOptionsVault(params: {
       const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
       await time.increaseTo(topOfPeriod);
       await volOracle.mockCommit(
-        asset === WETH_ADDRESS ? ethusdcPool : wbtcusdcPool
+        asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId]
       );
     }
   };
@@ -3549,7 +3585,7 @@ async function depositIntoVault(
   vault: Contract,
   amount: BigNumberish
 ) {
-  if (asset === WETH_ADDRESS) {
+  if (asset === WETH_ADDRESS[chainId]) {
     await vault.depositETH({ value: amount });
   } else {
     await vault.deposit(amount);
