@@ -48,7 +48,8 @@ import {
 import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
-import { TEST_URI } from '../scripts/helpers/getDefaultEthersProvider';
+import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
+// import { any } from "p-cancelable";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -69,7 +70,8 @@ describe("RibbonThetaVault", () => {
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
     asset: WBTC_ADDRESS[chainId],
-    assetContractName: chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
+    assetContractName:
+      chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WBTC_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
@@ -126,7 +128,8 @@ describe("RibbonThetaVault", () => {
     tokenName: "Ribbon ETH Theta Vault Put",
     tokenSymbol: "rETH-THETA-P",
     asset: WETH_ADDRESS[chainId],
-    assetContractName: chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
+    assetContractName:
+      chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
@@ -152,7 +155,7 @@ describe("RibbonThetaVault", () => {
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
   });
-  
+
   if (chainId == 1) {
     behavesLikeRibbonOptionsVault({
       name: `Ribbon SUSHI Theta Vault (Call)`,
@@ -448,7 +451,7 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       const uniswapRouter = await ethers.getContractFactory("UniswapRouter");
-      uniswapRouterLib = await uniswapRouter.deploy()
+      uniswapRouterLib = await uniswapRouter.deploy();
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
@@ -492,7 +495,7 @@ function behavesLikeRibbonOptionsVault(params: {
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
         UNISWAP_ROUTER,
-        UNISWAP_FACTORY
+        UNISWAP_FACTORY,
       ];
 
       vault = (
@@ -504,7 +507,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: uniswapRouterLib.address
+              UniswapRouter: uniswapRouterLib.address,
             },
           }
         )
@@ -649,7 +652,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: uniswapRouterLib.address
+              UniswapRouter: uniswapRouterLib.address,
             },
           }
         );
@@ -1095,9 +1098,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         it("reverts when path is too short", async function () {
           await expect(
-            vault
-              .connect(ownerSigner)
-              .setSwapPath('0x')
+            vault.connect(ownerSigner).setSwapPath("0x")
           ).to.be.revertedWith("Path too short");
         });
 
@@ -1105,9 +1106,16 @@ function behavesLikeRibbonOptionsVault(params: {
           await expect(
             vault
               .connect(ownerSigner)
-              .setSwapPath(encodePath(
-                [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], 
-                [10000, 10000, 10000, 10000]
+              .setSwapPath(
+                encodePath(
+                  [
+                    USDC_ADDRESS[chainId],
+                    WETH_ADDRESS[chainId],
+                    USDC_ADDRESS[chainId],
+                    WETH_ADDRESS[chainId],
+                    asset,
+                  ],
+                  [10000, 10000, 10000, 10000]
                 )
               )
           ).to.be.revertedWith("Path too long");
@@ -1116,9 +1124,9 @@ function behavesLikeRibbonOptionsVault(params: {
         it("reverts when pool does not exist", async function () {
           let ref: string;
 
-          let pool = await uniswapFactory.getPool(asset, asset, 10000) 
+          let pool = await uniswapFactory.getPool(asset, asset, 10000);
           if (pool == constants.AddressZero) {
-            ref = "Pool does not exist"
+            ref = "Pool does not exist";
           }
           await expect(
             vault
@@ -1139,13 +1147,20 @@ function behavesLikeRibbonOptionsVault(params: {
           await expect(
             vault
               .connect(ownerSigner)
-              .setSwapPath(encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId]], [10000]))
+              .setSwapPath(
+                encodePath(
+                  [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId]],
+                  [10000]
+                )
+              )
           ).to.be.revertedWith("Invalid swap path");
         });
 
         it("reverts when not owner call", async function () {
           await expect(
-            vault.setSwapPath(encodePath([USDC_ADDRESS[chainId], asset], [10000]))
+            vault.setSwapPath(
+              encodePath([USDC_ADDRESS[chainId], asset], [10000])
+            )
           ).to.be.revertedWith("caller is not the owner");
         });
 
@@ -1153,11 +1168,17 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault
             .connect(ownerSigner)
             .setSwapPath(
-              encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], [10000, 10000])
+              encodePath(
+                [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset],
+                [10000, 10000]
+              )
             );
           assert.equal(
             (await vault.swapPath()).toString(),
-            encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], [10000, 10000])
+            encodePath(
+              [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset],
+              [10000, 10000]
+            )
           );
         });
 
@@ -1166,10 +1187,13 @@ function behavesLikeRibbonOptionsVault(params: {
           let tx = await vault
             .connect(ownerSigner)
             .setSwapPath(
-              encodePath([USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset], [10000, 10000])
-          );
+              encodePath(
+                [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset],
+                [10000, 10000]
+              )
+            );
 
-          const receipt = await tx.wait()
+          const receipt = await tx.wait();
           // ~58692 if checkPath is made into internal function
           assert.isAtMost(receipt.gasUsed.toNumber(), 62737);
         });
@@ -1697,9 +1721,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // auction settled without any bids
         // so we return 100% of the tokens
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await vault.optionAuctionID());
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
+        } else {
+          await gnosisAuction
+            .connect(userSigner)
+            .settleAuction(await vault.optionAuctionID());
+        }
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1774,9 +1802,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increase(auctionDuration);
 
         // we initiate a complete burn of the otokens
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await vault.optionAuctionID());
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
+        } else {
+          await gnosisAuction
+            .connect(userSigner)
+            .settleAuction(await vault.optionAuctionID());
+        }
 
         assert.bnLte(
           await otoken.balanceOf(vault.address),
@@ -1825,6 +1857,12 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
+        let oracle = await setupOracle(
+          params.chainlinkPricer,
+          ownerSigner,
+          true
+        );
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
@@ -1845,25 +1883,33 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         let assetBalanceBeforeSettle: any;
+        let minAmountOut: BigNumber;
 
         if (isUsdcAuction) {
-          assetBalanceBeforeSettle = await usdcContract.balanceOf(
-            vault.address
-          );
-        } else {
-          assetBalanceBeforeSettle = await assetContract.balanceOf(
-            vault.address
-          );
+          let auctionProceeds = BigNumber.from(auctionDetails[2]).mul(
+            10 ** (18 - 6)
+          ); // 6 decimals for USDC
+          let assetPrice = (await oracle.getPrice(asset)).mul(10 ** (18 - 8)); // 8 decimals for Oracle
+          let idealOut = wdiv(auctionProceeds, assetPrice);
+
+          let slippage = 10000; //10% slippage
+          minAmountOut = idealOut.mul(100000 - slippage).div(100000);
         }
+
+        assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
           "0"
         );
 
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
+        if (isUsdcAuction) {
+          await vault.connect(keeperSigner).settleAuctionAndSwap(minAmountOut);
+        } else {
+          await gnosisAuction
+            .connect(userSigner)
+            .settleAuction(auctionDetails[0]);
+        }
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
@@ -1872,20 +1918,25 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let assetBalanceAfterSettle: any;
 
+        assetBalanceAfterSettle = await assetContract.balanceOf(vault.address);
+
         if (isUsdcAuction) {
-          assetBalanceAfterSettle = await usdcContract.balanceOf(vault.address);
+          assert.isAtLeast(
+            parseInt(assetBalanceAfterSettle.toString()),
+            parseInt(
+              assetBalanceBeforeSettle
+                .add(BigNumber.from(minAmountOut.toString()))
+                .toString()
+            )
+          );
         } else {
-          assetBalanceAfterSettle = await assetContract.balanceOf(
-            vault.address
+          assert.equal(
+            assetBalanceAfterSettle.toString(),
+            assetBalanceBeforeSettle
+              .add(BigNumber.from(auctionDetails[2]))
+              .toString()
           );
         }
-
-        assert.equal(
-          assetBalanceAfterSettle.toString(),
-          assetBalanceBeforeSettle
-            .add(BigNumber.from(auctionDetails[2]))
-            .toString()
-        );
 
         await expect(
           vault.connect(keeperSigner).burnRemainingOTokens()
@@ -1922,9 +1973,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         if (isUsdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -1933,7 +1982,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
-        let auctionProceeds = await assetContract.balanceOf(vault.address)
+        let auctionProceeds = await assetContract.balanceOf(vault.address);
 
         assert.isAbove(
           parseInt((await defaultOtoken.balanceOf(vault.address)).toString()),
@@ -1950,8 +1999,7 @@ function behavesLikeRibbonOptionsVault(params: {
           parseInt((await assetContract.balanceOf(vault.address)).toString()),
           parseInt(
             (
-              (assetBalanceBeforeSettle.add(auctionProceeds) *
-                99) /
+              (assetBalanceBeforeSettle.add(auctionProceeds) * 99) /
               100
             ).toString()
           )
@@ -2148,7 +2196,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // We have a newer version of Opyn deployed, error messages are different
         const EXPECTED_ERROR = {
           [CHAINID.ETH_MAINNET]: "C31",
-            // "Controller: can not settle vault with un-expired otoken",
+          // "Controller: can not settle vault with un-expired otoken",
           [CHAINID.AVAX_MAINNET]: "C31",
           [CHAINID.AVAX_FUJI]: "C31",
         };
@@ -2280,7 +2328,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // We have a newer version of Opyn deployed, error messages are different
         const EXPECTED_ERROR = {
           [CHAINID.ETH_MAINNET]: "C31",
-            // "Controller: can not settle vault with un-expired otoken",
+          // "Controller: can not settle vault with un-expired otoken",
           [CHAINID.AVAX_MAINNET]: "C31",
           [CHAINID.AVAX_FUJI]: "C31",
         };
@@ -2335,9 +2383,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         if (isUsdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -2427,9 +2473,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(
             secondOptionAddress,
-            depositAmount
-              .add(auctionProceeds)
-              .sub(vaultFees),
+            depositAmount.add(auctionProceeds).sub(vaultFees),
             keeper
           );
 
@@ -2459,9 +2503,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         if (isUsdcAuction) {
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(1);
+          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
         } else {
           await gnosisAuction
             .connect(userSigner)
@@ -3427,7 +3469,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    
     describe("#settleAuctionAndSwap", () => {
       let oracle: Contract;
       const depositAmount = params.depositAmount;
@@ -3437,33 +3478,24 @@ function behavesLikeRibbonOptionsVault(params: {
 
         oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
       });
-    
-      if (!isUsdcAuction) {
-        it("reverts when isUsdcAuction is false", async function () {
-          await expect(
-            vault
-              .connect(keeperSigner)
-              .settleAuctionAndSwap('1')
-          ).to.be.revertedWith("!isUsdcAuction");
-        });
-      } else {
+
+      if (isUsdcAuction) {
         it("reverts when not keeper call", async function () {
-          await expect(
-            vault
-              .settleAuctionAndSwap('1')
-          ).to.be.revertedWith("!keeper");
+          await expect(vault.settleAuctionAndSwap("1")).to.be.revertedWith(
+            "!keeper"
+          );
         });
 
         it("reverts when minimum amount out <= 0", async function () {
           await expect(
-            vault
-              .connect(keeperSigner)
-              .settleAuctionAndSwap('0')
+            vault.connect(keeperSigner).settleAuctionAndSwap("0")
           ).to.be.revertedWith("!minAmountOut");
         });
-        it("reverts when minimum amount out is not filled", async function () { 
+        it("reverts when minimum amount out is not filled", async function () {
           await vault.connect(ownerSigner).commitAndClose();
-          await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+          await time.increaseTo(
+            (await vault.nextOptionReadyAt()).toNumber() + 1
+          );
           await vault.connect(keeperSigner).rollToNextOption();
 
           let bidMultiplier = 1;
@@ -3479,23 +3511,23 @@ function behavesLikeRibbonOptionsVault(params: {
             auctionDuration
           );
 
-          let auctionProceeds = BigNumber.from(auctionDetails[2])
-            .mul(10**(18-6)) // USDC decimals 6
-          let assetPrice = (await oracle.getPrice(asset))
-            .mul(10**(18-8)) // Oracle decimals 8
+          let auctionProceeds = BigNumber.from(auctionDetails[2]).mul(
+            10 ** (18 - 6)
+          ); // USDC decimals 6
+          let assetPrice = (await oracle.getPrice(asset)).mul(10 ** (18 - 8)); // Oracle decimals 8
 
           // Ideal output with no slippage
-          let idealOut = wdiv(auctionProceeds, assetPrice)
+          let idealOut = wdiv(auctionProceeds, assetPrice);
 
-          await expect(vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(idealOut))
-            .to.be.revertedWith("Too little received");
-
+          await expect(
+            vault.connect(keeperSigner).settleAuctionAndSwap(idealOut)
+          ).to.be.revertedWith("Too little received");
         });
         it("swap returns amount above the minimum amount", async function () {
           await vault.connect(ownerSigner).commitAndClose();
-          await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+          await time.increaseTo(
+            (await vault.nextOptionReadyAt()).toNumber() + 1
+          );
           await vault.connect(keeperSigner).rollToNextOption();
 
           let bidMultiplier = 1;
@@ -3511,27 +3543,26 @@ function behavesLikeRibbonOptionsVault(params: {
             auctionDuration
           );
 
-          let auctionProceeds = BigNumber.from(auctionDetails[2])
-            .mul(10**(18-6)) // 6 decimals for USDC
-          let assetPrice = (await oracle.getPrice(asset))
-            .mul(10**(18-8)) // 8 decimals for Oracle
-          let idealOut = wdiv(auctionProceeds, assetPrice)
-          
-          let slippage = 10000 //10% slippage
-          let minAmountOut = idealOut
-            .mul((100000-slippage))
-            .div(100000)
+          let auctionProceeds = BigNumber.from(auctionDetails[2]).mul(
+            10 ** (18 - 6)
+          ); // 6 decimals for USDC
+          let assetPrice = (await oracle.getPrice(asset)).mul(10 ** (18 - 8)); // 8 decimals for Oracle
+          let idealOut = wdiv(auctionProceeds, assetPrice);
 
-          await vault
-            .connect(keeperSigner)
-            .settleAuctionAndSwap(minAmountOut)
+          let slippage = 10000; //10% slippage
+          let minAmountOut = idealOut.mul(100000 - slippage).div(100000);
 
-          let proceeds = await assetContract.balanceOf(vault.address)
+          await vault.connect(keeperSigner).settleAuctionAndSwap(minAmountOut);
 
-          assert.isAbove(
-            parseInt(proceeds),
-            parseInt(minAmountOut.toString())
-          )
+          let proceeds = await assetContract.balanceOf(vault.address);
+
+          assert.isAbove(parseInt(proceeds), parseInt(minAmountOut.toString()));
+        });
+      } else {
+        it("reverts when isUsdcAuction is false", async function () {
+          await expect(
+            vault.connect(keeperSigner).settleAuctionAndSwap("1")
+          ).to.be.revertedWith("!isUsdcAuction");
         });
       }
     });
@@ -3608,6 +3639,6 @@ function encodePath(tokenAddresses, fees) {
   }
   // encode the final token
   encoded += tokenAddresses[tokenAddresses.length - 1].slice(2);
-  
+
   return encoded.toLowerCase();
 }

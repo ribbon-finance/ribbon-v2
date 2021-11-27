@@ -678,10 +678,9 @@ library VaultLifecycle {
      * @param gnosisEasyAuction is the contract address of Gnosis easy auction protocol
      * @param auctionID is the auction ID of the gnosis easy auction
      */
-    function settleAuction(
-        address gnosisEasyAuction,
-        uint256 auctionID
-    ) internal {
+    function settleAuction(address gnosisEasyAuction, uint256 auctionID)
+        internal
+    {
         IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
     }
 

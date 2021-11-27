@@ -22,7 +22,7 @@ library UniswapRouter {
      * @param validTokenOut is the contract address of the correct tokenOut
      * @param uniswapFactory is the contract address of UniswapV3 factory
      * @return isValidPath is whether the path is valid
-     */ 
+     */
     function checkPath(
         bytes memory swapPath,
         address validTokenIn,
@@ -45,13 +45,13 @@ library UniswapRouter {
 
         // Decode the first pool in path
         (tokenIn, tokenOut, fee) = swapPath.decodeFirstPool();
-        
+
         // Check to factory if pool exists
         require(
             factory.getPool(tokenIn, tokenOut, fee) != address(0),
             "Pool does not exist"
         );
-        
+
         // Check next pool if multiple pools
         while (swapPath.hasMultiplePools()) {
             // Remove the first pool from path
@@ -77,7 +77,7 @@ library UniswapRouter {
      * @param router is the contract address of UniswapV3 router
      * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
      * @return amountOut is the amount of tokenOut received from the swap
-     */ 
+     */
     function swap(
         address recipient,
         address tokenIn,

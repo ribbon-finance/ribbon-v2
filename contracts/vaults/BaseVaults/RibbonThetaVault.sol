@@ -467,16 +467,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         require(isUsdcAuction, "!isUsdcAuction");
         require(minAmountOut > 0, "!minAmountOut");
 
-        VaultLifecycle.settleAuction(
-            GNOSIS_EASY_AUCTION, 
-            optionAuctionID
-        );
+        VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
 
-        VaultLifecycle.swap(
-            USDC, 
-            minAmountOut, 
-            UNISWAP_ROUTER, 
-            swapPath
-        );
+        VaultLifecycle.swap(USDC, minAmountOut, UNISWAP_ROUTER, swapPath);
     }
 }

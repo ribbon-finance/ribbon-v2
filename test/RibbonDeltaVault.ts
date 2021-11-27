@@ -399,9 +399,7 @@ function behavesLikeRibbonOptionsVault(params: {
       volOracle = await TestVolOracle.deploy(PERIOD, 7);
 
       await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId]
-          ? ethusdcPool
-          : wbtcusdcPool
+        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
       );
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
@@ -423,7 +421,7 @@ function behavesLikeRibbonOptionsVault(params: {
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
       const uniswapRouter = await ethers.getContractFactory("UniswapRouter");
-      uniswapRouterLib = await uniswapRouter.deploy()
+      uniswapRouterLib = await uniswapRouter.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -464,7 +462,7 @@ function behavesLikeRibbonOptionsVault(params: {
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
         UNISWAP_ROUTER,
-        UNISWAP_FACTORY
+        UNISWAP_FACTORY,
       ];
 
       thetaVault = (
@@ -509,7 +507,7 @@ function behavesLikeRibbonOptionsVault(params: {
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
         UNISWAP_ROUTER,
-        UNISWAP_FACTORY
+        UNISWAP_FACTORY,
       ];
 
       vault = (

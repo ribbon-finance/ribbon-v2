@@ -281,11 +281,16 @@ export async function mintToken(
     value: parseEther("0.5"),
   });
 
-  if (chainId === CHAINID.AVAX_MAINNET && (contract.address === WBTC_ADDRESS[chainId] ||
-                                           contract.address === USDC_ADDRESS[chainId])) {
+  if (
+    chainId === CHAINID.AVAX_MAINNET &&
+    (contract.address === WBTC_ADDRESS[chainId] ||
+      contract.address === USDC_ADDRESS[chainId])
+  ) {
     // Avax mainnet uses BridgeTokens which have a special mint function
-    const txid = ethers.utils.formatBytes32String('Hello World!');
-    await contract.connect(tokenOwnerSigner).mint(recipient, amount, recipient, 0, txid);
+    const txid = ethers.utils.formatBytes32String("Hello World!");
+    await contract
+      .connect(tokenOwnerSigner)
+      .mint(recipient, amount, recipient, 0, txid);
   } else if (contract.address === USDC_ADDRESS[chainId]) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {

@@ -790,15 +790,13 @@ contract RibbonVault is
      * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
      * @return boolean whether the path is valid
      */
-    function _checkPath(
-        bytes calldata swapPath
-    ) internal view returns (bool) {
-        return UniswapRouter.checkPath(
-            swapPath, 
-            USDC, 
-            vaultParams.asset, 
-            UNISWAP_FACTORY
-        );
+    function _checkPath(bytes calldata swapPath) internal view returns (bool) {
+        return
+            UniswapRouter.checkPath(
+                swapPath,
+                USDC,
+                vaultParams.asset,
+                UNISWAP_FACTORY
+            );
     }
-
 }
