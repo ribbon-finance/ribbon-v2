@@ -120,7 +120,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
+     * @param _uniswapRouter is the contract address of UniswapV3 router that handles swaps
+     * @param _uniswapFactory is the contract address of UniswapV3 factory containing
      */
     constructor(
         address _weth,
@@ -129,7 +130,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _uniswapRouter
+        address _uniswapRouter,
+        address _uniswapFactory
     )
         RibbonVault(
             _weth,
@@ -137,7 +139,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
-            _uniswapRouter
+            _uniswapRouter,
+            _uniswapFactory
         )
     {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
@@ -146,7 +149,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
-     * @param _initParams is the struct with initialization parameters
+     * @param _initParams is the struct with vault initialization parameters
      * @param _vaultParams is the struct with vault general data
      */
     function initialize(
@@ -188,14 +191,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         isUsdcAuction = _initParams._isUsdcAuction;
         if (_initParams._isUsdcAuction) {
-            require(
-                UniswapRouter.checkPath(
-                    _initParams._swapPath,
-                    USDC,
-                    vaultParams.asset
-                ),
-                "!_path"
-            );
+            require(_checkPath(_initParams._swapPath), "");
             swapPath = _initParams._swapPath;
         }
     }
@@ -277,15 +273,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets a new path for swaps
      * @param newSwapPath is the new path
      */
-    function setSwapPath(bytes memory newSwapPath)
+    function setSwapPath(bytes calldata newSwapPath)
         external
         onlyOwner
         nonReentrant
     {
-        require(
-            UniswapRouter.checkPath(newSwapPath, USDC, vaultParams.asset),
-            "Invalid swap path"
-        );
+        require(_checkPath(newSwapPath), "Invalid swap path");
         swapPath = newSwapPath;
     }
 
@@ -472,14 +465,17 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         nonReentrant
     {
         require(isUsdcAuction, "!isUsdcAuction");
-        require(minAmountOut > 0, "!_minAmountOut");
+        require(minAmountOut > 0, "!minAmountOut");
 
-        VaultLifecycle.settleAuctionAndSwap(
-            GNOSIS_EASY_AUCTION,
-            optionAuctionID,
-            USDC, //Token In
-            minAmountOut,
-            UNISWAP_ROUTER,
+        VaultLifecycle.settleAuction(
+            GNOSIS_EASY_AUCTION, 
+            optionAuctionID
+        );
+
+        VaultLifecycle.swap(
+            USDC, 
+            minAmountOut, 
+            UNISWAP_ROUTER, 
             swapPath
         );
     }

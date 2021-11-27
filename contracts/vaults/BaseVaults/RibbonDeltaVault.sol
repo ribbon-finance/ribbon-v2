@@ -72,6 +72,9 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _uniswapRouter is the contract address of UniswapV3 router that handles swaps
+     * @param _uniswapFactory is the contract address of UniswapV3 factory containing
+     pools information
      */
     constructor(
         address _weth,
@@ -79,7 +82,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _uniswapRouter
+        address _uniswapRouter,
+        address _uniswapFactory
     )
         RibbonVault(
             _weth,
@@ -87,7 +91,8 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
-            _uniswapRouter
+            _uniswapRouter,
+            _uniswapFactory
         )
     {}
 
