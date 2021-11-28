@@ -49,7 +49,6 @@ import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
-// import { any } from "p-cancelable";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -263,7 +262,9 @@ type Option = {
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {boolean} params.isUsdcAuction - Boolean flag whether auction is denominated in USDC
- * @param {string} params.swapPath - Bytes representation of the swap route
+ * @param {Object=} params.swapPath - Swap path for DEX swaps
+ * @param {string[]} params.swapPath.tokens - List of tokens e.g. USDC, WETH
+ * @param {number[]} params.swapPath.fees - List of fees for each pools .e.g 10000 (1%)
  * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -1908,11 +1909,11 @@ function behavesLikeRibbonOptionsVault(params: {
         let minAmountOut: BigNumber;
 
         if (isUsdcAuction) {
-          let auctionProceeds = BigNumber.from(auctionDetails[2]).mul(
-            10 ** (18 - 6)
-          ); // 6 decimals for USDC
-          let assetPrice = (await oracle.getPrice(asset)).mul(10 ** (18 - 8)); // 8 decimals for Oracle
-          let idealOut = wdiv(auctionProceeds, assetPrice);
+          // Calculate the minimum out from the DEX swap
+          let idealOut = wdiv(
+            BigNumber.from(auctionDetails[2]).mul(10 ** (18 - 6)), // USDC adjusted to 18 decimals
+            (await oracle.getPrice(asset)).mul(10 ** (18 - 8)) // Oracle adjusted to 18 decimals
+          );
 
           let slippage = 10000; //10% slippage
           minAmountOut = idealOut.mul(100000 - slippage).div(100000);
@@ -1943,6 +1944,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assetBalanceAfterSettle = await assetContract.balanceOf(vault.address);
 
         if (isUsdcAuction) {
+          // Using at least as DEX swap might yield larger amount than minimum
           assert.isAtLeast(
             parseInt(assetBalanceAfterSettle.toString()),
             parseInt(
@@ -3533,13 +3535,11 @@ function behavesLikeRibbonOptionsVault(params: {
             auctionDuration
           );
 
-          let auctionProceeds = BigNumber.from(auctionDetails[2]).mul(
-            10 ** (18 - 6)
-          ); // USDC decimals 6
-          let assetPrice = (await oracle.getPrice(asset)).mul(10 ** (18 - 8)); // Oracle decimals 8
-
           // Ideal output with no slippage
-          let idealOut = wdiv(auctionProceeds, assetPrice);
+          let idealOut = wdiv(
+            BigNumber.from(auctionDetails[2]).mul(10 ** (18 - 6)), // USDC adjusted to 18 decimals
+            (await oracle.getPrice(asset)).mul(10 ** (18 - 8)) // Oracle adjusted to 18 decimals
+          );
 
           await expect(
             vault.connect(keeperSigner).settleAuctionAndSwap(idealOut)
@@ -3565,11 +3565,10 @@ function behavesLikeRibbonOptionsVault(params: {
             auctionDuration
           );
 
-          let auctionProceeds = BigNumber.from(auctionDetails[2]).mul(
-            10 ** (18 - 6)
-          ); // 6 decimals for USDC
-          let assetPrice = (await oracle.getPrice(asset)).mul(10 ** (18 - 8)); // 8 decimals for Oracle
-          let idealOut = wdiv(auctionProceeds, assetPrice);
+          let idealOut = wdiv(
+            BigNumber.from(auctionDetails[2]).mul(10 ** (18 - 6)), // USDC adjusted to 18 decimals
+            (await oracle.getPrice(asset)).mul(10 ** (18 - 8)) // Oracle adjusted to 18 decimals
+          );
 
           let slippage = 10000; //10% slippage
           let minAmountOut = idealOut.mul(100000 - slippage).div(100000);
