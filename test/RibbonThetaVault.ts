@@ -30,8 +30,8 @@ import {
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
-  UNISWAP_ROUTER,
-  UNISWAP_FACTORY,
+  DEX_ROUTER,
+  DEX_FACTORY,
   TestVolOracle_BYTECODE,
   OptionsPremiumPricer_BYTECODE,
 } from "../constants/constants";
@@ -87,6 +87,7 @@ describe("RibbonThetaVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     auctionDuration: 21600,
     isPut: false,
+    isUsdcAuction: false,
     gasLimits: {
       depositWorstCase: 101000,
       depositBestCase: 90000,
@@ -94,6 +95,7 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS[chainId],
     },
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
   });
 
   behavesLikeRibbonOptionsVault({
@@ -117,10 +119,12 @@ describe("RibbonThetaVault", () => {
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
+    isUsdcAuction: false,
     gasLimits: {
       depositWorstCase: 101000,
       depositBestCase: 90000,
     },
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
   });
 
   behavesLikeRibbonOptionsVault({
@@ -147,6 +151,7 @@ describe("RibbonThetaVault", () => {
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
+    isUsdcAuction: false,
     gasLimits: {
       depositWorstCase: 115000,
       depositBestCase: 98000,
@@ -154,74 +159,76 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
   });
 
-  if (chainId == 1) {
-    behavesLikeRibbonOptionsVault({
-      name: `Ribbon SUSHI Theta Vault (Call)`,
-      tokenName: "Ribbon SUSHI Theta Vault",
-      tokenSymbol: "rSUSHI-THETA",
-      asset: SUSHI_ADDRESS[chainId],
-      assetContractName: "IWBTC",
-      strikeAsset: USDC_ADDRESS[chainId],
-      collateralAsset: SUSHI_ADDRESS[chainId],
-      chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-      deltaFirstOption: BigNumber.from("1000"),
-      deltaSecondOption: BigNumber.from("1000"),
-      deltaStep: BigNumber.from("100"),
-      depositAmount: parseEther("1"),
-      minimumSupply: BigNumber.from("10").pow("10").toString(),
-      expectedMintAmount: BigNumber.from("100000000"),
-      premiumDiscount: BigNumber.from("997"),
-      managementFee: BigNumber.from("2000000"),
-      performanceFee: BigNumber.from("20000000"),
-      auctionDuration: 21600,
-      tokenDecimals: 18,
-      isPut: false,
-      gasLimits: {
-        depositWorstCase: 101000,
-        depositBestCase: 90000,
-      },
-      mintConfig: {
-        contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-      },
-    });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon SUSHI Theta Vault (Call)`,
+    tokenName: "Ribbon SUSHI Theta Vault",
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    isUsdcAuction: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
 
-    behavesLikeRibbonOptionsVault({
-      name: `Ribbon SUSHI Theta Vault (Call-USDC)`,
-      tokenName: "Ribbon SUSHI Theta Vault",
-      tokenSymbol: "rSUSHI-THETA",
-      asset: SUSHI_ADDRESS[chainId],
-      assetContractName: "IWBTC",
-      strikeAsset: USDC_ADDRESS[chainId],
-      collateralAsset: SUSHI_ADDRESS[chainId],
-      chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-      deltaFirstOption: BigNumber.from("1000"),
-      deltaSecondOption: BigNumber.from("1000"),
-      deltaStep: BigNumber.from("100"),
-      depositAmount: parseEther("1"),
-      minimumSupply: BigNumber.from("10").pow("10").toString(),
-      expectedMintAmount: BigNumber.from("100000000"),
-      premiumDiscount: BigNumber.from("997"),
-      managementFee: BigNumber.from("2000000"),
-      performanceFee: BigNumber.from("20000000"),
-      auctionDuration: 21600,
-      tokenDecimals: 18,
-      isPut: false,
-      isUsdcAuction: true,
-      swapPath: encodePath(
-        [USDC_ADDRESS[chainId], SUSHI_ADDRESS[chainId]],
-        [10000]
-      ),
-      gasLimits: {
-        depositWorstCase: 101000,
-        depositBestCase: 90000,
-      },
-      mintConfig: {
-        contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-      },
-    });
-  }
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    isUsdcAuction: true,
+    swapPath: {
+      tokens: [USDC_ADDRESS[chainId], SUSHI_ADDRESS[chainId]],
+      fees: [10000],
+    },
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
 });
 
 type Option = {
@@ -257,6 +264,7 @@ type Option = {
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {boolean} params.isUsdcAuction - Boolean flag whether auction is denominated in USDC
  * @param {string} params.swapPath - Bytes representation of the swap route
+ * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
  */
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
@@ -279,8 +287,11 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   isPut: boolean;
-  isUsdcAuction?: boolean;
-  swapPath?: string;
+  isUsdcAuction: boolean;
+  swapPath?: {
+    tokens: string[];
+    fees: number[];
+  };
   gasLimits: {
     depositWorstCase: number;
     depositBestCase: number;
@@ -288,7 +299,16 @@ function behavesLikeRibbonOptionsVault(params: {
   mintConfig?: {
     contractOwnerAddress: string;
   };
+  availableChains: number[];
 }) {
+  // Test configs
+  let availableChains = params.availableChains;
+
+  // Skip test when vault is not available in the current chain
+  if (!availableChains.includes(chainId)) {
+    return;
+  }
+
   // Addresses
   let owner: string, keeper: string, user: string, feeRecipient: string;
 
@@ -314,15 +334,17 @@ function behavesLikeRibbonOptionsVault(params: {
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
   let isUsdcAuction = params.isUsdcAuction;
-  let swapPath = isUsdcAuction ? params.swapPath : "0x";
+  let swapPath = isUsdcAuction
+    ? encodePath(params.swapPath.tokens, params.swapPath.fees)
+    : "0x";
 
   // Contracts
   let strikeSelection: Contract;
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let uniswapRouterLib: Contract;
-  let uniswapFactory: Contract;
+  let dexRouterLib: Contract;
+  let dexFactory: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
@@ -445,13 +467,8 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      uniswapFactory = await getContractAt(
-        "IUniswapV3Factory",
-        UNISWAP_FACTORY
-      );
-
-      const uniswapRouter = await ethers.getContractFactory("UniswapRouter");
-      uniswapRouterLib = await uniswapRouter.deploy();
+      const dexRouter = await ethers.getContractFactory("UniswapRouter"); // Supports Uniswap V3 only
+      dexRouterLib = await dexRouter.deploy();
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
@@ -494,8 +511,8 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
-        UNISWAP_ROUTER,
-        UNISWAP_FACTORY,
+        DEX_ROUTER[chainId],
+        DEX_FACTORY[chainId],
       ];
 
       vault = (
@@ -507,7 +524,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: uniswapRouterLib.address,
+              UniswapRouter: dexRouterLib.address, // Supports UniswapV3 only
             },
           }
         )
@@ -622,7 +639,7 @@ function behavesLikeRibbonOptionsVault(params: {
               ? BigNumber.from("10000000000000")
               : parseEther("200")
           );
-          if (chainId == 1) {
+          if (isUsdcAuction) {
             await mintToken(
               usdcContract,
               USDC_OWNER_ADDRESS[chainId],
@@ -652,7 +669,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: uniswapRouterLib.address,
+              UniswapRouter: dexRouterLib.address, // Supports only Uniswap v3
             },
           }
         );
@@ -663,8 +680,8 @@ function behavesLikeRibbonOptionsVault(params: {
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
           GNOSIS_EASY_AUCTION[chainId],
-          UNISWAP_ROUTER,
-          UNISWAP_FACTORY
+          DEX_ROUTER[chainId],
+          DEX_FACTORY[chainId]
         );
       });
 
@@ -1124,7 +1141,12 @@ function behavesLikeRibbonOptionsVault(params: {
         it("reverts when pool does not exist", async function () {
           let ref: string;
 
-          let pool = await uniswapFactory.getPool(asset, asset, 10000);
+          dexFactory = await getContractAt(
+            "IUniswapV3Factory", // Supports Uniswap V3 only
+            DEX_FACTORY[chainId]
+          );
+
+          let pool = await dexFactory.getPool(asset, asset, 10000);
           if (pool == constants.AddressZero) {
             ref = "Pool does not exist";
           }

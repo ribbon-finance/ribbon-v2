@@ -18,10 +18,10 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
+  DEX_FACTORY,
+  DEX_ROUTER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
-  UNISWAP_ROUTER,
-  UNISWAP_FACTORY,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -461,8 +461,8 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
-        UNISWAP_ROUTER,
-        UNISWAP_FACTORY,
+        DEX_ROUTER[chainId],
+        DEX_FACTORY[chainId],
       ];
 
       thetaVault = (
@@ -506,8 +506,8 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
-        UNISWAP_ROUTER,
-        UNISWAP_FACTORY,
+        DEX_ROUTER[chainId],
+        DEX_FACTORY[chainId],
       ];
 
       vault = (
@@ -663,8 +663,8 @@ function behavesLikeRibbonOptionsVault(params: {
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
           GNOSIS_EASY_AUCTION[chainId],
-          UNISWAP_ROUTER,
-          UNISWAP_FACTORY
+          DEX_ROUTER[chainId],
+          DEX_FACTORY[chainId]
         );
       });
 
