@@ -16,7 +16,7 @@ process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 
 // Defaults to CHAINID=1 so things will run with mainnet fork if not specified
-const CHAINID = process.env.CHAINID ? +process.env.CHAINID : 1;
+const CHAINID = process.env.CHAINID ? + process.env.CHAINID : 1;
 
 export default {
   accounts: {

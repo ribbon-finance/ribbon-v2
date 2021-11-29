@@ -18,6 +18,8 @@ import {
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
+  DEX_FACTORY,
+  DEX_ROUTER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
 } from "../constants/constants";
@@ -273,6 +275,8 @@ function behavesLikeRibbonOptionsVault(params: {
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
+  let isUsdcAuction = false;
+  let swapPath = constants.HashZero;
 
   // Contracts
   let strikeSelection: Contract;
@@ -280,6 +284,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
   let vaultLifecycleLib: Contract;
+  let uniswapRouterLib: Contract;
   let thetaVault: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
@@ -394,9 +399,7 @@ function behavesLikeRibbonOptionsVault(params: {
       volOracle = await TestVolOracle.deploy(PERIOD, 7);
 
       await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId]
-          ? ethusdcPool
-          : wbtcusdcPool
+        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
       );
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
@@ -417,23 +420,30 @@ function behavesLikeRibbonOptionsVault(params: {
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
+      const uniswapRouter = await ethers.getContractFactory("UniswapRouter");
+      uniswapRouterLib = await uniswapRouter.deploy();
+
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
         GNOSIS_EASY_AUCTION[chainId]
       );
 
       const thetaVaultInitializeArgs = [
-        owner,
-        keeper,
-        feeRecipient,
-        managementFee,
-        performanceFee,
-        tokenName,
-        tokenSymbol,
-        optionsPremiumPricer.address,
-        strikeSelection.address,
-        premiumDiscount,
-        auctionDuration,
+        [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          isUsdcAuction,
+          swapPath,
+        ],
         [
           isPut,
           tokenDecimals,
@@ -451,6 +461,8 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
+        DEX_ROUTER[chainId],
+        DEX_FACTORY[chainId],
       ];
 
       thetaVault = (
@@ -462,6 +474,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
+              UniswapRouter: uniswapRouterLib.address,
             },
           }
         )
@@ -493,6 +506,8 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
+        DEX_ROUTER[chainId],
+        DEX_FACTORY[chainId],
       ];
 
       vault = (
@@ -647,7 +662,9 @@ function behavesLikeRibbonOptionsVault(params: {
           USDC_ADDRESS[chainId],
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId]
+          GNOSIS_EASY_AUCTION[chainId],
+          DEX_ROUTER[chainId],
+          DEX_FACTORY[chainId]
         );
       });
 
