@@ -1219,7 +1219,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const receipt = await tx.wait();
           // ~58692 if checkPath is made into internal function
-          assert.isAtMost(receipt.gasUsed.toNumber(), 62737);
+          assert.isAtMost(receipt.gasUsed.toNumber(), 64860);
         });
       } else {
         it("reverts when isUsdcAuction is false", async function () {
