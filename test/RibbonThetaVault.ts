@@ -7,8 +7,8 @@ import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.jso
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  CHAINLINK_WBTC_PRICER_NEW,
-  CHAINLINK_WETH_PRICER_NEW,
+  CHAINLINK_WBTC_PRICER_THETA_VAULT,
+  CHAINLINK_WETH_PRICER_THETA_VAULT,
   CHAINLINK_SUSHI_PRICER,
   CHAINID,
   BLOCK_NUMBER_THETA_VAULT,
@@ -17,8 +17,6 @@ import {
   USDC_PRICE_ORACLE,
   ETH_USDC_POOL,
   WBTC_USDC_POOL,
-  // CHAINLINK_WBTC_PRICER,
-  // CHAINLINK_WETH_PRICER,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
@@ -74,7 +72,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WBTC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
+    chainlinkPricer: CHAINLINK_WBTC_PRICER_THETA_VAULT[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("1000"),
@@ -106,7 +104,7 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WETH_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER_THETA_VAULT[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -136,7 +134,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER_THETA_VAULT[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -145,9 +143,7 @@ describe("RibbonThetaVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from(
-      "2702702702" //chainId === CHAINID.ETH_MAINNET ? "5263157894" : "2702702702"
-    ),
+    expectedMintAmount: BigNumber.from("2702702702"),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -552,7 +548,6 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        // .add(chainId === CHAINID.ETH_MAINNET ? 1 : 0, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -590,7 +585,6 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        // .add(chainId === CHAINID.ETH_MAINNET ? 2 : 1, "week")
         .add(1, "week")
         .day("friday")
         .hours(8)
