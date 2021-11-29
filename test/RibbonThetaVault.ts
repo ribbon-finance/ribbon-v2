@@ -2125,10 +2125,24 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          depositAmount,
+          adminSigner
+        );
+        await vault
+          .connect(adminSigner)
+          .initiateWithdraw(params.depositAmount.div(2));
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).rollToNextOption();
+
+        let [, queuedWithdrawAmountInitial] = await lockedBalanceForRollover(
+          vault
+        );
 
         let bidMultiplier = 1;
 
@@ -2177,13 +2191,15 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
+          .sub(queuedWithdrawAmount)
+          .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
           .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
+            .sub(queuedWithdrawAmount)
+            .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
             .sub((await vault.vaultState()).lastLockedAmount)
             .sub(pendingAmount)
             .mul(await vault.performanceFee())
@@ -3151,11 +3167,12 @@ function behavesLikeRibbonOptionsVault(params: {
 async function depositIntoVault(
   asset: string,
   vault: Contract,
-  amount: BigNumberish
+  amount: BigNumberish,
+  signer: SignerWithAddress = ownerSigner
 ) {
   if (asset === WETH_ADDRESS) {
-    await vault.depositETH({ value: amount });
+    await vault.connect(signer).depositETH({ value: amount });
   } else {
-    await vault.deposit(amount);
+    await vault.connect(signer).deposit(amount);
   }
 }

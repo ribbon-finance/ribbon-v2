@@ -3097,11 +3097,12 @@ function behavesLikeRibbonOptionsVault(params: {
 async function depositIntoVault(
   asset: string,
   vault: Contract,
-  amount: BigNumberish
+  amount: BigNumberish,
+  signer: SignerWithAddress = ownerSigner
 ) {
   if (asset === WETH_ADDRESS) {
-    await vault.depositETH({ value: amount });
+    await vault.connect(signer).depositETH({ value: amount });
   } else {
-    await vault.deposit(amount);
+    await vault.connect(signer).deposit(amount);
   }
 }
