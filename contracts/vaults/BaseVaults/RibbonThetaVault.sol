@@ -278,6 +278,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         onlyOwner
         nonReentrant
     {
+        require(isUsdcAuction, "!isUsdcAuction");
         require(_checkPath(newSwapPath), "Invalid swap path");
         swapPath = newSwapPath;
     }
@@ -430,10 +431,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         require(currOtokenPremium > 0, "!currentOtokenPremium");
 
+        bool _isUsdcAuction = isUsdcAuction;
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = isUsdcAuction ? USDC : vaultParams.asset;
-        auctionDetails.assetDecimals = isUsdcAuction ? 6 : vaultParams.decimals;
+        auctionDetails.asset = _isUsdcAuction ? USDC : vaultParams.asset;
+        auctionDetails.assetDecimals = _isUsdcAuction
+            ? 6
+            : vaultParams.decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 

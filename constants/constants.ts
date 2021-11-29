@@ -15,8 +15,8 @@ export const BLOCK_NUMBER = {
   [CHAINID.AVAX_FUJI]: 2823963,
 };
 
-export const BLOCK_NUMBER_NEW = {
-  [CHAINID.ETH_MAINNET]: 13505726, // New
+export const BLOCK_NUMBER_THETA_VAULT = {
+  [CHAINID.ETH_MAINNET]: 13505726, // Updated block number to accomodate new Opyn Gamma Oracle
   [CHAINID.AVAX_MAINNET]: 7397082, // No change
   [CHAINID.AVAX_FUJI]: 2823963, // No change
 };

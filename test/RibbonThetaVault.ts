@@ -11,7 +11,7 @@ import {
   CHAINLINK_WETH_PRICER_NEW,
   CHAINLINK_SUSHI_PRICER,
   CHAINID,
-  BLOCK_NUMBER_NEW,
+  BLOCK_NUMBER_THETA_VAULT,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
@@ -44,6 +44,7 @@ import {
   bidForOToken,
   decodeOrder,
   lockedBalanceForRollover,
+  encodePath,
 } from "./helpers/utils";
 import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -411,7 +412,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: BLOCK_NUMBER_NEW[chainId],
+              blockNumber: BLOCK_NUMBER_THETA_VAULT[chainId],
             },
           },
         ],
@@ -1110,10 +1111,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    if (isUsdcAuction) {
-      describe("#setSwapPath", () => {
-        time.revertToSnapshotAfterTest();
+    describe("#setSwapPath", () => {
+      time.revertToSnapshotAfterTest();
 
+      if (isUsdcAuction) {
         it("reverts when path is too short", async function () {
           await expect(
             vault.connect(ownerSigner).setSwapPath("0x")
@@ -1220,8 +1221,17 @@ function behavesLikeRibbonOptionsVault(params: {
           // ~58692 if checkPath is made into internal function
           assert.isAtMost(receipt.gasUsed.toNumber(), 62737);
         });
-      });
-    }
+      } else {
+        it("reverts when isUsdcAuction is false", async function () {
+          await expect(
+            vault
+              .connect(ownerSigner)
+              .setSwapPath(encodePath([USDC_ADDRESS[chainId], asset], [10000]))
+          ).to.be.revertedWith("!isUsdcAuction");
+        });
+      }
+    });
+
     // Only apply to when assets is WETH
     if (params.collateralAsset === WETH_ADDRESS[chainId]) {
       describe("#depositETH", () => {
@@ -3515,6 +3525,7 @@ function behavesLikeRibbonOptionsVault(params: {
             vault.connect(keeperSigner).settleAuctionAndSwap("0")
           ).to.be.revertedWith("!minAmountOut");
         });
+
         it("reverts when minimum amount out is not filled", async function () {
           await vault.connect(ownerSigner).commitAndClose();
           await time.increaseTo(
@@ -3545,6 +3556,7 @@ function behavesLikeRibbonOptionsVault(params: {
             vault.connect(keeperSigner).settleAuctionAndSwap(idealOut)
           ).to.be.revertedWith("Too little received");
         });
+
         it("swap returns amount above the minimum amount", async function () {
           await vault.connect(ownerSigner).commitAndClose();
           await time.increaseTo(
@@ -3642,24 +3654,4 @@ async function depositIntoVault(
   } else {
     await vault.deposit(amount);
   }
-}
-
-function encodePath(tokenAddresses, fees) {
-  const FEE_SIZE = 3;
-
-  if (tokenAddresses.length != fees.length + 1) {
-    throw new Error("path/fee lengths do not match");
-  }
-
-  let encoded = "0x";
-  for (let i = 0; i < fees.length; i++) {
-    // 20 byte encoding of the address
-    encoded += tokenAddresses[i].slice(2);
-    // 3 byte encoding of the fee
-    encoded += fees[i].toString(16).padStart(2 * FEE_SIZE, "0");
-  }
-  // encode the final token
-  encoded += tokenAddresses[tokenAddresses.length - 1].slice(2);
-
-  return encoded.toLowerCase();
 }
