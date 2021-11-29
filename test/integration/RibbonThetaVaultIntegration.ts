@@ -7,10 +7,7 @@ import { formatUnits, parseUnits } from "ethers/lib/utils";
 import hre from "hardhat";
 import moment from "moment-timezone";
 import {
-  EASY_AUCTION_KOVAN,
   GNOSIS_EASY_AUCTION,
-  KOVAN_USDC,
-  KOVAN_WETH,
   USDC_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
@@ -27,10 +24,9 @@ let owner: string;
 let ownerSigner: SignerWithAddress;
 let feeRecipient: string;
 
-const weth = hre.network.name === "mainnet" ? WETH_ADDRESS : KOVAN_WETH;
-const usdc = hre.network.name === "mainnet" ? USDC_ADDRESS : KOVAN_USDC;
-const auctionAddress =
-  hre.network.name === "mainnet" ? GNOSIS_EASY_AUCTION : EASY_AUCTION_KOVAN;
+const weth = WETH_ADDRESS[hre.network.config.chainId];
+const usdc = USDC_ADDRESS[hre.network.config.chainId];
+const auctionAddress = GNOSIS_EASY_AUCTION[hre.network.config.chainId];
 
 const getGasPrice = async () => {
   if (hre.network.name === "mainnet") {
