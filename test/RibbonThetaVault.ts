@@ -2526,13 +2526,13 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .initiateWithdraw(params.depositAmount.div(2));
 
-          // withdraw 100% because it's OTM
-          await setOpynOracleExpiryPrice(
-            params.asset,
-            oracle,
-            await getCurrentOptionExpiry(),
-            firstOptionStrike
-          );
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          firstOptionStrike
+        );
 
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -2549,8 +2549,8 @@ function behavesLikeRibbonOptionsVault(params: {
           gnosisAuction,
           isUsdcAuction ? usdcContract : assetContract,
           userSigner.address,
-          defaultOtokenAddress,
-          firstOptionPremium,
+          await vault.currentOption(),
+          (await vault.currentOtokenPremium()).mul(105).div(100),
           isUsdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
@@ -2606,6 +2606,15 @@ function behavesLikeRibbonOptionsVault(params: {
             .mul(await vault.performanceFee())
             .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
         );
+
+        console.log("queuedWithdrawAmount");
+        console.log(queuedWithdrawAmount.toString());
+        console.log("queuedWithdrawAmountInitial");
+        console.log(queuedWithdrawAmountInitial.toString());
+        console.log("secondInitialBalance");
+        console.log(secondInitialBalance.toString());
+        console.log("await vault.totalBalance()");
+        console.log((await vault.totalBalance()).toString());
 
         assert.equal(
           secondInitialBalance.sub(await vault.totalBalance()).toString(),
@@ -3670,9 +3679,9 @@ async function depositIntoVault(
   amount: BigNumberish,
   signer?: SignerWithAddress
 ) {
-    if (typeof signer !== 'undefined') {
-      vault = vault.connect(signer)
-    }
+  if (typeof signer !== "undefined") {
+    vault = vault.connect(signer);
+  }
   if (asset === WETH_ADDRESS[chainId]) {
     await vault.depositETH({ value: amount });
   } else {
