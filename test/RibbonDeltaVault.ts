@@ -3109,11 +3109,14 @@ async function depositIntoVault(
   asset: string,
   vault: Contract,
   amount: BigNumberish,
-  signer: SignerWithAddress = ownerSigner
+  signer?: SignerWithAddress
 ) {
-  if (asset === WETH_ADDRESS) {
-    await vault.connect(signer).depositETH({ value: amount });
+  if (typeof signer !== 'undefined') {
+    vault = vault.connect(signer)
+  }
+  if (asset === WETH_ADDRESS[chainId]) {
+    await vault.depositETH({ value: amount });
   } else {
-    await vault.connect(signer).deposit(amount);
+    await vault.deposit(amount);
   }
 }

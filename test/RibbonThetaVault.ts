@@ -2160,11 +2160,23 @@ function behavesLikeRibbonOptionsVault(params: {
           params.collateralAsset,
           vault,
           depositAmount,
-          adminSigner
+          ownerSigner
         );
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
         await vault
-          .connect(adminSigner)
+          .connect(ownerSigner)
           .initiateWithdraw(params.depositAmount.div(2));
+
+          // withdraw 100% because it's OTM
+          await setOpynOracleExpiryPrice(
+            params.asset,
+            oracle,
+            await getCurrentOptionExpiry(),
+            firstOptionStrike
+          );
 
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -2222,14 +2234,12 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
-          .sub(queuedWithdrawAmount)
           .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
           .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
-            .sub(queuedWithdrawAmount)
             .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
             .sub((await vault.vaultState()).lastLockedAmount)
             .sub(pendingAmount)
@@ -3201,11 +3211,14 @@ async function depositIntoVault(
   asset: string,
   vault: Contract,
   amount: BigNumberish,
-  signer: SignerWithAddress = ownerSigner
+  signer?: SignerWithAddress
 ) {
-  if (asset === WETH_ADDRESS) {
-    await vault.connect(signer).depositETH({ value: amount });
+    if (typeof signer !== 'undefined') {
+      vault = vault.connect(signer)
+    }
+  if (asset === WETH_ADDRESS[chainId]) {
+    await vault.depositETH({ value: amount });
   } else {
-    await vault.connect(signer).deposit(amount);
+    await vault.deposit(amount);
   }
 }
