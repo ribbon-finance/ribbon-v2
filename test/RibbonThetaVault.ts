@@ -7,11 +7,11 @@ import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.jso
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  CHAINLINK_WBTC_PRICER_THETA_VAULT,
-  CHAINLINK_WETH_PRICER_THETA_VAULT,
+  CHAINLINK_WBTC_PRICER_NEW,
+  CHAINLINK_WETH_PRICER_NEW,
   CHAINLINK_SUSHI_PRICER,
   CHAINID,
-  BLOCK_NUMBER_THETA_VAULT,
+  BLOCK_NUMBER_NEW,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
@@ -72,7 +72,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WBTC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WBTC_PRICER_THETA_VAULT[chainId],
+    chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("1000"),
@@ -104,7 +104,7 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WETH_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_THETA_VAULT[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -134,7 +134,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_THETA_VAULT[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
@@ -408,7 +408,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: BLOCK_NUMBER_THETA_VAULT[chainId],
+              blockNumber: BLOCK_NUMBER_NEW[chainId],
             },
           },
         ],
