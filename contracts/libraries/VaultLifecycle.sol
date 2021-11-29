@@ -14,7 +14,9 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
+import {UniswapRouter} from "./UniswapRouter.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -669,6 +671,44 @@ library VaultLifecycle {
         returns (uint256)
     {
         return GnosisAuction.startAuction(auctionDetails);
+    }
+
+    /**
+     * @notice Settles the gnosis auction
+     * @param gnosisEasyAuction is the contract address of Gnosis easy auction protocol
+     * @param auctionID is the auction ID of the gnosis easy auction
+     */
+    function settleAuction(address gnosisEasyAuction, uint256 auctionID)
+        internal
+    {
+        IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
+    }
+
+    /**
+     * @notice Swaps tokens using UniswapV3 router
+     * @param tokenIn is the token address to swap
+     * @param minAmountOut is the minimum acceptable amount of tokenOut received from swap
+     * @param router is the contract address of UniswapV3 router
+     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
+     */
+    function swap(
+        address tokenIn,
+        uint256 minAmountOut,
+        address router,
+        bytes calldata swapPath
+    ) external {
+        uint256 balance = IERC20(tokenIn).balanceOf(address(this));
+
+        if (balance > 0) {
+            UniswapRouter.swap(
+                address(this),
+                tokenIn,
+                balance,
+                minAmountOut,
+                router,
+                swapPath
+            );
+        }
     }
 
     /**
