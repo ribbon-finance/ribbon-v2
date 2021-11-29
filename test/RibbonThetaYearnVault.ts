@@ -3436,9 +3436,10 @@ function behavesLikeRibbonOptionsVault(params: {
 async function depositIntoVault(
   asset: string,
   vault: Contract,
-  amount: BigNumberish
+  amount: BigNumberish,
+  signer: SignerWithAddress = ownerSigner
 ) {
-  await vault.deposit(amount);
+  await vault.connect(signer).deposit(amount);
 }
 
 async function setupYieldToken(
