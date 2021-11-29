@@ -3458,9 +3458,12 @@ async function depositIntoVault(
   asset: string,
   vault: Contract,
   amount: BigNumberish,
-  signer: SignerWithAddress = ownerSigner
+  signer?: SignerWithAddress
 ) {
-  await vault.connect(signer).deposit(amount);
+  if (typeof signer !== 'undefined') {
+    vault = vault.connect(signer)
+  }
+  await vault.deposit(amount);
 }
 
 async function setupYieldToken(
