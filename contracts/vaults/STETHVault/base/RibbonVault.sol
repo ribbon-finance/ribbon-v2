@@ -454,8 +454,9 @@ contract RibbonVault is
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     * @return amountETHOut the current withdrawal amount
      */
-    function completeWithdraw(uint256 minETHOut) external nonReentrant {
+    function _completeWithdraw(uint256 minETHOut) internal returns (uint256) {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -496,6 +497,8 @@ contract RibbonVault is
         require(amountETHOut > 0, "!amountETHOut");
 
         VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+
+        return amountETHOut;
     }
 
     /**
