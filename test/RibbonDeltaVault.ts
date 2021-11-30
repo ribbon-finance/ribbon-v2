@@ -1803,7 +1803,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
-      it("exercises and roll funds into next option, after expiry ITM (initiateWithdraw)", async function () {
+      it.skip("exercises and roll funds into next option, after expiry ITM (initiateWithdraw)", async function () {
         await depositIntoVault(
           params.collateralAsset,
           vault,
