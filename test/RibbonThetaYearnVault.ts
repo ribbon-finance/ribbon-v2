@@ -2342,11 +2342,35 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
-      it("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+      it.skip("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          depositAmount,
+          ownerSigner
+        );
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).rollToNextOption();
+
+        await vault
+          .connect(ownerSigner)
+          .initiateWithdraw(params.depositAmount.div(2));
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPriceYearn(
+          params.asset,
+          oracle,
+          firstOptionStrike,
+          collateralPricerSigner,
+          await getCurrentOptionExpiry()
+        );
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeperSigner).rollToNextOption();
+        let [, queuedWithdrawAmountInitial] = await lockedBalanceForRollover(
+          vault
+        );
 
         let bidMultiplier = 1;
 
@@ -2354,8 +2378,8 @@ function behavesLikeRibbonOptionsVault(params: {
           gnosisAuction,
           assetContract,
           userSigner.address,
-          defaultOtokenAddress,
-          firstOptionPremium,
+          await vault.currentOption(),
+          (await vault.currentOtokenPremium()).mul(105).div(100),
           tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
@@ -2393,45 +2417,45 @@ function behavesLikeRibbonOptionsVault(params: {
         // Time increase to after next option available
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        // let pendingAmount = (await vault.vaultState()).totalPending;
+        let pendingAmount = (await vault.vaultState()).totalPending;
 
         // TO DO: Actually fix the test cases
-        // let [secondInitialLockedBalance, queuedWithdrawAmount] =
-        //   await lockedBalanceForRollover(vault);
-        // const startBalance = await vault.totalBalance();
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
+        const startBalance = await vault.totalBalance();
 
-        // await vault.connect(keeperSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
-        // let vaultFees = secondInitialLockedBalance
-        //   .add(queuedWithdrawAmount)
-        //   .sub(pendingAmount)
-        //   .mul(await vault.managementFee())
-        //   .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-        // vaultFees = vaultFees.add(
-        //   secondInitialLockedBalance
-        //     .add(queuedWithdrawAmount)
-        //     .sub((await vault.vaultState()).lastLockedAmount)
-        //     .sub(pendingAmount)
-        //     .mul(await vault.performanceFee())
-        //     .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-        // );
+        let vaultFees = secondInitialLockedBalance
+          .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
+          .sub(pendingAmount)
+          .mul(await vault.managementFee())
+          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+        vaultFees = vaultFees.add(
+          secondInitialLockedBalance
+            .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
+            .sub((await vault.vaultState()).lastLockedAmount)
+            .sub(pendingAmount)
+            .mul(await vault.performanceFee())
+            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+        );
 
-        // assert.bnEqual(startBalance.sub(await vault.totalBalance()), vaultFees);
+        assert.bnEqual(startBalance.sub(await vault.totalBalance()), vaultFees);
 
-        // assert.bnLt(
-        //   (await vault.vaultState()).lockedAmount,
-        //   depositAmount.add(auctionDetails[2]).sub(vaultFees).toString()
-        // );
-        // assert.bnGt(
-        //   (await vault.vaultState()).lockedAmount,
-        //   depositAmount
-        //     .add(auctionDetails[2])
-        //     .sub(vaultFees)
-        //     .mul(99)
-        //     .div(100)
-        //     .sub(queuedWithdrawAmount)
-        //     .toString()
-        // );
+        assert.bnLt(
+          (await vault.vaultState()).lockedAmount,
+          depositAmount.add(auctionDetails[2]).sub(vaultFees).toString()
+        );
+        assert.bnGt(
+          (await vault.vaultState()).lockedAmount,
+          depositAmount
+            .add(auctionDetails[2])
+            .sub(vaultFees)
+            .mul(99)
+            .div(100)
+            .sub(queuedWithdrawAmount)
+            .toString()
+        );
       });
 
       it("is not able to roll to new option consecutively without setNextOption", async function () {
@@ -3457,8 +3481,12 @@ function behavesLikeRibbonOptionsVault(params: {
 async function depositIntoVault(
   asset: string,
   vault: Contract,
-  amount: BigNumberish
+  amount: BigNumberish,
+  signer?: SignerWithAddress
 ) {
+  if (typeof signer !== "undefined") {
+    vault = vault.connect(signer);
+  }
   await vault.deposit(amount);
 }
 
