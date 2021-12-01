@@ -191,7 +191,7 @@ library VaultLifecycle {
         uint256 pendingAmount = vaultState.totalPending;
         uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
 
-        uint256 withdrawAmountDiff;
+        uint256 balanceForVaultFees;
         {
             uint256 pricePerShareBeforeFee =
                 ShareMath.pricePerShare(
@@ -213,16 +213,22 @@ library VaultLifecycle {
             // Deduct the difference between the newly scheduled withdrawals
             // and the older withdrawals
             // so we can charge them fees before they leave
-            withdrawAmountDiff = queuedWithdrawBeforeFee >
-                params.lastQueuedWithdrawAmount
-                ? queuedWithdrawBeforeFee.sub(params.lastQueuedWithdrawAmount)
-                : 0;
+            uint256 withdrawAmountDiff =
+                queuedWithdrawBeforeFee > params.lastQueuedWithdrawAmount
+                    ? queuedWithdrawBeforeFee.sub(
+                        params.lastQueuedWithdrawAmount
+                    )
+                    : 0;
+
+            balanceForVaultFees = currentBalance
+                .sub(queuedWithdrawBeforeFee)
+                .add(withdrawAmountDiff);
         }
 
         {
             (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
                 .getVaultFees(
-                currentBalance,
+                balanceForVaultFees,
                 vaultState.lastLockedAmount,
                 vaultState.totalPending,
                 params.performanceFee,

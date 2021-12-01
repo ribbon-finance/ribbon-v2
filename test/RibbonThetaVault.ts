@@ -2512,10 +2512,36 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          depositAmount,
+          ownerSigner
+        );
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).rollToNextOption();
+        await vault
+          .connect(ownerSigner)
+          .initiateWithdraw(params.depositAmount.div(2));
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          firstOptionStrike
+        );
+
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+
+        let [, queuedWithdrawAmountInitial] = await lockedBalanceForRollover(
+          vault
+        );
 
         let bidMultiplier = 1;
 
@@ -2523,8 +2549,8 @@ function behavesLikeRibbonOptionsVault(params: {
           gnosisAuction,
           isUsdcAuction ? usdcContract : assetContract,
           userSigner.address,
-          defaultOtokenAddress,
-          firstOptionPremium,
+          await vault.currentOption(),
+          (await vault.currentOtokenPremium()).mul(105).div(100),
           isUsdcAuction ? 6 : tokenDecimals,
           bidMultiplier.toString(),
           auctionDuration
@@ -2538,9 +2564,12 @@ function behavesLikeRibbonOptionsVault(params: {
             .settleAuction(auctionDetails[0]);
         }
 
+        let newOptionStrike = await (
+          await getContractAt("IOtoken", await vault.currentOption())
+        ).strikePrice();
         const settlementPriceOTM = isPut
-          ? firstOptionStrike.add(1)
-          : firstOptionStrike.sub(1);
+          ? newOptionStrike.add(1)
+          : newOptionStrike.sub(1);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -2568,13 +2597,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
+          .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
           .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
+            .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
             .sub((await vault.vaultState()).lastLockedAmount)
             .sub(pendingAmount)
             .mul(await vault.performanceFee())
@@ -2632,7 +2661,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 966023); //963542, 1082712
+        assert.isAtMost(receipt.gasUsed.toNumber(), 966159); //963542, 1082712
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -3641,8 +3670,12 @@ function behavesLikeRibbonOptionsVault(params: {
 async function depositIntoVault(
   asset: string,
   vault: Contract,
-  amount: BigNumberish
+  amount: BigNumberish,
+  signer?: SignerWithAddress
 ) {
+  if (typeof signer !== "undefined") {
+    vault = vault.connect(signer);
+  }
   if (asset === WETH_ADDRESS[chainId]) {
     await vault.depositETH({ value: amount });
   } else {

@@ -1803,7 +1803,13 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
-      it("exercises and roll funds into next option, after expiry ITM (initiateWithdraw)", async function () {
+      it.skip("exercises and roll funds into next option, after expiry ITM (initiateWithdraw)", async function () {
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          depositAmount,
+          ownerSigner
+        );
         await rollToNextOptionSetup();
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
@@ -1811,6 +1817,42 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault
           .connect(keeperSigner)
           .rollToNextOption(optionPremium.toString());
+
+        await vault
+          .connect(ownerSigner)
+          .initiateWithdraw(params.depositAmount.div(2));
+
+        await time.increaseTo(
+          (await time.now()).toNumber() +
+            (await thetaVault.auctionDuration()).toNumber() +
+            1
+        );
+
+        await closeAuctionAndClaim(
+          gnosisAuction,
+          thetaVault,
+          vault,
+          userSigner.address
+        );
+
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          firstOptionStrike
+        );
+
+        await rollToNextOptionSetup();
+
+        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+
+        await vault
+          .connect(keeperSigner)
+          .rollToNextOption(optionPremium.toString());
+
+        let [, queuedWithdrawAmountInitial] = await lockedBalanceForRollover(
+          vault
+        );
 
         await time.increaseTo(
           (await time.now()).toNumber() +
@@ -1845,6 +1887,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(ownerSigner)
           .setStrikePrice(secondOptionStrike);
 
+        await vault.initiateWithdraw(params.depositAmount.div(2));
+
         await thetaVault.connect(ownerSigner).commitAndClose();
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -1864,13 +1908,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // Management / Performance fee is included because net positive on week
         let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
+          .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
           .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
+            .add(queuedWithdrawAmount.sub(queuedWithdrawAmountInitial))
             .sub((await vault.vaultState()).lastLockedAmount)
             .sub(pendingAmount)
             .mul(await vault.performanceFee())
@@ -3125,8 +3169,12 @@ function behavesLikeRibbonOptionsVault(params: {
 async function depositIntoVault(
   asset: string,
   vault: Contract,
-  amount: BigNumberish
+  amount: BigNumberish,
+  signer?: SignerWithAddress
 ) {
+  if (typeof signer !== "undefined") {
+    vault = vault.connect(signer);
+  }
   if (asset === WETH_ADDRESS[chainId]) {
     await vault.depositETH({ value: amount });
   } else {
