@@ -2564,9 +2564,12 @@ function behavesLikeRibbonOptionsVault(params: {
             .settleAuction(auctionDetails[0]);
         }
 
+        let newOptionStrike = await (
+          await getContractAt("IOtoken", await vault.currentOption())
+        ).strikePrice();
         const settlementPriceOTM = isPut
-          ? firstOptionStrike.add(1)
-          : firstOptionStrike.sub(1);
+          ? newOptionStrike.add(1)
+          : newOptionStrike.sub(1);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -2606,15 +2609,6 @@ function behavesLikeRibbonOptionsVault(params: {
             .mul(await vault.performanceFee())
             .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
         );
-
-        console.log("queuedWithdrawAmount");
-        console.log(queuedWithdrawAmount.toString());
-        console.log("queuedWithdrawAmountInitial");
-        console.log(queuedWithdrawAmountInitial.toString());
-        console.log("secondInitialBalance");
-        console.log(secondInitialBalance.toString());
-        console.log("await vault.totalBalance()");
-        console.log((await vault.totalBalance()).toString());
 
         assert.equal(
           secondInitialBalance.sub(await vault.totalBalance()).toString(),
