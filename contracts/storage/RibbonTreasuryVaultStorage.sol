@@ -26,10 +26,7 @@ abstract contract RibbonTreasuryVaultStorageV2 {
 }
 
 abstract contract RibbonTreasuryVaultStorageV3 {
-    // Auction will be denominated in USDC if true
-    bool public isUsdcAuction;
-    // Path for swaps
-    bytes public swapPath;
+
 }
 
 // We are following Compound's method of upgrading new contract implementations

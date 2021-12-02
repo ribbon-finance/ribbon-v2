@@ -105,8 +105,6 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         address _strikeSelection;
         uint32 _premiumDiscount;
         uint256 _auctionDuration;
-        bool _isUsdcAuction;
-        bytes _swapPath;
     }
 
     /************************************************
@@ -121,8 +119,6 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _uniswapRouter is the contract address of UniswapV3 router that handles swaps
-     * @param _uniswapFactory is the contract address of UniswapV3 factory containing
      */
     constructor(
         address _weth,
@@ -130,18 +126,14 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction,
-        address _uniswapRouter,
-        address _uniswapFactory
+        address _gnosisEasyAuction
     )
         RibbonVault(
             _weth,
             _usdc,
             _gammaController,
             _marginPool,
-            _gnosisEasyAuction,
-            _uniswapRouter,
-            _uniswapFactory
+            _gnosisEasyAuction
         )
     {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
@@ -189,12 +181,6 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
-
-        isUsdcAuction = _initParams._isUsdcAuction;
-        if (_initParams._isUsdcAuction) {
-            require(_checkPath(_initParams._swapPath), "");
-            swapPath = _initParams._swapPath;
-        }
     }
 
     /************************************************
@@ -268,20 +254,6 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
-    }
-
-    /**
-     * @notice Sets a new path for swaps
-     * @param newSwapPath is the new path
-     */
-    function setSwapPath(bytes calldata newSwapPath)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(isUsdcAuction, "!isUsdcAuction");
-        require(_checkPath(newSwapPath), "Invalid swap path");
-        swapPath = newSwapPath;
     }
 
     /************************************************
@@ -460,20 +432,4 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         );
     }
 
-    /**
-     * @notice Settle USDC auction and swap the proceeds to underlying asset
-     * @param minAmountOut is the minimum amount of underlying acceptable for the swap
-     */
-    function settleAuctionAndSwap(uint256 minAmountOut)
-        external
-        onlyKeeper
-        nonReentrant
-    {
-        require(isUsdcAuction, "!isUsdcAuction");
-        require(minAmountOut > 0, "!minAmountOut");
-
-        VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
-
-        VaultLifecycle.swap(USDC, minAmountOut, UNISWAP_ROUTER, swapPath);
-    }
 }
