@@ -1,23 +1,20 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WETH_ADDRESS,
+  USDC_PRICE_ORACLE,
+  ETH_PRICE_ORACLE,
+  ETH_USDC_POOL,
   OptionsPremiumPricer_BYTECODE,
-  MAINNET_USDC_ORACLE,
-  KOVAN_USDC_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 import {
   AUCTION_DURATION,
   ETH_STRIKE_STEP,
-  ETH_USDC_POOL,
-  KOVAN_ETH_ORACLE,
-  KOVAN_WETH,
-  MAINNET_ETH_ORACLE,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-} from "./utils/constants";
+} from "../utils/constants";
 
 const main = async ({
   network,
@@ -32,11 +29,11 @@ const main = async ({
     await getNamedAccounts();
   console.log(`02 - Deploying ETH Call Theta Vault on ${network.name}`);
 
-  const isMainnet = network.name === "mainnet";
+  const chainId = network.config.chainId;
   const manualVolOracle = await deployments.get("ManualVolOracle");
 
-  const underlyingOracle = isMainnet ? MAINNET_ETH_ORACLE : KOVAN_ETH_ORACLE;
-  const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
+  const underlyingOracle = ETH_PRICE_ORACLE[chainId];
+  const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const pricer = await deploy("OptionsPremiumPricerETH", {
     from: deployer,
@@ -45,7 +42,7 @@ const main = async ({
       bytecode: OptionsPremiumPricer_BYTECODE,
     },
     args: [
-      ETH_USDC_POOL,
+      ETH_USDC_POOL[chainId],
       manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
@@ -58,48 +55,60 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
   });
 
-  const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
-
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
+
+  // Supports Uniswap V3 only
+  const dexRouter = await deploy("UniswapRouter", {
+    contract: "UniswapRouter",
+    from: deployer,
+  });
 
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
     libraries: {
       VaultLifecycle: lifecycle.address,
+      UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
 
   const initArgs = [
-    owner,
-    keeper,
-    feeRecipient,
-    MANAGEMENT_FEE,
-    PERFORMANCE_FEE,
-    "Ribbon ETH Theta Vault",
-    "rETH-THETA",
-    pricer.address,
-    strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
+    {
+      _owner: owner,
+      _keeper: keeper,
+      _feeRecipient: feeRecipient,
+      _managementFee: MANAGEMENT_FEE,
+      _performanceFee: PERFORMANCE_FEE,
+      _tokenName: "Ribbon ETH Theta Vault",
+      _tokenSymbol: "rETH-THETA",
+      _optionsPremiumPricer: pricer.address,
+      _strikeSelection: strikeSelection.address,
+      _premiumDiscount: PREMIUM_DISCOUNT,
+      _auctionDuration: AUCTION_DURATION,
+      _isUsdcAuction: false,
+      _swapPath: 0x0,
+    },
     {
       isPut: false,
       decimals: 18,
-      asset: weth,
-      underlying: weth,
+      asset: WETH_ADDRESS[chainId],
+      underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1000"),
     },
   ];
+
   const initData = RibbonThetaVault.interface.encodeFunctionData(
     "initialize",
     initArgs
   );
 
-  await deploy("RibbonThetaVaultETHCall", {
+  const vault = await deploy("RibbonThetaVaultETHCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
+
+  console.log(`RibbonThetaVaultETHCall @ ${vault.address}`);
 };
 main.tags = ["RibbonThetaVaultETHCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];

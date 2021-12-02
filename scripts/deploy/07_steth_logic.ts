@@ -1,35 +1,32 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
+  CHAINID,
   USDC_ADDRESS,
   OTOKEN_FACTORY,
-  OTOKEN_FACTORY_KOVAN,
   GAMMA_CONTROLLER,
-  GAMMA_CONTROLLER_KOVAN,
   MARGIN_POOL,
-  MARGIN_POOL_KOVAN,
   GNOSIS_EASY_AUCTION,
-  EASY_AUCTION_KOVAN,
   WETH_ADDRESS,
   LDO_ADDRESS,
   STETH_ETH_CRV_POOL,
   WSTETH_ADDRESS,
 } from "../../constants/constants";
 
-const KOVAN_WETH = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
-const KOVAN_USDC = "0x7e6edA50d1c833bE936492BF42C1BF376239E9e2";
-
 const main = async ({
-  ethers,
   network,
   deployments,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
+  const chainId = network.config.chainId;
+
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
+    console.log(`07 - Skipping deployment of Theta Vault stETH logic on ${network.name} because no stEth on Avax`);
+    return;
+  }
+
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
   console.log(`07 - Deploying Theta Vault stETH logic on ${network.name}`);
-
-  const isMainnet = network.name === "mainnet";
-  const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
 
   const lifecycle = await deploy("VaultLifecycle", {
     contract: "VaultLifecycle",
@@ -41,18 +38,18 @@ const main = async ({
     from: deployer,
   });
 
-  await deploy("RibbonThetaVaultSTETHLogic", {
+  const vault = await deploy("RibbonThetaVaultSTETHLogic", {
     contract: "RibbonThetaSTETHVault",
     from: deployer,
     args: [
-      weth,
-      isMainnet ? USDC_ADDRESS : KOVAN_USDC,
+      WETH_ADDRESS[chainId],
+      USDC_ADDRESS[chainId],
       WSTETH_ADDRESS,
       LDO_ADDRESS,
-      isMainnet ? OTOKEN_FACTORY : OTOKEN_FACTORY_KOVAN,
-      isMainnet ? GAMMA_CONTROLLER : GAMMA_CONTROLLER_KOVAN,
-      isMainnet ? MARGIN_POOL : MARGIN_POOL_KOVAN,
-      isMainnet ? GNOSIS_EASY_AUCTION : EASY_AUCTION_KOVAN,
+      OTOKEN_FACTORY[chainId],
+      GAMMA_CONTROLLER[chainId],
+      MARGIN_POOL[chainId],
+      GNOSIS_EASY_AUCTION[chainId],
       STETH_ETH_CRV_POOL,
     ],
     libraries: {
@@ -60,6 +57,8 @@ const main = async ({
       VaultLifecycleSTETH: lifecycleSTETH.address,
     },
   });
+
+  console.log(`RibbonThetaVaultSTETHLogic @ ${vault.address}`);
 };
 main.tags = ["RibbonThetaVaultSTETHLogic"];
 
