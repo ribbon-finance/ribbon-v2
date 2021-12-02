@@ -16,7 +16,7 @@ import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleTreasury} from "../../libraries/VaultLifecycleTreasury.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
+import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -38,6 +38,9 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
 
     // The minimum duration for an option auction.
     uint256 private constant MIN_AUCTION_DURATION = 1 hours;
+
+    // Maximum number of whitelisted user address.
+    uint256 private constant WHITELIST_LIMIT = 5;
 
     /************************************************
      *  EVENTS
@@ -90,8 +93,8 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
      * @param _strikeSelection is the address of the contract with strike selection logic
      * @param _premiumDiscount is the vault's discount applied to the premium
      * @param _auctionDuration is the duration of the gnosis auction
-     * @param _isUsdcAuction is whether Gnosis auction should be denominated in USDC
-     * @param _swapPath is the path for swapping
+     * @param _whitelist is an array of whitelisted user address who can deposit
+     * @param _premiumAsset is the asset which denominates the premium during auction
      */
     struct InitParams {
         address _owner;
@@ -105,6 +108,8 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         address _strikeSelection;
         uint32 _premiumDiscount;
         uint256 _auctionDuration;
+        address[] _whitelist;
+        address _premiumAsset;
     }
 
     /************************************************
@@ -159,6 +164,12 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
             _initParams._tokenSymbol,
             _vaultParams
         );
+
+        // Hardcode allowed assets (WETH, USDC, Vault's Asset)
+        allowedAssets[WETH] = true;
+        allowedAssets[USDC] = true;
+        allowedAssets[_vaultParams.asset] = true;
+
         require(
             _initParams._optionsPremiumPricer != address(0),
             "!_optionsPremiumPricer"
@@ -177,10 +188,30 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
             _initParams._auctionDuration >= MIN_AUCTION_DURATION,
             "!_auctionDuration"
         );
+        require(
+            allowedAssets[_initParams._premiumAsset], 
+            '!_premiumAsset'
+        );
+        require(
+             _initParams._whitelist.length <= WHITELIST_LIMIT,
+             '!_whitelist'
+        );
+
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
+        premiumAsset = _initParams._premiumAsset;
+        whitelistArray = _initParams._whitelist;
+
+        // Store whitelist into mapping
+        for(uint256 i = 0; i < _initParams._whitelist.length; i++) {
+            require(_initParams._whitelist[i] != address(0), "Whitelist null");
+            require(!whitelistMap[_initParams._whitelist[i]].isWhitelist, "Whitelist duplicate");
+
+            whitelistMap[_initParams._whitelist[i]].isWhitelist = true;
+            whitelistMap[_initParams._whitelist[i]].index = i;
+        }  
     }
 
     /************************************************
@@ -254,6 +285,68 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
+    }
+
+    /**
+     * @notice Adds new whitelisted address
+     * @param newWhitelist is a list of address to include to the whitelist
+     */
+    function addWhitelist(address[] calldata newWhitelist)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(
+            (newWhitelist.length + whitelistArray.length) <= WHITELIST_LIMIT,
+             'Whitelist exceed limit'
+        );
+        
+        for(uint256 i = 0; i < newWhitelist.length; i++) {
+            require(newWhitelist[i] != address(0), "Whitelist null");
+            require(!whitelistMap[newWhitelist[i]].isWhitelist, "Whitelist duplicate");
+
+            whitelistMap[newWhitelist[i]].isWhitelist = true;
+            whitelistMap[newWhitelist[i]].index = i;
+            whitelistArray.push(newWhitelist[i]);
+        } 
+    }
+
+    /**
+     * @notice Remove addresses from whitelist
+     * @param excludeWhitelist is a list of address to include to the whitelist
+     */
+    function removeWhitelist(address[] calldata excludeWhitelist)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(
+            (whitelistArray.length - excludeWhitelist.length) > 0,
+             'Whitelist cannot be empty'
+        );
+        
+        for(uint256 i = 0; i < excludeWhitelist.length; i++) {
+            require(whitelistMap[excludeWhitelist[i]].isWhitelist, "Whitelist does not exist");
+            
+            delete whitelistArray[whitelistMap[excludeWhitelist[i]].index];
+
+            whitelistMap[excludeWhitelist[i]].isWhitelist = false;
+            whitelistMap[excludeWhitelist[i]].index = 0;            
+        } 
+    }
+
+    /**
+     * @notice Sets the premium denomination during auction
+     * @param newPremiumAsset is the asset which denominates the premium during auction
+     */
+    function setPremiumAsset(address newPremiumAsset)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(newPremiumAsset != address(0), "!newPremiumAsset");
+        require(allowedAssets[newPremiumAsset], "Asset not allowed");
+        premiumAsset = newPremiumAsset;
     }
 
     /************************************************
@@ -404,13 +497,13 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
 
         require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-        bool _isUsdcAuction = isUsdcAuction;
+        address _premiumAsset = premiumAsset;
+        uint256 _decimals = IERC20Detailed(_premiumAsset).decimals();
+
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = _isUsdcAuction ? USDC : vaultParams.asset;
-        auctionDetails.assetDecimals = _isUsdcAuction
-            ? 6
-            : vaultParams.decimals;
+        auctionDetails.asset = _premiumAsset;
+        auctionDetails.assetDecimals = _decimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
