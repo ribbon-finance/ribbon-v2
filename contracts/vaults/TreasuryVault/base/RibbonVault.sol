@@ -20,7 +20,6 @@ import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleTreasury} from "../../../libraries/VaultLifecycleTreasury.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
-import {UniswapRouter} from "../../../libraries/UniswapRouter.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
 contract RibbonVault is
@@ -31,6 +30,12 @@ contract RibbonVault is
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
+
+
+    struct WhitelistInfo{
+        bool isWhitelist;
+        uint256 index;
+    }
 
     /************************************************
      *  NON UPGRADEABLE STORAGE
@@ -46,6 +51,12 @@ contract RibbonVault is
 
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
+
+    /// Whitelist of eligible depositors in mapping
+    mapping(address => WhitelistInfo) public whitelistMap;
+
+    /// Whitelist of eligible depositors in array
+    address[] public whitelistArray;
 
     /// @notice Vault's parameters like cap, decimals
     Vault.VaultParams public vaultParams;
@@ -226,6 +237,14 @@ contract RibbonVault is
         _;
     }
 
+    /**
+     * @dev Throws if called by any account other than the keeper.
+     */
+    modifier onlyWhitelist() {
+        require(whitelistMap[msg.sender].isWhitelist, "!whitelist");
+        _;
+    }
+
     /************************************************
      *  SETTERS
      ***********************************************/
@@ -302,33 +321,10 @@ contract RibbonVault is
      * @notice Deposits the `asset` from msg.sender.
      * @param amount is the amount of `asset` to deposit
      */
-    function deposit(uint256 amount) external nonReentrant {
+    function deposit(uint256 amount) external onlyWhitelist nonReentrant {
         require(amount > 0, "!amount");
 
         _depositFor(amount, msg.sender);
-
-        // An approve() by the msg.sender is required beforehand
-        IERC20(vaultParams.asset).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-    }
-
-    /**
-     * @notice Deposits the `asset` from msg.sender added to `creditor`'s deposit.
-     * @notice Used for vault -> vault deposits on the user's behalf
-     * @param amount is the amount of `asset` to deposit
-     * @param creditor is the address that can claim/withdraw deposited amount
-     */
-    function depositFor(uint256 amount, address creditor)
-        external
-        nonReentrant
-    {
-        require(amount > 0, "!amount");
-        require(creditor != address(0));
-
-        _depositFor(amount, creditor);
 
         // An approve() by the msg.sender is required beforehand
         IERC20(vaultParams.asset).safeTransferFrom(
@@ -391,7 +387,7 @@ contract RibbonVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares) external nonReentrant {
+    function initiateWithdraw(uint256 numShares) external onlyWhitelist nonReentrant {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -475,7 +471,7 @@ contract RibbonVault is
      * @notice Redeems shares that are owed to the account
      * @param numShares is the number of shares to redeem
      */
-    function redeem(uint256 numShares) external nonReentrant {
+    function redeem(uint256 numShares) external onlyWhitelist nonReentrant {
         require(numShares > 0, "!numShares");
         _redeem(numShares, false);
     }
@@ -483,7 +479,7 @@ contract RibbonVault is
     /**
      * @notice Redeems the entire unredeemedShares balance that is owed to the account
      */
-    function maxRedeem() external nonReentrant {
+    function maxRedeem() external onlyWhitelist nonReentrant {
         _redeem(0, true);
     }
 
