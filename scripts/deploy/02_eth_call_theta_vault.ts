@@ -1,9 +1,9 @@
+import { network } from 'hardhat';
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WETH_ADDRESS,
   OptionsPremiumPricer_BYTECODE,
-  MAINNET_USDC_ORACLE,
-  KOVAN_USDC_ORACLE,
+  USDC_PRICE_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 import {
@@ -32,11 +32,11 @@ const main = async ({
     await getNamedAccounts();
   console.log(`02 - Deploying ETH Call Theta Vault on ${network.name}`);
 
-  const isMainnet = network.name === "mainnet";
+  const chainId = network.config.chainId;
   const manualVolOracle = await deployments.get("ManualVolOracle");
 
-  const underlyingOracle = isMainnet ? MAINNET_ETH_ORACLE : KOVAN_ETH_ORACLE;
-  const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
+  const underlyingOracle = MAINNET_ETH_ORACLE[chainId];
+  const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const pricer = await deploy("OptionsPremiumPricerETH", {
     from: deployer,
@@ -57,8 +57,6 @@ const main = async ({
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
   });
-
-  const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -84,8 +82,8 @@ const main = async ({
     {
       isPut: false,
       decimals: 18,
-      asset: weth,
-      underlying: weth,
+      asset: WETH_ADDRESS[MAINNET_ETH_ORACLE],
+      underlying: WETH_ADDRESS[MAINNET_ETH_ORACLE],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1000"),
     },
