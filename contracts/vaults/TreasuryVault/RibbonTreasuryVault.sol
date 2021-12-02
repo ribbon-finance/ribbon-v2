@@ -9,10 +9,11 @@ import {
 
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {
-    RibbonThetaVaultStorage
-} from "../../storage/RibbonThetaVaultStorage.sol";
+    RibbonTreasuryVaultStorage
+} from "../../storage/RibbonTreasuryVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {VaultLifecycleTreasury} from "../../libraries/VaultLifecycleTreasury.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
@@ -20,10 +21,10 @@ import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
- * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
- * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
+ * Any changes/appends in storage variable needs to happen in RibbonTreasuryVaultStorage.
+ * RibbonTreasuryVault should not inherit from any other contract aside from RibbonVault, RibbonTreasuryVaultStorage
  */
-contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
+contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
