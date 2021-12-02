@@ -1,8 +1,9 @@
+import { network } from 'hardhat';
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   OptionsPremiumPricer_BYTECODE,
-  MAINNET_USDC_ORACLE,
-  KOVAN_USDC_ORACLE,
+  BTC_PRICE_ORACLE,
+  USDC_PRICE_ORACLE,
   WBTC_ADDRESS,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -35,8 +36,9 @@ const main = async ({
   const isMainnet = network.name === "mainnet";
   const manualVolOracle = await deployments.get("ManualVolOracle");
 
-  const underlyingOracle = isMainnet ? MAINNET_WBTC_ORACLE : KOVAN_WBTC_ORACLE;
-  const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
+  const chainId = network.config.chainId;
+  const underlyingOracle = BTC_PRICE_ORACLE[chainId];
+  const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const pricer = await deploy("OptionsPremiumPricerWBTC", {
     from: deployer,
@@ -45,7 +47,7 @@ const main = async ({
       bytecode: OptionsPremiumPricer_BYTECODE,
     },
     args: [
-      WBTC_USDC_POOL,
+      WBTC_USDC_POOL[chainId],
       manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
@@ -58,7 +60,6 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
   });
 
-  const wbtc = isMainnet ? WBTC_ADDRESS : KOVAN_WBTC;
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
@@ -83,8 +84,8 @@ const main = async ({
     {
       isPut: false,
       decimals: 8,
-      asset: wbtc,
-      underlying: wbtc,
+      asset: WBTC_ADDRESS[chainId],
+      underlying: WBTC_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(3),
       cap: parseUnits("100", 8),
     },
