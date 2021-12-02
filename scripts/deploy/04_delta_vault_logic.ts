@@ -5,6 +5,8 @@ import {
   MARGIN_POOL,
   GNOSIS_EASY_AUCTION,
   WETH_ADDRESS,
+  DEX_ROUTER,
+  DEX_FACTORY,
 } from "../../constants/constants";
 
 const main = async ({
@@ -19,7 +21,7 @@ const main = async ({
   const chainId = network.config.chainId;
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  await deploy("RibbonDeltaVaultLogic", {
+  const vault = await deploy("RibbonDeltaVaultLogic", {
     contract: "RibbonDeltaVault",
     from: deployer,
     args: [
@@ -27,12 +29,16 @@ const main = async ({
       USDC_ADDRESS[chainId],
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
-      GNOSIS_EASY_AUCTION[chainId]
+      GNOSIS_EASY_AUCTION[chainId],
+      DEX_ROUTER[chainId],
+      DEX_FACTORY[chainId]
     ],
     libraries: {
       VaultLifecycle: lifecycle.address,
     },
   });
+
+  console.log(`RibbonDeltaVaultLogic @ ${vault.address}`);
 };
 main.tags = ["RibbonDeltaVaultLogic"];
 

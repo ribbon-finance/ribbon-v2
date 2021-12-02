@@ -6,6 +6,8 @@ import {
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   GNOSIS_EASY_AUCTION,
+  DEX_ROUTER,
+  DEX_FACTORY,
 } from "../../constants/constants";
 
 const main = async ({
@@ -19,14 +21,18 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  console.log('chainId', chainId);
-
   const lifecycle = await deploy("VaultLifecycle", {
     contract: "VaultLifecycle",
     from: deployer,
   });
 
-  await deploy("RibbonThetaVaultLogic", {
+  // Supports Uniswap V3 only
+  const dexRouter = await deploy("UniswapRouter", {
+    contract: "UniswapRouter",
+    from: deployer,
+  });
+
+  const vault = await deploy("RibbonThetaVaultLogic", {
     contract: "RibbonThetaVault",
     from: deployer,
     args: [
@@ -35,12 +41,16 @@ const main = async ({
       OTOKEN_FACTORY[chainId],
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
-      GNOSIS_EASY_AUCTION[chainId]
+      GNOSIS_EASY_AUCTION[chainId],
+      DEX_ROUTER[chainId],
+      DEX_FACTORY[chainId]
     ],
     libraries: {
       VaultLifecycle: lifecycle.address,
+      UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
+  console.log(`RibbonThetaVaultLogic @ ${vault.address}`);
 };
 main.tags = ["RibbonThetaVaultLogic"];
 

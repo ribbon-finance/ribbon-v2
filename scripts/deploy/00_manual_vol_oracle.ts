@@ -12,7 +12,7 @@ const main = async ({
 
   const { deployer, keeper } = await getNamedAccounts();
 
-  await deploy("ManualVolOracle", {
+  const oracle = await deploy("ManualVolOracle", {
     from: deployer,
     contract: {
       abi: ManualVolOracle_ABI,
@@ -20,6 +20,8 @@ const main = async ({
     },
     args: [keeper],
   });
+
+  console.log(`ManualVolOracle @ ${oracle.address}`);
 };
 main.tags = ["ManualVolOracle"];
 

@@ -1,24 +1,20 @@
-import { network } from 'hardhat';
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
-  OptionsPremiumPricer_BYTECODE,
+  WBTC_ADDRESS,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  WBTC_ADDRESS,
+  WBTC_USDC_POOL,
+  OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 import {
   AUCTION_DURATION,
-  KOVAN_WBTC,
-  KOVAN_WBTC_ORACLE,
-  MAINNET_WBTC_ORACLE,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
   WBTC_STRIKE_STEP,
-  WBTC_USDC_POOL,
-} from "./utils/constants";
+} from "../utils/constants";
 
 const main = async ({
   network,
@@ -33,7 +29,6 @@ const main = async ({
     await getNamedAccounts();
   console.log(`03 - Deploying WBTC Call Theta Vault on ${network.name}`);
 
-  const isMainnet = network.name === "mainnet";
   const manualVolOracle = await deployments.get("ManualVolOracle");
 
   const chainId = network.config.chainId;
@@ -63,24 +58,35 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
+  // Supports Uniswap V3 only
+  const dexRouter = await deploy("UniswapRouter", {
+    contract: "UniswapRouter",
+    from: deployer,
+  });
+
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
     libraries: {
       VaultLifecycle: lifecycle.address,
+      UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
 
   const initArgs = [
-    owner,
-    keeper,
-    feeRecipient,
-    MANAGEMENT_FEE,
-    PERFORMANCE_FEE,
-    "Ribbon BTC Theta Vault",
-    "rBTC-THETA",
-    pricer.address,
-    strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
+    {
+      _owner: owner,
+      _keeper: keeper,
+      _feeRecipient: feeRecipient,
+      _managementFee: MANAGEMENT_FEE,
+      _performanceFee: PERFORMANCE_FEE,
+      _tokenName: "Ribbon BTC Theta Vault",
+      _tokenSymbol: "rBTC-THETA",
+      _optionsPremiumPricer: pricer.address,
+      _strikeSelection: strikeSelection.address,
+      _premiumDiscount: PREMIUM_DISCOUNT,
+      _auctionDuration: AUCTION_DURATION,
+      _isUsdcAuction: false,
+      _swapPath: 0x0,
+    },
     {
       isPut: false,
       decimals: 8,
@@ -95,11 +101,13 @@ const main = async ({
     initArgs
   );
 
-  await deploy("RibbonThetaVaultWBTCCall", {
+  const vault = await deploy("RibbonThetaVaultWBTCCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
+
+  console.log(`RibbonThetaVaultWBTCCall @ ${vault.address}`);
 };
 main.tags = ["RibbonThetaVaultWBTCCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
