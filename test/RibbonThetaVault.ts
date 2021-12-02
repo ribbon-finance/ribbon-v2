@@ -43,6 +43,7 @@ import {
   decodeOrder,
   lockedBalanceForRollover,
   encodePath,
+  getVaultFees,
 } from "./helpers/utils";
 import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -2039,7 +2040,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterSettle = await assetContract.balanceOf(
           vault.address
         );
-        vault.connect(keeperSigner).burnRemainingOTokens();
+        await vault.connect(keeperSigner).burnRemainingOTokens();
         const assetBalanceAfterBurn = await assetContract.balanceOf(
           vault.address
         );
@@ -2057,6 +2058,39 @@ function behavesLikeRibbonOptionsVault(params: {
               .toString()
           )
         );
+      });
+
+      it("burning otokens does not affect fee collection", async function () {
+        await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        const latestAuction = (await gnosisAuction.auctionCounter()).toString();
+
+        await gnosisAuction.connect(userSigner).settleAuction(latestAuction);
+
+        const otoken = await ethers.getContractAt("IERC20", collateralAsset);
+
+        const startOtokenBalance = await otoken.balanceOf(vault.address);
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        console.log(
+          (await otoken.balanceOf(vault.address)).toString(),
+          startOtokenBalance.toString()
+        );
+
+        const vaultFees = await getVaultFees(vault);
+
+        await rollToSecondOption(firstOptionStrike);
+
+        console.log(vaultFees.toString());
       });
     });
 

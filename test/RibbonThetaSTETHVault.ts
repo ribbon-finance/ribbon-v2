@@ -1468,7 +1468,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterSettle = await collateralContract.balanceOf(
           vault.address
         );
-        vault.connect(keeperSigner).burnRemainingOTokens();
+        await vault.connect(keeperSigner).burnRemainingOTokens();
         const assetBalanceAfterBurn = await collateralContract.balanceOf(
           vault.address
         );

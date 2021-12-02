@@ -380,6 +380,29 @@ export async function lockedBalanceForRollover(vault: Contract) {
   return [balanceSansQueued, queuedWithdrawAmount];
 }
 
+export const getVaultFees = async (vault: Contract) => {
+  const pendingAmount = (await vault.vaultState()).totalPending;
+
+  const [initialLockedBalance, queuedWithdrawAmount] =
+    await lockedBalanceForRollover(vault);
+
+  let vaultFees = initialLockedBalance
+    .add(queuedWithdrawAmount)
+    .sub(pendingAmount)
+    .mul(await vault.managementFee())
+    .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+
+  vaultFees = vaultFees.add(
+    initialLockedBalance
+      .add(queuedWithdrawAmount)
+      .sub((await vault.vaultState()).lastLockedAmount)
+      .sub(pendingAmount)
+      .mul(await vault.performanceFee())
+      .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+  );
+  return vaultFees;
+};
+
 export async function closeAuctionAndClaim(
   gnosisAuction: Contract,
   thetaVault: Contract,
