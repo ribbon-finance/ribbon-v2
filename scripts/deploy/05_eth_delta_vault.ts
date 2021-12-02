@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { WETH_ADDRESS } from "../../constants/constants";
-import { KOVAN_WETH, MANAGEMENT_FEE, PERFORMANCE_FEE } from "./utils/constants";
+import { MANAGEMENT_FEE, PERFORMANCE_FEE } from "../utils/constants";
 
 const main = async ({
   network,
@@ -15,8 +15,7 @@ const main = async ({
     await getNamedAccounts();
   console.log(`05 - Deploying ETH Call Delta Vault on ${network.name}`);
 
-  const isMainnet = network.name === "mainnet";
-  const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
+  const chainId = network.config.chainId;
 
   const logicDeployment = await deployments.get("RibbonDeltaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -45,8 +44,8 @@ const main = async ({
     {
       isPut: false,
       decimals: 18,
-      asset: weth,
-      underlying: weth,
+      asset: WETH_ADDRESS[chainId],
+      underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1000"),
     },
@@ -56,11 +55,13 @@ const main = async ({
     initArgs
   );
 
-  await deploy("RibbonDeltaVaultETHCall", {
+  const vault = await deploy("RibbonDeltaVaultETHCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
+
+  console.log(`RibbonDeltaVaultETHCall @ ${vault.address}`);
 };
 main.tags = ["RibbonDeltaVaultETHCall"];
 main.dependencies = ["RibbonDeltaVaultLogic"];

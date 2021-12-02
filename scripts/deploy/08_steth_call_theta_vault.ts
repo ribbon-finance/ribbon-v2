@@ -1,12 +1,11 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { WETH_ADDRESS } from "../../constants/constants";
+import { CHAINID, WETH_ADDRESS } from "../../constants/constants";
 import {
   AUCTION_DURATION,
-  KOVAN_WETH,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-} from "./utils/constants";
+} from "../utils/constants";
 
 const main = async ({
   network,
@@ -14,20 +13,23 @@ const main = async ({
   ethers,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
+  const chainId = network.config.chainId;
+
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
+    console.log(`08 - Skipping deployment stETH Call Theta Vault on ${network.name} because no stEth on Avax`);
+    return;
+  }
+
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
-  const { deployer, owner, keeper, admin, feeRecipient } =
-    await getNamedAccounts();
-  console.log(`08 - Deploying stETH Call Theta Vault on ${network.name}`);
+  const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
 
-  const isMainnet = network.name === "mainnet";
+  console.log(`08 - Deploying stETH Call Theta Vault on ${network.name}`);
 
   const pricer = await deployments.get("OptionsPremiumPricerETH");
 
   const strikeSelection = await deployments.get("StrikeSelectionETH");
-
-  const weth = isMainnet ? WETH_ADDRESS : KOVAN_WETH;
 
   const logicDeployment = await deployments.get("RibbonThetaVaultSTETHLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -53,13 +55,11 @@ const main = async ({
     "rstETH-THETA",
     pricer.address,
     strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
     {
       isPut: false,
       decimals: 18,
-      asset: weth,
-      underlying: weth,
+      asset: WETH_ADDRESS[chainId],
+      underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1000"),
     },
@@ -69,11 +69,13 @@ const main = async ({
     initArgs
   );
 
-  await deploy("RibbonThetaVaultSTETHCall", {
+  const proxy = await deploy("RibbonThetaVaultSTETHCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
+
+  console.log(`RibbonThetaVaultSTETHCall Proxy @ ${proxy.address}`);
 };
 main.tags = ["RibbonThetaVaultSTETHCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultSTETHLogic"];
