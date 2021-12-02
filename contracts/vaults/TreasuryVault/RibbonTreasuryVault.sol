@@ -525,4 +525,11 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         );
     }
 
+    /**
+     * @notice Burn the remaining oTokens left over from gnosis auction.
+     */
+    function settleAuction() external onlyKeeper nonReentrant {
+        VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
+    }
+
 }
