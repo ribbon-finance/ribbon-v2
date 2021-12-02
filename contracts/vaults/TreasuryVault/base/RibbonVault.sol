@@ -18,6 +18,7 @@ import {
 
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
+import {VaultLifecycleTreasury} from "../../../libraries/VaultLifecycleTreasury.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {UniswapRouter} from "../../../libraries/UniswapRouter.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";

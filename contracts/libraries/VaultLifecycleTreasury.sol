@@ -18,7 +18,7 @@ import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {UniswapRouter} from "./UniswapRouter.sol";
 
-library VaultLifecycle {
+library VaultLifecycleTreasury {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
 
@@ -226,8 +226,7 @@ library VaultLifecycle {
         }
 
         {
-            (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
-                .getVaultFees(
+            (performanceFeeInAsset, , totalVaultFee) = getVaultFees(
                 balanceForVaultFees,
                 vaultState.lastLockedAmount,
                 vaultState.totalPending,
