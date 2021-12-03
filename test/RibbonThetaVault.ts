@@ -1137,7 +1137,7 @@ function behavesLikeRibbonOptionsVault(params: {
           );
 
           let pool = await dexFactory.getPool(asset, asset, 10000);
-          if (pool == constants.AddressZero) {
+          if (pool === constants.AddressZero) {
             ref = "Pool does not exist";
           }
           await expect(

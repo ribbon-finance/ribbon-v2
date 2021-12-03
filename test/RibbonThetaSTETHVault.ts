@@ -1141,7 +1141,7 @@ function behavesLikeRibbonOptionsVault(params: {
           addressToDeposit,
           intermediaryAsset,
           vault,
-          params.depositAsset == WETH_ADDRESS[chainId]
+          params.depositAsset === WETH_ADDRESS[chainId]
             ? parseEther("7")
             : depositAmount.mul(3)
         );
@@ -3050,7 +3050,7 @@ function behavesLikeRibbonOptionsVault(params: {
           addressToDeposit,
           intermediaryAsset,
           vault,
-          params.depositAsset == WETH_ADDRESS[chainId]
+          params.depositAsset === WETH_ADDRESS[chainId]
             ? parseEther("7")
             : depositAmount.mul(3)
         );

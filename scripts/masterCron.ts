@@ -207,7 +207,7 @@ async function getDeribitStrikePrice(
   for (const instrument of instruments) {
     let intrumentName = instrument.instrument_name;
     // If the expiry is the same expiry as our option and is same type (put / call)
-    let sameOptionType = isPut == (instrument.option_type === "put");
+    let sameOptionType = isPut === (instrument.option_type === "put");
     let sameExpiry =
       Math.abs(expiry * 1000 - instrument.expiration_timestamp) < expiryMargin;
     let isOTM = instrument.strike > spotPrice;
@@ -234,7 +234,7 @@ async function getStrikePrice(
 ) {
   let expiry;
   let currentOption = (await vault.optionState()).currentOption;
-  if (currentOption == constants.AddressZero) {
+  if (currentOption === constants.AddressZero) {
     expiry = await getNextFriday((await provider.getBlock("latest")).timestamp);
   } else {
     expiry = await getNextFriday(
@@ -383,7 +383,7 @@ async function settleAndBurn(
         provider
       ).balanceOf(vault.address);
 
-      if (parseInt(oTokenBalance.toString()) == 0) {
+      if (parseInt(oTokenBalance.toString()) === 0) {
         continue; // eslint-disable-line no-continue
       }
 

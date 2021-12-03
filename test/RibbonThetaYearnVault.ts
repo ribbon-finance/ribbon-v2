@@ -289,7 +289,7 @@ function behavesLikeRibbonOptionsVault(params: {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
               blockNumber:
-                params.depositAsset == WETH_ADDRESS[chainId]
+                params.depositAsset === WETH_ADDRESS[chainId]
                   ? 12474917
                   : 12655142,
             },
@@ -997,7 +997,7 @@ function behavesLikeRibbonOptionsVault(params: {
           assetContract,
           collateralAsset,
           vault,
-          params.depositAsset == WETH_ADDRESS[chainId]
+          params.depositAsset === WETH_ADDRESS[chainId]
             ? parseEther("7")
             : depositAmount.mul(3)
         );
@@ -3499,7 +3499,7 @@ async function setupYieldToken(
 ) {
   for (let i = 0; i < addressToDeposit.length; i++) {
     const weth = assetContract.connect(addressToDeposit[i]);
-    if (assetContract.address == WETH_ADDRESS[chainId]) {
+    if (assetContract.address === WETH_ADDRESS[chainId]) {
       await weth.deposit({ value: parseEther("10") });
     }
     const yvtoken = (
