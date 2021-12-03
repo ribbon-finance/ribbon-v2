@@ -266,6 +266,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let premiumAsset = params.premiumAsset;
   let premiumDecimals = params.premiumDecimals;
   let multiAsset = params.asset != params.premiumAsset;
+  let whitelistLimit = 5;
 
   // Contracts
   let strikeSelection: Contract;
@@ -1073,7 +1074,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let temp: string[] = [];
         let i = 0;
 
-        while (i <= 5) {
+        while (i <= whitelistLimit) {
           try {
             temp.push((await vault.whitelistArray(i)).toString());
             i++;
@@ -1089,7 +1090,7 @@ function behavesLikeRibbonOptionsVault(params: {
         temp = [];
         i = 0;
 
-        while (i <= 5) {
+        while (i <= whitelistLimit) {
           try {
             temp.push((await vault.whitelistArray(i)).toString());
             i++;
@@ -1127,7 +1128,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let temp: string[] = [];
         let i = 0;
 
-        while (i <= 5) {
+        while (i <= whitelistLimit) {
           try {
             temp.push((await vault.whitelistArray(i)).toString());
             i++;
@@ -1143,7 +1144,7 @@ function behavesLikeRibbonOptionsVault(params: {
         temp = [];
         i = 0;
 
-        while (i <= 5) {
+        while (i <=  whitelistLimit) {
           try {
             temp.push((await vault.whitelistArray(i)).toString());
             i++;
