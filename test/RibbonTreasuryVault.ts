@@ -26,7 +26,6 @@ import {
   GNOSIS_EASY_AUCTION,
   TestVolOracle_BYTECODE,
   OptionsPremiumPricer_BYTECODE,
-  WBTC_ADDRESS,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -455,7 +454,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       // Update volatility
       await updateVol(params.asset);
-      
+
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
