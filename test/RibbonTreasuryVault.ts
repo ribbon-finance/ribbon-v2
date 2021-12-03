@@ -26,6 +26,7 @@ import {
   GNOSIS_EASY_AUCTION,
   TestVolOracle_BYTECODE,
   OptionsPremiumPricer_BYTECODE,
+  WBTC_ADDRESS,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -1036,6 +1037,160 @@ function behavesLikeRibbonOptionsVault(params: {
       it("changes the auction duration", async function () {
         await vault.connect(ownerSigner).setAuctionDuration("1000000");
         assert.equal((await vault.auctionDuration()).toString(), "1000000");
+      });
+    });
+
+    describe("#addWhitelist", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when not keeper call", async function () {
+        await expect(
+          vault.connect(ownerSigner).addWhitelist([user])
+        ).to.be.revertedWith("!keeper");
+      });
+
+      it("reverts when list exceeds limit", async function () {
+        let dummy = constants.AddressZero;
+
+        await expect(
+          vault.connect(keeperSigner).addWhitelist([dummy, dummy, dummy, dummy, dummy])
+        ).to.be.revertedWith("Whitelist exceed limit");
+      });
+
+      it("reverts when address is already whitelisted", async function () {
+        await expect(
+          vault.connect(keeperSigner).addWhitelist([user])
+        ).to.be.revertedWith("Whitelist duplicate");
+      });
+
+      it("reverts when adding zero address", async function () {
+        await expect(
+          vault.connect(keeperSigner).addWhitelist([constants.AddressZero])
+        ).to.be.revertedWith("Whitelist null");
+      });
+
+      it("adds address to whitelist", async function () {
+        let temp: string[] = [];
+        let i = 0;
+
+        while (i <= 5) {
+          try {
+            temp.push((await vault.whitelistArray(i)).toString());
+            i++;
+          } catch {
+            break;
+          }
+        }
+
+        assert.notIncludeMembers(temp, [keeper]); // (superset, subset)
+
+        await vault.connect(keeperSigner).addWhitelist([keeper]);
+
+        temp = [];
+        i = 0;
+
+        while (i <= 5) {
+          try {
+            temp.push((await vault.whitelistArray(i)).toString());
+            i++;
+          } catch {
+            break;
+          }
+        }
+
+        assert.includeMembers(temp, [keeper]); // (superset, subset)
+      });
+    });
+
+    describe("#removeWhitelist", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when not keeper call", async function () {
+        await expect(
+          vault.connect(ownerSigner).removeWhitelist([user])
+        ).to.be.revertedWith("!keeper");
+      });
+
+      it("reverts when removal will empty the whitelist", async function () {
+        await expect(
+          vault.connect(keeperSigner).removeWhitelist([user, owner])
+        ).to.be.revertedWith("Whitelist cannot be empty");
+      });
+
+      it("reverts when tyring to remove non-whitelisted address", async function () {
+        await expect(
+          vault.connect(keeperSigner).removeWhitelist([keeper])
+        ).to.be.revertedWith("Whitelist does not exist");
+      });
+
+      it("remove address from whitelist", async function () {
+        let temp: string[] = [];
+        let i = 0;
+
+        while (i <= 5) {
+          try {
+            temp.push((await vault.whitelistArray(i)).toString());
+            i++;
+          } catch {
+            break;
+          }
+        }
+
+        assert.includeMembers(temp, [user]); // (superset, subset)
+
+        await vault.connect(keeperSigner).removeWhitelist([user]);
+
+        temp = [];
+        i = 0;
+
+        while (i <= 5) {
+          try {
+            temp.push((await vault.whitelistArray(i)).toString());
+            i++;
+          } catch {
+            break;
+          }
+        }
+
+        assert.notIncludeMembers(temp, [user]); // (superset, subset)
+      });
+    });
+
+    describe("#setPremiumAsset", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when not owner call", async function () {
+        await expect(
+          vault.connect(keeperSigner).setPremiumAsset(WETH_ADDRESS[chainId])
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("reverts when asset is zero address", async function () {
+        await expect(
+          vault.connect(ownerSigner).setPremiumAsset(constants.AddressZero)
+        ).to.be.revertedWith("!newPremiumAsset");
+      });
+
+      it("reverts when asset is not allowed", async function () {
+        await expect(
+          vault.connect(ownerSigner).setPremiumAsset(WBTC_ADDRESS[chainId])
+        ).to.be.revertedWith("Asset not allowed");
+      });
+
+      it("changes premium asset", async function () {
+        let currentPremiumAsset = vault.premiumAsset();
+        let newPremiumAsset: string;
+
+        if (currentPremiumAsset == USDC_ADDRESS[chainId]) {
+          newPremiumAsset = WETH_ADDRESS[chainId];
+        } else if (currentPremiumAsset == WETH_ADDRESS[chainId]) {
+          newPremiumAsset = USDC_ADDRESS[chainId];
+        } else {
+          newPremiumAsset = USDC_ADDRESS[chainId];
+        }
+
+        await vault.connect(ownerSigner).setPremiumAsset(newPremiumAsset);
+        assert.equal((await vault.premiumAsset()), newPremiumAsset);
       });
     });
 
