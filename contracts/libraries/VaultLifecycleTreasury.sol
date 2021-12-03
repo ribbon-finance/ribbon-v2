@@ -740,6 +740,7 @@ library VaultLifecycleTreasury {
         address feeRecipient,
         uint256 performanceFee,
         uint256 managementFee,
+        uint256 period,
         string calldata tokenName,
         string calldata tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -755,6 +756,7 @@ library VaultLifecycleTreasury {
             managementFee < 100 * Vault.FEE_MULTIPLIER,
             "managementFee >= 100%"
         );
+        require(period == 30 || period % 7 == 0, "!period");
         require(bytes(tokenName).length > 0, "!tokenName");
         require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
 
@@ -766,6 +768,7 @@ library VaultLifecycleTreasury {
             _vaultParams.cap > _vaultParams.minimumSupply,
             "cap has to be higher than minimumSupply"
         );
+        
     }
 
     /**

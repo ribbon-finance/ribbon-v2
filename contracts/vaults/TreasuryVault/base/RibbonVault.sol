@@ -16,28 +16,27 @@ import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {Vault} from "../../../libraries/Vault.sol";
+import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {
     VaultLifecycleTreasury
-} from "../../libraries/VaultLifecycleTreasury.sol";
-import {
-    RibbonTreasuryVaultStorage
-} from "../../storage/RibbonTreasuryVaultStorage.sol";
-import {ShareMath} from "../../libraries/ShareMath.sol";
-import {IWETH} from "../../interfaces/IWETH.sol";
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
+} from "../../../libraries/VaultLifecycleTreasury.sol";
+import {ShareMath} from "../../../libraries/ShareMath.sol";
+import {IWETH} from "../../../interfaces/IWETH.sol";
 
-contract RibbonTreasuryVault is
+contract RibbonVault is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
-    ERC20Upgradeable,
-    RibbonTreasuryVaultStorage
+    ERC20Upgradeable
 {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
+
+    struct WhitelistInfo {
+        bool isWhitelist;
+        uint256 index;
+    }
 
     /************************************************
      *  NON UPGRADEABLE STORAGE
@@ -55,10 +54,16 @@ contract RibbonTreasuryVault is
     mapping(address => Vault.Withdrawal) public withdrawals;
 
     /// Whitelist of eligible depositors in mapping
-    mapping(address => bool) public whitelistMap;
+    mapping(address => WhitelistInfo) public whitelistMap;
 
     /// Whitelist of eligible depositors in array
     address[] public whitelistArray;
+
+    // Period between each options sale
+    uint256 public period;
+
+    // Divider to adjust management fee based on period
+    uint256 public feeDivider;
 
     /// @notice Vault's parameters like cap, decimals
     Vault.VaultParams public vaultParams;
@@ -103,9 +108,6 @@ contract RibbonTreasuryVault is
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
     uint256 public constant DELAY = 15 minutes;
 
-    /// @notice 7 day period between each options sale.
-    uint256 public constant PERIOD = 7 days;
-
     // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
@@ -123,15 +125,6 @@ contract RibbonTreasuryVault is
     // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
-
-    /// OTOKEN_FACTORY is the factory contract used to spawn otokens. Used to lookup otokens.
-    address public immutable OTOKEN_FACTORY;
-
-    // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
-
-    // Maximum number of whitelisted user address.
-    uint256 private constant WHITELIST_LIMIT = 5;
 
     /************************************************
      *  EVENTS
@@ -162,73 +155,6 @@ contract RibbonTreasuryVault is
         address indexed feeRecipient
     );
 
-    event OpenShort(
-        address indexed options,
-        uint256 depositAmount,
-        address indexed manager
-    );
-
-    event CloseShort(
-        address indexed options,
-        uint256 withdrawAmount,
-        address indexed manager
-    );
-
-    event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
-
-    event PremiumDiscountSet(
-        uint256 premiumDiscount,
-        uint256 newPremiumDiscount
-    );
-
-    event AuctionDurationSet(
-        uint256 auctionDuration,
-        uint256 newAuctionDuration
-    );
-
-    event InstantWithdraw(
-        address indexed account,
-        uint256 amount,
-        uint256 round
-    );
-
-    /************************************************
-     *  STRUCTS
-     ***********************************************/
-
-    /**
-     * @notice Initialization parameters for the vault.
-     * @param _owner is the owner of the vault with critical permissions
-     * @param _feeRecipient is the address to recieve vault performance and management fees
-     * @param _managementFee is the management fee pct.
-     * @param _performanceFee is the perfomance fee pct.
-     * @param _tokenName is the name of the token
-     * @param _tokenSymbol is the symbol of the token
-     * @param _optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param _strikeSelection is the address of the contract with strike selection logic
-     * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
-     * @param _whitelist is an array of whitelisted user address who can deposit
-     * @param _premiumAsset is the asset which denominates the premium during auction
-     */
-    struct InitParams {
-        address _owner;
-        address _keeper;
-        address _feeRecipient;
-        uint256 _managementFee;
-        uint256 _performanceFee;
-        string _tokenName;
-        string _tokenSymbol;
-        address _optionsPremiumPricer;
-        address _strikeSelection;
-        uint32 _premiumDiscount;
-        uint256 _auctionDuration;
-        address[] _whitelist;
-        address _premiumAsset;
-        uint256 _period;
-    }
-
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -237,7 +163,6 @@ contract RibbonTreasuryVault is
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
@@ -245,21 +170,18 @@ contract RibbonTreasuryVault is
     constructor(
         address _weth,
         address _usdc,
-        address _oTokenFactory,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
-        require(_oTokenFactory != address(0), "!_oTokenFactory");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
 
         WETH = _weth;
         USDC = _usdc;
-        OTOKEN_FACTORY = _oTokenFactory;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
@@ -268,38 +190,47 @@ contract RibbonTreasuryVault is
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      */
-    function initialize(
-        InitParams calldata _initParams,
+    function baseInitialize(
+        address _owner,
+        address _keeper,
+        address _feeRecipient,
+        uint256 _managementFee,
+        uint256 _performanceFee,
+        uint256 _period,
+        string memory _tokenName,
+        string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
-    ) external initializer {
+    ) internal initializer {
         VaultLifecycle.verifyInitializerParams(
-            _initParams._owner,
-            _initParams._keeper,
-            _initParams._feeRecipient,
-            _initParams._performanceFee,
-<<<<<<< HEAD
-            _initParams._managementFee,
-=======
-            _initParams._period,
->>>>>>> 4c12b45 (WIP period management)
-            _initParams._tokenName,
-            _initParams._tokenSymbol,
+            _owner,
+            _keeper,
+            _feeRecipient,
+            _performanceFee,
+            _managementFee,
+            _tokenName,
+            _tokenSymbol,
             _vaultParams
         );
 
         __ReentrancyGuard_init();
-        __ERC20_init(_initParams._tokenName, _initParams._tokenSymbol);
+        __ERC20_init(_tokenName, _tokenSymbol);
         __Ownable_init();
-        transferOwnership(_initParams._owner);
+        transferOwnership(_owner);
 
-        keeper = _initParams._keeper;
+        keeper = _keeper;
+        
+        period = _period;
+        feeDivider = _period == 30
+            ? 12 // once a month
+            : _period.div(7);
 
-        feeRecipient = _initParams._feeRecipient;
-        performanceFee = _initParams._performanceFee;
-        managementFee = _initParams
-            ._managementFee
+        feeRecipient = _feeRecipient;
+        performanceFee = _performanceFee;
+        managementFee = _managementFee
             .mul(Vault.FEE_MULTIPLIER)
-            .div(WEEKS_PER_YEAR);
+            .div(WEEKS_PER_YEAR
+                .div(feeDivider)
+            );
         vaultParams = _vaultParams;
 
         uint256 assetBalance =
@@ -308,48 +239,6 @@ contract RibbonTreasuryVault is
         vaultState.lastLockedAmount = uint104(assetBalance);
 
         vaultState.round = 1;
-
-        require(
-            _initParams._optionsPremiumPricer != address(0),
-            "!_optionsPremiumPricer"
-        );
-        require(
-            _initParams._strikeSelection != address(0),
-            "!_strikeSelection"
-        );
-        require(
-            _initParams._premiumDiscount > 0 &&
-                _initParams._premiumDiscount <
-                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "!_premiumDiscount"
-        );
-        require(
-            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
-            "!_auctionDuration"
-        );
-        require(_initParams._premiumAsset != address(0), "!_premiumAsset");
-        require(
-            _initParams._whitelist.length <= WHITELIST_LIMIT,
-            "!_whitelist"
-        );
-
-        optionsPremiumPricer = _initParams._optionsPremiumPricer;
-        strikeSelection = _initParams._strikeSelection;
-        premiumDiscount = _initParams._premiumDiscount;
-        auctionDuration = _initParams._auctionDuration;
-        premiumAsset = _initParams._premiumAsset;
-        whitelistArray = _initParams._whitelist;
-
-        // Store whitelist into mapping
-        for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
-            require(_initParams._whitelist[i] != address(0), "Whitelist null");
-            require(
-                !whitelistMap[_initParams._whitelist[i]],
-                "Whitelist duplicate"
-            );
-
-            whitelistMap[_initParams._whitelist[i]] = true;
-        }
     }
 
     /**
@@ -364,7 +253,7 @@ contract RibbonTreasuryVault is
      * @dev Throws if called by any account other than the keeper.
      */
     modifier onlyWhitelist() {
-        require(whitelistMap[msg.sender], "!whitelist");
+        require(whitelistMap[msg.sender].isWhitelist, "!whitelist");
         _;
     }
 
@@ -403,7 +292,11 @@ contract RibbonTreasuryVault is
 
         // We are dividing annualized management fee by num weeks in a year
         uint256 tmpManagementFee =
-            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
+            newManagementFee
+                .mul(Vault.FEE_MULTIPLIER)
+                .div(WEEKS_PER_YEAR
+                    .div(feeDivider)
+                );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
@@ -434,141 +327,6 @@ contract RibbonTreasuryVault is
         ShareMath.assertUint104(newCap);
         emit CapSet(vaultParams.cap, newCap);
         vaultParams.cap = uint104(newCap);
-    }
-
-    /**
-     * @notice Sets the new discount on premiums for options we are selling
-     * @param newPremiumDiscount is the premium discount
-     */
-    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
-        require(
-            newPremiumDiscount > 0 &&
-                newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "Invalid discount"
-        );
-
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
-
-        premiumDiscount = newPremiumDiscount;
-    }
-
-    /**
-     * @notice Sets the new auction duration
-     * @param newAuctionDuration is the auction duration
-     */
-    function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(
-            newAuctionDuration >= MIN_AUCTION_DURATION,
-            "Invalid auction duration"
-        );
-
-        emit AuctionDurationSet(auctionDuration, newAuctionDuration);
-
-        auctionDuration = newAuctionDuration;
-    }
-
-    /**
-     * @notice Sets the new strike selection contract
-     * @param newStrikeSelection is the address of the new strike selection contract
-     */
-    function setStrikeSelection(address newStrikeSelection) external onlyOwner {
-        require(newStrikeSelection != address(0), "!newStrikeSelection");
-        strikeSelection = newStrikeSelection;
-    }
-
-    /**
-     * @notice Sets the new options premium pricer contract
-     * @param newOptionsPremiumPricer is the address of the new strike selection contract
-     */
-    function setOptionsPremiumPricer(address newOptionsPremiumPricer)
-        external
-        onlyOwner
-    {
-        require(
-            newOptionsPremiumPricer != address(0),
-            "!newOptionsPremiumPricer"
-        );
-        optionsPremiumPricer = newOptionsPremiumPricer;
-    }
-
-    /**
-     * @notice Optionality to set strike price manually
-     * @param strikePrice is the strike price of the new oTokens (decimals = 8)
-     */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(strikePrice > 0, "!strikePrice");
-        overriddenStrikePrice = strikePrice;
-        lastStrikeOverrideRound = vaultState.round;
-    }
-
-    /**
-     * @notice Adds new whitelisted address
-     * @param newWhitelist is a list of address to include to the whitelist
-     */
-    function addWhitelist(address[] calldata newWhitelist)
-        external
-        onlyKeeper
-        nonReentrant
-    {
-        require(
-            (newWhitelist.length + whitelistArray.length) <= WHITELIST_LIMIT,
-            "Whitelist exceed limit"
-        );
-
-        for (uint256 i = 0; i < newWhitelist.length; i++) {
-            require(newWhitelist[i] != address(0), "Whitelist null");
-            require(!whitelistMap[newWhitelist[i]], "Whitelist duplicate");
-
-            whitelistMap[newWhitelist[i]] = true;
-            whitelistArray.push(newWhitelist[i]);
-        }
-    }
-
-    /**
-     * @notice Remove addresses from whitelist
-     * @param excludeWhitelist is a list of address to include to the whitelist
-     */
-    function removeWhitelist(address[] calldata excludeWhitelist)
-        external
-        onlyKeeper
-        nonReentrant
-    {
-        require(
-            (whitelistArray.length - excludeWhitelist.length) > 0,
-            "Whitelist cannot be empty"
-        );
-
-        for (uint256 i = 0; i < excludeWhitelist.length; i++) {
-            require(
-                whitelistMap[excludeWhitelist[i]],
-                "Whitelist does not exist"
-            );
-
-            whitelistMap[excludeWhitelist[i]];
-
-            for (uint256 j = 0; j < whitelistArray.length; j++) {
-                if (excludeWhitelist[i] == whitelistArray[j]) {
-                    delete whitelistArray[j];
-                }
-            }
-        }
-    }
-
-    /**
-     * @notice Sets the premium denomination during auction
-     * @param newPremiumAsset is the asset which denominates the premium during auction
-     */
-    function setPremiumAsset(address newPremiumAsset)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(newPremiumAsset != address(0), "!newPremiumAsset");
-        premiumAsset = newPremiumAsset;
     }
 
     /************************************************
@@ -788,46 +546,6 @@ contract RibbonTreasuryVault is
         _transfer(address(this), msg.sender, numShares);
     }
 
-    /**
-     * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
-     * @param amount is the amount to withdraw
-     */
-    function withdrawInstantly(uint256 amount)
-        external
-        onlyWhitelist
-        nonReentrant
-    {
-        Vault.DepositReceipt storage depositReceipt =
-            depositReceipts[msg.sender];
-
-        uint256 currentRound = vaultState.round;
-        require(amount > 0, "!amount");
-        require(depositReceipt.round == currentRound, "Invalid round");
-
-        uint256 receiptAmount = depositReceipt.amount;
-        require(receiptAmount >= amount, "Exceed amount");
-
-        // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(receiptAmount.sub(amount));
-        vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).sub(amount)
-        );
-
-        emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        transferAsset(msg.sender, amount);
-    }
-
-    /**
-     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
-     */
-    function completeWithdraw() external onlyWhitelist nonReentrant {
-        uint256 withdrawAmount = _completeWithdraw();
-        lastQueuedWithdrawAmount = uint128(
-            uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
-        );
-    }
-
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -936,149 +654,6 @@ contract RibbonTreasuryVault is
             return;
         }
         IERC20(asset).safeTransfer(recipient, amount);
-    }
-
-    /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short.
-     *         This allows all the users to withdraw if the next option is malicious.
-     */
-    function commitAndClose() external nonReentrant {
-        address oldOption = optionState.currentOption;
-
-        VaultLifecycle.CloseParams memory closeParams =
-            VaultLifecycle.CloseParams({
-                OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
-                currentOption: oldOption,
-                delay: DELAY,
-                lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
-            });
-
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
-            VaultLifecycle.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
-                closeParams,
-                vaultParams,
-                vaultState
-            );
-
-        emit NewOptionStrikeSelected(strikePrice, delta);
-
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
-        optionState.nextOption = otokenAddress;
-
-        uint256 nextOptionReady = block.timestamp.add(DELAY);
-        require(
-            nextOptionReady <= type(uint32).max,
-            "Overflow nextOptionReady"
-        );
-        optionState.nextOptionReadyAt = uint32(nextOptionReady);
-
-        _closeShort(oldOption);
-    }
-
-    /**
-     * @notice Closes the existing short position for the vault.
-     */
-    function _closeShort(address oldOption) private {
-        uint256 lockedAmount = vaultState.lockedAmount;
-        if (oldOption != address(0)) {
-            vaultState.lastLockedAmount = uint104(lockedAmount);
-        }
-        vaultState.lockedAmount = 0;
-
-        optionState.currentOption = address(0);
-
-        if (oldOption != address(0)) {
-            uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
-            emit CloseShort(oldOption, withdrawAmount, msg.sender);
-        }
-    }
-
-    /**
-     * @notice Rolls the vault's funds into a new short position.
-     */
-    function rollToNextOption() external onlyKeeper nonReentrant {
-        (
-            address newOption,
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount
-        ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
-
-        lastQueuedWithdrawAmount = queuedWithdrawAmount;
-
-        ShareMath.assertUint104(lockedBalance);
-        vaultState.lockedAmount = uint104(lockedBalance);
-
-        emit OpenShort(newOption, lockedBalance, msg.sender);
-
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
-
-        _startAuction();
-    }
-
-    /**
-     * @notice Initiate the gnosis auction.
-     */
-    function startAuction() external onlyKeeper nonReentrant {
-        _startAuction();
-    }
-
-    function _startAuction() private {
-        GnosisAuction.AuctionDetails memory auctionDetails;
-
-        uint256 currOtokenPremium = currentOtokenPremium;
-
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        address _premiumAsset = premiumAsset;
-        uint256 _decimals = IERC20Detailed(_premiumAsset).decimals();
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
-        auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = _premiumAsset;
-        auctionDetails.assetDecimals = _decimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
-        auctionDetails.duration = auctionDuration;
-
-        optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
-    }
-
-    /**
-     * @notice Burn the remaining oTokens left over from gnosis auction.
-     */
-    function burnRemainingOTokens() external onlyKeeper nonReentrant {
-        uint256 unlockedAssetAmount =
-            VaultLifecycle.burnOtokens(
-                GAMMA_CONTROLLER,
-                optionState.currentOption
-            );
-
-        vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
-        );
-    }
-
-    /**
-     * @notice Burn the remaining oTokens left over from gnosis auction.
-     */
-    function settleAuction() external onlyKeeper nonReentrant {
-        VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
     }
 
     /************************************************
