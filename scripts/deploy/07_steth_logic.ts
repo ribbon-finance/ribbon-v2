@@ -20,7 +20,9 @@ const main = async ({
   const chainId = network.config.chainId;
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
-    console.log(`07 - Skipping deployment of Theta Vault stETH logic on ${network.name} because no stEth on Avax`);
+    console.log(
+      `07 - Skipping deployment of Theta Vault stETH logic on ${network.name} because no stEth on Avax`
+    );
     return;
   }
 

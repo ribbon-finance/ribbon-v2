@@ -25,7 +25,7 @@ const chainId = hre.network.config.chainId;
 export async function deployProxy(
   logicContractName: string,
   adminSigner: SignerWithAddress,
-  initializeArgs: any[],
+  initializeArgs: any[], // eslint-disable-line @typescript-eslint/no-explicit-any
   logicDeployParams = [],
   factoryOptions = {}
 ) {
