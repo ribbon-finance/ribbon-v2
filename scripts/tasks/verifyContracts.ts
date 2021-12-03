@@ -21,13 +21,17 @@ const main = async (_taskArgs: any, { deployments, network, run }) => {
   const VaultLifecycle = await deployments.get("VaultLifecycle");
   const VaultLifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
 
-  await run("verify:verify", {
-    address: VaultLifecycle.address,
-  });
+  try {
+    await run("verify:verify", {
+      address: VaultLifecycle.address,
+    });
+  } catch (e) {}
 
-  await run("verify:verify", {
-    address: VaultLifecycleSTETH.address,
-  });
+  try {
+    await run("verify:verify", {
+      address: VaultLifecycleSTETH.address,
+    });
+  } catch (e) {}
 
   const THETA_VAULT_ARGS = [
     WETH_ADDRESS[chainId],
@@ -40,11 +44,13 @@ const main = async (_taskArgs: any, { deployments, network, run }) => {
     DEX_FACTORY[chainId],
   ];
 
-  await run("verify:verify", {
-    address: RibbonThetaVaultLogic.address,
-    constructorArguments: THETA_VAULT_ARGS,
-    libraries: { VaultLifecycle: VaultLifecycle.address },
-  });
+  try {
+    await run("verify:verify", {
+      address: RibbonThetaVaultLogic.address,
+      constructorArguments: THETA_VAULT_ARGS,
+      libraries: { VaultLifecycle: VaultLifecycle.address },
+    });
+  } catch (e) {}
 
   const THETA_VAULT_STETH_ARGS = [
     WETH_ADDRESS[chainId],
@@ -58,13 +64,15 @@ const main = async (_taskArgs: any, { deployments, network, run }) => {
     STETH_ETH_CRV_POOL,
   ];
 
-  await run("verify:verify", {
-    address: RibbonThetaVaultSTETHLogic.address,
-    constructorArguments: THETA_VAULT_STETH_ARGS,
-    libraries: {
-      VaultLifecycle: VaultLifecycle.address,
-      VaultLifecycleSTETH: VaultLifecycleSTETH.address,
-    },
-  });
+  try {
+    await run("verify:verify", {
+      address: RibbonThetaVaultSTETHLogic.address,
+      constructorArguments: THETA_VAULT_STETH_ARGS,
+      libraries: {
+        VaultLifecycle: VaultLifecycle.address,
+        VaultLifecycleSTETH: VaultLifecycleSTETH.address,
+      },
+    });
+  } catch (e) {}
 };
 export default main;
