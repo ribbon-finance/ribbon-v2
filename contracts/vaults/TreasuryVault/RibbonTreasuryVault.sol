@@ -39,11 +39,6 @@ contract RibbonTreasuryVault is
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
-    struct WhitelistInfo {
-        bool isWhitelist;
-        uint256 index;
-    }
-
     /************************************************
      *  NON UPGRADEABLE STORAGE
      ***********************************************/
@@ -60,7 +55,7 @@ contract RibbonTreasuryVault is
     mapping(address => Vault.Withdrawal) public withdrawals;
 
     /// Whitelist of eligible depositors in mapping
-    mapping(address => WhitelistInfo) public whitelistMap;
+    mapping(address => bool) public whitelistMap;
 
     /// Whitelist of eligible depositors in array
     address[] public whitelistArray;
@@ -346,12 +341,11 @@ contract RibbonTreasuryVault is
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
             require(_initParams._whitelist[i] != address(0), "Whitelist null");
             require(
-                !whitelistMap[_initParams._whitelist[i]].isWhitelist,
+                !whitelistMap[_initParams._whitelist[i]],
                 "Whitelist duplicate"
             );
 
-            whitelistMap[_initParams._whitelist[i]].isWhitelist = true;
-            whitelistMap[_initParams._whitelist[i]].index = i;
+            whitelistMap[_initParams._whitelist[i]] = true;
         }
     }
 
@@ -367,7 +361,7 @@ contract RibbonTreasuryVault is
      * @dev Throws if called by any account other than the keeper.
      */
     modifier onlyWhitelist() {
-        require(whitelistMap[msg.sender].isWhitelist, "!whitelist");
+        require(whitelistMap[msg.sender], "!whitelist");
         _;
     }
 
@@ -524,13 +518,9 @@ contract RibbonTreasuryVault is
 
         for (uint256 i = 0; i < newWhitelist.length; i++) {
             require(newWhitelist[i] != address(0), "Whitelist null");
-            require(
-                !whitelistMap[newWhitelist[i]].isWhitelist,
-                "Whitelist duplicate"
-            );
+            require(!whitelistMap[newWhitelist[i]], "Whitelist duplicate");
 
-            whitelistMap[newWhitelist[i]].isWhitelist = true;
-            whitelistMap[newWhitelist[i]].index = i;
+            whitelistMap[newWhitelist[i]] = true;
             whitelistArray.push(newWhitelist[i]);
         }
     }
@@ -551,14 +541,17 @@ contract RibbonTreasuryVault is
 
         for (uint256 i = 0; i < excludeWhitelist.length; i++) {
             require(
-                whitelistMap[excludeWhitelist[i]].isWhitelist,
+                whitelistMap[excludeWhitelist[i]],
                 "Whitelist does not exist"
             );
 
-            delete whitelistArray[whitelistMap[excludeWhitelist[i]].index];
-
-            whitelistMap[excludeWhitelist[i]].isWhitelist = false;
-            whitelistMap[excludeWhitelist[i]].index = 0;
+            whitelistMap[excludeWhitelist[i]];
+            
+            for (uint256 j = 0; j < whitelistArray.length; j++) {
+                if (excludeWhitelist[i] == whitelistArray[j]) {
+                    delete whitelistArray[j];
+                }
+            }
         }
     }
 
@@ -572,7 +565,6 @@ contract RibbonTreasuryVault is
         nonReentrant
     {
         require(newPremiumAsset != address(0), "!newPremiumAsset");
-        require(allowedAssets[newPremiumAsset], "Asset not allowed");
         premiumAsset = newPremiumAsset;
     }
 
