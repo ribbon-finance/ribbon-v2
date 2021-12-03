@@ -29,6 +29,14 @@ jobs:
           key: ${{ runner.OS }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.OS }}-yarn-
+      - name: Cache Hardhat forks
+        id: hardhat-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        uses: actions/cache@v2
+        with:
+          path: ./cache/hardhat-network-fork
+          key: ${{ runner.OS }}-hardhat
+          restore-keys: |
+            ${{ runner.OS }}-hardhat
       - name: Install dependencies
         run: yarn install --frozen-lockfile
       - name: Compile Solidity contracts
