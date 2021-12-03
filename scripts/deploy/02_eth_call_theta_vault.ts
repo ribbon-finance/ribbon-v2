@@ -1,9 +1,11 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WETH_ADDRESS,
+  ETH_USDC_POOL,
   USDC_PRICE_ORACLE,
   ETH_PRICE_ORACLE,
-  ETH_USDC_POOL,
+  MANUAL_VOL_ORACLE,
   OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -30,7 +32,6 @@ const main = async ({
   console.log(`02 - Deploying ETH Call Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
-  const manualVolOracle = await deployments.get("ManualVolOracle");
 
   const underlyingOracle = ETH_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
@@ -43,11 +44,25 @@ const main = async ({
     },
     args: [
       ETH_USDC_POOL[chainId],
-      manualVolOracle.address,
+      MANUAL_VOL_ORACLE[chainId],
       underlyingOracle,
       stablesOracle,
     ],
   });
+
+  try {
+    await run('verify:verify', {
+      address: pricer.address,
+      constructorArguments: [
+        ETH_USDC_POOL[chainId],
+        MANUAL_VOL_ORACLE[chainId],
+        underlyingOracle,
+        stablesOracle,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "StrikeSelection",
@@ -55,14 +70,20 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
   });
 
+  try {
+    await run('verify:verify', {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
   // Supports Uniswap V3 only
-  const dexRouter = await deploy("UniswapRouter", {
-    contract: "UniswapRouter",
-    from: deployer,
-  });
+  const dexRouter = await deployments.get("UniswapRouter");
 
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
     libraries: {
@@ -109,6 +130,15 @@ const main = async ({
   });
 
   console.log(`RibbonThetaVaultETHCall @ ${vault.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [logicDeployment.address, admin, initData],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
 main.tags = ["RibbonThetaVaultETHCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];

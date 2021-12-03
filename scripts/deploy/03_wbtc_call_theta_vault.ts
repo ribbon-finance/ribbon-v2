@@ -1,9 +1,11 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WBTC_ADDRESS,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   WBTC_USDC_POOL,
+  MANUAL_VOL_ORACLE,
   OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -29,8 +31,6 @@ const main = async ({
     await getNamedAccounts();
   console.log(`03 - Deploying WBTC Call Theta Vault on ${network.name}`);
 
-  const manualVolOracle = await deployments.get("ManualVolOracle");
-
   const chainId = network.config.chainId;
   const underlyingOracle = BTC_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
@@ -43,7 +43,7 @@ const main = async ({
     },
     args: [
       WBTC_USDC_POOL[chainId],
-      manualVolOracle.address,
+      MANUAL_VOL_ORACLE[chainId],
       underlyingOracle,
       stablesOracle,
     ],
@@ -56,20 +56,8 @@ const main = async ({
   });
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
 
-  // Supports Uniswap V3 only
-  const dexRouter = await deploy("UniswapRouter", {
-    contract: "UniswapRouter",
-    from: deployer,
-  });
-
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-      UniswapRouter: dexRouter.address, // Supports only Uniswap v3
-    },
-  });
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
 
   const initArgs = [
     {
@@ -108,6 +96,20 @@ const main = async ({
   });
 
   console.log(`RibbonThetaVaultWBTCCall @ ${vault.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
 };
 main.tags = ["RibbonThetaVaultWBTCCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
