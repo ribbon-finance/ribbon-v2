@@ -1,7 +1,9 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
   USDC_PRICE_ORACLE,
+  MANUAL_VOL_ORACLE,
   OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -39,7 +41,6 @@ const main = async ({
   console.log(`06 - Deploying AAVE Call Theta Vault on ${network.name}`);
 
   const isMainnet = network.name === "mainnet";
-  const manualVolOracle = await deployments.get("ManualVolOracle");
 
   const underlyingOracle = isMainnet ? MAINNET_AAVE_ORACLE : KOVAN_AAVE_ORACLE;
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
@@ -52,7 +53,7 @@ const main = async ({
     },
     args: [
       AAVE_ETH_POOL,
-      manualVolOracle.address,
+      MANUAL_VOL_ORACLE[chainId],
       underlyingOracle,
       stablesOracle,
     ],
@@ -117,6 +118,20 @@ const main = async ({
   });
 
   console.log(`RibbonThetaVaultAAVECall @ ${vault.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
 };
 main.tags = ["RibbonThetaVaultAAVECall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
