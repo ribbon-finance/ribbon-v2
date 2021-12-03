@@ -59,6 +59,12 @@ contract RibbonVault is
     /// Whitelist of eligible depositors in array
     address[] public whitelistArray;
 
+    // Period between each options sale
+    uint256 public period;
+
+    // Divider to adjust management fee based on period
+    uint256 public feeDivider;
+
     /// @notice Vault's parameters like cap, decimals
     Vault.VaultParams public vaultParams;
 
@@ -101,9 +107,6 @@ contract RibbonVault is
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
     uint256 public constant DELAY = 15 minutes;
-
-    /// @notice 7 day period between each options sale.
-    uint256 public constant PERIOD = 7 days;
 
     // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
@@ -193,6 +196,7 @@ contract RibbonVault is
         address _feeRecipient,
         uint256 _managementFee,
         uint256 _performanceFee,
+        uint256 _period,
         string memory _tokenName,
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
@@ -214,12 +218,19 @@ contract RibbonVault is
         transferOwnership(_owner);
 
         keeper = _keeper;
+        
+        period = _period;
+        feeDivider = _period == 30
+            ? 12 // once a month
+            : _period.div(7);
 
         feeRecipient = _feeRecipient;
         performanceFee = _performanceFee;
-        managementFee = _managementFee.mul(Vault.FEE_MULTIPLIER).div(
-            WEEKS_PER_YEAR
-        );
+        managementFee = _managementFee
+            .mul(Vault.FEE_MULTIPLIER)
+            .div(WEEKS_PER_YEAR
+                .div(feeDivider)
+            );
         vaultParams = _vaultParams;
 
         uint256 assetBalance =
@@ -281,7 +292,11 @@ contract RibbonVault is
 
         // We are dividing annualized management fee by num weeks in a year
         uint256 tmpManagementFee =
-            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
+            newManagementFee
+                .mul(Vault.FEE_MULTIPLIER)
+                .div(WEEKS_PER_YEAR
+                    .div(feeDivider)
+                );
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 

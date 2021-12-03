@@ -112,6 +112,7 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         uint256 _auctionDuration;
         address[] _whitelist;
         address _premiumAsset;
+        uint256 _period;
     }
 
     /************************************************
@@ -162,6 +163,7 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
             _initParams._feeRecipient,
             _initParams._managementFee,
             _initParams._performanceFee,
+            _initParams._period,
             _initParams._tokenName,
             _initParams._tokenSymbol,
             _vaultParams
