@@ -48,7 +48,7 @@
     "lint:test": "eslint 'test/**/*.ts'",
     "lint:test:fix": "yarn lint:test --fix",
     "lint:test:prettier": "prettier --write 'test/**/*.ts'",
-    "lint:ts": "eslint --config .eslintrc.ts.json 'scripts/**/*.ts'",
+    "lint:ts": "eslint --config .eslintrc.json 'scripts/**/*.ts'",
     "lint:ts:fix": "yarn lint:ts --fix",
     "lint:ts:prettier": "prettier --write 'scripts/**/*.ts'",
     "lint:sol": "solhint -f table contracts/**/*.sol",
