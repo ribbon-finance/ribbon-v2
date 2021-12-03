@@ -26,12 +26,6 @@ const main = async ({
     from: deployer,
   });
 
-  // Supports Uniswap V3 only
-  const dexRouter = await deploy("UniswapRouter", {
-    contract: "UniswapRouter",
-    from: deployer,
-  });
-
   const vault = await deploy("RibbonThetaVaultLogic", {
     contract: "RibbonThetaVault",
     from: deployer,
@@ -43,11 +37,10 @@ const main = async ({
       MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
       DEX_ROUTER[chainId],
-      DEX_FACTORY[chainId]
+      DEX_FACTORY[chainId],
     ],
     libraries: {
       VaultLifecycle: lifecycle.address,
-      UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
   console.log(`RibbonThetaVaultLogic @ ${vault.address}`);

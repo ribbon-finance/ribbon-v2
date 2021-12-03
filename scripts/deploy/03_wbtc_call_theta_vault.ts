@@ -58,16 +58,9 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  // Supports Uniswap V3 only
-  const dexRouter = await deploy("UniswapRouter", {
-    contract: "UniswapRouter",
-    from: deployer,
-  });
-
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
     libraries: {
       VaultLifecycle: lifecycle.address,
-      UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
 

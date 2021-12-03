@@ -15,7 +15,6 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -191,7 +190,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         isUsdcAuction = _initParams._isUsdcAuction;
         if (_initParams._isUsdcAuction) {
-            require(_checkPath(_initParams._swapPath), "");
+            require(_checkPath(_initParams._swapPath), "Invalid swapPath");
             swapPath = _initParams._swapPath;
         }
     }
@@ -279,7 +278,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         nonReentrant
     {
         require(isUsdcAuction, "!isUsdcAuction");
-        require(_checkPath(newSwapPath), "Invalid swap path");
+        require(_checkPath(newSwapPath), "Invalid swapPath");
         swapPath = newSwapPath;
     }
 

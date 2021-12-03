@@ -341,7 +341,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let dexRouterLib: Contract;
   let dexFactory: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
@@ -465,9 +464,6 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const dexRouter = await ethers.getContractFactory("UniswapRouter"); // Supports Uniswap V3 only
-      dexRouterLib = await dexRouter.deploy();
-
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
@@ -522,7 +518,6 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: dexRouterLib.address, // Supports UniswapV3 only
             },
           }
         )
@@ -665,7 +660,6 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: dexRouterLib.address, // Supports only Uniswap v3
             },
           }
         );
@@ -1158,7 +1152,7 @@ function behavesLikeRibbonOptionsVault(params: {
             vault
               .connect(ownerSigner)
               .setSwapPath(encodePath([WETH_ADDRESS[chainId], asset], [10000]))
-          ).to.be.revertedWith("Invalid swap path");
+          ).to.be.revertedWith("Invalid swapPath");
         });
 
         it("reverts when tokenOut is not underlying", async function () {
@@ -1171,7 +1165,7 @@ function behavesLikeRibbonOptionsVault(params: {
                   [10000]
                 )
               )
-          ).to.be.revertedWith("Invalid swap path");
+          ).to.be.revertedWith("Invalid swapPath");
         });
 
         it("reverts when not owner call", async function () {
@@ -1213,7 +1207,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const receipt = await tx.wait();
           // ~58692 if checkPath is made into internal function
-          assert.isAtMost(receipt.gasUsed.toNumber(), 64860);
+          assert.isAtMost(receipt.gasUsed.toNumber(), 65000);
         });
       } else {
         it("reverts when isUsdcAuction is false", async function () {
@@ -2661,7 +2655,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 966159); //963542, 1082712
+        assert.isAtMost(receipt.gasUsed.toNumber(), 967000); //963542, 1082712
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
