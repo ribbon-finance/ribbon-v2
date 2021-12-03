@@ -1152,7 +1152,7 @@ function behavesLikeRibbonOptionsVault(params: {
             vault
               .connect(ownerSigner)
               .setSwapPath(encodePath([WETH_ADDRESS[chainId], asset], [10000]))
-          ).to.be.revertedWith("Invalid swap path");
+          ).to.be.revertedWith("Invalid swapPath");
         });
 
         it("reverts when tokenOut is not underlying", async function () {
@@ -1165,7 +1165,7 @@ function behavesLikeRibbonOptionsVault(params: {
                   [10000]
                 )
               )
-          ).to.be.revertedWith("Invalid swap path");
+          ).to.be.revertedWith("Invalid swapPath");
         });
 
         it("reverts when not owner call", async function () {
@@ -1207,7 +1207,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const receipt = await tx.wait();
           // ~58692 if checkPath is made into internal function
-          assert.isAtMost(receipt.gasUsed.toNumber(), 64860);
+          assert.isAtMost(receipt.gasUsed.toNumber(), 65000);
         });
       } else {
         it("reverts when isUsdcAuction is false", async function () {
