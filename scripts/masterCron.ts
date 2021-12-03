@@ -127,7 +127,7 @@ function generateTokenSet(tokens: Array<OToken>) {
     //convert to something like 2021-09-08T10:51:49Z
     timestamp: moment().format().toString().slice(0, -6) + "Z",
     version: { major: 1, minor: 0, patch: 0 },
-    tokens: tokens,
+    tokens,
   };
 
   return tokenJSON;
@@ -155,9 +155,7 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
   // add new week's otokens to token list
   newTokenSet.tokens = currentTokenSet.concat(newTokenSet.tokens);
   //remove duplicates
-  newTokenSet.tokens = [
-    ...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values(),
-  ];
+  newTokenSet.tokens = [...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values(), ];
 
   await fs.writeFileSync(filePath, JSON.stringify(newTokenSet, null, 2), {
     encoding: "utf8",
@@ -177,7 +175,7 @@ async function getDeribitDelta(instrumentName: string) {
   // https://docs.deribit.com/?javascript#public-get_mark_price_history
   var request = `https://www.deribit.com/api/v2/public/get_order_book?depth=1&instrument_name=${instrumentName}`;
   const response = await got(request);
-  const delta = JSON.parse(response.body).result["greeks"]["delta"];
+  const delta = JSON.parse(response.body).result.greeks.delta;
   return delta;
 }
 
@@ -209,14 +207,14 @@ async function getDeribitStrikePrice(
   var bestDeltaDiff = 1000000;
 
   for (const instrument of instruments) {
-    let intrumentName = instrument["instrument_name"];
+    let intrumentName = instrument.instrument_name;
     // If the expiry is the same expiry as our option and is same type (put / call)
     let sameOptionType =
-      isPut == (instrument["option_type"] === "put" ? true : false);
+      isPut == (instrument.option_type === "put");
     let sameExpiry =
-      Math.abs(expiry * 1000 - instrument["expiration_timestamp"]) <
+      Math.abs(expiry * 1000 - instrument.expiration_timestamp) <
       expiryMargin;
-    let isOTM = instrument["strike"] > spotPrice;
+    let isOTM = instrument.strike > spotPrice;
     if (sameOptionType && sameExpiry && isOTM) {
       let currDelta = await getDeribitDelta(intrumentName);
       let currDiff = Math.abs(currDelta * 10000 - delta);
@@ -225,7 +223,7 @@ async function getDeribitStrikePrice(
       if (currDiff < bestDeltaDiff) {
         bestDeltaDiff = currDiff;
         bestDelta = currDelta;
-        bestStrike = instrument["strike"];
+        bestStrike = instrument.strike;
       }
     }
   }
@@ -365,7 +363,7 @@ async function settleAndBurn(
           .connect(signer)
           .settleAuction(auctionID.toString(), {
             gasPrice: newGasPrice,
-            gasLimit: gasLimits["settleAuction"],
+            gasLimit: gasLimits.settleAuction,
           });
 
         await tx.wait();
@@ -389,7 +387,7 @@ async function settleAndBurn(
 
       const tx2 = await vault.connect(signer).burnRemainingOTokens({
         gasPrice: newGasPrice2,
-        gasLimit: gasLimits["burnRemainingOTokens"],
+        gasLimit: gasLimits.burnRemainingOTokens,
       });
 
       await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
@@ -431,7 +429,7 @@ async function claimFromParticipantOrder(
         .claimFromParticipantOrder(
           auctionID,
           [encodeOrder(await vault.auctionSellOrder())],
-          { gasPrice: newGasPrice, gasLimit: gasLimits["claimAuctionOtokens"] }
+          { gasPrice: newGasPrice, gasLimit: gasLimits.claimAuctionOtokens }
         );
 
       await log(
@@ -712,7 +710,7 @@ async function updateManualVol() {
         univ3poolName.includes("btc") ? dvolBTC : dvolETH,
         {
           gasPrice: newGasPrice,
-          gasLimit: gasLimits["volOracleAnnualizedVol"],
+          gasLimit: gasLimits.volOracleAnnualizedVol,
         }
       );
     await log(
@@ -736,7 +734,7 @@ async function updateVolatility() {
       .connect(signer)
       .commit(deployments[network].univ3pools[univ3poolName], {
         gasPrice: newGasPrice,
-        gasLimit: gasLimits["volOracleCommit"],
+        gasLimit: gasLimits.volOracleCommit,
       });
     await log(
       `VolOracle-commit()-(${univ3poolName}): <https://etherscan.io/tx/${tx.hash}>`

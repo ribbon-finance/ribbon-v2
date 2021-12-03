@@ -7,8 +7,6 @@ import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.jso
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  CHAINLINK_WBTC_PRICER_NEW,
-  CHAINLINK_WETH_PRICER_NEW,
   CHAINLINK_SUSHI_PRICER,
   CHAINID,
   BLOCK_NUMBER_NEW,
@@ -22,8 +20,6 @@ import {
   OTOKEN_FACTORY,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
-  WBTC_ADDRESS,
-  WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
@@ -40,9 +36,8 @@ import {
   bidForOToken,
   decodeOrder,
   lockedBalanceForRollover,
-  encodePath,
 } from "./helpers/utils";
-import { wmul, wdiv } from "./helpers/math";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
@@ -355,7 +350,7 @@ function behavesLikeRibbonOptionsVault(params: {
       keeper = keeperSigner.address;
       user = userSigner.address;
       feeRecipient = feeRecipientSigner.address;
-      whitelist = [user, owner]
+      whitelist = [user, owner];
 
       const TestVolOracle = await getContractFactory(
         TestVolOracle_ABI,
@@ -661,7 +656,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.auctionDuration(), auctionDuration);
         assert.equal(await vault.premiumAsset(), premiumAsset);
 
-        for (let i=0; i < whitelist.length; i++) {
+        for (let i = 0; i < whitelist.length; i++) {
           assert.equal((await vault.whitelistArray(i)).toString(), whitelist[i].toString());
         }
       });
@@ -1436,11 +1431,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-        let oracle = await setupOracle(
-          params.chainlinkPricer,
-          ownerSigner,
-          true
-        );
 
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -1466,7 +1456,6 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         let assetBalanceBeforeSettle: any;
-        let minAmountOut: BigNumber;
 
         assetBalanceBeforeSettle = await tokenContract.balanceOf(vault.address);
 
@@ -1511,9 +1500,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let tokenContract = multiAsset
           ? premiumContract
-          : assetContract
+          : assetContract;
 
-        const auctionDetails = await bidForOToken(
+        await bidForOToken(
           gnosisAuction,
           tokenContract,
           userSigner.address,
@@ -1570,12 +1559,12 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterBurn = await tokenContract.balanceOf(
           vault.address
         );
-        
-        if (multiAsset) { 
+
+        if (multiAsset) {
           assert.equal(
             parseInt(assetBalanceAfterBurn.toString()),
             parseInt(assetBalanceAfterSettle.toString())
-          )
+          );
         } else {
           assert.isAbove(
             parseInt(assetBalanceAfterBurn.toString()),
@@ -1935,7 +1924,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ? premiumContract
           : assetContract;
 
-        const auctionDetails = await bidForOToken(
+        await bidForOToken(
           gnosisAuction,
           tokenContract,
           userSigner.address,
@@ -2083,7 +2072,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ? premiumContract
           : assetContract;
 
-        const auctionDetails = await bidForOToken(
+        await bidForOToken(
           gnosisAuction,
           tokenContract,
           userSigner.address,

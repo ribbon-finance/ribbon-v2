@@ -27,7 +27,7 @@ abstract contract RibbonTreasuryVaultStorageV2 {
 
 abstract contract RibbonTreasuryVaultStorageV3 {
     // Allowed asset for premium denomination
-    mapping(address => bool) allowedAssets; 
+    mapping(address => bool) allowedAssets;
     // The asset which denominates the premium during auction
     address public premiumAsset;
 }

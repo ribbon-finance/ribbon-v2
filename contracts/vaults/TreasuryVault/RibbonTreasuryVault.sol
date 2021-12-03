@@ -13,7 +13,9 @@ import {
 } from "../../storage/RibbonTreasuryVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
-import {VaultLifecycleTreasury} from "../../libraries/VaultLifecycleTreasury.sol";
+import {
+    VaultLifecycleTreasury
+} from "../../libraries/VaultLifecycleTreasury.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
@@ -188,13 +190,10 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
             _initParams._auctionDuration >= MIN_AUCTION_DURATION,
             "!_auctionDuration"
         );
+        require(allowedAssets[_initParams._premiumAsset], "!_premiumAsset");
         require(
-            allowedAssets[_initParams._premiumAsset], 
-            '!_premiumAsset'
-        );
-        require(
-             _initParams._whitelist.length <= WHITELIST_LIMIT,
-             '!_whitelist'
+            _initParams._whitelist.length <= WHITELIST_LIMIT,
+            "!_whitelist"
         );
 
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
@@ -205,13 +204,16 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
         whitelistArray = _initParams._whitelist;
 
         // Store whitelist into mapping
-        for(uint256 i = 0; i < _initParams._whitelist.length; i++) {
+        for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
             require(_initParams._whitelist[i] != address(0), "Whitelist null");
-            require(!whitelistMap[_initParams._whitelist[i]].isWhitelist, "Whitelist duplicate");
+            require(
+                !whitelistMap[_initParams._whitelist[i]].isWhitelist,
+                "Whitelist duplicate"
+            );
 
             whitelistMap[_initParams._whitelist[i]].isWhitelist = true;
             whitelistMap[_initParams._whitelist[i]].index = i;
-        }  
+        }
     }
 
     /************************************************
@@ -298,17 +300,20 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
     {
         require(
             (newWhitelist.length + whitelistArray.length) <= WHITELIST_LIMIT,
-             'Whitelist exceed limit'
+            "Whitelist exceed limit"
         );
-        
-        for(uint256 i = 0; i < newWhitelist.length; i++) {
+
+        for (uint256 i = 0; i < newWhitelist.length; i++) {
             require(newWhitelist[i] != address(0), "Whitelist null");
-            require(!whitelistMap[newWhitelist[i]].isWhitelist, "Whitelist duplicate");
+            require(
+                !whitelistMap[newWhitelist[i]].isWhitelist,
+                "Whitelist duplicate"
+            );
 
             whitelistMap[newWhitelist[i]].isWhitelist = true;
             whitelistMap[newWhitelist[i]].index = i;
             whitelistArray.push(newWhitelist[i]);
-        } 
+        }
     }
 
     /**
@@ -322,17 +327,20 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
     {
         require(
             (whitelistArray.length - excludeWhitelist.length) > 0,
-             'Whitelist cannot be empty'
+            "Whitelist cannot be empty"
         );
-        
-        for(uint256 i = 0; i < excludeWhitelist.length; i++) {
-            require(whitelistMap[excludeWhitelist[i]].isWhitelist, "Whitelist does not exist");
-            
+
+        for (uint256 i = 0; i < excludeWhitelist.length; i++) {
+            require(
+                whitelistMap[excludeWhitelist[i]].isWhitelist,
+                "Whitelist does not exist"
+            );
+
             delete whitelistArray[whitelistMap[excludeWhitelist[i]].index];
 
             whitelistMap[excludeWhitelist[i]].isWhitelist = false;
-            whitelistMap[excludeWhitelist[i]].index = 0;            
-        } 
+            whitelistMap[excludeWhitelist[i]].index = 0;
+        }
     }
 
     /**
@@ -531,5 +539,4 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
     function settleAuction() external onlyKeeper nonReentrant {
         VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
     }
-
 }
