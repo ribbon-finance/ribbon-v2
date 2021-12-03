@@ -295,7 +295,7 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
      */
     function addWhitelist(address[] calldata newWhitelist)
         external
-        onlyOwner
+        onlyKeeper
         nonReentrant
     {
         require(
@@ -322,7 +322,7 @@ contract RibbonTreasuryVault is RibbonVault, RibbonTreasuryVaultStorage {
      */
     function removeWhitelist(address[] calldata excludeWhitelist)
         external
-        onlyOwner
+        onlyKeeper
         nonReentrant
     {
         require(
