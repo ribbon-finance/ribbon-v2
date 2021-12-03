@@ -1144,7 +1144,7 @@ function behavesLikeRibbonOptionsVault(params: {
         temp = [];
         i = 0;
 
-        while (i <=  whitelistLimit) {
+        while (i <= whitelistLimit) {
           try {
             temp.push((await vault.whitelistArray(i)).toString());
             i++;
