@@ -341,7 +341,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let dexRouterLib: Contract;
   let dexFactory: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
@@ -465,9 +464,6 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const dexRouter = await ethers.getContractFactory("UniswapRouter"); // Supports Uniswap V3 only
-      dexRouterLib = await dexRouter.deploy();
-
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
@@ -522,7 +518,6 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: dexRouterLib.address, // Supports UniswapV3 only
             },
           }
         )
@@ -665,7 +660,6 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: dexRouterLib.address, // Supports only Uniswap v3
             },
           }
         );
