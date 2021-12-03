@@ -18,15 +18,9 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     uint256 public auctionDuration;
     // Auction id of current option
     uint256 public optionAuctionID;
-}
-
-abstract contract RibbonTreasuryVaultStorageV2 {
-    // Amount locked for scheduled withdrawals last week;
+        // Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-}
-
-abstract contract RibbonTreasuryVaultStorageV3 {
-    // Allowed asset for premium denomination
+        // Allowed asset for premium denomination
     mapping(address => bool) allowedAssets;
     // The asset which denominates the premium during auction
     address public premiumAsset;
@@ -37,9 +31,7 @@ abstract contract RibbonTreasuryVaultStorageV3 {
 // e.g. RibbonTreasuryVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonTreasuryVaultStorage is RibbonTreasuryVaultStorageV1, RibbonTreasuryVaultStorageV2
 abstract contract RibbonTreasuryVaultStorage is
-    RibbonTreasuryVaultStorageV1,
-    RibbonTreasuryVaultStorageV2,
-    RibbonTreasuryVaultStorageV3
+    RibbonTreasuryVaultStorageV1
 {
 
 }

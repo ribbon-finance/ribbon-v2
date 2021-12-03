@@ -438,7 +438,7 @@ function behavesLikeRibbonOptionsVault(params: {
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId]
       ];
-
+      console.log("hi")
       vault = (
         await deployProxy(
           "RibbonTreasuryVault",
@@ -455,7 +455,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       // Update volatility
       await updateVol(params.asset);
-
+      console.log("hi")
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
