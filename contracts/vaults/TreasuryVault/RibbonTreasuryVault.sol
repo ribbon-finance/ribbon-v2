@@ -291,7 +291,8 @@ contract RibbonTreasuryVault is
 
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
-        managementFee = _initParams._managementFee
+        managementFee = _initParams
+            ._managementFee
             .mul(Vault.FEE_MULTIPLIER)
             .div(WEEKS_PER_YEAR);
         vaultParams = _vaultParams;
@@ -321,10 +322,7 @@ contract RibbonTreasuryVault is
             _initParams._auctionDuration >= MIN_AUCTION_DURATION,
             "!_auctionDuration"
         );
-        require(
-            _initParams._premiumAsset != address(0), 
-            "!_premiumAsset"
-        );
+        require(_initParams._premiumAsset != address(0), "!_premiumAsset");
         require(
             _initParams._whitelist.length <= WHITELIST_LIMIT,
             "!_whitelist"
@@ -546,7 +544,7 @@ contract RibbonTreasuryVault is
             );
 
             whitelistMap[excludeWhitelist[i]];
-            
+
             for (uint256 j = 0; j < whitelistArray.length; j++) {
                 if (excludeWhitelist[i] == whitelistArray[j]) {
                     delete whitelistArray[j];
@@ -789,7 +787,11 @@ contract RibbonTreasuryVault is
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw
      */
-    function withdrawInstantly(uint256 amount) external onlyWhitelist nonReentrant {
+    function withdrawInstantly(uint256 amount)
+        external
+        onlyWhitelist
+        nonReentrant
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
