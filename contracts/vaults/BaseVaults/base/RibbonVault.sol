@@ -19,7 +19,6 @@ import {
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
-import {UniswapRouter} from "../../../libraries/UniswapRouter.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
 contract RibbonVault is
@@ -792,7 +791,7 @@ contract RibbonVault is
      */
     function _checkPath(bytes calldata swapPath) internal view returns (bool) {
         return
-            UniswapRouter.checkPath(
+            VaultLifecycle.checkPath(
                 swapPath,
                 USDC,
                 vaultParams.asset,

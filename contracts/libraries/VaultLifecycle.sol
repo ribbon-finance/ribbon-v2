@@ -717,6 +717,21 @@ library VaultLifecycle {
         }
     }
 
+    function checkPath(
+        bytes calldata swapPath,
+        address validTokenIn,
+        address validTokenOut,
+        address uniswapFactory
+    ) external view returns (bool isValidPath) {
+        return
+            UniswapRouter.checkPath(
+                swapPath,
+                validTokenIn,
+                validTokenOut,
+                uniswapFactory
+            );
+    }
+
     /**
      * @notice Places a bid in an auction
      * @param bidDetails is the struct with all the details of the
