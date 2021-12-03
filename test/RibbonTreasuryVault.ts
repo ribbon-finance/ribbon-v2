@@ -438,7 +438,7 @@ function behavesLikeRibbonOptionsVault(params: {
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId]
       ];
-      console.log("hi")
+
       vault = (
         await deployProxy(
           "RibbonTreasuryVault",
@@ -455,7 +455,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       // Update volatility
       await updateVol(params.asset);
-      console.log("hi")
+      
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
@@ -1170,12 +1170,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.connect(ownerSigner).setPremiumAsset(constants.AddressZero)
         ).to.be.revertedWith("!newPremiumAsset");
-      });
-
-      it("reverts when asset is not allowed", async function () {
-        await expect(
-          vault.connect(ownerSigner).setPremiumAsset(WBTC_ADDRESS[chainId])
-        ).to.be.revertedWith("Asset not allowed");
       });
 
       it("changes premium asset", async function () {
