@@ -18,9 +18,9 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     uint256 public auctionDuration;
     // Auction id of current option
     uint256 public optionAuctionID;
-        // Amount locked for scheduled withdrawals last week;
+    // Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-        // Allowed asset for premium denomination
+    // Allowed asset for premium denomination
     mapping(address => bool) allowedAssets;
     // The asset which denominates the premium during auction
     address public premiumAsset;
@@ -30,8 +30,6 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 // When we need to add new storage variables, we create a new version of RibbonTreasuryVaultStorage
 // e.g. RibbonTreasuryVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonTreasuryVaultStorage is RibbonTreasuryVaultStorageV1, RibbonTreasuryVaultStorageV2
-abstract contract RibbonTreasuryVaultStorage is
-    RibbonTreasuryVaultStorageV1
-{
+abstract contract RibbonTreasuryVaultStorage is RibbonTreasuryVaultStorageV1 {
 
 }
