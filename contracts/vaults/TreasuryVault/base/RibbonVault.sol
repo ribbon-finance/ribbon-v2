@@ -18,7 +18,9 @@ import {
 
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
-import {VaultLifecycleTreasury} from "../../../libraries/VaultLifecycleTreasury.sol";
+import {
+    VaultLifecycleTreasury
+} from "../../../libraries/VaultLifecycleTreasury.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
@@ -31,8 +33,7 @@ contract RibbonVault is
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
-
-    struct WhitelistInfo{
+    struct WhitelistInfo {
         bool isWhitelist;
         uint256 index;
     }
@@ -387,7 +388,11 @@ contract RibbonVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares) external onlyWhitelist nonReentrant {
+    function initiateWithdraw(uint256 numShares)
+        external
+        onlyWhitelist
+        nonReentrant
+    {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -753,5 +758,4 @@ contract RibbonVault is
     /************************************************
      *  HELPERS
      ***********************************************/
-     
 }
