@@ -28,14 +28,17 @@ const main = async ({
   const chainId = network.config.chainId;
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
-    console.log(`06 - Skipping deployment AAVE Call Theta Vault on ${network.name}`);
+    console.log(
+      `06 - Skipping deployment AAVE Call Theta Vault on ${network.name}`
+    );
     return;
   }
 
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
-  const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
+  const { deployer, owner, keeper, admin, feeRecipient } =
+    await getNamedAccounts();
   console.log(`06 - Deploying AAVE Call Theta Vault on ${network.name}`);
 
   const isMainnet = network.name === "mainnet";
@@ -67,16 +70,9 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  // Supports Uniswap V3 only
-  const dexRouter = await deploy("UniswapRouter", {
-    contract: "UniswapRouter",
-    from: deployer,
-  });
-
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
     libraries: {
       VaultLifecycle: lifecycle.address,
-      // UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
 
