@@ -284,7 +284,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
   let vaultLifecycleLib: Contract;
-  let uniswapRouterLib: Contract;
   let thetaVault: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
@@ -420,9 +419,6 @@ function behavesLikeRibbonOptionsVault(params: {
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
-      const uniswapRouter = await ethers.getContractFactory("UniswapRouter");
-      uniswapRouterLib = await uniswapRouter.deploy();
-
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
         GNOSIS_EASY_AUCTION[chainId]
@@ -474,7 +470,6 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
-              UniswapRouter: uniswapRouterLib.address,
             },
           }
         )

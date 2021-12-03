@@ -28,7 +28,7 @@ library UniswapRouter {
         address validTokenIn,
         address validTokenOut,
         address uniswapFactory
-    ) public view returns (bool isValidPath) {
+    ) internal view returns (bool isValidPath) {
         // Function checks if the tokenIn and tokenOut in the swapPath
         // matches the validTokenIn and validTokenOut specified.
         address tokenIn;
