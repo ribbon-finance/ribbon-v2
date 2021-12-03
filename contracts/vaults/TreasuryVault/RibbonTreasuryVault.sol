@@ -285,7 +285,11 @@ contract RibbonTreasuryVault is
 >>>>>>> 4c12b45 (WIP period management)
 =======
             _initParams._period,
+<<<<<<< HEAD
 >>>>>>> 4c12b45e6c32b4aabc2b6bd69f76d50bd687eb58
+=======
+>>>>>>> 4c12b45 (WIP period management)
+>>>>>>> c035ebc (WIP period management)
             _initParams._tokenName,
             _initParams._tokenSymbol,
             _vaultParams
