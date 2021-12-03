@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { CHAINID, WETH_ADDRESS } from "../../constants/constants";
-import { MANAGEMENT_FEE, PERFORMANCE_FEE } from "../utils/constants";
+import { MANAGEMENT_FEE, PERFORMANCE_FEE, PREMIUM_DISCOUNT, AUCTION_DURATION } from "../utils/constants";
 
 const main = async ({
   network,
@@ -53,6 +53,8 @@ const main = async ({
     "rstETH-THETA",
     pricer.address,
     strikeSelection.address,
+    PREMIUM_DISCOUNT,
+    AUCTION_DURATION,
     {
       isPut: false,
       decimals: 18,

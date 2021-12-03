@@ -430,7 +430,7 @@ export function encodePath(tokenAddresses, fees) {
   // Encode path for Uniswap swap path
   const FEE_SIZE = 3;
 
-  if (tokenAddresses.length != fees.length + 1) {
+  if (tokenAddresses.length !== fees.length + 1) {
     throw new Error("path/fee lengths do not match");
   }
 
