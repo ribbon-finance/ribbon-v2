@@ -3,7 +3,6 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
   USDC_PRICE_ORACLE,
-  MANUAL_VOL_ORACLE,
   OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -30,18 +29,22 @@ const main = async ({
   const chainId = network.config.chainId;
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
-    console.log(`06 - Skipping deployment AAVE Call Theta Vault on ${network.name}`);
+    console.log(
+      `06 - Skipping deployment AAVE Call Theta Vault on ${network.name}`
+    );
     return;
   }
 
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
-  const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
+  const { deployer, owner, keeper, admin, feeRecipient } =
+    await getNamedAccounts();
   console.log(`06 - Deploying AAVE Call Theta Vault on ${network.name}`);
 
   const isMainnet = network.name === "mainnet";
 
+  const manualVolOracle = await deployments.get("ManualVolOracle");
   const underlyingOracle = isMainnet ? MAINNET_AAVE_ORACLE : KOVAN_AAVE_ORACLE;
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
@@ -53,7 +56,7 @@ const main = async ({
     },
     args: [
       AAVE_ETH_POOL,
-      MANUAL_VOL_ORACLE[chainId],
+      manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
     ],
@@ -68,16 +71,9 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  // Supports Uniswap V3 only
-  const dexRouter = await deploy("UniswapRouter", {
-    contract: "UniswapRouter",
-    from: deployer,
-  });
-
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
     libraries: {
       VaultLifecycle: lifecycle.address,
-      // UniswapRouter: dexRouter.address, // Supports only Uniswap v3
     },
   });
 
