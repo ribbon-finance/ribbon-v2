@@ -11,7 +11,6 @@ import {
   STETH_ETH_CRV_POOL,
   WSTETH_ADDRESS,
 } from "../../constants/constants";
-import { PREMIUM_DISCOUNT, AUCTION_DURATION } from '../utils/constants';
 
 const main = async ({
   network,
@@ -54,8 +53,6 @@ const main = async ({
       MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
       STETH_ETH_CRV_POOL,
-      PREMIUM_DISCOUNT,
-      AUCTION_DURATION,
     ],
     libraries: {
       VaultLifecycle: lifecycle.address,
