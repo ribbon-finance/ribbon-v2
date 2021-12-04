@@ -7,24 +7,23 @@ const main = async ({
   deployments,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
-  // const { deploy } = deployments;
-  // console.log("00 - Deploying ManualVolOracle on", network.name);
+  const { deploy } = deployments;
+  console.log("00 - Deploying ManualVolOracle on", network.name);
 
-  // const { deployer, keeper } = await getNamedAccounts();
+  const { deployer, keeper } = await getNamedAccounts();
 
-  // const oracle = await deploy("ManualVolOracle", {
-  //   from: deployer,
-  //   contract: {
-  //     abi: ManualVolOracle_ABI,
-  //     bytecode: ManualVolOracle_BYTECODE,
-  //   },
-  //   args: [keeper],
-  // });
+  const oracle = await deploy("ManualVolOracle", {
+    from: deployer,
+    contract: {
+      abi: ManualVolOracle_ABI,
+      bytecode: ManualVolOracle_BYTECODE,
+    },
+    args: [keeper],
+  });
 
-  // console.log(`ManualVolOracle @ ${oracle.address}`);
+  console.log(`ManualVolOracle @ ${oracle.address}`);
 
   // Cannot verify because of compiler mismatch.
-  // This should really be deployed by rvol and not ribbon-v2
 };
 main.tags = ["ManualVolOracle"];
 

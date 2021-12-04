@@ -5,7 +5,6 @@ import {
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   WBTC_USDC_POOL,
-  MANUAL_VOL_ORACLE,
   OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -31,6 +30,7 @@ const main = async ({
     await getNamedAccounts();
   console.log(`03 - Deploying WBTC Call Theta Vault on ${network.name}`);
 
+  const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
   const underlyingOracle = BTC_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
@@ -43,11 +43,15 @@ const main = async ({
     },
     args: [
       WBTC_USDC_POOL[chainId],
-      MANUAL_VOL_ORACLE[chainId],
+      manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
     ],
   });
+
+  console.log(`RibbonThetaVaultWBTCCall pricer @ ${pricer.address}`);
+
+  // Can't verify pricer because it's compiled with 0.7.3
 
   const strikeSelection = await deploy("StrikeSelectionWBTC", {
     contract: "StrikeSelection",
@@ -55,9 +59,25 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
   });
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  console.log(`RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`);
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
+   try {
+    await run('verify:verify', {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
+  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  const lifecycle = await deployments.get("VaultLifecycle");
+
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
+    libraries: {
+      VaultLifecycle: lifecycle.address,
+    },
+  });
 
   const initArgs = [
     {
@@ -89,17 +109,17 @@ const main = async ({
     initArgs
   );
 
-  const vault = await deploy("RibbonThetaVaultWBTCCall", {
+  const proxy = await deploy("RibbonThetaVaultWBTCCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultWBTCCall @ ${vault.address}`);
+  console.log(`RibbonThetaVaultWBTCCall @ ${proxy.address}`);
 
   try {
     await run('verify:verify', {
-      address: vault.address,
+      address: proxy.address,
       constructorArguments: [
         logicDeployment.address,
         admin,
