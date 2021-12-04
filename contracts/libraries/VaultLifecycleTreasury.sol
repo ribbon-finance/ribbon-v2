@@ -148,7 +148,6 @@ library VaultLifecycleTreasury {
      * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
      * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
-     * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
      */
     struct RolloverParams {
@@ -156,7 +155,6 @@ library VaultLifecycleTreasury {
         uint256 totalBalance;
         uint256 currentShareSupply;
         uint256 lastQueuedWithdrawAmount;
-        uint256 performanceFee;
         uint256 managementFee;
     }
 
@@ -169,8 +167,7 @@ library VaultLifecycleTreasury {
      * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
-     * @return performanceFeeInAsset is the performance fee charged by vault
-     * @return totalVaultFee is the total amount of fee charged by vault
+     * @return managementFeeInAsset is the total amount of fee charged by vault
      */
     function rollover(
         Vault.VaultState storage vaultState,
@@ -183,8 +180,7 @@ library VaultLifecycleTreasury {
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares,
-            uint256 performanceFeeInAsset,
-            uint256 totalVaultFee
+            uint256 managementFeeInAsset
         )
     {
         uint256 currentBalance = params.totalBalance;
@@ -226,18 +222,16 @@ library VaultLifecycleTreasury {
         }
 
         {
-            (performanceFeeInAsset, , totalVaultFee) = getVaultFees(
+            managementFeeInAsset = getManagementFee(
                 balanceForVaultFees,
-                vaultState.lastLockedAmount,
                 vaultState.totalPending,
-                params.performanceFee,
                 params.managementFee
             );
         }
 
         // Take into account the fee
         // so we can calculate the newPricePerShare
-        currentBalance = currentBalance.sub(totalVaultFee);
+        currentBalance = currentBalance.sub(managementFeeInAsset);
 
         {
             newPricePerShare = ShareMath.pricePerShare(
@@ -272,8 +266,7 @@ library VaultLifecycleTreasury {
             queuedWithdrawAmount,
             newPricePerShare,
             mintShares,
-            performanceFeeInAsset,
-            totalVaultFee
+            managementFeeInAsset
         );
     }
 
@@ -551,27 +544,19 @@ library VaultLifecycleTreasury {
     /**
      * @notice Calculates the performance and management fee for this week's round
      * @param currentBalance is the balance of funds held on the vault after closing short
-     * @param lastLockedAmount is the amount of funds locked from the previous round
      * @param pendingAmount is the pending deposit amount
-     * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
-     * @return performanceFeeInAsset is the performance fee
      * @return managementFeeInAsset is the management fee
-     * @return vaultFee is the total fees
      */
-    function getVaultFees(
+    function getManagementFee(
         uint256 currentBalance,
-        uint256 lastLockedAmount,
         uint256 pendingAmount,
-        uint256 performanceFeePercent,
         uint256 managementFeePercent
     )
         internal
         pure
         returns (
-            uint256 performanceFeeInAsset,
-            uint256 managementFeeInAsset,
-            uint256 vaultFee
+            uint256 managementFeeInAsset
         )
     {
         // At the first round, currentBalance=0, pendingAmount>0
@@ -581,32 +566,20 @@ library VaultLifecycleTreasury {
                 ? currentBalance.sub(pendingAmount)
                 : 0;
 
-        uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
-        uint256 _vaultFee;
 
         // Take performance fee and management fee ONLY if difference between
         // last week and this week's vault deposits, taking into account pending
         // deposits and withdrawals, is positive. If it is negative, last week's
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
-        if (lockedBalanceSansPending > lastLockedAmount) {
-            _performanceFeeInAsset = performanceFeePercent > 0
-                ? lockedBalanceSansPending
-                    .sub(lastLockedAmount)
-                    .mul(performanceFeePercent)
-                    .div(100 * Vault.FEE_MULTIPLIER)
-                : 0;
-            _managementFeeInAsset = managementFeePercent > 0
+        _managementFeeInAsset = managementFeePercent > 0
                 ? lockedBalanceSansPending.mul(managementFeePercent).div(
                     100 * Vault.FEE_MULTIPLIER
                 )
                 : 0;
-
-            _vaultFee = _performanceFeeInAsset.add(_managementFeeInAsset);
-        }
-
-        return (_performanceFeeInAsset, _managementFeeInAsset, _vaultFee);
+        
+        return _managementFeeInAsset;
     }
 
     /**

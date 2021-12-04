@@ -73,7 +73,7 @@ describe("RibbonTreasuryVault", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
+    performanceFee: BigNumber.from("0"), //BigNumber.from("20000000"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -86,6 +86,8 @@ describe("RibbonTreasuryVault", () => {
     },
     whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: SUSHI_ADDRESS[chainId],
+    period: 7,
+    distribute: false,
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -120,6 +122,8 @@ describe("RibbonTreasuryVault", () => {
     },
     whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: USDC_ADDRESS[chainId],
+    period: 7,
+    distribute: false,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -154,6 +158,8 @@ describe("RibbonTreasuryVault", () => {
     },
     whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: WETH_ADDRESS[chainId],
+    period: 7,
+    distribute: false,
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -191,6 +197,10 @@ type Option = {
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
+ * premiumAsset
+ * premiumdecimals
+ * period
+ * distribute
  */
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
@@ -227,6 +237,8 @@ function behavesLikeRibbonOptionsVault(params: {
   whitelist: string[];
   premiumAsset: string;
   premiumDecimals: number;
+  period: number;
+  distribute: boolean;
   availableChains: number[];
 }) {
   // Test configs
@@ -264,8 +276,10 @@ function behavesLikeRibbonOptionsVault(params: {
   let whitelist: string[];
   let premiumAsset = params.premiumAsset;
   let premiumDecimals = params.premiumDecimals;
+  let period = params.period;
   let multiAsset = params.asset != params.premiumAsset;
   let whitelistLimit = 5;
+  let distribute = params.distribute;
 
   // Contracts
   let strikeSelection: Contract;
@@ -418,6 +432,8 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration,
           whitelist,
           premiumAsset,
+          period,
+          distribute
         ],
         [
           isPut,
@@ -679,6 +695,8 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               whitelist,
               premiumAsset,
+              period,
+              distribute
             ],
             [
               isPut,
@@ -709,6 +727,8 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               whitelist,
               premiumAsset,
+              period,
+              distribute
             ],
             [
               isPut,
@@ -739,6 +759,8 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               whitelist,
               premiumAsset,
+              period,
+              distribute
             ],
             [
               isPut,
@@ -769,6 +791,8 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               whitelist,
               premiumAsset,
+              period,
+              distribute
             ],
             [
               isPut,
@@ -799,6 +823,8 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               whitelist,
               premiumAsset,
+              period,
+              distribute
             ],
             [
               isPut,
@@ -829,6 +855,8 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               whitelist,
               premiumAsset,
+              period,
+              distribute
             ],
             [
               isPut,

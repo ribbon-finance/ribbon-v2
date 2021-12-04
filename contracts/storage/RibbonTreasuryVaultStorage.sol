@@ -24,6 +24,14 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     mapping(address => bool) allowedAssets;
     // The asset which denominates the premium during auction
     address public premiumAsset;
+    // Whitelist of eligible depositors in mapping
+    mapping(address => bool) public whitelistMap;
+    // Whitelist of eligible depositors in array
+    address[] public whitelistArray;
+    // @notice Period between each options sale.
+    uint256 public period;
+    // Whether premium proceeds should be distributed.
+    bool public distribute;
 }
 
 // We are following Compound's method of upgrading new contract implementations
