@@ -1,7 +1,7 @@
-import { Command } from "commander";
 import hre from "hardhat";
-import { ethers } from "ethers";
-import { BigNumber, constants, Contract, Wallet } from "ethers";
+import { ethers, BigNumber, constants, Contract, Wallet } from "ethers";
+import { Provider } from "@ethersproject/providers";
+import { Command } from "commander";
 import auth from "./auth.json";
 import {
   getDefaultProvider,
@@ -12,15 +12,12 @@ import got from "got";
 import deployments from "../constants/deployments-mainnet-cron.json";
 import { gas } from "./helpers/getGasPrice";
 import { wmul } from "../test/helpers/math";
-import * as time from "../test/helpers/time";
 import * as fs from "fs";
 import simpleGit, { SimpleGit, SimpleGitOptions } from "simple-git";
 import {
   GNOSIS_EASY_AUCTION,
   VOL_ORACLE,
   MANUAL_VOL_ORACLE,
-  OTOKEN_FACTORY,
-  USDC_ADDRESS,
   BYTES_ZERO,
 } from "../constants/constants";
 import { encodeOrder } from "../test/helpers/utils";
@@ -40,7 +37,7 @@ program.parse(process.argv);
 
 require("dotenv").config();
 
-var client = new Discord.Client();
+const client = new Discord.Client();
 
 const network = program.network === "mainnet" ? "mainnet" : "kovan";
 const provider = getDefaultProvider(program.network);
@@ -84,9 +81,8 @@ interface TokenSet {
   tokens: Array<OToken>;
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const sleep = async (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms)); // eslint-disable-line no-promise-executor-return
 
 async function log(msg: string) {
   if (msg.length >= 2000) {
@@ -96,7 +92,7 @@ async function log(msg: string) {
   (client.channels.cache.get(auth.channel_id) as Discord.TextChannel).send(msg);
 }
 
-const getTopOfPeriod = async (provider: any, period: number) => {
+const getTopOfPeriod = async (provider: Provider, period: number) => {
   const latestTimestamp = (await provider.getBlock("latest")).timestamp;
   let topOfPeriod = latestTimestamp - (latestTimestamp % period) + period;
   return topOfPeriod;
@@ -127,7 +123,7 @@ function generateTokenSet(tokens: Array<OToken>) {
     //convert to something like 2021-09-08T10:51:49Z
     timestamp: moment().format().toString().slice(0, -6) + "Z",
     version: { major: 1, minor: 0, patch: 0 },
-    tokens: tokens,
+    tokens,
   };
 
   return tokenJSON;
@@ -175,9 +171,9 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
 
 async function getDeribitDelta(instrumentName: string) {
   // https://docs.deribit.com/?javascript#public-get_mark_price_history
-  var request = `https://www.deribit.com/api/v2/public/get_order_book?depth=1&instrument_name=${instrumentName}`;
+  const request = `https://www.deribit.com/api/v2/public/get_order_book?depth=1&instrument_name=${instrumentName}`;
   const response = await got(request);
-  const delta = JSON.parse(response.body).result["greeks"]["delta"];
+  const delta = JSON.parse(response.body).result.greeks.delta;
   return delta;
 }
 
@@ -209,14 +205,12 @@ async function getDeribitStrikePrice(
   var bestDeltaDiff = 1000000;
 
   for (const instrument of instruments) {
-    let intrumentName = instrument["instrument_name"];
+    let intrumentName = instrument.instrument_name;
     // If the expiry is the same expiry as our option and is same type (put / call)
-    let sameOptionType =
-      isPut == (instrument["option_type"] === "put" ? true : false);
+    let sameOptionType = isPut === (instrument.option_type === "put");
     let sameExpiry =
-      Math.abs(expiry * 1000 - instrument["expiration_timestamp"]) <
-      expiryMargin;
-    let isOTM = instrument["strike"] > spotPrice;
+      Math.abs(expiry * 1000 - instrument.expiration_timestamp) < expiryMargin;
+    let isOTM = instrument.strike > spotPrice;
     if (sameOptionType && sameExpiry && isOTM) {
       let currDelta = await getDeribitDelta(intrumentName);
       let currDiff = Math.abs(currDelta * 10000 - delta);
@@ -225,7 +219,7 @@ async function getDeribitStrikePrice(
       if (currDiff < bestDeltaDiff) {
         bestDeltaDiff = currDiff;
         bestDelta = currDelta;
-        bestStrike = instrument["strike"];
+        bestStrike = instrument.strike;
       }
     }
   }
@@ -236,11 +230,11 @@ async function getDeribitStrikePrice(
 async function getStrikePrice(
   vault: Contract,
   strikeSelection: Contract,
-  iOtokenABI: any
+  iOtokenABI: any // eslint-disable-line @typescript-eslint/no-explicit-any
 ) {
   let expiry;
   let currentOption = (await vault.optionState()).currentOption;
-  if (currentOption == constants.AddressZero) {
+  if (currentOption === constants.AddressZero) {
     expiry = await getNextFriday((await provider.getBlock("latest")).timestamp);
   } else {
     expiry = await getNextFriday(
@@ -287,7 +281,7 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
   let endTimestamp = latestTimestamp.toString();
 
   // https://docs.deribit.com/?javascript#public-get_volatility_index_data
-  var request = `https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${underlying}&end_timestamp=${endTimestamp}&resolution=${resolution}&start_timestamp=${startTimestamp}`;
+  const request = `https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${underlying}&end_timestamp=${endTimestamp}&resolution=${resolution}&start_timestamp=${startTimestamp}`;
   const response = await got(request);
 
   let candles = JSON.parse(response.body).result.data;
@@ -300,14 +294,18 @@ async function getAnnualizedVol(underlying: string, resolution: number) {
 
 async function updateTokenList(
   fileName: string,
-  vaultArtifactAbi: any,
-  ierc20Abi: any,
-  provider: any,
+  vaultArtifactAbi: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  ierc20Abi: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  provider: Provider,
   network: string
 ) {
   let tokens = [];
 
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifactAbi,
@@ -340,13 +338,17 @@ async function updateTokenList(
 
 async function settleAndBurn(
   gnosisAuction: Contract,
-  vaultArtifactAbi: any,
-  ierc20Abi: any,
-  provider: any,
+  vaultArtifactAbi: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  ierc20Abi: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  provider: Provider,
   signer: Wallet,
   network: string
 ) {
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifactAbi,
@@ -365,7 +367,7 @@ async function settleAndBurn(
           .connect(signer)
           .settleAuction(auctionID.toString(), {
             gasPrice: newGasPrice,
-            gasLimit: gasLimits["settleAuction"],
+            gasLimit: gasLimits.settleAuction,
           });
 
         await tx.wait();
@@ -381,15 +383,15 @@ async function settleAndBurn(
         provider
       ).balanceOf(vault.address);
 
-      if (parseInt(oTokenBalance.toString()) == 0) {
-        continue;
+      if (parseInt(oTokenBalance.toString()) === 0) {
+        continue; // eslint-disable-line no-continue
       }
 
       let newGasPrice2 = (await gas(network)).toString();
 
       const tx2 = await vault.connect(signer).burnRemainingOTokens({
         gasPrice: newGasPrice2,
-        gasLimit: gasLimits["burnRemainingOTokens"],
+        gasLimit: gasLimits.burnRemainingOTokens,
       });
 
       await log(`GnosisAuction-burnRemainingOTokens(): ${tx2.hash}`);
@@ -401,14 +403,19 @@ async function settleAndBurn(
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 async function claimFromParticipantOrder(
   gnosisAuction: Contract,
-  vaultArtifactAbi: any,
-  provider: any,
+  vaultArtifactAbi: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  provider: Provider,
   signer: Wallet,
   network: string
 ) {
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifactAbi,
@@ -431,7 +438,7 @@ async function claimFromParticipantOrder(
         .claimFromParticipantOrder(
           auctionID,
           [encodeOrder(await vault.auctionSellOrder())],
-          { gasPrice: newGasPrice, gasLimit: gasLimits["claimAuctionOtokens"] }
+          { gasPrice: newGasPrice, gasLimit: gasLimits.claimAuctionOtokens }
         );
 
       await log(
@@ -446,13 +453,17 @@ async function claimFromParticipantOrder(
 }
 
 async function runTX(
-  vaultArtifactAbi: any,
-  provider: any,
+  vaultArtifactAbi: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  provider: Provider,
   signer: Wallet,
   network: string,
   method: string
 ) {
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifactAbi,
@@ -466,7 +477,7 @@ async function runTX(
       (await vault.currentOption()) !== constants.AddressZero
     ) {
       await log(`${method} (${vaultName}): skipped`);
-      continue;
+      continue; // eslint-disable-line no-continue
     }
 
     let newGasPrice = (await gas(network)).toString();
@@ -492,12 +503,8 @@ async function strikeForecasting() {
   console.log("Forecasting strikes");
 
   const vaultArtifact = await hre.artifacts.readArtifact("RibbonThetaVault");
-  const gnosisArtifact = await hre.artifacts.readArtifact("GnosisAuction");
   const strikeSelectionArtifact = await hre.artifacts.readArtifact(
     "StrikeSelection"
-  );
-  const vaultLifecycleArtifact = await hre.artifacts.readArtifact(
-    "VaultLifecycle"
   );
   const stethArtifact = await hre.artifacts.readArtifact("IWSTETH");
   const yearnArtifact = await hre.artifacts.readArtifact("IYearnVault");
@@ -506,7 +513,11 @@ async function strikeForecasting() {
     "contracts/interfaces/IERC20Detailed.sol:IERC20Detailed"
   );
 
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifact.abi,
@@ -601,7 +612,11 @@ async function commitAndClose() {
 
   let msg = `${auctionParticipantTag} Strike prices have been selected. Auction begins at 11.15am UTC\n\n`;
 
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifact.abi,
@@ -649,7 +664,11 @@ async function rollToNextOption() {
 
   let msg = `Auctions have begun. Happy bidding!\n\n`;
 
-  for (let vaultName in deployments[network].vaults) {
+  for (
+    let vaultName = 0;
+    vaultName < deployments[network].vaults.length;
+    vaultName++
+  ) {
     const vault = new ethers.Contract(
       deployments[network].vaults[vaultName].address,
       vaultArtifact.abi,
@@ -703,7 +722,11 @@ async function updateManualVol() {
   let dvolBTC = await getAnnualizedVol("BTC", 1);
   let dvolETH = await getAnnualizedVol("ETH", 1);
 
-  for (let univ3poolName in deployments[network].univ3pools) {
+  for (
+    let univ3poolName = 0;
+    univ3poolName < deployments[network].univ3pools.length;
+    univ3poolName++
+  ) {
     let newGasPrice = (await gas(network)).toString();
     const tx = await volOracle
       .connect(signer)
@@ -712,7 +735,7 @@ async function updateManualVol() {
         univ3poolName.includes("btc") ? dvolBTC : dvolETH,
         {
           gasPrice: newGasPrice,
-          gasLimit: gasLimits["volOracleAnnualizedVol"],
+          gasLimit: gasLimits.volOracleAnnualizedVol,
         }
       );
     await log(
@@ -730,13 +753,17 @@ async function updateVolatility() {
     provider
   );
 
-  for (let univ3poolName in deployments[network].univ3pools) {
+  for (
+    let univ3poolName = 0;
+    univ3poolName < deployments[network].univ3pools.length;
+    univ3poolName++
+  ) {
     let newGasPrice = (await gas(network)).toString();
     const tx = await volOracle
       .connect(signer)
       .commit(deployments[network].univ3pools[univ3poolName], {
         gasPrice: newGasPrice,
-        gasLimit: gasLimits["volOracleCommit"],
+        gasLimit: gasLimits.volOracleCommit,
       });
     await log(
       `VolOracle-commit()-(${univ3poolName}): <https://etherscan.io/tx/${tx.hash}>`
@@ -766,7 +793,7 @@ async function run() {
   const AUCTION_LIFE_TIME_DELAY = 1; // 1 hours
   const VOL_PERIOD = 12 * 3600; // 12 hours
 
-  var futureStrikeForecasting = new CronJob(
+  const futureStrikeForecasting = new CronJob(
     // 0 0 9 * * 5 = 9:45am UTC on Fridays.
     `0 ${COMMIT_AND_CLOSE_MINUTE_SHIFT} ${
       COMMIT_START - STRIKE_FORECAST_HOURS_IN_ADVANCE
@@ -783,7 +810,7 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  var commitAndCloseJob = new CronJob(
+  const commitAndCloseJob = new CronJob(
     // 0 45 10 * * 5 = 10:45am UTC on Fridays.
     `0 ${COMMIT_AND_CLOSE_MINUTE_SHIFT} ${COMMIT_START} * * 5`,
     async function () {
@@ -794,7 +821,7 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  var rollToNextOptionJob = new CronJob(
+  const rollToNextOptionJob = new CronJob(
     `0 ${NETWORK_CONGESTION_BUFFER} ${COMMIT_START + 1} * * 5`,
     async function () {
       await rollToNextOption();
@@ -804,7 +831,7 @@ async function run() {
     "Atlantic/Reykjavik"
   );
 
-  var settleAuctionJob = new CronJob(
+  let settleAuctionJob = new CronJob(
     `0 ${NETWORK_CONGESTION_BUFFER} ${
       COMMIT_START + AUCTION_LIFE_TIME_DELAY + 1
     } * * 5`,
@@ -822,7 +849,7 @@ async function run() {
   const CLOSEST_VALID_TIME =
     1000 * (await getTopOfPeriod(provider, VOL_PERIOD));
 
-  var updateVolatilityJob = new CronJob(
+  CronJob(
     new Date(CLOSEST_VALID_TIME),
     function () {
       var _ = new CronJob(

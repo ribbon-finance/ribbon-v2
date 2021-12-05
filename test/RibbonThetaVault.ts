@@ -1137,7 +1137,7 @@ function behavesLikeRibbonOptionsVault(params: {
           );
 
           let pool = await dexFactory.getPool(asset, asset, 10000);
-          if (pool == constants.AddressZero) {
+          if (pool === constants.AddressZero) {
             ref = "Pool does not exist";
           }
           await expect(
@@ -1903,7 +1903,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        let assetBalanceBeforeSettle: any;
+        let assetBalanceBeforeSettle;
         let minAmountOut: BigNumber;
 
         if (isUsdcAuction) {
@@ -1937,9 +1937,9 @@ function behavesLikeRibbonOptionsVault(params: {
           "0"
         );
 
-        let assetBalanceAfterSettle: any;
-
-        assetBalanceAfterSettle = await assetContract.balanceOf(vault.address);
+        let assetBalanceAfterSettle = await assetContract.balanceOf(
+          vault.address
+        );
 
         if (isUsdcAuction) {
           // Using at least as DEX swap might yield larger amount than minimum
