@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.13.0]
+        node-version: [14.17.0]
 
     steps:
       - run: git config --global url."https://".insteadOf git://
@@ -61,7 +61,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.13.0]
+        node-version: [14.17.0]
 
     steps:
       - run: git config --global url."https://".insteadOf git://
@@ -86,5 +86,5 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: Lint contracts
         run: yarn lint:sol
-      - name: Lint tests
-        run: yarn lint:test
+      - name: Lint typescript
+        run: yarn lint:ts
