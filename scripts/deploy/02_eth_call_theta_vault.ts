@@ -1,6 +1,7 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
+  CHAINID,
   WETH_ADDRESS,
   ETH_USDC_POOL,
   USDC_PRICE_ORACLE,
@@ -16,6 +17,20 @@ import {
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
 } from "../utils/constants";
+
+const TOKEN_NAME = {
+  [CHAINID.ETH_MAINNET]: 'Ribbon ETH Theta Vault',
+  [CHAINID.ETH_KOVAN]: 'Ribbon ETH Theta Vault',
+  [CHAINID.AVAX_MAINNET]: 'Ribbon AVAX Theta Vault',
+  [CHAINID.AVAX_FUJI]: 'Ribbon AVAX Theta Vault',
+};
+
+const TOKEN_SYMBOL = {
+  [CHAINID.ETH_MAINNET]: 'rETH-THETA',
+  [CHAINID.ETH_KOVAN]: 'rETH-THETA',
+  [CHAINID.AVAX_MAINNET]: 'rAVAX-THETA',
+  [CHAINID.AVAX_FUJI]: 'rAVAX-THETA',
+};
 
 const main = async ({
   network,
@@ -81,8 +96,8 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: "Ribbon ETH Theta Vault",
-      _tokenSymbol: "rETH-THETA",
+      _tokenName: TOKEN_NAME[chainId],
+      _tokenSymbol: TOKEN_SYMBOL[chainId],
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
