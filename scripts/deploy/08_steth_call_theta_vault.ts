@@ -1,11 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { CHAINID, WETH_ADDRESS } from "../../constants/constants";
-import {
-  AUCTION_DURATION,
-  MANAGEMENT_FEE,
-  PERFORMANCE_FEE,
-  PREMIUM_DISCOUNT,
-} from "../utils/constants";
+import { MANAGEMENT_FEE, PERFORMANCE_FEE, PREMIUM_DISCOUNT, AUCTION_DURATION } from "../utils/constants";
 
 const main = async ({
   network,
@@ -16,14 +11,17 @@ const main = async ({
   const chainId = network.config.chainId;
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
-    console.log(`08 - Skipping deployment stETH Call Theta Vault on ${network.name} because no stEth on Avax`);
+    console.log(
+      `08 - Skipping deployment stETH Call Theta Vault on ${network.name} because no stEth on Avax`
+    );
     return;
   }
 
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
-  const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
+  const { deployer, owner, keeper, admin, feeRecipient } =
+    await getNamedAccounts();
 
   console.log(`08 - Deploying stETH Call Theta Vault on ${network.name}`);
 
@@ -55,6 +53,8 @@ const main = async ({
     "rstETH-THETA",
     pricer.address,
     strikeSelection.address,
+    PREMIUM_DISCOUNT,
+    AUCTION_DURATION,
     {
       isPut: false,
       decimals: 18,
