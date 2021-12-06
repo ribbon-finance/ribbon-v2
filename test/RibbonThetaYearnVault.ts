@@ -12,7 +12,6 @@ import {
   MARGIN_POOL,
   OTOKEN_FACTORY,
   USDC_ADDRESS,
-  Y_USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WETH_ADDRESS,
   Y_WETH_ADDRESS,
@@ -22,6 +21,7 @@ import {
   YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricerInStables_BYTECODE,
   TestVolOracle_BYTECODE,
+  YVUSDC_V0_4_3,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -63,36 +63,6 @@ const chainId = network.config.chainId;
 
 describe("RibbonThetaYearnVault", () => {
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS[chainId],
-    assetContractName: "IWETH",
-    collateralContractName: "IYearnVault",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: Y_WETH_ADDRESS,
-    depositAsset: WETH_ADDRESS[chainId],
-    collateralPricer: YEARN_WETH_PRICER,
-    underlyingPricer: CHAINLINK_WETH_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("98918178"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 154539,
-      depositBestCase: 135000,
-    },
-  });
-
-  behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Yearn Theta Vault (Put)`,
     tokenName: "Ribbon ETH Yearn Theta Vault (Put)",
     tokenSymbol: "ryvUSDC-ETH-P-THETA",
@@ -100,7 +70,7 @@ describe("RibbonThetaYearnVault", () => {
     assetContractName: "IWETH",
     collateralContractName: "IYearnVault",
     strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: Y_USDC_ADDRESS,
+    collateralAsset: YVUSDC_V0_4_3,
     depositAsset: USDC_ADDRESS[chainId],
     collateralPricer: YEARN_USDC_PRICER,
     underlyingPricer: CHAINLINK_WETH_PRICER[chainId],
