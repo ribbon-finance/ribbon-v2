@@ -29,13 +29,17 @@ const main = async (
     await run("verify:verify", {
       address: VaultLifecycle.address,
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error(e);
+  }
 
   try {
     await run("verify:verify", {
       address: VaultLifecycleSTETH.address,
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error(e);
+  }
 
   const THETA_VAULT_ARGS = [
     WETH_ADDRESS[chainId],
@@ -54,7 +58,9 @@ const main = async (
       constructorArguments: THETA_VAULT_ARGS,
       libraries: { VaultLifecycle: VaultLifecycle.address },
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error(e);
+  }
 
   const THETA_VAULT_STETH_ARGS = [
     WETH_ADDRESS[chainId],
@@ -77,6 +83,8 @@ const main = async (
         VaultLifecycleSTETH: VaultLifecycleSTETH.address,
       },
     });
-  } catch (e) {}
+  } catch (e) {
+    console.error(e);
+  }
 };
 export default main;
