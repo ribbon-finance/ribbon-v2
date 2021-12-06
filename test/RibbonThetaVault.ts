@@ -75,7 +75,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("1000"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -107,7 +107,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -135,16 +135,16 @@ describe("RibbonThetaVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
-    deltaFirstOption: BigNumber.from("100"),
-    deltaSecondOption: BigNumber.from("100"),
-    deltaStep: BigNumber.from("10"),
-    depositAmount: BigNumber.from("100000000"),
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
+    depositAmount: BigNumber.from("100000000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from(
-      chainId === CHAINID.AVAX_MAINNET ? "333333333" : "2932551"
+      chainId === CHAINID.AVAX_MAINNET ? "142857142857" : "2702702702"
     ),
     auctionDuration: 21600,
     tokenDecimals: 6,
@@ -171,7 +171,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -203,7 +203,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -557,8 +557,6 @@ function behavesLikeRibbonOptionsVault(params: {
         params.isPut
       );
 
-      console.log('firstOptionExpiry', firstOptionExpiry, firstOptionStrike.toString());
-
       firstOptionPremium = BigNumber.from(
         await optionsPremiumPricer.getPremium(
           firstOptionStrike,
@@ -593,7 +591,6 @@ function behavesLikeRibbonOptionsVault(params: {
         .unix();
 
       secondOptionStrike = firstOptionStrike.add(await strikeSelection.step());
-        console.log('secondOptionExpiry', secondOptionExpiry, secondOptionStrike.toString());
 
       await strikeSelection.setDelta(params.deltaFirstOption);
 
@@ -1701,8 +1698,6 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset === WETH_ADDRESS[chainId]
             ? strikePriceForChain
             : BigNumber.from("4050000000000");
-
-        console.log('newStrikePrice', newStrikePrice.toString());
 
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
