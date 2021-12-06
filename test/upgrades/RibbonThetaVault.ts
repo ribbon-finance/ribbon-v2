@@ -11,6 +11,8 @@ import {
   DEX_FACTORY,
 } from "../../constants/constants";
 import { parseLog } from "../helpers/utils";
+import deployments from "../../constants/deployments.json";
+import { BigNumber, BigNumberish } from "ethers";
 
 const { parseEther } = ethers.utils;
 
@@ -26,6 +28,8 @@ const FORK_BLOCK = 13731470;
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
 describe("RibbonThetaVault upgrade", () => {
+  let vaults: string[] = [];
+
   before(async function () {
     // We need to checkpoint the contract on mainnet to a past block before the upgrade happens
     // This means the `implementation` is pointing to an old contract
@@ -53,16 +57,24 @@ describe("RibbonThetaVault upgrade", () => {
       method: "hardhat_impersonateAccount",
       params: [UPGRADE_ADMIN],
     });
+
+    const deploymentNames = [
+      "RibbonThetaVaultETHCall",
+      "RibbonThetaVaultWBTCCall",
+      "RibbonThetaVaultAAVECall",
+    ];
+    deploymentNames.forEach((name) =>
+      vaults.push(deployments["mainnet"][name])
+    );
   });
 
-  checkIfStorageNotCorrupted("0x25751853Eab4D0eB3652B5eB6ecB102A2789644B");
-  checkIfStorageNotCorrupted("0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F");
-  checkIfStorageNotCorrupted("0xe63151A0Ed4e5fafdc951D877102cf0977Abd365");
-  checkIfStorageNotCorrupted("0x53773E034d9784153471813dacAFF53dBBB78E8c");
+  checkIfStorageNotCorrupted(deployments["mainnet"].RibbonThetaVaultETHCall);
+  checkIfStorageNotCorrupted(deployments["mainnet"].RibbonThetaVaultWBTCCall);
+  checkIfStorageNotCorrupted(deployments["mainnet"].RibbonThetaVaultAAVECall);
 });
 
 function checkIfStorageNotCorrupted(vaultAddress: string) {
-  const getVaultStorage = async (storageIndex: number | string) => {
+  const getVaultStorage = async (storageIndex: BigNumberish) => {
     return await ethers.provider.getStorageAt(vaultAddress, storageIndex);
   };
 
@@ -97,8 +109,9 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     254,
     255,
     256,
-  ];
-  let storageLayout: [number | string, string][];
+  ].map((s) => BigNumber.from(s));
+
+  let storageLayout: [BigNumber, string][];
 
   describe(`Vault ${vaultAddress}`, () => {
     let newImplementation: string;

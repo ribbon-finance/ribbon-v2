@@ -1,3 +1,4 @@
+import { TaskArguments } from "hardhat/types";
 import {
   DEX_FACTORY,
   DEX_ROUTER,
@@ -12,7 +13,10 @@ import {
   WSTETH_ADDRESS,
 } from "../../constants/constants";
 
-const main = async (_taskArgs: any, { deployments, network, run }) => {
+const main = async (
+  _taskArgs: TaskArguments,
+  { deployments, network, run }
+) => {
   const chainId = network.config.chainId;
   const RibbonThetaVaultLogic = await deployments.get("RibbonThetaVaultLogic");
   const RibbonThetaVaultSTETHLogic = await deployments.get(
