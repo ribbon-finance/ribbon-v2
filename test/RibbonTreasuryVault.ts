@@ -72,7 +72,7 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
+    managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("0"), //BigNumber.from("20000000"),
     auctionDuration: 21600,
     tokenDecimals: 18,
@@ -87,6 +87,7 @@ describe("RibbonTreasuryVault", () => {
     whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: SUSHI_ADDRESS[chainId],
     period: 7,
+    day: 5,
     distribute: false,
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
@@ -123,6 +124,7 @@ describe("RibbonTreasuryVault", () => {
     whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: USDC_ADDRESS[chainId],
     period: 7,
+    day: 5,
     distribute: false,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
@@ -159,6 +161,7 @@ describe("RibbonTreasuryVault", () => {
     whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: WETH_ADDRESS[chainId],
     period: 7,
+    day: 5,
     distribute: false,
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
@@ -238,6 +241,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumAsset: string;
   premiumDecimals: number;
   period: number;
+  day: number;
   distribute: boolean;
   availableChains: number[];
 }) {
@@ -277,6 +281,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let premiumAsset = params.premiumAsset;
   let premiumDecimals = params.premiumDecimals;
   let period = params.period;
+  let day = params.day;
   let multiAsset = params.asset != params.premiumAsset;
   let whitelistLimit = 5;
   let distribute = params.distribute;
@@ -286,7 +291,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let vaultLifecycleLib: Contract;
+  let vaultLifecycleTreasuryLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
@@ -409,8 +414,8 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
-      vaultLifecycleLib = await VaultLifecycle.deploy();
+      const VaultLifecycleTreasury = await ethers.getContractFactory("VaultLifecycleTreasury");
+      vaultLifecycleTreasuryLib = await VaultLifecycleTreasury.deploy();
 
       gnosisAuction = await getContractAt(
         "IGnosisAuction",
@@ -433,6 +438,7 @@ function behavesLikeRibbonOptionsVault(params: {
           whitelist,
           premiumAsset,
           period,
+          day,
           distribute
         ],
         [
@@ -462,7 +468,7 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleTreasury: vaultLifecycleTreasuryLib.address,
             },
           }
         )
@@ -615,7 +621,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonTreasuryVault",
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleTreasury: vaultLifecycleTreasuryLib.address,
             },
           }
         );
@@ -696,6 +702,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
+              day,
               distribute
             ],
             [
@@ -728,6 +735,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
+              day,
               distribute
             ],
             [
@@ -760,6 +768,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
+              day,
               distribute
             ],
             [
@@ -792,6 +801,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
+              day,
               distribute
             ],
             [
@@ -824,6 +834,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
+              day,
               distribute
             ],
             [
@@ -856,6 +867,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
+              day,
               distribute
             ],
             [
