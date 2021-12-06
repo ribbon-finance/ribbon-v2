@@ -17,7 +17,6 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {
     VaultLifecycleTreasury
 } from "../../libraries/VaultLifecycleTreasury.sol";
@@ -223,6 +222,7 @@ contract RibbonTreasuryVault is
         address[] _whitelist;
         address _premiumAsset;
         uint256 _period;
+        uint256 _day;
         bool _distribute;
     }
 
@@ -269,7 +269,7 @@ contract RibbonTreasuryVault is
         InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
-        VaultLifecycle.verifyInitializerParams(
+        VaultLifecycleTreasury.verifyInitializerParams(
             _initParams._owner,
             _initParams._keeper,
             _initParams._feeRecipient,
@@ -287,12 +287,19 @@ contract RibbonTreasuryVault is
 
         keeper = _initParams._keeper;
     
-        period = _initParams._period;
-
         require(
             (_initParams._period == 30) || ((_initParams._period % 7) == 0),
             "!_period"
         );
+
+        require(
+            _initParams._day < 7,
+            "!_day"
+        );
+
+        period = _initParams._period;
+        day = _initParams._day;
+
 
         if (distribute) {
             require(
@@ -965,14 +972,16 @@ contract RibbonTreasuryVault is
     function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycle.CloseParams memory closeParams =
-            VaultLifecycle.CloseParams({
+        VaultLifecycleTreasury.CloseParams memory closeParams =
+            VaultLifecycleTreasury.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                day: day,
+                period: period
             });
 
         (
@@ -981,7 +990,7 @@ contract RibbonTreasuryVault is
             uint256 strikePrice,
             uint256 delta
         ) =
-            VaultLifecycle.commitAndClose(
+            VaultLifecycleTreasury.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
@@ -1020,7 +1029,7 @@ contract RibbonTreasuryVault is
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
+                VaultLifecycleTreasury.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -1042,7 +1051,7 @@ contract RibbonTreasuryVault is
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
+        VaultLifecycleTreasury.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -1076,7 +1085,7 @@ contract RibbonTreasuryVault is
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
-        optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
+        optionAuctionID = VaultLifecycleTreasury.startAuction(auctionDetails);
     }
 
     /**
@@ -1084,7 +1093,7 @@ contract RibbonTreasuryVault is
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
-            VaultLifecycle.burnOtokens(
+            VaultLifecycleTreasury.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
@@ -1098,7 +1107,7 @@ contract RibbonTreasuryVault is
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function settleAuction() external onlyKeeper nonReentrant {
-        VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
+        VaultLifecycleTreasury.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
 
         // Fee charging
         address recipient = feeRecipient;
