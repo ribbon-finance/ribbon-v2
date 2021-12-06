@@ -30,6 +30,8 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     address[] public whitelistArray;
     // @notice Period between each options sale.
     uint256 public period;
+    // @notice Weekday number to sell options.
+    uint256 public day;
     // Whether premium proceeds should be distributed.
     bool public distribute;
 }

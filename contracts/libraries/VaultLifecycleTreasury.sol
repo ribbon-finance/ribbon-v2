@@ -22,6 +22,16 @@ library VaultLifecycleTreasury {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
 
+    struct DateTime {
+        uint16 year;
+        uint8 month;
+        uint8 day;
+        uint8 hour;
+        uint8 minute;
+        uint8 second;
+        uint8 weekday;
+    }
+
     struct CloseParams {
         address OTOKEN_FACTORY;
         address USDC;
@@ -29,6 +39,8 @@ library VaultLifecycleTreasury {
         uint256 delay;
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
+        uint256 day;
+        uint256 period;
     }
 
     /**
@@ -65,10 +77,18 @@ library VaultLifecycleTreasury {
 
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextFriday(block.timestamp);
+            expiry = getNextExpiry(
+                block.timestamp,
+                5,
+                7,
+                true
+            );
         } else {
-            expiry = getNextFriday(
-                IOtoken(closeParams.currentOption).expiryTimestamp()
+            expiry = getNextExpiry(
+                IOtoken(closeParams.currentOption).expiryTimestamp(),
+                5,
+                7,
+                true
             );
         }
 
@@ -765,5 +785,159 @@ library VaultLifecycleTreasury {
             friday8am += 7 days;
         }
         return friday8am;
+    }
+
+    function getNextExpiry(
+        uint256 currentExpiry, 
+        uint256 day, 
+        uint256 period, // no of days in between option selling
+        bool initial
+    )
+        internal
+        pure
+        returns (uint256 nextExpiry)
+    {   
+        if (initial) {
+            uint256 weekday = getWeekday(currentExpiry) == 0
+                ? 7
+                : getWeekday(currentExpiry);
+
+            nextExpiry = (weekday >= day
+                ? currentExpiry - (weekday - day) * 1 days + 1 weeks
+                : currentExpiry + (day - weekday) * 1 days);
+        } else if (period == 30) {
+            nextExpiry = getNextMonthExpiry(currentExpiry, day); 
+        } else if (period % 7 == 0) {
+            uint256 weekday = getWeekday(currentExpiry) == 0
+                ? 7
+                : getWeekday(currentExpiry);
+
+            nextExpiry = (weekday >= day
+                    ? currentExpiry - (weekday - day) * 1 days
+                    : currentExpiry + (day - weekday) * 1 days)
+                + (period / 7) * 1 weeks;
+        }
+
+        nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
+        
+        return nextExpiry;
+    }
+
+    /************************************************
+     *  DATE HELPERS
+     ***********************************************/
+
+    uint constant DAY_IN_SECONDS = 86400;
+    uint constant YEAR_IN_SECONDS = 31536000;
+    uint constant LEAP_YEAR_IN_SECONDS = 31622400;
+
+    uint constant HOUR_IN_SECONDS = 3600;
+    uint constant MINUTE_IN_SECONDS = 60;
+
+    uint16 constant ORIGIN_YEAR = 1970;
+
+    function isLeapYear(uint16 year) public pure returns (bool) {
+        if (year % 4 != 0) {
+                return false;
+        }
+        if (year % 100 != 0) {
+                return true;
+        }
+        if (year % 400 != 0) {
+                return false;
+        }
+        return true;
+    }
+
+    function leapYearsBefore(uint year) public pure returns (uint) {
+        year -= 1;
+        return year / 4 - year / 100 + year / 400;
+    }
+
+    function getDaysInMonth(uint8 month, uint16 year) public pure returns (uint8) {
+        if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) {
+                return 31;
+        }
+        else if (month == 4 || month == 6 || month == 9 || month == 11) {
+                return 30;
+        }
+        else if (isLeapYear(year)) {
+                return 29;
+        }
+        else {
+                return 28;
+        }
+    }
+
+    function getNextMonthExpiry(uint256 timestamp, uint256 day) internal pure returns (uint256 nextMonthExpiry) {
+        uint secondsAccountedFor = 0;
+        uint buf;
+        uint8 i;
+        uint8 month;
+
+        // Year
+        uint16 year = getYear(timestamp);
+        buf = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
+
+        secondsAccountedFor += LEAP_YEAR_IN_SECONDS * buf;
+        secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - buf);
+
+        // Month
+        uint secondsInMonth;
+        for (i = 1; i <= 12; i++) {
+                secondsInMonth = DAY_IN_SECONDS * getDaysInMonth(i, year);
+                if (secondsInMonth + secondsAccountedFor > timestamp) {
+                        month = i;
+                        break;
+                }
+                secondsAccountedFor += secondsInMonth;
+        }
+
+        // Day
+        for (i = 1; i <= getDaysInMonth(month, year); i++) {
+                if (DAY_IN_SECONDS + secondsAccountedFor > timestamp) {
+                        day = i;
+                        break;
+                }
+                secondsAccountedFor += DAY_IN_SECONDS;
+        }
+
+        // Adjust
+        nextMonthExpiry = timestamp 
+            + (getDaysInMonth(month, year) - day) * 1 days;
+
+        uint256 weekday = getWeekday(nextMonthExpiry);
+        
+        nextMonthExpiry -= weekday > day
+            ? (weekday - day) * 1 days
+            : 7 days - (day - weekday) * 1 days;
+    }
+
+    function getYear(uint timestamp) public pure returns (uint16) {
+            uint secondsAccountedFor = 0;
+            uint16 year;
+            uint numLeapYears;
+
+            // Year
+            year = uint16(ORIGIN_YEAR + timestamp / YEAR_IN_SECONDS);
+            numLeapYears = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
+
+            secondsAccountedFor += LEAP_YEAR_IN_SECONDS * numLeapYears;
+            secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - numLeapYears);
+
+            while (secondsAccountedFor > timestamp) {
+                    if (isLeapYear(uint16(year - 1))) {
+                            secondsAccountedFor -= LEAP_YEAR_IN_SECONDS;
+                    }
+                    else {
+                            secondsAccountedFor -= YEAR_IN_SECONDS;
+                    }
+                    year -= 1;
+            }
+            return year;
+    }
+    
+    function getWeekday(uint timestamp) public pure returns (uint256) {
+        return uint256((timestamp / DAY_IN_SECONDS + 4) % 7);
     }
 }
