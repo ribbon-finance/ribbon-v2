@@ -64,13 +64,13 @@ describe("RibbonThetaVault upgrade", () => {
       "RibbonThetaVaultAAVECall",
     ];
     deploymentNames.forEach((name) =>
-      vaults.push(deployments["mainnet"][name])
+      vaults.push(deployments.mainnet[name])
     );
   });
 
-  checkIfStorageNotCorrupted(deployments["mainnet"].RibbonThetaVaultETHCall);
-  checkIfStorageNotCorrupted(deployments["mainnet"].RibbonThetaVaultWBTCCall);
-  checkIfStorageNotCorrupted(deployments["mainnet"].RibbonThetaVaultAAVECall);
+  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultETHCall);
+  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultWBTCCall);
+  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultAAVECall);
 });
 
 function checkIfStorageNotCorrupted(vaultAddress: string) {
