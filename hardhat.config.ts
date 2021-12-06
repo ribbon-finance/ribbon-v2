@@ -7,6 +7,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
+import verifyContracts from "./scripts/tasks/verifyContracts";
 import { BLOCK_NUMBER } from "./constants/constants";
 import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
@@ -49,8 +50,9 @@ export default {
     },
     mainnet: {
       url: process.env.TEST_URI,
+      chainId: CHAINID,
       accounts: {
-        mnemonic: process.env.TEST_MNEMONIC,
+        mnemonic: process.env.MAINNET_MNEMONIC,
       },
     },
     kovan: {
@@ -120,3 +122,4 @@ export default {
 };
 
 task("export-deployments", "Exports deployments into JSON", exportDeployments);
+task("verify-contracts", "Verify solidity source", verifyContracts);

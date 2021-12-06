@@ -30,10 +30,7 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`07 - Deploying Theta Vault stETH logic on ${network.name}`);
 
-  const lifecycle = await deploy("VaultLifecycle", {
-    contract: "VaultLifecycle",
-    from: deployer,
-  });
+  const lifecycle = await deployments.get("VaultLifecycle");
 
   const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
     contract: "VaultLifecycleSTETH",
