@@ -11,13 +11,13 @@ export enum CHAINID {
 
 export const BLOCK_NUMBER = {
   [CHAINID.ETH_MAINNET]: 12529250,
-  [CHAINID.AVAX_MAINNET]: 7875461,
+  [CHAINID.AVAX_MAINNET]: 7882048,
   [CHAINID.AVAX_FUJI]: 2823963,
 };
 
 export const BLOCK_NUMBER_NEW = {
   [CHAINID.ETH_MAINNET]: 13505726, // Updated block number to accomodate new Opyn Gamma Oracle
-  [CHAINID.AVAX_MAINNET]: 7875461, // No change
+  [CHAINID.AVAX_MAINNET]: 7882048, // No change
   [CHAINID.AVAX_FUJI]: 2823963, // No change
 };
 
