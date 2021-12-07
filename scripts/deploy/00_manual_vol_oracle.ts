@@ -22,6 +22,8 @@ const main = async ({
   });
 
   console.log(`ManualVolOracle @ ${oracle.address}`);
+
+  // Cannot verify because of compiler mismatch.
 };
 main.tags = ["ManualVolOracle"];
 

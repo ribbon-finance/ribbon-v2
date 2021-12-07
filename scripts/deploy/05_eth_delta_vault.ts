@@ -1,3 +1,4 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { CHAINID, WETH_ADDRESS } from "../../constants/constants";
 import { MANAGEMENT_FEE, PERFORMANCE_FEE } from "../utils/constants";
@@ -77,6 +78,20 @@ const main = async ({
   });
 
   console.log(`RibbonDeltaVaultETHCall @ ${vault.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
 };
 main.tags = ["RibbonDeltaVaultETHCall"];
 main.dependencies = ["RibbonDeltaVaultLogic"];

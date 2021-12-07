@@ -1,10 +1,11 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
   WETH_ADDRESS,
+  ETH_USDC_POOL,
   USDC_PRICE_ORACLE,
   ETH_PRICE_ORACLE,
-  ETH_USDC_POOL,
   OptionsPremiumPricer_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
@@ -45,8 +46,8 @@ const main = async ({
   console.log(`02 - Deploying ETH Call Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
-  const manualVolOracle = await deployments.get("ManualVolOracle");
 
+  const manualVolOracle = await deployments.get("ManualVolOracle");
   const underlyingOracle = ETH_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
@@ -64,20 +65,29 @@ const main = async ({
     ],
   });
 
+  console.log(`RibbonThetaVaultETHCall pricer @ ${pricer.address}`);
+
+  // Can't verify pricer because it's compiled with 0.7.3
+
   const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "StrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
   });
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
+  console.log(`RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`);
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
+  try {
+    await run('verify:verify', {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
+  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
 
   const initArgs = [
     {
@@ -110,13 +120,22 @@ const main = async ({
     initArgs
   );
 
-  const vault = await deploy("RibbonThetaVaultETHCall", {
+  const proxy = await deploy("RibbonThetaVaultETHCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultETHCall @ ${vault.address}`);
+  console.log(`RibbonThetaVaultETHCall Proxy @ ${proxy.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: proxy.address,
+      constructorArguments: [logicDeployment.address, admin, initData],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
 main.tags = ["RibbonThetaVaultETHCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
