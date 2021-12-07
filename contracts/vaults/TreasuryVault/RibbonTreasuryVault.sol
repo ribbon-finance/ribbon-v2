@@ -489,6 +489,7 @@ contract RibbonTreasuryVault is
         external
         onlyOwner
         nonReentrant
+<<<<<<< HEAD
     {
         _addWhitelist(newWhitelist);
     }
@@ -498,6 +499,9 @@ contract RibbonTreasuryVault is
      * @param newWhitelist is the address to include in the whitelist
      */
     function _addWhitelist(address newWhitelist) internal {
+=======
+    {   
+>>>>>>> 1d4bfe1 (Modified whitelist related method)
         require(newWhitelist != address(0), "Whitelist null");
         require(!whitelistMap[newWhitelist], "Whitelist duplicate");
         require(
@@ -517,6 +521,7 @@ contract RibbonTreasuryVault is
         external
         onlyOwner
         nonReentrant
+<<<<<<< HEAD
     {
         require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
         require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
@@ -526,6 +531,23 @@ contract RibbonTreasuryVault is
         for (uint256 i = 0; i < whitelistArray.length; i++) {
             if (excludeWhitelist == whitelistArray[i]) {
                 for (uint256 j = i; j < whitelistArray.length - 1; j++) {
+=======
+    {   
+        require(
+            whitelistMap[excludeWhitelist],
+            "Whitelist does not exist"
+        );
+        require(
+            (whitelistArray.length - 1) > 0,
+            "Whitelist cannot be empty"
+        );
+
+        whitelistMap[excludeWhitelist] = false;
+
+        for (uint256 i = 0; i < whitelistArray.length; i++) {
+            if (excludeWhitelist == whitelistArray[i]) {
+                for (uint j = i; j < whitelistArray.length - 1; j++) {
+>>>>>>> 1d4bfe1 (Modified whitelist related method)
                     whitelistArray[j] = whitelistArray[j + 1];
                 }
                 whitelistArray.pop();
@@ -1349,4 +1371,8 @@ contract RibbonTreasuryVault is
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1d4bfe1 (Modified whitelist related method)
 }
