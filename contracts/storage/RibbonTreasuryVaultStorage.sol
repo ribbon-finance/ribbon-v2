@@ -9,10 +9,14 @@ abstract contract RibbonTreasuryVaultStorageV1 {
      ***********************************************/
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     /// @notice Vault's parameters like cap, decimals
 =======
      /// @notice Vault's parameters like cap, decimals
 >>>>>>> 71f1cf1 (Reorganize storage)
+=======
+    /// @notice Vault's parameters like cap, decimals
+>>>>>>> 8d10055 (Formatting)
     Vault.VaultParams public vaultParams;
 
     /// @notice Vault's lifecycle state like round and locked amounts

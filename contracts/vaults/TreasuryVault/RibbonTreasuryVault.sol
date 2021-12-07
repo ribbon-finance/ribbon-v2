@@ -490,6 +490,9 @@ contract RibbonTreasuryVault is
         onlyOwner
         nonReentrant
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8d10055 (Formatting)
     {
         _addWhitelist(newWhitelist);
     }
@@ -499,9 +502,12 @@ contract RibbonTreasuryVault is
      * @param newWhitelist is the address to include in the whitelist
      */
     function _addWhitelist(address newWhitelist) internal {
+<<<<<<< HEAD
 =======
     {   
 >>>>>>> 1d4bfe1 (Modified whitelist related method)
+=======
+>>>>>>> 8d10055 (Formatting)
         require(newWhitelist != address(0), "Whitelist null");
         require(!whitelistMap[newWhitelist], "Whitelist duplicate");
         require(
@@ -522,6 +528,7 @@ contract RibbonTreasuryVault is
         onlyOwner
         nonReentrant
 <<<<<<< HEAD
+<<<<<<< HEAD
     {
         require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
         require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
@@ -541,13 +548,22 @@ contract RibbonTreasuryVault is
             (whitelistArray.length - 1) > 0,
             "Whitelist cannot be empty"
         );
+=======
+    {
+        require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
+        require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
+>>>>>>> 8d10055 (Formatting)
 
         whitelistMap[excludeWhitelist] = false;
 
         for (uint256 i = 0; i < whitelistArray.length; i++) {
             if (excludeWhitelist == whitelistArray[i]) {
+<<<<<<< HEAD
                 for (uint j = i; j < whitelistArray.length - 1; j++) {
 >>>>>>> 1d4bfe1 (Modified whitelist related method)
+=======
+                for (uint256 j = i; j < whitelistArray.length - 1; j++) {
+>>>>>>> 8d10055 (Formatting)
                     whitelistArray[j] = whitelistArray[j + 1];
                 }
                 whitelistArray.pop();
@@ -1372,7 +1388,10 @@ contract RibbonTreasuryVault is
         return vaultState.totalPending;
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> 1d4bfe1 (Modified whitelist related method)
+=======
+>>>>>>> 8d10055 (Formatting)
 }
