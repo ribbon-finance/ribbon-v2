@@ -343,7 +343,7 @@ export async function bidForOToken(
     "0x0000000000000000000000000000000000000000000000000000000000000001";
 
   await assetContract.connect(userSigner).approve(gnosisAuction.address, bid);
-
+  
   // BID OTOKENS HERE
   await gnosisAuction
     .connect(userSigner)

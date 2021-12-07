@@ -73,18 +73,23 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-    // Period between each options sale.
+
+    /// @notice Period between each options sale.
     uint256 public period;
-    // Weekday number for the options sale.
-    uint256 public day;
-    // Performance fee to be charged if options expire ITM
+
+    /// @notice Weekday number for the options sale.
+    uint256 public weekday;
+
+    /// @notice Performance fee to be charged if options expire ITM
     uint256 public previousPerformanceFee;
-    // Store the performance fee owed from the previous round
+
+    /// @notice Store the performance fee owed from the previous round
     uint256 public performanceFeeOwed;
 
-    // Last round id at which the strike was manually overridden
+    /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
-    // Whether premium proceeds should be distributed.
+
+    /// @notice Whether premium proceeds should be distributed.
     bool public distribute;
 }
 
