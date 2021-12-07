@@ -755,30 +755,47 @@ library VaultLifecycleTreasury {
         uint256 period, // no of days in between option selling
         bool initial
     ) internal pure returns (uint256 nextExpiry) {
-        if (initial) {
+        if (period % 30 == 0) {
+            uint256 monthExpiry = getMonthExpiry(currentExpiry, day);
+            nextExpiry = initial
+                ? monthExpiry
+                : getMonthExpiry(monthExpiry + 7 days, day);
+        } else {
             uint256 weekday =
                 getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
 
-            nextExpiry = (
-                weekday >= day
-                    ? currentExpiry - (weekday - day) * 1 days + 1 weeks
-                    : currentExpiry + (day - weekday) * 1 days
-            );
-        } else if (period == 30) {
-            nextExpiry = getNextMonthExpiry(currentExpiry, day);
-        } else if (period % 7 == 0) {
-            uint256 weekday =
-                getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
+            uint256 adjustment = initial
+            ? (weekday >= day) ? 1 weeks : 0 weeks
+            : (period / 7) * 1 weeks;
 
-            nextExpiry =
-                (
-                    weekday >= day
-                        ? currentExpiry - (weekday - day) * 1 days
-                        : currentExpiry + (day - weekday) * 1 days
-                ) +
-                (period / 7) *
-                1 weeks;
+            nextExpiry = (currentExpiry + day * 1 days - weekday * 1 days)
+                + adjustment;
         }
+
+        // if (initial) {
+        //     uint256 weekday =
+        //         getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
+
+        //     nextExpiry = (
+        //         weekday >= day
+        //             ? currentExpiry - (weekday - day) * 1 days + 1 weeks
+        //             : currentExpiry + (day - weekday) * 1 days
+        //     );
+        // } else if (period == 30) {
+        //     nextExpiry = getMonthExpiry(currentExpiry, day);
+        // } else if (period % 7 == 0) {
+        //     uint256 weekday =
+        //         getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
+
+        //     nextExpiry =
+        //         (
+        //             weekday >= day
+        //                 ? currentExpiry - (weekday - day) * 1 days
+        //                 : currentExpiry + (day - weekday) * 1 days
+        //         ) +
+        //         (period / 7) *
+        //         1 weeks;
+        // }
 
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
 
@@ -841,7 +858,7 @@ library VaultLifecycleTreasury {
         }
     }
 
-    function getNextMonthExpiry(uint256 timestamp, uint256 day)
+    function getMonthExpiry(uint256 timestamp, uint256 weekday)
         internal
         pure
         returns (uint256 nextMonthExpiry)
@@ -850,6 +867,7 @@ library VaultLifecycleTreasury {
         uint256 buf;
         uint8 i;
         uint8 month;
+        uint256 day;
 
         // Year
         uint16 year = getYear(timestamp);
@@ -884,11 +902,12 @@ library VaultLifecycleTreasury {
             (getDaysInMonth(month, year) - day) *
             1 days;
 
-        uint256 weekday = getWeekday(nextMonthExpiry);
+        uint256 expiryWeekday = 
+            getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
 
-        nextMonthExpiry -= weekday > day
-            ? (weekday - day) * 1 days
-            : 7 days - (day - weekday) * 1 days;
+        nextMonthExpiry -= expiryWeekday >= weekday
+            ? (expiryWeekday - weekday) * 1 days
+            : 7 days - (weekday - expiryWeekday) * 1 days;
     }
 
     function getYear(uint256 timestamp) internal pure returns (uint16) {

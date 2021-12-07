@@ -97,6 +97,7 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
+<<<<<<< HEAD
 
     /// @notice Whether premium proceeds should be distributed.
     bool public distribute;
@@ -104,6 +105,8 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
 >>>>>>> 71f1cf1 (Reorganize storage)
+=======
+>>>>>>> a828917 (Added test cases and fixes)
 }
 
 // We are following Compound's method of upgrading new contract implementations

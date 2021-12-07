@@ -58,8 +58,8 @@ const chainId = network.config.chainId;
 
 describe("RibbonTreasuryVault", () => {
   behavesLikeRibbonOptionsVault({
-    name: `Ribbon SUSHI Theta Vault (Call)`,
     tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction)`,
     tokenSymbol: "rSUSHI-THETA",
     asset: SUSHI_ADDRESS[chainId],
     assetContractName: "IWBTC",
@@ -73,8 +73,8 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"), 
+    managementFee: BigNumber.from("2000000"), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
+    performanceFee: BigNumber.from("20000000"), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -85,14 +85,49 @@ describe("RibbonTreasuryVault", () => {
     mintConfig: {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
-    premiumAsset: SUSHI_ADDRESS[chainId],
+    premiumAsset: USDC_ADDRESS[chainId],
     period: 7,
     day: 5,
-    distribute: true,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (WETH Auction)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
+    performanceFee: BigNumber.from("20000000"), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    premiumAsset: WETH_ADDRESS[chainId],
+    period: 30,
+    day: 1,
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 //   behavesLikeRibbonOptionsVault({
 //     tokenName: "Ribbon SUSHI Theta Vault",
@@ -168,6 +203,8 @@ describe("RibbonTreasuryVault", () => {
 //     availableChains: [CHAINID.ETH_MAINNET],
 //   });
 =======
+=======
+>>>>>>> a828917 (Added test cases and fixes)
   behavesLikeRibbonOptionsVault({
     tokenName: "Ribbon SUSHI Theta Vault",
     name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction)`,
@@ -184,8 +221,13 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
+<<<<<<< HEAD
     managementFee: BigNumber.from(0), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
     performanceFee: BigNumber.from(0), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+=======
+    managementFee: BigNumber.from("2000000"), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
+    performanceFee: BigNumber.from("20000000"), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+>>>>>>> a828917 (Added test cases and fixes)
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -197,6 +239,11 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     premiumAsset: USDC_ADDRESS[chainId],
+<<<<<<< HEAD
+=======
+    period: 14,
+    day: 6,
+>>>>>>> a828917 (Added test cases and fixes)
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -217,8 +264,13 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
+<<<<<<< HEAD
     managementFee: BigNumber.from(0), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
     performanceFee: BigNumber.from(0), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+=======
+    managementFee: BigNumber.from("2000000"), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
+    performanceFee: BigNumber.from("20000000"), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+>>>>>>> a828917 (Added test cases and fixes)
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -230,10 +282,18 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     premiumAsset: WETH_ADDRESS[chainId],
+<<<<<<< HEAD
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 >>>>>>> 4529f13 (Addressed PR comments)
+=======
+    period: 28,
+    day: 4,
+    premiumDecimals: 18,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+>>>>>>> a828917 (Added test cases and fixes)
 });
 
 type Option = {
@@ -271,7 +331,6 @@ type Option = {
  * premiumAsset
  * premiumdecimals
  * period
- * distribute
  */
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
@@ -309,7 +368,6 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDecimals: number;
   period: number;
   day: number;
-  distribute: boolean;
   availableChains: number[];
 }) {
   // Test configs
@@ -355,7 +413,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let multiAsset = params.asset !== params.premiumAsset;
 >>>>>>> 2a1694b (Formatting)
   let whitelistLimit = 5;
-  let distribute = params.distribute;
 
   // Contracts
   let strikeSelection: Contract;
@@ -510,8 +567,7 @@ function behavesLikeRibbonOptionsVault(params: {
           whitelist,
           premiumAsset,
           period,
-          day,
-          distribute
+          day
         ],
         [
           isPut,
@@ -561,16 +617,30 @@ function behavesLikeRibbonOptionsVault(params: {
         params.isPut
       );
 
+      let initialWeekAdjustment: number;
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
+      const latestWeekday = moment(latestTimestamp * 1000).day()
+      initialWeekAdjustment = (latestWeekday >= day) ? 1 : 0
 
       // Create first option
-      firstOptionExpiry = moment(latestTimestamp * 1000)
-        .startOf("isoWeek")
-        .day("friday")
-        .hours(8)
-        .minutes(0)
-        .seconds(0)
-        .unix();
+      if (period == 30) {
+        firstOptionExpiry = moment(latestTimestamp * 1000)
+          .endOf("month")
+          .day(day)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
+      } else {
+        firstOptionExpiry = moment(latestTimestamp * 1000)
+          .startOf("isoWeek")
+          .add(initialWeekAdjustment, "weeks")
+          .day(day)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
+      }
 
       [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
@@ -601,14 +671,26 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      secondOptionExpiry = moment(latestTimestamp * 1000)
-        .startOf("isoWeek")
-        .add(1, "week")
-        .day("friday")
-        .hours(8)
-        .minutes(0)
-        .seconds(0)
-        .unix();
+      if (period == 30) {
+        secondOptionExpiry = moment(latestTimestamp * 1000)
+          .add(1, "month")
+          .endOf("month")
+          .day(day)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
+      } else {
+        secondOptionExpiry = moment(latestTimestamp * 1000)
+          .startOf("isoWeek")
+          .add(initialWeekAdjustment, "weeks")
+          .add(period / 7, "weeks")
+          .day(day)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
+      }
 
       secondOptionStrike = firstOptionStrike.add(await strikeSelection.step());
 
@@ -722,7 +804,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.feeRecipient(), feeRecipient);
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.mul(FEE_SCALING).div(WEEKS_PER_YEAR).toString()
+          managementFee.mul(FEE_SCALING)
+            .div(period == 30 
+                ? FEE_SCALING.mul(12)
+                : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
+            .toString()
         );
         assert.equal(
           (await vault.performanceFee()).toString(),
@@ -785,8 +871,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
-              day,
-              distribute
+              day
             ],
             [
               isPut,
@@ -818,8 +903,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
-              day,
-              distribute
+              day
             ],
             [
               isPut,
@@ -851,8 +935,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
-              day,
-              distribute
+              day
             ],
             [
               isPut,
@@ -884,8 +967,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
-              day,
-              distribute
+              day
             ],
             [
               isPut,
@@ -917,8 +999,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
-              day,
-              distribute
+              day
             ],
             [
               isPut,
@@ -950,8 +1031,7 @@ function behavesLikeRibbonOptionsVault(params: {
               whitelist,
               premiumAsset,
               period,
-              day,
-              distribute
+              day
             ],
             [
               isPut,
@@ -994,7 +1074,12 @@ function behavesLikeRibbonOptionsVault(params: {
       it("returns the management fee", async function () {
         assert.equal(
           (await vault.managementFee()).toString(),
-          managementFee.mul(FEE_SCALING).div(WEEKS_PER_YEAR).toString()
+          managementFee
+            .mul(FEE_SCALING)
+            .div(period == 30 
+              ? FEE_SCALING.mul(12)
+              : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
+            .toString()
         );
       });
     });
@@ -1111,7 +1196,9 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.managementFee()).toString(),
           BigNumber.from(1000000)
             .mul(FEE_SCALING)
-            .div(WEEKS_PER_YEAR)
+            .div(period == 30 
+              ? FEE_SCALING.mul(12)
+              : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
         );
       });
@@ -1568,13 +1655,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        
-        console.log((await vault.vaultState()).toString());
-        console.log((await assetContract.balanceOf(vault.address)).toString())
-
-        // let tx = await vault.connect(ownerSigner).commitAndClose();
-        // await expect(tx).to.emit(vault, "test").withArgs("0")
-
         await rollToNextOption();
 
         await time.increase(auctionDuration);
@@ -1584,10 +1664,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).settleAuction();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
-        // await expect(tx).to.emit(vault, "test").withArgs("0")
-
-        console.log((await vault.vaultState()).toString());
-        console.log((await assetContract.balanceOf(vault.address)).toString())
         
         await rollToSecondOption(firstOption.strikePrice);
 
@@ -1749,20 +1825,13 @@ function behavesLikeRibbonOptionsVault(params: {
         let assetBalanceAfterSettle: BigNumber;
 
         assetBalanceAfterSettle = await tokenContract.balanceOf(vault.address);
-        
-        if (!distribute) {
-          assert.equal(
-            assetBalanceAfterSettle.toString(),
-            assetBalanceBeforeSettle
-              .add(BigNumber.from(auctionDetails[2]))
-              .toString()
-          );
-        } else {
-          assert.equal(
-            assetBalanceAfterSettle.toString(),
-            "0"
-          );
-        }
+
+        assert.equal(
+          assetBalanceAfterSettle.toString(),
+          assetBalanceBeforeSettle
+            .add(BigNumber.from(auctionDetails[2]))
+            .toString()
+        );
 
         await expect(
           vault.connect(keeperSigner).burnRemainingOTokens()
@@ -1816,24 +1885,16 @@ function behavesLikeRibbonOptionsVault(params: {
               .toString()
           )
         );
-        
-        if (!distribute) {
-          assert.isAbove(
-            parseInt((await tokenContract.balanceOf(vault.address)).toString()),
-            parseInt(
-              (
-                (assetBalanceBeforeSettle.add(auctionProceeds) * 99) /
-                100
-              ).toString()
-            )
-          );
-        } else {
-          assert.equal(
-            parseInt((await tokenContract.balanceOf(vault.address)).toString()),
-            parseInt("0")
-          );
-        }
-        
+
+        assert.isAbove(
+          parseInt((await tokenContract.balanceOf(vault.address)).toString()),
+          parseInt(
+            (
+              (assetBalanceBeforeSettle.add(auctionProceeds) * 99) /
+              100
+            ).toString()
+          )
+        );
 
         const lockedAmountBeforeBurn = (await vault.vaultState()).lockedAmount;
         const assetBalanceAfterSettle = await tokenContract.balanceOf(
@@ -2227,17 +2288,10 @@ function behavesLikeRibbonOptionsVault(params: {
         let auctionProceeds = await tokenContract.balanceOf(vault.address);
 
         // only the premium should be left over because the funds are locked into Opyn
-        if (!distribute) {
-          assert.isAbove(
-            parseInt((await tokenContract.balanceOf(vault.address)).toString()),
-            (parseInt(auctionProceeds.toString()) * 99) / 100
-          );
-        } else {
-          assert.equal(
-            parseInt((await tokenContract.balanceOf(vault.address)).toString()),
-            0
-          );
-        }
+        assert.isAbove(
+          parseInt((await tokenContract.balanceOf(vault.address)).toString()),
+          (parseInt(auctionProceeds.toString()) * 99) / 100
+        );
 
         const settlementPriceOTM = isPut
           ? firstOptionStrike.add(1)
@@ -3194,7 +3248,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#settleAuction", () => {
+    describe("#chargeAndDistribute", () => {
       let oracle: Contract;
       const depositAmount = params.depositAmount;
 
@@ -3247,19 +3301,23 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault
           .connect(keeperSigner)
           .settleAuction();
+        let auctionProceeds = await tokenContract.balanceOf(vault.address)
+        await vault
+          .connect(keeperSigner)
+          .chargeAndDistribute();
         // console.log((await vault.previousPerformanceFee()).toString())
         // console.log((await vault.performanceFeeOwed()).toString())
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
-        let auctionProceeds = await tokenContract.balanceOf(vault.address);
+        // let auctionProceeds = await tokenContract.balanceOf(vault.address);
 
         let userBalanceAfter = await premiumContract.balanceOf(user);
         let ownerBalanceAfter = await premiumContract.balanceOf(owner);
         
-        assert.bnEqual(userBalanceAfter.sub(userBalanceBefore), 
-          (BigNumber.from(auctionDetails[2])).div(3))
-        assert.bnEqual(ownerBalanceAfter.sub(ownerBalanceBefore), 
-          (BigNumber.from(auctionDetails[2])).div(3).mul(2))
+        assert.bnGte(userBalanceAfter.sub(userBalanceBefore), 
+          auctionProceeds.div(3))
+        assert.bnGte(ownerBalanceAfter.sub(ownerBalanceBefore), 
+          auctionProceeds.mul(2).div(3))
       });
 
       it("charge the correct fees when ITM", async function () {
@@ -3294,10 +3352,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.currentOption(), firstOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), firstOption.expiry);
 
-        // await expect(firstTx)
-        //   .to.emit(vault, "OpenShort")
-        //   .withArgs(firstOptionAddress, depositAmount, keeper);
-
         await time.increaseTo(
           (await provider.getBlock("latest")).timestamp + auctionDuration
         );
@@ -3310,6 +3364,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault
           .connect(keeperSigner)
           .settleAuction();
+
+        await vault
+          .connect(keeperSigner)
+          .chargeAndDistribute();
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
@@ -3328,17 +3386,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        await vault.connect(keeperSigner).rollToNextOption()
-
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + auctionDuration
-        );
-
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
-
-        assert.bnEqual(await vault.previousPerformanceFee(), BigNumber.from(0))
+        assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
         assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
       });
 
@@ -3349,14 +3397,13 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
-        let bidMultiplier = 2;
+        let bidMultiplier = 1;
 
         let tokenContract = multiAsset
           ? premiumContract
           : assetContract;
-
 
         let auctionDetails = await bidForOToken(
           gnosisAuction,
@@ -3382,15 +3429,18 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // We just settle the auction without any bids
         // So we simulate a loss when the options expire in the money
-        let tx = await vault
+        await vault
           .connect(keeperSigner)
           .settleAuction();
 
-        console.log(BigNumber.from(auctionDetails[2]).toString())
-        console.log((await tokenContract.balanceOf(vault.address)).toString())
+        await vault
+          .connect(keeperSigner)
+          .chargeAndDistribute();
+        
+        assert.equal(await tokenContract.balanceOf(vault.address), 0)
 
-        // assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
-        // assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
+        assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
+        assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
 
         const settlementPriceOTM = isPut
           ? firstOptionStrike.add(1)
@@ -3404,17 +3454,16 @@ function behavesLikeRibbonOptionsVault(params: {
           settlementPriceOTM
         );
 
-        await assetContract.balanceOf(vault.address);
-
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         await vault.connect(ownerSigner).commitAndClose();
+
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).rollToNextOption()
 
-        // assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
-        // assert.bnEqual(await vault.performanceFeeOwed(), performanceFeeInAsset)
+        assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
+        assert.bnEqual(await vault.performanceFeeOwed(), performanceFeeInAsset)
         
         auctionDetails = await bidForOToken(
           gnosisAuction,
@@ -3435,22 +3484,23 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(performanceFee)
           .div(FEE_SCALING.mul(100));
 
-        let tx1 = await vault
+        await vault
           .connect(keeperSigner)
           .settleAuction();
-        
-        console.log(BigNumber.from(auctionDetails[2]).toString())
-        console.log((await tokenContract.balanceOf(vault.address)).toString())
+
+        let tx1 = await vault
+          .connect(keeperSigner)
+          .chargeAndDistribute();
 
         await expect(tx1)
           .to.emit(vault, "CollectPerformanceFee")
           .withArgs(performanceFeeInAsset, 2, feeRecipient);
-
+        
         assert.bnEqual(await vault.previousPerformanceFee(), secondPerformanceFeeInAsset)
         assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
       });
 
-      it("charges the correct fee when there is insufficient premium to pay fee owed", async function () {
+      it("charge the correct fee when there is insufficient premium to pay fee owed", async function () {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
 
@@ -3459,7 +3509,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
-        let bidMultiplier = 2;
+        let bidMultiplier = 1;
 
         let tokenContract = multiAsset
           ? premiumContract
@@ -3493,29 +3543,23 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(keeperSigner)
           .settleAuction();
 
-        // await vault.connect(keeperSigner).distributePremium();
-        console.log(BigNumber.from(auctionDetails[2]).toString())
-        console.log((await tokenContract.balanceOf(vault.address)).toString())
+        await vault
+          .connect(keeperSigner)
+          .chargeAndDistribute();
 
-        // assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
-        // assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
+        assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
+        assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
 
         const settlementPriceOTM = isPut
           ? firstOptionStrike.add(1)
           : firstOptionStrike.sub(1);
 
-        // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
         );
-
-        console.log(firstOptionPremium.toString())
-        console.log(secondOptionPremium.toString())
-
-        await assetContract.balanceOf(vault.address);
 
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
@@ -3524,10 +3568,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(keeperSigner).rollToNextOption()
 
-        // assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
-        // assert.bnEqual(await vault.performanceFeeOwed(), performanceFeeInAsset)
+        assert.bnEqual(await vault.previousPerformanceFee(), performanceFeeInAsset)
+        assert.bnEqual(await vault.performanceFeeOwed(), performanceFeeInAsset)
         
-        // bidMultiplier = 2;
+        bidMultiplier = 30;
 
         auctionDetails = await bidForOToken(
           gnosisAuction,
@@ -3544,27 +3588,26 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo(
           (await provider.getBlock("latest")).timestamp + auctionDuration
         );
-          
-        let secondPerformanceFeeInAsset = BigNumber.from(auctionDetails[2])
-          .mul(performanceFee)
-          .div(FEE_SCALING.mul(100));
-
-        // console.log(secondPerformanceFeeInAsset.toString())
-        console.log((await tokenContract.balanceOf(vault.address)).toString())
-
-        let tx1 = await vault
+        
+        await vault
           .connect(keeperSigner)
           .settleAuction();
 
-        console.log(BigNumber.from(auctionDetails[2]).toString())
-        console.log((await tokenContract.balanceOf(vault.address)).toString())
+        let auctionProceeds = await tokenContract.balanceOf(vault.address)
+        let secondPerformanceFeeInAsset = auctionProceeds
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+
+        let tx1 = await vault
+          .connect(keeperSigner)
+          .chargeAndDistribute();
 
         await expect(tx1)
           .to.emit(vault, "CollectPerformanceFee")
-          .withArgs(performanceFeeInAsset, 2, feeRecipient);
-
+          .withArgs(auctionProceeds.toString(), 2, feeRecipient);
+        
         assert.bnEqual(await vault.previousPerformanceFee(), secondPerformanceFeeInAsset)
-        assert.bnEqual(await vault.performanceFeeOwed(), BigNumber.from(0))
+        assert.bnEqual(await vault.performanceFeeOwed(), performanceFeeInAsset.sub(auctionProceeds))
       });
     });
 
