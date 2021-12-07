@@ -84,7 +84,6 @@ describe("RibbonTreasuryVault", () => {
     mintConfig: {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
-    whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: SUSHI_ADDRESS[chainId],
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
@@ -118,7 +117,6 @@ describe("RibbonTreasuryVault", () => {
     mintConfig: {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
-    whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: USDC_ADDRESS[chainId],
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
@@ -152,7 +150,6 @@ describe("RibbonTreasuryVault", () => {
     mintConfig: {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
-    whitelist: [USDC_OWNER_ADDRESS[chainId], SUSHI_OWNER_ADDRESS[chainId]],
     premiumAsset: WETH_ADDRESS[chainId],
     premiumDecimals: 18,
     availableChains: [CHAINID.ETH_MAINNET],
@@ -224,7 +221,6 @@ function behavesLikeRibbonOptionsVault(params: {
   mintConfig?: {
     contractOwnerAddress: string;
   };
-  whitelist: string[];
   premiumAsset: string;
   premiumDecimals: number;
   availableChains: number[];
@@ -435,7 +431,7 @@ function behavesLikeRibbonOptionsVault(params: {
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
-        GNOSIS_EASY_AUCTION[chainId]
+        GNOSIS_EASY_AUCTION[chainId],
       ];
 
       vault = (
@@ -609,7 +605,7 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY[chainId],
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId],
+          GNOSIS_EASY_AUCTION[chainId]
         );
       });
 
@@ -658,7 +654,10 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.premiumAsset(), premiumAsset);
 
         for (let i = 0; i < whitelist.length; i++) {
-          assert.equal((await vault.whitelistArray(i)).toString(), whitelist[i].toString());
+          assert.equal(
+            (await vault.whitelistArray(i)).toString(),
+            whitelist[i].toString()
+          );
         }
       });
 
@@ -1105,6 +1104,13 @@ function behavesLikeRibbonOptionsVault(params: {
         }
 
         assert.includeMembers(temp, [keeper]); // (superset, subset)
+
+        let newwhitelist = whitelist;
+        newwhitelist.push(keeper);
+        // check that order is preserved
+        for (let i = 0; i < temp.length; i++) {
+          assert.equal(temp[i], newwhitelist[i]);
+        }
       });
     });
 
@@ -1134,6 +1140,8 @@ function behavesLikeRibbonOptionsVault(params: {
         let temp: string[] = [];
         let i = 0;
 
+        await vault.connect(ownerSigner).addWhitelist(keeper);
+
         while (i <= whitelistLimit) {
           try {
             temp.push((await vault.whitelistArray(i)).toString());
@@ -1143,9 +1151,9 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         }
 
-        assert.includeMembers(temp, [user]); // (superset, subset)
+        assert.includeMembers(temp, [owner]); // (superset, subset)
 
-        await vault.connect(ownerSigner).removeWhitelist(user);
+        await vault.connect(ownerSigner).removeWhitelist(owner);
 
         temp = [];
         i = 0;
@@ -1159,7 +1167,12 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         }
 
-        assert.notIncludeMembers(temp, [user]); // (superset, subset)
+        assert.notIncludeMembers(temp, [owner]); // (superset, subset)
+
+        let newwhitelist = [user, keeper];
+        for (let i = 0; i < temp.length; i++) {
+          assert.equal(temp[i], newwhitelist[i]);
+        }
       });
     });
 
@@ -1329,11 +1342,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when user is not whitelisted", async function () {
-        await expect(
-          vault
-            .connect(keeperSigner)
-            .deposit(1)
-        ).to.be.revertedWith("!whitelist");
+        await expect(vault.connect(keeperSigner).deposit(1)).to.be.revertedWith(
+          "!whitelist"
+        );
       });
     });
 
@@ -1426,9 +1437,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // auction settled without any bids
         // so we return 100% of the tokens
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1503,9 +1512,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increase(auctionDuration);
 
         // we initiate a complete burn of the otokens
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         assert.bnLte(
           await otoken.balanceOf(vault.address),
@@ -1554,7 +1561,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + 1);
@@ -1563,9 +1569,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let bidMultiplier = 1;
 
-        let tokenContract = multiAsset
-          ? premiumContract
-          : assetContract;
+        let tokenContract = multiAsset ? premiumContract : assetContract;
 
         const auctionDetails = await bidForOToken(
           gnosisAuction,
@@ -1587,9 +1591,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "0"
         );
 
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
@@ -1621,9 +1623,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let bidMultiplier = 2;
 
-        let tokenContract = multiAsset
-          ? premiumContract
-          : assetContract;
+        let tokenContract = multiAsset ? premiumContract : assetContract;
 
         await bidForOToken(
           gnosisAuction,
@@ -1645,9 +1645,7 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.address
         );
 
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
@@ -1922,9 +1920,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // We just settle the auction without any bids
         // So we simulate a loss when the options expire in the money
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
@@ -2043,9 +2039,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let bidMultiplier = 1;
 
-        let tokenContract = multiAsset
-          ? premiumContract
-          : assetContract;
+        let tokenContract = multiAsset ? premiumContract : assetContract;
 
         await bidForOToken(
           gnosisAuction,
@@ -2058,9 +2052,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
@@ -2145,9 +2137,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(
             secondOptionAddress,
-            depositAmount
-              .add(multiAsset ? 0 : auctionProceeds)
-              .sub(vaultFees),
+            depositAmount.add(multiAsset ? 0 : auctionProceeds).sub(vaultFees),
             keeper
           );
 
@@ -2191,9 +2181,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let bidMultiplier = 1;
 
-        let tokenContract = multiAsset
-          ? premiumContract
-          : assetContract;
+        let tokenContract = multiAsset ? premiumContract : assetContract;
 
         await bidForOToken(
           gnosisAuction,
@@ -2206,9 +2194,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        await vault
-          .connect(keeperSigner)
-          .settleAuction();
+        await vault.connect(keeperSigner).settleAuction();
 
         let newOptionStrike = await (
           await getContractAt("IOtoken", await vault.currentOption())
@@ -2297,7 +2283,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // After the first round, the user is charged the fee
         assert.bnLte(await vault.totalBalance(), secondStartBalance);
-        assert.bnLte(await vault.accountVaultBalance(user), depositAmount.add(1));
+        assert.bnLte(
+          await vault.accountVaultBalance(user),
+          depositAmount.add(1)
+        );
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2343,9 +2332,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("reverts when user is not whitelisted", async function () {
         await expect(
-          vault
-            .connect(keeperSigner)
-            .maxRedeem()
+          vault.connect(keeperSigner).maxRedeem()
         ).to.be.revertedWith("!whitelist");
       });
 
@@ -2535,11 +2522,9 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts when user is not whitelisted", async function () {
-        await expect(
-          vault
-            .connect(keeperSigner)
-            .redeem(0)
-        ).to.be.revertedWith("!whitelist");
+        await expect(vault.connect(keeperSigner).redeem(0)).to.be.revertedWith(
+          "!whitelist"
+        );
       });
 
       it("reverts when 0 passed", async function () {
@@ -2708,9 +2693,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("reverts when user is not whitelisted", async function () {
         await expect(
-          vault
-            .connect(keeperSigner)
-            .initiateWithdraw(depositAmount)
+          vault.connect(keeperSigner).initiateWithdraw(depositAmount)
         ).to.be.revertedWith("!whitelist");
       });
 
