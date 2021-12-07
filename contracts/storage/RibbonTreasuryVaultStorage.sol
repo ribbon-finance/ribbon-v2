@@ -8,7 +8,7 @@ abstract contract RibbonTreasuryVaultStorageV1 {
      *  NON UPGRADEABLE STORAGE
      ***********************************************/
 
-     /// @notice Vault's parameters like cap, decimals
+    /// @notice Vault's parameters like cap, decimals
     Vault.VaultParams public vaultParams;
 
     /// @notice Vault's lifecycle state like round and locked amounts

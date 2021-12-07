@@ -282,17 +282,10 @@ contract RibbonTreasuryVault is
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
         premiumAsset = _initParams._premiumAsset;
-        whitelistArray = _initParams._whitelist;
 
         // Store whitelist into mapping
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
-            require(_initParams._whitelist[i] != address(0), "Whitelist null");
-            require(
-                !whitelistMap[_initParams._whitelist[i]],
-                "Whitelist duplicate"
-            );
-
-            whitelistMap[_initParams._whitelist[i]] = true;
+            _addWhitelist(_initParams._whitelist[i]);
         }
     }
 
@@ -457,7 +450,15 @@ contract RibbonTreasuryVault is
         external
         onlyOwner
         nonReentrant
-    {   
+    {
+        _addWhitelist(newWhitelist);
+    }
+
+    /**
+     * @notice Internal function to add new whitelisted address
+     * @param newWhitelist is the address to include in the whitelist
+     */
+    function _addWhitelist(address newWhitelist) internal {
         require(newWhitelist != address(0), "Whitelist null");
         require(!whitelistMap[newWhitelist], "Whitelist duplicate");
         require(
@@ -477,21 +478,15 @@ contract RibbonTreasuryVault is
         external
         onlyOwner
         nonReentrant
-    {   
-        require(
-            whitelistMap[excludeWhitelist],
-            "Whitelist does not exist"
-        );
-        require(
-            (whitelistArray.length - 1) > 0,
-            "Whitelist cannot be empty"
-        );
+    {
+        require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
+        require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
 
         whitelistMap[excludeWhitelist] = false;
 
         for (uint256 i = 0; i < whitelistArray.length; i++) {
             if (excludeWhitelist == whitelistArray[i]) {
-                for (uint j = i; j < whitelistArray.length - 1; j++) {
+                for (uint256 j = i; j < whitelistArray.length - 1; j++) {
                     whitelistArray[j] = whitelistArray[j + 1];
                 }
                 whitelistArray.pop();
@@ -1122,5 +1117,4 @@ contract RibbonTreasuryVault is
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
     }
-
 }
