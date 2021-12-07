@@ -306,7 +306,8 @@ contract RibbonTreasuryVault is
         );
         require(_initParams._premiumAsset != address(0), "!_premiumAsset");
         require(
-            _initParams._whitelist.length <= WHITELIST_LIMIT,
+            _initParams._whitelist.length <= WHITELIST_LIMIT &&
+                _initParams._whitelist.length > 0,
             "!_whitelist"
         );
 
@@ -530,13 +531,15 @@ contract RibbonTreasuryVault is
 <<<<<<< HEAD
 <<<<<<< HEAD
     {
+        uint256 whitelistLength = whitelistArray.length;
         require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
-        require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
+        require(whitelistLength > 1, "Whitelist cannot be empty");
 
         whitelistMap[excludeWhitelist] = false;
 
-        for (uint256 i = 0; i < whitelistArray.length; i++) {
+        for (uint256 i = 0; i < whitelistLength; i++) {
             if (excludeWhitelist == whitelistArray[i]) {
+<<<<<<< HEAD
                 for (uint256 j = i; j < whitelistArray.length - 1; j++) {
 =======
     {   
@@ -564,11 +567,14 @@ contract RibbonTreasuryVault is
 =======
                 for (uint256 j = i; j < whitelistArray.length - 1; j++) {
 >>>>>>> 8d10055 (Formatting)
+=======
+                for (uint256 j = i; j < (whitelistLength - 1); j++) {
+>>>>>>> 4529f13 (Addressed PR comments)
                     whitelistArray[j] = whitelistArray[j + 1];
                 }
-                whitelistArray.pop();
             }
         }
+        whitelistArray.pop();
     }
 
     /************************************************
