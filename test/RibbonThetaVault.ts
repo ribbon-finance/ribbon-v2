@@ -1693,7 +1693,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("sets the correct strike when overriding strike price", async function () {
-        const strikePriceForChain = chainId === CHAINID.ETH_MAINNET ? BigNumber.from("250000000000") : BigNumber.from("20000000000");
+        const strikePriceForChain =
+          chainId === CHAINID.ETH_MAINNET
+            ? BigNumber.from("250000000000")
+            : BigNumber.from("20000000000");
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
             ? strikePriceForChain
@@ -2808,7 +2811,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforePps = await vault.pricePerShare();
 
-        const AMOUNT = { [CHAINID.ETH_MAINNET]: "100000000000", [CHAINID.AVAX_MAINNET]: "1000000000" };
+        const AMOUNT = {
+          [CHAINID.ETH_MAINNET]: "100000000000",
+          [CHAINID.AVAX_MAINNET]: "1000000000",
+        };
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(AMOUNT[chainId])
@@ -3501,7 +3507,10 @@ function behavesLikeRibbonOptionsVault(params: {
           BigNumber.from(depositAmount)
         );
 
-        const AMOUNT = { [CHAINID.ETH_MAINNET]: "100000000000", [CHAINID.AVAX_MAINNET]: "1000000000" };
+        const AMOUNT = {
+          [CHAINID.ETH_MAINNET]: "100000000000",
+          [CHAINID.AVAX_MAINNET]: "1000000000",
+        };
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(AMOUNT[chainId])
