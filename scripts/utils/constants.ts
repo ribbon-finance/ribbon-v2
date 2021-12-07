@@ -10,6 +10,7 @@ export const KOVAN_AAVE_ORACLE = "0x0000000000000000000000000000000000000000"; /
 /**
  * Vault params
  */
+export const AVAX_STRIKE_STEP = 10;
 export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 1000
 export const WBTC_STRIKE_STEP = 1000; // WBTC strike prices move in increments of 1000
 export const AAVE_STRIKE_STEP = 10;

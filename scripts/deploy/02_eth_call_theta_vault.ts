@@ -11,6 +11,7 @@ import {
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 import {
   AUCTION_DURATION,
+  AVAX_STRIKE_STEP,
   ETH_STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
@@ -30,6 +31,13 @@ const TOKEN_SYMBOL = {
   [CHAINID.ETH_KOVAN]: 'rETH-THETA',
   [CHAINID.AVAX_MAINNET]: 'rAVAX-THETA',
   [CHAINID.AVAX_FUJI]: 'rAVAX-THETA',
+};
+
+const STRIKE_STEP = {
+  [CHAINID.ETH_MAINNET]: ETH_STRIKE_STEP,
+  [CHAINID.ETH_KOVAN]: ETH_STRIKE_STEP,
+  [CHAINID.AVAX_MAINNET]: AVAX_STRIKE_STEP,
+  [CHAINID.AVAX_FUJI]: AVAX_STRIKE_STEP,
 };
 
 const main = async ({
@@ -72,7 +80,11 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "StrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
+    args: [
+      pricer.address,
+      STRIKE_DELTA,
+      STRIKE_STEP[chainId],
+    ],
   });
 
   console.log(`RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`);
@@ -80,7 +92,11 @@ const main = async ({
   try {
     await run('verify:verify', {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
+      constructorArguments: [
+        pricer.address,
+        STRIKE_DELTA,
+        STRIKE_STEP[chainId],
+      ],
     });
   } catch (error) {
     console.log(error);
