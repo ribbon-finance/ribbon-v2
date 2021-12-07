@@ -131,10 +131,7 @@ library DateTime {
         }
 
         // Adjust
-        endOfMonth =
-            timestamp +
-            (getDaysInMonth(month, year) - day) *
-            1 days;
+        endOfMonth = timestamp + (getDaysInMonth(month, year) - day) * 1 days;
 
         // uint256 weekday = getWeekday(nextMonthExpiry);
 

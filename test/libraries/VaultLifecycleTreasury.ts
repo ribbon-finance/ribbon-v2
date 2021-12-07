@@ -57,11 +57,11 @@ describe("VaultLifecycleTreasury", () => {
         7,
         true
       );
-      
+
       const fridayDate = moment.unix(nextFriday);
-      
+
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -182,7 +182,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -207,7 +207,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -232,7 +232,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -257,7 +257,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -282,7 +282,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -307,7 +307,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -329,10 +329,10 @@ describe("VaultLifecycleTreasury", () => {
         14,
         false
       );
-      
+
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -356,7 +356,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
@@ -382,7 +382,7 @@ describe("VaultLifecycleTreasury", () => {
       const fridayDate = moment.unix(nextFriday);
 
       assert.equal(fridayDate.weekday(), 5);
-      
+
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
   });

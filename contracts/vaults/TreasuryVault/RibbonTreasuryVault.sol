@@ -898,7 +898,7 @@ contract RibbonTreasuryVault is
      */
     function commitAndClose() external nonReentrant {
         uint256 premiumBalance = IERC20(premiumAsset).balanceOf(address(this));
-        
+
         if (premiumBalance > 0) {
             uint256 amountToDistribute = _chargePerformanceFee();
             _distribute(amountToDistribute);
@@ -1059,12 +1059,14 @@ contract RibbonTreasuryVault is
 
         _distribute(amountToDistribute);
     }
-    
 
     /**
      * @notice Calculate performance fee and transfer to fee recipient
      */
-    function _chargePerformanceFee() internal returns (uint256 afterFeePremiumBalance){
+    function _chargePerformanceFee()
+        internal
+        returns (uint256 afterFeePremiumBalance)
+    {
         address recipient = feeRecipient;
         Vault.VaultState memory _vaultState = vaultState;
 
@@ -1078,14 +1080,12 @@ contract RibbonTreasuryVault is
             // Get transfer amount
             // If there is insufficient balance to cover the whole owed amount
             // transfer all the balance
-            uint256 transferAmount = performanceFeeOwed > premiumBalance
-                ? premiumBalance
-                : performanceFeeOwed;
+            uint256 transferAmount =
+                performanceFeeOwed > premiumBalance
+                    ? premiumBalance
+                    : performanceFeeOwed;
 
-            _premiumAsset.safeTransfer(
-                recipient, 
-                transferAmount
-            );
+            _premiumAsset.safeTransfer(recipient, transferAmount);
 
             emit CollectPerformanceFee(
                 transferAmount,
@@ -1097,16 +1097,16 @@ contract RibbonTreasuryVault is
             // this will set performance fee owed to 0
             performanceFeeOwed -= transferAmount;
         }
-        
+
         // Check balance after transferring fees out
         // Exclude any deposit if the premium is in underlying asset
         afterFeePremiumBalance = _premiumAsset.balanceOf(address(this));
 
         // Calculate performance for the current round and put in storage
         // to be charged in the next round
-        previousPerformanceFee = premiumBalance
-            .mul(performanceFee)
-            .div(100 * Vault.FEE_MULTIPLIER);
+        previousPerformanceFee = premiumBalance.mul(performanceFee).div(
+            100 * Vault.FEE_MULTIPLIER
+        );
     }
 
     /**
@@ -1121,16 +1121,14 @@ contract RibbonTreasuryVault is
             // Distribute to whitelist proportional to the amount of shares
             // they own
             IERC20(premiumAsset).safeTransfer(
-                _whitelist[i], 
-                shares(_whitelist[i])
-                    .mul(amountToDistribute)
-                    .div(totalSupply)
+                _whitelist[i],
+                shares(_whitelist[i]).mul(amountToDistribute).div(totalSupply)
             );
         }
 
         // In case there is a left over, send to the first person in the whitelist
         IERC20(premiumAsset).safeTransfer(
-            _whitelist[0], 
+            _whitelist[0],
             IERC20(premiumAsset).balanceOf(address(this))
         );
     }

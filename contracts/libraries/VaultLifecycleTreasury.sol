@@ -67,16 +67,16 @@ library VaultLifecycleTreasury {
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
             expiry = getNextExpiry(
-                block.timestamp, 
-                closeParams.weekday, 
-                closeParams.period, 
+                block.timestamp,
+                closeParams.weekday,
+                closeParams.period,
                 true
             );
         } else {
             expiry = getNextExpiry(
                 IOtoken(closeParams.currentOption).expiryTimestamp(),
-                closeParams.weekday, 
-                closeParams.period, 
+                closeParams.weekday,
+                closeParams.period,
                 false
             );
         }
@@ -741,7 +741,7 @@ library VaultLifecycleTreasury {
         );
     }
 
-     /**
+    /**
      * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
      * Examples:
@@ -764,12 +764,14 @@ library VaultLifecycleTreasury {
             uint256 weekday =
                 getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
 
-            uint256 adjustment = initial
-            ? (weekday >= day) ? 1 weeks : 0 weeks
-            : (period / 7) * 1 weeks;
+            uint256 adjustment =
+                initial
+                    ? (weekday >= day) ? 1 weeks : 0 weeks
+                    : (period / 7) * 1 weeks;
 
-            nextExpiry = (currentExpiry + day * 1 days - weekday * 1 days)
-                + adjustment;
+            nextExpiry =
+                (currentExpiry + day * 1 days - weekday * 1 days) +
+                adjustment;
         }
 
         // if (initial) {
@@ -805,7 +807,7 @@ library VaultLifecycleTreasury {
     /************************************************
      *  DATE HELPERS
      ***********************************************/
-    // Reference 
+    // Reference
 
     uint256 constant DAY_IN_SECONDS = 86400;
     uint256 constant YEAR_IN_SECONDS = 31536000;
@@ -902,7 +904,7 @@ library VaultLifecycleTreasury {
             (getDaysInMonth(month, year) - day) *
             1 days;
 
-        uint256 expiryWeekday = 
+        uint256 expiryWeekday =
             getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
 
         nextMonthExpiry -= expiryWeekday >= weekday
