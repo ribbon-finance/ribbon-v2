@@ -454,8 +454,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 optionState.currentOption
             );
 
+        uint256 lockedAmount = vaultState.lockedAmount;
+        ShareMath.assertUint104(lockedAmount);
+
+        optionState.currentOption = address(0);
+
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            lockedAmount.sub(unlockedAssetAmount)
         );
     }
 
