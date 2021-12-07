@@ -16,21 +16,10 @@ import {
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
-import {UniswapRouter} from "./UniswapRouter.sol";
 
 library VaultLifecycleTreasury {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
-
-    struct DateTime {
-        uint16 year;
-        uint8 month;
-        uint8 day;
-        uint8 hour;
-        uint8 minute;
-        uint8 second;
-        uint8 weekday;
-    }
 
     struct CloseParams {
         address OTOKEN_FACTORY;
@@ -39,7 +28,7 @@ library VaultLifecycleTreasury {
         uint256 delay;
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
-        uint256 day;
+        uint256 weekday;
         uint256 period;
     }
 
@@ -77,13 +66,18 @@ library VaultLifecycleTreasury {
 
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextExpiry(block.timestamp, 5, 7, true);
+            expiry = getNextExpiry(
+                block.timestamp, 
+                closeParams.weekday, 
+                closeParams.period, 
+                true
+            );
         } else {
             expiry = getNextExpiry(
                 IOtoken(closeParams.currentOption).expiryTimestamp(),
-                5,
-                7,
-                true
+                closeParams.weekday, 
+                closeParams.period, 
+                false
             );
         }
 
@@ -182,7 +176,7 @@ library VaultLifecycleTreasury {
      * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
-     * @return managementFeeInAsset is the total amount of fee charged by vault
+     * @return managementFeeInAsset is the amount of management fee charged by vault
      */
     function rollover(
         Vault.VaultState storage vaultState,
@@ -557,7 +551,7 @@ library VaultLifecycleTreasury {
     }
 
     /**
-     * @notice Calculates the performance and management fee for this week's round
+     * @notice Calculates the management fee for this week's round
      * @param currentBalance is the balance of funds held on the vault after closing short
      * @param pendingAmount is the pending deposit amount
      * @param managementFeePercent is the management fee pct.
@@ -577,11 +571,8 @@ library VaultLifecycleTreasury {
 
         uint256 _managementFeeInAsset;
 
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
+        // Always charge management fee regardless of whether the vault is
+        // making a profit from the previous options sale
         _managementFeeInAsset = managementFeePercent > 0
             ? lockedBalanceSansPending.mul(managementFeePercent).div(
                 100 * Vault.FEE_MULTIPLIER
@@ -750,32 +741,14 @@ library VaultLifecycleTreasury {
         );
     }
 
-    /**
+     /**
      * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
-     * Reference: https://codereview.stackexchange.com/a/33532
      * Examples:
      * getNextFriday(week 1 thursday) -> week 1 friday
      * getNextFriday(week 1 friday) -> week 2 friday
      * getNextFriday(week 1 saturday) -> week 2 friday
      */
-    function getNextFriday(uint256 currentExpiry)
-        internal
-        pure
-        returns (uint256)
-    {
-        // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
-        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
-
-        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (currentExpiry >= friday8am) {
-            friday8am += 7 days;
-        }
-        return friday8am;
-    }
-
     function getNextExpiry(
         uint256 currentExpiry,
         uint256 day,
@@ -815,6 +788,7 @@ library VaultLifecycleTreasury {
     /************************************************
      *  DATE HELPERS
      ***********************************************/
+    // Reference 
 
     uint256 constant DAY_IN_SECONDS = 86400;
     uint256 constant YEAR_IN_SECONDS = 31536000;
@@ -945,12 +919,4 @@ library VaultLifecycleTreasury {
     function getWeekday(uint256 timestamp) internal pure returns (uint256) {
         return uint256((timestamp / DAY_IN_SECONDS + 4) % 7);
     }
-
-    // function geomEstimate(uint256 ref, uint256 x0, uint256 power) internal pure returns (uint256) {
-    //     uint256 multiplier = Vault.FEE_MULTIPLIER;
-    //     ref;
-    //     // uint256 newpower = power.div(Vault.FEE_MULTIPLIER);
-    //     return (100 * multiplier - x0);
-    //         // - ((100 * multiplier - x0)**newpower - ref)/(power*(100 * multiplier - x0)**(newpower-1));
-    // }
 }
