@@ -777,7 +777,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!owner");
+        ).to.be.revertedWith("!_owner");
       });
 
       it("reverts when initializing with 0 keeper", async function () {
@@ -809,7 +809,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!keeper");
+        ).to.be.revertedWith("!_keeper");
       });
 
       it("reverts when initializing with 0 feeRecipient", async function () {
@@ -841,7 +841,7 @@ function behavesLikeRibbonOptionsVault(params: {
               parseEther("500"),
             ]
           )
-        ).to.be.revertedWith("!feeRecipient");
+        ).to.be.revertedWith("!_feeRecipient");
       });
 
       it("reverts when initializing with 0 initCap", async function () {

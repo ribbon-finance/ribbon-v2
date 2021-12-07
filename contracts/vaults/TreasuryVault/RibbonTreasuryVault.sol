@@ -145,44 +145,6 @@ contract RibbonTreasuryVault is
     );
 
     /************************************************
-     *  STRUCTS
-     ***********************************************/
-
-    /**
-     * @notice Initialization parameters for the vault.
-     * @param _owner is the owner of the vault with critical permissions
-     * @param _feeRecipient is the address to recieve vault performance and management fees
-     * @param _managementFee is the management fee pct.
-     * @param _performanceFee is the perfomance fee pct.
-     * @param _tokenName is the name of the token
-     * @param _tokenSymbol is the symbol of the token
-     * @param _optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param _strikeSelection is the address of the contract with strike selection logic
-     * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
-     * @param _whitelist is an array of whitelisted user address who can deposit
-     * @param _premiumAsset is the asset which denominates the premium during auction
-     */
-    struct InitParams {
-        address _owner;
-        address _keeper;
-        address _feeRecipient;
-        uint256 _managementFee;
-        uint256 _performanceFee;
-        string _tokenName;
-        string _tokenSymbol;
-        address _optionsPremiumPricer;
-        address _strikeSelection;
-        uint32 _premiumDiscount;
-        uint256 _auctionDuration;
-        address[] _whitelist;
-        address _premiumAsset;
-        uint256 _period;
-        uint256 _weekday;
-    }
-
-    /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
 
@@ -222,18 +184,22 @@ contract RibbonTreasuryVault is
      * @notice Initializes the OptionVault contract with storage variables.
      */
     function initialize(
-        InitParams calldata _initParams,
+        VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         VaultLifecycleTreasury.verifyInitializerParams(
-            _initParams._owner,
-            _initParams._keeper,
-            _initParams._feeRecipient,
-            _initParams._performanceFee,
-            _initParams._managementFee,
-            _initParams._tokenName,
-            _initParams._tokenSymbol,
+            _initParams,
             _vaultParams
+        );
+
+        require(
+            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
+            "!_auctionDuration"
+        );
+        require(
+            _initParams._whitelist.length <= WHITELIST_LIMIT &&
+                _initParams._whitelist.length > 0,
+            "!_whitelist"
         );
 
         __ReentrancyGuard_init();
@@ -242,26 +208,23 @@ contract RibbonTreasuryVault is
         transferOwnership(_initParams._owner);
 
         keeper = _initParams._keeper;
-
-        require(
-            (_initParams._period == 30) || ((_initParams._period % 7) == 0),
-            "!_period"
-        );
-
-        require(_initParams._weekday < 7, "!_weekday");
-
         period = _initParams._period;
         weekday = _initParams._weekday;
+        optionsPremiumPricer = _initParams._optionsPremiumPricer;
+        strikeSelection = _initParams._strikeSelection;
+        premiumDiscount = _initParams._premiumDiscount;
+        auctionDuration = _initParams._auctionDuration;
+        premiumAsset = _initParams._premiumAsset;
+        feeRecipient = _initParams._feeRecipient;
+        performanceFee = _initParams._performanceFee;
 
         uint256 feeDivider =
             _initParams._period == 30
                 ? Vault.FEE_MULTIPLIER.mul(12)
                 : WEEKS_PER_YEAR.div(_initParams._period / 7);
 
-        feeRecipient = _initParams._feeRecipient;
-        performanceFee = _initParams._performanceFee;
-
-        managementFee = _initParams
+        managementFee = 
+        _initParams
             ._managementFee
             .mul(Vault.FEE_MULTIPLIER)
             .div(feeDivider);
@@ -272,46 +235,10 @@ contract RibbonTreasuryVault is
             IERC20(vaultParams.asset).balanceOf(address(this));
 
         ShareMath.assertUint104(assetBalance);
-        vaultState.lastLockedAmount = uint104(assetBalance);
 
+        vaultState.lastLockedAmount = uint104(assetBalance);
         vaultState.round = 1;
 
-        require(
-            _initParams._optionsPremiumPricer != address(0),
-            "!_optionsPremiumPricer"
-        );
-        require(
-            _initParams._strikeSelection != address(0),
-            "!_strikeSelection"
-        );
-        require(
-            _initParams._premiumDiscount > 0 &&
-                _initParams._premiumDiscount <
-                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "!_premiumDiscount"
-        );
-        require(
-            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
-            "!_auctionDuration"
-        );
-        require(_initParams._premiumAsset != address(0), "!_premiumAsset");
-        require(
-            _initParams._whitelist.length <= WHITELIST_LIMIT &&
-                _initParams._whitelist.length > 0,
-            "!_whitelist"
-        );
-        require(
-            _initParams._premiumAsset != _vaultParams.asset,
-            "!_premiumAsset"
-        );
-
-        optionsPremiumPricer = _initParams._optionsPremiumPricer;
-        strikeSelection = _initParams._strikeSelection;
-        premiumDiscount = _initParams._premiumDiscount;
-        auctionDuration = _initParams._auctionDuration;
-        premiumAsset = _initParams._premiumAsset;
-
-        // Store whitelist into mapping
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
             _addWhitelist(_initParams._whitelist[i]);
         }
@@ -366,6 +293,25 @@ contract RibbonTreasuryVault is
             "Invalid management fee"
         );
 
+        _setManagementFee(newManagementFee);
+        // uint256 _period = period;
+        // uint256 feeDivider =
+        //     _period == 30
+        //         ? Vault.FEE_MULTIPLIER.mul(12)
+        //         : WEEKS_PER_YEAR.div(_period / 7);
+
+        // // We are dividing annualized management fee by num weeks in a year
+        // managementFee =
+        //     newManagementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
+
+        emit ManagementFeeSet(managementFee, newManagementFee);
+    }
+
+    /**
+     * @notice Internal function to set the management fee for the vault
+     * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
+     */
+    function _setManagementFee(uint256 newManagementFee) internal {
         uint256 _period = period;
         uint256 feeDivider =
             _period == 30
@@ -373,13 +319,11 @@ contract RibbonTreasuryVault is
                 : WEEKS_PER_YEAR.div(_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
-        uint256 tmpManagementFee =
+        managementFee =
             newManagementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
-
-        emit ManagementFeeSet(managementFee, newManagementFee);
-
-        managementFee = tmpManagementFee;
     }
+
+    
 
     /**
      * @notice Sets the performance fee for the vault

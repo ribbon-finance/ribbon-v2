@@ -4,6 +4,11 @@
 pragma solidity =0.8.4;
 
 library DateTime {
+    /************************************************
+     *  DATE HELPERS
+     ***********************************************/
+    // Reference
+
     uint256 constant DAY_IN_SECONDS = 86400;
     uint256 constant YEAR_IN_SECONDS = 31536000;
     uint256 constant LEAP_YEAR_IN_SECONDS = 31622400;
@@ -85,17 +90,16 @@ library DateTime {
     }
 
     /**
-     * @notice Get the end of the month
-     * @param timestamp is the reference date to get last day of month
-     * Examples:
-     * getNextFriday(week 1 thursday) -> week 1 friday
-     * getNextFriday(week 1 friday) -> week 2 friday
-     * getNextFriday(week 1 saturday) -> week 2 friday
+     * @notice Gets the last weekday number of the month
+     * @param timestamp is the timestamp from which the last weekday number will be calculated
+     * @param weekday is the weekday number
+     * Example:
+     * getLastWeekdayOfMonth(11 June 2021, 5) -> Friday, 25 June 2021
      */
-    function getEndOfMonth(uint256 timestamp)
+    function getLastWeekdayOfMonth(uint256 timestamp, uint256 weekday)
         internal
         pure
-        returns (uint256 endOfMonth)
+        returns (uint256 nextMonthExpiry)
     {
         uint256 secondsAccountedFor = 0;
         uint256 buf;
@@ -131,12 +135,16 @@ library DateTime {
         }
 
         // Adjust
-        endOfMonth = timestamp + (getDaysInMonth(month, year) - day) * 1 days;
+        nextMonthExpiry =
+            timestamp +
+            (getDaysInMonth(month, year) - day) *
+            1 days;
 
-        // uint256 weekday = getWeekday(nextMonthExpiry);
+        uint256 expiryWeekday =
+            getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
 
-        // nextMonthExpiry -= weekday > day
-        //     ? (weekday - day) * 1 days
-        //     : 7 days - (day - weekday) * 1 days;
+        nextMonthExpiry -= expiryWeekday >= weekday
+            ? (expiryWeekday - weekday) * 1 days
+            : 7 days - (weekday - expiryWeekday) * 1 days;
     }
 }
