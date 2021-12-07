@@ -336,16 +336,15 @@ describe("VaultLifecycleTreasury", () => {
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
-    it("[day = 5, period = 30, initial = true] Saturday (05 Jun) → Friday (11 Jun)", async () => {
+    it("[day = 5, period = 30, initial = true] Saturday (05 Jun) → Friday (25 Jun)", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
       const saturday = currentTime.add(1, "days");
 
       const expectedFriday = moment(saturday)
-        .startOf("isoWeek")
-        .add(1, "week")
-        .day("friday")
+        .startOf("month")
+        .add(24, "day")
         .hour(8); // needs to be 8am UTC
 
       const nextFriday = await lifecycle.getNextExpiry(
@@ -361,15 +360,16 @@ describe("VaultLifecycleTreasury", () => {
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
 
-    it("[day = 5, period = 30, initial = false] Saturday (05 Jun) → Friday (25 Jun)", async () => {
+    it("[day = 5, period = 30, initial = false] Saturday (05 Jun) → Friday (30 Jul)", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
       const saturday = currentTime.add(1, "days");
 
       const expectedFriday = moment(saturday)
+        .add(1, "month")
         .startOf("month")
-        .add(24, "day")
+        .add(29, "day")
         .hour(8); // needs to be 8am UTC
 
       const nextFriday = await lifecycle.getNextExpiry(
@@ -380,6 +380,7 @@ describe("VaultLifecycleTreasury", () => {
       );
 
       const fridayDate = moment.unix(nextFriday);
+
       assert.equal(fridayDate.weekday(), 5);
       
       assert.isTrue(fridayDate.isSame(expectedFriday));
