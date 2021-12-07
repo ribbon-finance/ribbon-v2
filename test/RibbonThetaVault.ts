@@ -75,7 +75,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("1000"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -107,7 +107,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -137,13 +137,15 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: BigNumber.from("100000000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("2702702702"),
+    expectedMintAmount: BigNumber.from(
+      chainId === CHAINID.AVAX_MAINNET ? "142857142857" : "2702702702"
+    ),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -169,7 +171,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -201,7 +203,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from("100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -543,6 +545,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 0, "week") // Hack for Avax blocknumber not a week in the pas
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -580,7 +583,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 2 : 1, "week") // Hack for Avax blocknumber not a week in the past
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -1690,9 +1693,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("sets the correct strike when overriding strike price", async function () {
+        const strikePriceForChain = chainId === CHAINID.ETH_MAINNET ? BigNumber.from("250000000000") : BigNumber.from("20000000000");
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
-            ? BigNumber.from("250000000000")
+            ? strikePriceForChain
             : BigNumber.from("4050000000000");
 
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
@@ -1849,7 +1853,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitAndClose({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1162951);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 2597051);
         // console.log("commitAndClose", receipt.gasUsed.toNumber());
       });
     });
@@ -2804,9 +2808,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforePps = await vault.pricePerShare();
 
+        const AMOUNT = { [CHAINID.ETH_MAINNET]: "100000000000", [CHAINID.AVAX_MAINNET]: "1000000000" };
+
         const settlementPriceITM = isPut
-          ? firstOptionStrike.sub(100000000000)
-          : firstOptionStrike.add(100000000000);
+          ? firstOptionStrike.sub(AMOUNT[chainId])
+          : firstOptionStrike.add(AMOUNT[chainId]);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -3495,9 +3501,11 @@ function behavesLikeRibbonOptionsVault(params: {
           BigNumber.from(depositAmount)
         );
 
+        const AMOUNT = { [CHAINID.ETH_MAINNET]: "100000000000", [CHAINID.AVAX_MAINNET]: "1000000000" };
+
         const settlementPriceITM = isPut
-          ? firstOptionStrike.sub(100000000000)
-          : firstOptionStrike.add(100000000000);
+          ? firstOptionStrike.sub(AMOUNT[chainId])
+          : firstOptionStrike.add(AMOUNT[chainId]);
 
         // console.log(settlementPriceITM.toString());
 

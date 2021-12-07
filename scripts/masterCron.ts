@@ -713,7 +713,7 @@ async function updateManualVol() {
   console.log("Updating ManualVolOracle");
 
   const volOracle = new ethers.Contract(
-    MANUAL_VOL_ORACLE,
+    MANUAL_VOL_ORACLE['1'],
     ManualVolOracle_ABI,
     provider
   );

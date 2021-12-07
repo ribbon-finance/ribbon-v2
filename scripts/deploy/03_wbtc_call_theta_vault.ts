@@ -1,3 +1,4 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WBTC_ADDRESS,
@@ -30,7 +31,6 @@ const main = async ({
   console.log(`03 - Deploying WBTC Call Theta Vault on ${network.name}`);
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
-
   const chainId = network.config.chainId;
   const underlyingOracle = BTC_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
@@ -49,11 +49,26 @@ const main = async ({
     ],
   });
 
+  console.log(`RibbonThetaVaultWBTCCall pricer @ ${pricer.address}`);
+
+  // Can't verify pricer because it's compiled with 0.7.3
+
   const strikeSelection = await deploy("StrikeSelectionWBTC", {
     contract: "StrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
   });
+
+  console.log(`RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`);
+
+   try {
+    await run('verify:verify', {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -94,13 +109,27 @@ const main = async ({
     initArgs
   );
 
-  const vault = await deploy("RibbonThetaVaultWBTCCall", {
+  const proxy = await deploy("RibbonThetaVaultWBTCCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultWBTCCall @ ${vault.address}`);
+  console.log(`RibbonThetaVaultWBTCCall @ ${proxy.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: proxy.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
 };
 main.tags = ["RibbonThetaVaultWBTCCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
