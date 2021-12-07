@@ -7,6 +7,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
+import verifyContracts from "./scripts/tasks/verifyContracts";
 import { BLOCK_NUMBER } from "./constants/constants";
 import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
@@ -16,7 +17,7 @@ process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 
 // Defaults to CHAINID=1 so things will run with mainnet fork if not specified
-const CHAINID = process.env.CHAINID ? + process.env.CHAINID : 1;
+const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
 export default {
   accounts: {
@@ -49,8 +50,9 @@ export default {
     },
     mainnet: {
       url: process.env.TEST_URI,
+      chainId: CHAINID,
       accounts: {
-        mnemonic: process.env.TEST_MNEMONIC,
+        mnemonic: process.env.MAINNET_MNEMONIC,
       },
     },
     kovan: {
@@ -120,3 +122,4 @@ export default {
 };
 
 task("export-deployments", "Exports deployments into JSON", exportDeployments);
+task("verify-contracts", "Verify solidity source", verifyContracts);
