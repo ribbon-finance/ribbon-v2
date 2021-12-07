@@ -151,7 +151,7 @@ async function pushTokenListToGit(tokenSet: TokenSet, fileName: string) {
   // add new week's otokens to token list
   newTokenSet.tokens = currentTokenSet.concat(newTokenSet.tokens);
   //remove duplicates
-  newTokenSet.tokens = [...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values(), ];
+  newTokenSet.tokens = [...new Map(newTokenSet.tokens.map((item) => [item.address, item])).values()];
 
   await fs.writeFileSync(filePath, JSON.stringify(newTokenSet, null, 2), {
     encoding: "utf8",
@@ -206,6 +206,7 @@ async function getDeribitStrikePrice(
     let intrumentName = instrument.instrument_name;
     // If the expiry is the same expiry as our option and is same type (put / call)
 <<<<<<< HEAD
+<<<<<<< HEAD
     let sameOptionType = isPut === (instrument.option_type === "put");
     let sameExpiry =
       Math.abs(expiry * 1000 - instrument.expiration_timestamp) < expiryMargin;
@@ -216,6 +217,11 @@ async function getDeribitStrikePrice(
       Math.abs(expiry * 1000 - instrument.expiration_timestamp) <
       expiryMargin;
 >>>>>>> 84f8aea (Formatting)
+=======
+    let sameOptionType = isPut === (instrument.option_type === "put");
+    let sameExpiry =
+      Math.abs(expiry * 1000 - instrument.expiration_timestamp) < expiryMargin;
+>>>>>>> 8366a09 (Merge with whitelist)
     let isOTM = instrument.strike > spotPrice;
     if (sameOptionType && sameExpiry && isOTM) {
       let currDelta = await getDeribitDelta(intrumentName);

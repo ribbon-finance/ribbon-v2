@@ -39,51 +39,6 @@ contract RibbonTreasuryVault is
     using ShareMath for Vault.DepositReceipt;
 
     /************************************************
-     *  NON UPGRADEABLE STORAGE
-     ***********************************************/
-
-    /// @notice Stores the user's pending deposit for the round
-    mapping(address => Vault.DepositReceipt) public depositReceipts;
-
-    /// @notice On every round's close, the pricePerShare value of an rTHETA token is stored
-    /// This is used to determine the number of shares to be returned
-    /// to a user with their DepositReceipt.depositAmount
-    mapping(uint256 => uint256) public roundPricePerShare;
-
-    /// @notice Stores pending user withdrawals
-    mapping(address => Vault.Withdrawal) public withdrawals;
-
-    /// @notice Vault's parameters like cap, decimals
-    Vault.VaultParams public vaultParams;
-
-    /// @notice Vault's lifecycle state like round and locked amounts
-    Vault.VaultState public vaultState;
-
-    /// @notice Vault's state of the options sold and the timelocked option
-    Vault.OptionState public optionState;
-
-    /// @notice Fee recipient for the performance and management fees
-    address public feeRecipient;
-
-    /// @notice role in charge of weekly vault operations such as rollToNextOption and burnRemainingOTokens
-    // no access to critical vault changes
-    address public keeper;
-
-    /// @notice Performance fee charged on premiums earned in rollToNextOption. Only charged when there is no loss.
-    uint256 public performanceFee;
-
-    /// @notice Management fee charged on entire AUM in rollToNextOption. Only charged when there is no loss.
-    uint256 public managementFee;
-
-    // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
-    uint256[30] private ____gap;
-
-    // *IMPORTANT* NO NEW STORAGE VARIABLES SHOULD BE ADDED HERE
-    // This is to prevent storage collisions. All storage variables should be appended to RibbonThetaVaultStorage
-    // or RibbonDeltaVaultStorage instead. Read this documentation to learn more:
-    // https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#modifying-your-contracts
-
-    /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
 
@@ -358,17 +313,10 @@ contract RibbonTreasuryVault is
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
         premiumAsset = _initParams._premiumAsset;
-        whitelistArray = _initParams._whitelist;
 
         // Store whitelist into mapping
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
-            require(_initParams._whitelist[i] != address(0), "Whitelist null");
-            require(
-                !whitelistMap[_initParams._whitelist[i]],
-                "Whitelist duplicate"
-            );
-
-            whitelistMap[_initParams._whitelist[i]] = true;
+            _addWhitelist(_initParams._whitelist[i]);
         }
     }
 
@@ -533,53 +481,52 @@ contract RibbonTreasuryVault is
 
     /**
      * @notice Adds new whitelisted address
-     * @param newWhitelist is a list of address to include to the whitelist
+     * @param newWhitelist is the address to include in the whitelist
      */
-    function addWhitelist(address[] calldata newWhitelist)
+    function addWhitelist(address newWhitelist)
         external
-        onlyKeeper
+        onlyOwner
         nonReentrant
     {
+        _addWhitelist(newWhitelist);
+    }
+
+    /**
+     * @notice Internal function to add new whitelisted address
+     * @param newWhitelist is the address to include in the whitelist
+     */
+    function _addWhitelist(address newWhitelist) internal {
+        require(newWhitelist != address(0), "Whitelist null");
+        require(!whitelistMap[newWhitelist], "Whitelist duplicate");
         require(
-            (newWhitelist.length + whitelistArray.length) <= WHITELIST_LIMIT,
+            (whitelistArray.length + 1) <= WHITELIST_LIMIT,
             "Whitelist exceed limit"
         );
 
-        for (uint256 i = 0; i < newWhitelist.length; i++) {
-            require(newWhitelist[i] != address(0), "Whitelist null");
-            require(!whitelistMap[newWhitelist[i]], "Whitelist duplicate");
-
-            whitelistMap[newWhitelist[i]] = true;
-            whitelistArray.push(newWhitelist[i]);
-        }
+        whitelistMap[newWhitelist] = true;
+        whitelistArray.push(newWhitelist);
     }
 
     /**
      * @notice Remove addresses from whitelist
-     * @param excludeWhitelist is a list of address to include to the whitelist
+     * @param excludeWhitelist is the address to exclude from the whitelist
      */
-    function removeWhitelist(address[] calldata excludeWhitelist)
+    function removeWhitelist(address excludeWhitelist)
         external
-        onlyKeeper
+        onlyOwner
         nonReentrant
     {
-        require(
-            (whitelistArray.length - excludeWhitelist.length) > 0,
-            "Whitelist cannot be empty"
-        );
+        require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
+        require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
 
-        for (uint256 i = 0; i < excludeWhitelist.length; i++) {
-            require(
-                whitelistMap[excludeWhitelist[i]],
-                "Whitelist does not exist"
-            );
+        whitelistMap[excludeWhitelist] = false;
 
-            whitelistMap[excludeWhitelist[i]];
-
-            for (uint256 j = 0; j < whitelistArray.length; j++) {
-                if (excludeWhitelist[i] == whitelistArray[j]) {
-                    delete whitelistArray[j];
+        for (uint256 i = 0; i < whitelistArray.length; i++) {
+            if (excludeWhitelist == whitelistArray[i]) {
+                for (uint256 j = i; j < whitelistArray.length - 1; j++) {
+                    whitelistArray[j] = whitelistArray[j + 1];
                 }
+                whitelistArray.pop();
             }
         }
     }
@@ -1271,8 +1218,4 @@ contract RibbonTreasuryVault is
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
     }
-
-    /************************************************
-     *  HELPERS
-     ***********************************************/
 }

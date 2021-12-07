@@ -33,6 +33,7 @@ const TOKEN_SYMBOL = {
   [CHAINID.AVAX_FUJI]: 'rAVAX-THETA',
 };
 
+<<<<<<< HEAD
 const STRIKE_STEP = {
   [CHAINID.ETH_MAINNET]: ETH_STRIKE_STEP,
   [CHAINID.ETH_KOVAN]: ETH_STRIKE_STEP,
@@ -40,6 +41,8 @@ const STRIKE_STEP = {
   [CHAINID.AVAX_FUJI]: AVAX_STRIKE_STEP,
 };
 
+=======
+>>>>>>> 8366a09 (Merge with whitelist)
 const main = async ({
   network,
   deployments,
@@ -92,11 +95,15 @@ const main = async ({
   try {
     await run('verify:verify', {
       address: strikeSelection.address,
+<<<<<<< HEAD
       constructorArguments: [
         pricer.address,
         STRIKE_DELTA,
         STRIKE_STEP[chainId],
       ],
+=======
+      constructorArguments: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP],
+>>>>>>> 8366a09 (Merge with whitelist)
     });
   } catch (error) {
     console.log(error);
