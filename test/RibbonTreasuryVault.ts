@@ -281,9 +281,13 @@ function behavesLikeRibbonOptionsVault(params: {
   let whitelist: string[];
   let premiumAsset = params.premiumAsset;
   let premiumDecimals = params.premiumDecimals;
+<<<<<<< HEAD
   let period = params.period;
   let day = params.day;
   let multiAsset = params.asset != params.premiumAsset;
+=======
+  let multiAsset = params.asset !== params.premiumAsset;
+>>>>>>> 2a1694b (Formatting)
   let whitelistLimit = 5;
   let distribute = params.distribute;
 
@@ -1105,16 +1109,22 @@ function behavesLikeRibbonOptionsVault(params: {
         let dummy3 = "0x0000000000000000000000000000000000000003";
         let dummy4 = "0x0000000000000000000000000000000000000004";
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2a1694b (Formatting)
 
         await vault.connect(ownerSigner).addWhitelist(dummy1);
         await vault.connect(ownerSigner).addWhitelist(dummy2);
         await vault.connect(ownerSigner).addWhitelist(dummy3);
+<<<<<<< HEAD
 =======
         
         await vault.connect(ownerSigner).addWhitelist(dummy1)
         await vault.connect(ownerSigner).addWhitelist(dummy2)
         await vault.connect(ownerSigner).addWhitelist(dummy3)
 >>>>>>> 1d4bfe1 (Modified whitelist related method)
+=======
+>>>>>>> 2a1694b (Formatting)
         await expect(
           vault.connect(ownerSigner).addWhitelist(dummy4)
         ).to.be.revertedWith("Whitelist exceed limit");
