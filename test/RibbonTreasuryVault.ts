@@ -575,7 +575,7 @@ function behavesLikeRibbonOptionsVault(params: {
         collateralAsset
       );
 
-      if (premiumAsset == WETH_ADDRESS[chainId]) {
+      if (premiumAsset === WETH_ADDRESS[chainId]) {
         premiumContract = await getContractAt("IWETH", premiumAsset);
       } else {
         premiumContract = await getContractAt("IERC20", premiumAsset);
@@ -596,7 +596,7 @@ function behavesLikeRibbonOptionsVault(params: {
               : parseEther("200")
           );
           if (multiAsset) {
-            if (premiumAsset == WETH_ADDRESS[chainId]) {
+            if (premiumAsset === WETH_ADDRESS[chainId]) {
               await premiumContract
                 .connect(userSigner)
                 .deposit({ value: parseEther("100") });
@@ -1090,31 +1090,37 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#addWhitelist", () => {
-      time.revertToSnapshotAfterTest();
+      time.revertToSnapshotAfterEach();
 
-      it("reverts when not keeper call", async function () {
+      it("reverts when not owner call", async function () {
         await expect(
-          vault.connect(ownerSigner).addWhitelist([user])
-        ).to.be.revertedWith("!keeper");
+          vault.connect(keeperSigner).addWhitelist(user)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
       it("reverts when list exceeds limit", async function () {
-        let dummy = constants.AddressZero;
+        let dummy1 = "0x0000000000000000000000000000000000000001";
+        let dummy2 = "0x0000000000000000000000000000000000000002";
+        let dummy3 = "0x0000000000000000000000000000000000000003";
+        let dummy4 = "0x0000000000000000000000000000000000000004";
 
+        await vault.connect(ownerSigner).addWhitelist(dummy1);
+        await vault.connect(ownerSigner).addWhitelist(dummy2);
+        await vault.connect(ownerSigner).addWhitelist(dummy3);
         await expect(
-          vault.connect(keeperSigner).addWhitelist([dummy, dummy, dummy, dummy, dummy])
+          vault.connect(ownerSigner).addWhitelist(dummy4)
         ).to.be.revertedWith("Whitelist exceed limit");
       });
 
       it("reverts when address is already whitelisted", async function () {
         await expect(
-          vault.connect(keeperSigner).addWhitelist([user])
+          vault.connect(ownerSigner).addWhitelist(user)
         ).to.be.revertedWith("Whitelist duplicate");
       });
 
       it("reverts when adding zero address", async function () {
         await expect(
-          vault.connect(keeperSigner).addWhitelist([constants.AddressZero])
+          vault.connect(ownerSigner).addWhitelist(constants.AddressZero)
         ).to.be.revertedWith("Whitelist null");
       });
 
@@ -1133,7 +1139,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.notIncludeMembers(temp, [keeper]); // (superset, subset)
 
-        await vault.connect(keeperSigner).addWhitelist([keeper]);
+        await vault.connect(ownerSigner).addWhitelist(keeper);
 
         temp = [];
         i = 0;
@@ -1152,23 +1158,24 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#removeWhitelist", () => {
-      time.revertToSnapshotAfterTest();
+      time.revertToSnapshotAfterEach();
 
       it("reverts when not keeper call", async function () {
         await expect(
-          vault.connect(ownerSigner).removeWhitelist([user])
-        ).to.be.revertedWith("!keeper");
+          vault.connect(keeperSigner).removeWhitelist(user)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
       it("reverts when removal will empty the whitelist", async function () {
+        await vault.connect(ownerSigner).removeWhitelist(owner);
         await expect(
-          vault.connect(keeperSigner).removeWhitelist([user, owner])
+          vault.connect(ownerSigner).removeWhitelist(user)
         ).to.be.revertedWith("Whitelist cannot be empty");
       });
 
-      it("reverts when tyring to remove non-whitelisted address", async function () {
+      it("reverts when trying to remove non-whitelisted address", async function () {
         await expect(
-          vault.connect(keeperSigner).removeWhitelist([keeper])
+          vault.connect(ownerSigner).removeWhitelist(keeper)
         ).to.be.revertedWith("Whitelist does not exist");
       });
 
@@ -1187,7 +1194,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.includeMembers(temp, [user]); // (superset, subset)
 
-        await vault.connect(keeperSigner).removeWhitelist([user]);
+        await vault.connect(ownerSigner).removeWhitelist(user);
 
         temp = [];
         i = 0;
@@ -1620,7 +1627,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        let assetBalanceBeforeSettle: any;
+        let assetBalanceBeforeSettle: BigNumber;
 
         assetBalanceBeforeSettle = await tokenContract.balanceOf(vault.address);
 
@@ -1638,7 +1645,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "0"
         );
 
-        let assetBalanceAfterSettle: any;
+        let assetBalanceAfterSettle: BigNumber;
 
         assetBalanceAfterSettle = await tokenContract.balanceOf(vault.address);
 

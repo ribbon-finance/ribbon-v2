@@ -624,7 +624,7 @@ function behavesLikeRibbonOptionsVault(params: {
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             thetaVault.address,
-            params.collateralAsset == USDC_ADDRESS[chainId]
+            params.collateralAsset === USDC_ADDRESS[chainId]
               ? BigNumber.from("10000000000000")
               : parseEther("200")
           );

@@ -1,6 +1,22 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { WETH_ADDRESS } from "../../constants/constants";
+import { CHAINID, WETH_ADDRESS } from "../../constants/constants";
 import { MANAGEMENT_FEE, PERFORMANCE_FEE } from "../utils/constants";
+
+const TOKEN_NAME = {
+  [CHAINID.ETH_MAINNET]: 'Ribbon ETH Call Delta Vault',
+  [CHAINID.ETH_KOVAN]: 'Ribbon ETH Call Delta Vault',
+  [CHAINID.AVAX_MAINNET]: 'Ribbon AVAX Call Delta Vault',
+  [CHAINID.AVAX_FUJI]: 'Ribbon AVAX Call Delta Vault',
+};
+
+const TOKEN_SYMBOL = {
+  [CHAINID.ETH_MAINNET]: 'rETH-C-DELTA',
+  [CHAINID.ETH_KOVAN]: 'rETH-C-DELTA',
+  [CHAINID.AVAX_MAINNET]: 'AVAX-C-DELTA',
+  [CHAINID.AVAX_FUJI]: 'rAVAX-C-DELTA',
+};
+
 
 const main = async ({
   network,
@@ -37,8 +53,8 @@ const main = async ({
     feeRecipient,
     MANAGEMENT_FEE,
     PERFORMANCE_FEE,
-    "Ribbon ETH Call Delta Vault",
-    "rETH-C-DELTA",
+    TOKEN_NAME[chainId],
+    TOKEN_SYMBOL[chainId],
     counterpartyThetaVault,
     optionAllocation,
     {
@@ -62,6 +78,20 @@ const main = async ({
   });
 
   console.log(`RibbonDeltaVaultETHCall @ ${vault.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
 };
 main.tags = ["RibbonDeltaVaultETHCall"];
 main.dependencies = ["RibbonDeltaVaultLogic"];

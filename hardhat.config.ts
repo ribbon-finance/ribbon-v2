@@ -7,6 +7,7 @@ import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
 import exportDeployments from "./scripts/tasks/exportDeployments";
+import verifyContracts from "./scripts/tasks/verifyContracts";
 import { BLOCK_NUMBER } from "./constants/constants";
 import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
@@ -16,7 +17,7 @@ process.env.TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 
 // Defaults to CHAINID=1 so things will run with mainnet fork if not specified
-const CHAINID = process.env.CHAINID ? + process.env.CHAINID : 1;
+const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
 export default {
   accounts: {
@@ -49,8 +50,9 @@ export default {
     },
     mainnet: {
       url: process.env.TEST_URI,
+      chainId: CHAINID,
       accounts: {
-        mnemonic: process.env.TEST_MNEMONIC,
+        mnemonic: process.env.MAINNET_MNEMONIC,
       },
     },
     kovan: {
@@ -79,35 +81,35 @@ export default {
       default: 0,
       1: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
       42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
     },
     owner: {
       default: 0,
       1: "0xAb6df2dE75a4f07D95c040DF90c7362bB5edcd90",
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
     },
     keeper: {
       default: 0,
       1: "0xA4290C9EAe274c7A8FbC57A1E68AdC3E95E7C67e",
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
     },
     admin: {
       default: 0,
       1: "0x88A9142fa18678003342a8Fd706Bd301E0FecEfd",
       42: "0x50378505679B9e7247ffe89EAa1b136131Ea8362",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
     },
     feeRecipient: {
       default: 0,
       1: "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674", // Ribbon DAO
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
     },
   },
@@ -120,3 +122,4 @@ export default {
 };
 
 task("export-deployments", "Exports deployments into JSON", exportDeployments);
+task("verify-contracts", "Verify solidity source", verifyContracts);
