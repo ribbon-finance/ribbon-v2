@@ -77,12 +77,7 @@ library VaultLifecycleTreasury {
 
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextExpiry(
-                block.timestamp,
-                5,
-                7,
-                true
-            );
+            expiry = getNextExpiry(block.timestamp, 5, 7, true);
         } else {
             expiry = getNextExpiry(
                 IOtoken(closeParams.currentOption).expiryTimestamp(),
@@ -572,13 +567,7 @@ library VaultLifecycleTreasury {
         uint256 currentBalance,
         uint256 pendingAmount,
         uint256 managementFeePercent
-    )
-        internal
-        pure
-        returns (
-            uint256 managementFeeInAsset
-        )
-    {
+    ) internal pure returns (uint256 managementFeeInAsset) {
         // At the first round, currentBalance=0, pendingAmount>0
         // so we just do not charge anything on the first round
         uint256 lockedBalanceSansPending =
@@ -594,11 +583,11 @@ library VaultLifecycleTreasury {
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
         _managementFeeInAsset = managementFeePercent > 0
-                ? lockedBalanceSansPending.mul(managementFeePercent).div(
-                    100 * Vault.FEE_MULTIPLIER
-                )
-                : 0;
-        
+            ? lockedBalanceSansPending.mul(managementFeePercent).div(
+                100 * Vault.FEE_MULTIPLIER
+            )
+            : 0;
+
         return _managementFeeInAsset;
     }
 
@@ -788,38 +777,38 @@ library VaultLifecycleTreasury {
     }
 
     function getNextExpiry(
-        uint256 currentExpiry, 
-        uint256 day, 
+        uint256 currentExpiry,
+        uint256 day,
         uint256 period, // no of days in between option selling
         bool initial
-    )
-        internal
-        pure
-        returns (uint256 nextExpiry)
-    {   
+    ) internal pure returns (uint256 nextExpiry) {
         if (initial) {
-            uint256 weekday = getWeekday(currentExpiry) == 0
-                ? 7
-                : getWeekday(currentExpiry);
+            uint256 weekday =
+                getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
 
-            nextExpiry = (weekday >= day
-                ? currentExpiry - (weekday - day) * 1 days + 1 weeks
-                : currentExpiry + (day - weekday) * 1 days);
+            nextExpiry = (
+                weekday >= day
+                    ? currentExpiry - (weekday - day) * 1 days + 1 weeks
+                    : currentExpiry + (day - weekday) * 1 days
+            );
         } else if (period == 30) {
-            nextExpiry = getNextMonthExpiry(currentExpiry, day); 
+            nextExpiry = getNextMonthExpiry(currentExpiry, day);
         } else if (period % 7 == 0) {
-            uint256 weekday = getWeekday(currentExpiry) == 0
-                ? 7
-                : getWeekday(currentExpiry);
+            uint256 weekday =
+                getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
 
-            nextExpiry = (weekday >= day
-                    ? currentExpiry - (weekday - day) * 1 days
-                    : currentExpiry + (day - weekday) * 1 days)
-                + (period / 7) * 1 weeks;
+            nextExpiry =
+                (
+                    weekday >= day
+                        ? currentExpiry - (weekday - day) * 1 days
+                        : currentExpiry + (day - weekday) * 1 days
+                ) +
+                (period / 7) *
+                1 weeks;
         }
 
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
-        
+
         return nextExpiry;
     }
 
@@ -827,51 +816,64 @@ library VaultLifecycleTreasury {
      *  DATE HELPERS
      ***********************************************/
 
-    uint constant DAY_IN_SECONDS = 86400;
-    uint constant YEAR_IN_SECONDS = 31536000;
-    uint constant LEAP_YEAR_IN_SECONDS = 31622400;
+    uint256 constant DAY_IN_SECONDS = 86400;
+    uint256 constant YEAR_IN_SECONDS = 31536000;
+    uint256 constant LEAP_YEAR_IN_SECONDS = 31622400;
 
-    uint constant HOUR_IN_SECONDS = 3600;
-    uint constant MINUTE_IN_SECONDS = 60;
+    uint256 constant HOUR_IN_SECONDS = 3600;
+    uint256 constant MINUTE_IN_SECONDS = 60;
 
     uint16 constant ORIGIN_YEAR = 1970;
 
-    function isLeapYear(uint16 year) public pure returns (bool) {
+    function isLeapYear(uint16 year) internal pure returns (bool) {
         if (year % 4 != 0) {
-                return false;
+            return false;
         }
         if (year % 100 != 0) {
-                return true;
+            return true;
         }
         if (year % 400 != 0) {
-                return false;
+            return false;
         }
         return true;
     }
 
-    function leapYearsBefore(uint year) public pure returns (uint) {
+    function leapYearsBefore(uint256 year) internal pure returns (uint256) {
         year -= 1;
         return year / 4 - year / 100 + year / 400;
     }
 
-    function getDaysInMonth(uint8 month, uint16 year) public pure returns (uint8) {
-        if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12) {
-                return 31;
-        }
-        else if (month == 4 || month == 6 || month == 9 || month == 11) {
-                return 30;
-        }
-        else if (isLeapYear(year)) {
-                return 29;
-        }
-        else {
-                return 28;
+    function getDaysInMonth(uint8 month, uint16 year)
+        internal
+        pure
+        returns (uint8)
+    {
+        if (
+            month == 1 ||
+            month == 3 ||
+            month == 5 ||
+            month == 7 ||
+            month == 8 ||
+            month == 10 ||
+            month == 12
+        ) {
+            return 31;
+        } else if (month == 4 || month == 6 || month == 9 || month == 11) {
+            return 30;
+        } else if (isLeapYear(year)) {
+            return 29;
+        } else {
+            return 28;
         }
     }
 
-    function getNextMonthExpiry(uint256 timestamp, uint256 day) internal pure returns (uint256 nextMonthExpiry) {
-        uint secondsAccountedFor = 0;
-        uint buf;
+    function getNextMonthExpiry(uint256 timestamp, uint256 day)
+        internal
+        pure
+        returns (uint256 nextMonthExpiry)
+    {
+        uint256 secondsAccountedFor = 0;
+        uint256 buf;
         uint8 i;
         uint8 month;
 
@@ -883,61 +885,72 @@ library VaultLifecycleTreasury {
         secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - buf);
 
         // Month
-        uint secondsInMonth;
+        uint256 secondsInMonth;
         for (i = 1; i <= 12; i++) {
-                secondsInMonth = DAY_IN_SECONDS * getDaysInMonth(i, year);
-                if (secondsInMonth + secondsAccountedFor > timestamp) {
-                        month = i;
-                        break;
-                }
-                secondsAccountedFor += secondsInMonth;
+            secondsInMonth = DAY_IN_SECONDS * getDaysInMonth(i, year);
+            if (secondsInMonth + secondsAccountedFor > timestamp) {
+                month = i;
+                break;
+            }
+            secondsAccountedFor += secondsInMonth;
         }
 
         // Day
         for (i = 1; i <= getDaysInMonth(month, year); i++) {
-                if (DAY_IN_SECONDS + secondsAccountedFor > timestamp) {
-                        day = i;
-                        break;
-                }
-                secondsAccountedFor += DAY_IN_SECONDS;
+            if (DAY_IN_SECONDS + secondsAccountedFor > timestamp) {
+                day = i;
+                break;
+            }
+            secondsAccountedFor += DAY_IN_SECONDS;
         }
 
         // Adjust
-        nextMonthExpiry = timestamp 
-            + (getDaysInMonth(month, year) - day) * 1 days;
+        nextMonthExpiry =
+            timestamp +
+            (getDaysInMonth(month, year) - day) *
+            1 days;
 
         uint256 weekday = getWeekday(nextMonthExpiry);
-        
+
         nextMonthExpiry -= weekday > day
             ? (weekday - day) * 1 days
             : 7 days - (day - weekday) * 1 days;
     }
 
-    function getYear(uint timestamp) public pure returns (uint16) {
-            uint secondsAccountedFor = 0;
-            uint16 year;
-            uint numLeapYears;
+    function getYear(uint256 timestamp) internal pure returns (uint16) {
+        uint256 secondsAccountedFor = 0;
+        uint16 year;
+        uint256 numLeapYears;
 
-            // Year
-            year = uint16(ORIGIN_YEAR + timestamp / YEAR_IN_SECONDS);
-            numLeapYears = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
+        // Year
+        year = uint16(ORIGIN_YEAR + timestamp / YEAR_IN_SECONDS);
+        numLeapYears = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
 
-            secondsAccountedFor += LEAP_YEAR_IN_SECONDS * numLeapYears;
-            secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - numLeapYears);
+        secondsAccountedFor += LEAP_YEAR_IN_SECONDS * numLeapYears;
+        secondsAccountedFor +=
+            YEAR_IN_SECONDS *
+            (year - ORIGIN_YEAR - numLeapYears);
 
-            while (secondsAccountedFor > timestamp) {
-                    if (isLeapYear(uint16(year - 1))) {
-                            secondsAccountedFor -= LEAP_YEAR_IN_SECONDS;
-                    }
-                    else {
-                            secondsAccountedFor -= YEAR_IN_SECONDS;
-                    }
-                    year -= 1;
+        while (secondsAccountedFor > timestamp) {
+            if (isLeapYear(uint16(year - 1))) {
+                secondsAccountedFor -= LEAP_YEAR_IN_SECONDS;
+            } else {
+                secondsAccountedFor -= YEAR_IN_SECONDS;
             }
-            return year;
+            year -= 1;
+        }
+        return year;
     }
-    
-    function getWeekday(uint timestamp) public pure returns (uint256) {
+
+    function getWeekday(uint256 timestamp) internal pure returns (uint256) {
         return uint256((timestamp / DAY_IN_SECONDS + 4) % 7);
     }
+
+    // function geomEstimate(uint256 ref, uint256 x0, uint256 power) internal pure returns (uint256) {
+    //     uint256 multiplier = Vault.FEE_MULTIPLIER;
+    //     ref;
+    //     // uint256 newpower = power.div(Vault.FEE_MULTIPLIER);
+    //     return (100 * multiplier - x0);
+    //         // - ((100 * multiplier - x0)**newpower - ref)/(power*(100 * multiplier - x0)**(newpower-1));
+    // }
 }
