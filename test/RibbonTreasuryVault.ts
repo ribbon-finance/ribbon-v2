@@ -264,7 +264,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let whitelist: string[];
   let premiumAsset = params.premiumAsset;
   let premiumDecimals = params.premiumDecimals;
-  let multiAsset = params.asset != params.premiumAsset;
+  let multiAsset = params.asset !== params.premiumAsset;
   let whitelistLimit = 5;
 
   // Contracts
@@ -544,7 +544,7 @@ function behavesLikeRibbonOptionsVault(params: {
         collateralAsset
       );
 
-      if (premiumAsset == WETH_ADDRESS[chainId]) {
+      if (premiumAsset === WETH_ADDRESS[chainId]) {
         premiumContract = await getContractAt("IWETH", premiumAsset);
       } else {
         premiumContract = await getContractAt("IERC20", premiumAsset);
@@ -565,7 +565,7 @@ function behavesLikeRibbonOptionsVault(params: {
               : parseEther("200")
           );
           if (multiAsset) {
-            if (premiumAsset == WETH_ADDRESS[chainId]) {
+            if (premiumAsset === WETH_ADDRESS[chainId]) {
               await premiumContract
                 .connect(userSigner)
                 .deposit({ value: parseEther("100") });
@@ -1054,10 +1054,10 @@ function behavesLikeRibbonOptionsVault(params: {
         let dummy2 = "0x0000000000000000000000000000000000000002";
         let dummy3 = "0x0000000000000000000000000000000000000003";
         let dummy4 = "0x0000000000000000000000000000000000000004";
-        
-        await vault.connect(ownerSigner).addWhitelist(dummy1)
-        await vault.connect(ownerSigner).addWhitelist(dummy2)
-        await vault.connect(ownerSigner).addWhitelist(dummy3)
+
+        await vault.connect(ownerSigner).addWhitelist(dummy1);
+        await vault.connect(ownerSigner).addWhitelist(dummy2);
+        await vault.connect(ownerSigner).addWhitelist(dummy3);
         await expect(
           vault.connect(ownerSigner).addWhitelist(dummy4)
         ).to.be.revertedWith("Whitelist exceed limit");
@@ -1578,7 +1578,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        let assetBalanceBeforeSettle: any;
+        let assetBalanceBeforeSettle: BigNumber;
 
         assetBalanceBeforeSettle = await tokenContract.balanceOf(vault.address);
 
@@ -1596,7 +1596,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "0"
         );
 
-        let assetBalanceAfterSettle: any;
+        let assetBalanceAfterSettle: BigNumber;
 
         assetBalanceAfterSettle = await tokenContract.balanceOf(vault.address);
 
