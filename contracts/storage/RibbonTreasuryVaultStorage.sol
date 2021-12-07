@@ -6,32 +6,34 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     address public optionsPremiumPricer;
     // Logic contract used to select strike prices
     address public strikeSelection;
+    // The asset which denominates the premium during auction
+    address public premiumAsset;
+    // Whitelist of eligible depositors in array
+    address[] public whitelistArray;
+    // Whitelist of eligible depositors in mapping
+    mapping(address => bool) public whitelistMap;
     // Premium discount on options we are selling (thousandths place: 000 - 999)
     uint256 public premiumDiscount;
     // Current oToken premium
     uint256 public currentOtokenPremium;
-    // Last round id at which the strike was manually overridden
-    uint16 public lastStrikeOverrideRound;
-    // Price last overridden strike set to
-    uint256 public overriddenStrikePrice;
     // Auction duration
     uint256 public auctionDuration;
     // Auction id of current option
     uint256 public optionAuctionID;
     // Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-    // Allowed asset for premium denomination
-    mapping(address => bool) allowedAssets;
-    // The asset which denominates the premium during auction
-    address public premiumAsset;
-    // Whitelist of eligible depositors in mapping
-    mapping(address => bool) public whitelistMap;
-    // Whitelist of eligible depositors in array
-    address[] public whitelistArray;
-    // @notice Period between each options sale.
+    // Period between each options sale.
     uint256 public period;
-    // @notice Weekday number to sell options.
+    // Weekday number for the options sale.
     uint256 public day;
+    // Performance fee to be charged if options expire ITM
+    uint256 public previousPerformanceFee;
+    // Store the performance fee owed from the previous round
+    uint256 public performanceFeeOwed;
+    // Price last overridden strike set to
+    uint256 public overriddenStrikePrice;
+    // Last round id at which the strike was manually overridden
+    uint16 public lastStrikeOverrideRound;
     // Whether premium proceeds should be distributed.
     bool public distribute;
 }

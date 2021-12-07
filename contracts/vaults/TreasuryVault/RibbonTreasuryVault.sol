@@ -286,40 +286,39 @@ contract RibbonTreasuryVault is
         transferOwnership(_initParams._owner);
 
         keeper = _initParams._keeper;
-    
+
         require(
             (_initParams._period == 30) || ((_initParams._period % 7) == 0),
             "!_period"
         );
 
-        require(
-            _initParams._day < 7,
-            "!_day"
-        );
+        require(_initParams._day < 7, "!_day");
 
         period = _initParams._period;
         day = _initParams._day;
 
-
-        if (distribute) {
+        if (_initParams._distribute) {
             require(
-                _initParams._distribute == (_initParams._premiumAsset == _vaultParams.asset),
+                _initParams._distribute ==
+                    (_initParams._premiumAsset == _vaultParams.asset),
                 "!_distribute"
             );
-        }   
-        
-        uint256 feeDivider = _initParams._period == 30
-            ? 12
-            : _initParams._period / 7;
+            distribute = _initParams._distribute;
+        }
+
+        uint256 feeDivider =
+            _initParams._period == 30
+                ? Vault.FEE_MULTIPLIER.mul(12)
+                : WEEKS_PER_YEAR.div(_initParams._period / 7);
 
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
+
         managementFee = _initParams
             ._managementFee
             .mul(Vault.FEE_MULTIPLIER)
-            .div(WEEKS_PER_YEAR
-                .div(feeDivider)    
-            );
+            .div(feeDivider);
+
         vaultParams = _vaultParams;
 
         uint256 assetBalance =
@@ -423,17 +422,14 @@ contract RibbonTreasuryVault is
         );
 
         uint256 _period = period;
-        uint256 feeDivider = _period == 30
-            ? 12
-            : _period / 7;
+        uint256 feeDivider =
+            _period == 30
+                ? Vault.FEE_MULTIPLIER.mul(12)
+                : WEEKS_PER_YEAR.div(_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
         uint256 tmpManagementFee =
-            newManagementFee
-                .mul(Vault.FEE_MULTIPLIER)
-                .div(WEEKS_PER_YEAR
-                    .div(feeDivider)    
-            );
+            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
@@ -588,18 +584,18 @@ contract RibbonTreasuryVault is
         }
     }
 
-    /**
-     * @notice Sets the premium denomination during auction
-     * @param newPremiumAsset is the asset which denominates the premium during auction
-     */
-    function setPremiumAsset(address newPremiumAsset)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(newPremiumAsset != address(0), "!newPremiumAsset");
-        premiumAsset = newPremiumAsset;
-    }
+    // /**
+    //  * @notice Sets the premium denomination during auction
+    //  * @param newPremiumAsset is the asset which denominates the premium during auction
+    //  */
+    // function setPremiumAsset(address newPremiumAsset)
+    //     external
+    //     onlyOwner
+    //     nonReentrant
+    // {
+    //     require(newPremiumAsset != address(0), "!newPremiumAsset");
+    //     premiumAsset = newPremiumAsset;
+    // }
 
     /************************************************
      *  DEPOSIT & WITHDRAWALS
@@ -903,7 +899,6 @@ contract RibbonTreasuryVault is
         address recipient = feeRecipient;
         uint256 mintShares;
         uint256 managementFeeInAsset;
-        uint256 totalVaultFee;
         {
             uint256 newPricePerShare;
             (
@@ -913,15 +908,15 @@ contract RibbonTreasuryVault is
                 mintShares,
                 managementFeeInAsset
             ) = VaultLifecycleTreasury.rollover(
-                    vaultState,
-                    VaultLifecycleTreasury.RolloverParams(
-                        vaultParams.decimals,
-                        IERC20(vaultParams.asset).balanceOf(address(this)),
-                        totalSupply(),
-                        lastQueuedWithdrawAmount,
-                        managementFee
-                    )
-                );
+                vaultState,
+                VaultLifecycleTreasury.RolloverParams(
+                    vaultParams.decimals,
+                    IERC20(vaultParams.asset).balanceOf(address(this)),
+                    totalSupply(),
+                    lastQueuedWithdrawAmount,
+                    managementFee
+                )
+            );
 
             optionState.currentOption = newOption;
             optionState.nextOption = address(0);
@@ -942,8 +937,8 @@ contract RibbonTreasuryVault is
 
         _mint(address(this), mintShares);
 
-        if (totalVaultFee > 0) {
-            transferAsset(payable(recipient), totalVaultFee);
+        if (managementFeeInAsset > 0) {
+            transferAsset(payable(recipient), managementFeeInAsset);
         }
 
         return (newOption, lockedBalance, queuedWithdrawAmount);
@@ -1031,6 +1026,10 @@ contract RibbonTreasuryVault is
             uint256 withdrawAmount =
                 VaultLifecycleTreasury.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
+
+            if (lockedAmount == withdrawAmount) {
+                performanceFeeOwed += previousPerformanceFee;
+            }
         }
     }
 
@@ -1107,43 +1106,56 @@ contract RibbonTreasuryVault is
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function settleAuction() external onlyKeeper nonReentrant {
-        VaultLifecycleTreasury.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
-
-        // Fee charging
+        VaultLifecycleTreasury.settleAuction(
+            GNOSIS_EASY_AUCTION,
+            optionAuctionID
+        );
+        uint256 currentRound = vaultState.round;
+        // Charging performance fee from previous round
         address recipient = feeRecipient;
         IERC20 _premiumAsset = IERC20(premiumAsset);
         uint256 premiumBalance = _premiumAsset.balanceOf(address(this));
-        uint256 performanceFeeInAsset = premiumBalance
-            .mul(performanceFee)
-            .div(100 * Vault.FEE_MULTIPLIER);
+        if (performanceFeeOwed > premiumBalance) {
+            _premiumAsset.safeTransfer(recipient, premiumBalance);
+            emit CollectPerformanceFee(
+                premiumBalance,
+                currentRound - 1,
+                recipient
+            );
+            performanceFeeOwed -= premiumBalance;
+        } else if (performanceFeeOwed > 0) {
+            _premiumAsset.safeTransfer(recipient, performanceFeeOwed);
+            emit CollectPerformanceFee(
+                performanceFeeOwed,
+                currentRound - 1,
+                recipient
+            );
+            performanceFeeOwed = 0;
+        }
 
-        _premiumAsset.safeTransfer(recipient, performanceFeeInAsset);
+        uint256 afterFeePremiumBalance = _premiumAsset.balanceOf(address(this));
 
-        
+        // Fee charging
+        uint256 performanceFeeInAsset =
+            premiumBalance.mul(performanceFee).div(100 * Vault.FEE_MULTIPLIER);
+        previousPerformanceFee = performanceFeeInAsset;
+
         if (distribute) {
             // Distribute
             uint256 totalSupply = totalSupply();
             address user;
             uint256 shareBalance;
             uint256 amount;
-            
-            for(uint256 i = 0; i < whitelistArray.length; i++) {
+
+            for (uint256 i = 0; i < whitelistArray.length; i++) {
                 user = whitelistArray[i];
                 shareBalance = shares(user);
-                amount = shareBalance
-                    .mul(premiumBalance.sub(performanceFeeInAsset))
-                    .div(totalSupply);
-                _premiumAsset.safeTransfer(whitelistArray[i], amount);
-            } 
+                amount = shareBalance.mul(afterFeePremiumBalance).div(
+                    totalSupply
+                );
+                _premiumAsset.safeTransfer(user, amount);
+            }
         }
-
-        uint256 currentRound = vaultState.round;
-
-        emit CollectPerformanceFee(
-            performanceFeeInAsset,
-            currentRound,
-            recipient
-        );
     }
 
     /************************************************
