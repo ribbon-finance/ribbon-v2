@@ -1,20 +1,10 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
-  WETH_ADDRESS,
-  USDC_PRICE_ORACLE,
-  ETH_PRICE_ORACLE,
-  ETH_USDC_POOL,
-  OptionsPremiumPricer_BYTECODE,
-  YVUSDC_V0_4_3,
-} from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
+import { WETH_ADDRESS, YVUSDC_V0_4_3 } from "../../constants/constants";
 import {
   AUCTION_DURATION,
-  ETH_STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
 } from "../utils/constants";
 
 const main = async ({
@@ -24,17 +14,12 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { BigNumber } = ethers;
-  const { parseEther } = ethers.utils;
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
   console.log(`09 - Deploying yvUSDC ETH Put Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
-  const manualVolOracle = await deployments.get("ManualVolOracle");
-
-  const underlyingOracle = ETH_PRICE_ORACLE[chainId];
-  const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const TOKEN_NAME = "Ribbon yvUSDC Theta Vault ETH Put";
   const TOKEN_SYMBOL = "ryvUSDC-ETH-P-THETA";
@@ -42,14 +27,19 @@ const main = async ({
   const pricer = await deployments.get("OptionsPremiumPricerETH");
   const strikeSelection = await deployments.get("StrikeSelectionETH");
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  const logicDeployment = await deployments.get("RibbonThetaVaultYearnLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycleYearn = await deployments.get("VaultLifecycleYearn");
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
+  const RibbonThetaVault = await ethers.getContractFactory(
+    "RibbonThetaVaultYearnLogic",
+    {
+      libraries: {
+        VaultLifecycle: lifecycle.address,
+        VaultLifecycleYearn: lifecycleYearn.address,
+      },
+    }
+  );
 
   const initArgs = [
     {
@@ -82,15 +72,15 @@ const main = async ({
     initArgs
   );
 
-  const vault = await deploy("RibbonThetaVaultETHCall", {
+  const vault = await deploy("RibbonThetaVaultETHPutYearn", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultETHCall @ ${vault.address}`);
+  console.log(`RibbonThetaVaultETHPutYearn @ ${vault.address}`);
 };
-main.tags = ["RibbonThetaVaultETHCall"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.tags = ["RibbonThetaVaultETHPutYearn"];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultYearnLogic"];
 
 export default main;
