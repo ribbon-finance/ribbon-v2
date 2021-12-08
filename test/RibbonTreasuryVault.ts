@@ -2287,6 +2287,9 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.accountVaultBalance(user),
           depositAmount.add(1)
         );
+        // The above adjustment is only temporary as fees are all set to 0 for this version
+        // assert.bnLt(await vault.totalBalance(), secondStartBalance);
+        // assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {

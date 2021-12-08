@@ -4,10 +4,6 @@ pragma solidity =0.8.4;
 import {Vault} from "../libraries/Vault.sol";
 
 abstract contract RibbonTreasuryVaultStorageV1 {
-    /************************************************
-     *  NON UPGRADEABLE STORAGE
-     ***********************************************/
-
     /// @notice Vault's parameters like cap, decimals
     Vault.VaultParams public vaultParams;
 
