@@ -69,7 +69,7 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-    
+
     /// @notice Period between each options sale.
     uint256 public period;
 

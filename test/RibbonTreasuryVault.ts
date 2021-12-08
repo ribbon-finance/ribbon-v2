@@ -41,7 +41,6 @@ import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
-import { exec } from "child_process";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -73,7 +72,7 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"), 
+    managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     auctionDuration: 21600,
     tokenDecimals: 18,
@@ -108,8 +107,8 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"), 
-    performanceFee: BigNumber.from("20000000"), 
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -274,7 +273,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let premiumDecimals = params.premiumDecimals;
   let period = params.period;
   let day = params.day;
-  let multiAsset = params.asset != params.premiumAsset;
+  let multiAsset = params.asset !== params.premiumAsset;
   let whitelistLimit = 5;
 
   // Contracts
@@ -486,7 +485,7 @@ function behavesLikeRibbonOptionsVault(params: {
       initialWeekAdjustment = (latestWeekday >= day) ? 1 : 0;
 
       // Create first option
-      if (period == 30) {
+      if (period === 30) {
         firstOptionExpiry = moment(latestTimestamp * 1000)
           .endOf("month")
           .day(day)
@@ -534,7 +533,7 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      if (period == 30) {
+      if (period === 30) {
         secondOptionExpiry = moment(latestTimestamp * 1000)
           .add(1, "month")
           .endOf("month")
@@ -668,7 +667,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(
           (await vault.managementFee()).toString(),
           managementFee.mul(FEE_SCALING)
-            .div(period == 30
+            .div(period === 30
                 ? FEE_SCALING.mul(12)
                 : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
@@ -939,7 +938,7 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.managementFee()).toString(),
           managementFee
             .mul(FEE_SCALING)
-            .div(period == 30
+            .div(period === 30
               ? FEE_SCALING.mul(12)
               : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
@@ -1059,7 +1058,7 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.managementFee()).toString(),
           BigNumber.from(1000000)
             .mul(FEE_SCALING)
-            .div(period == 30
+            .div(period === 30
               ? FEE_SCALING.mul(12)
               : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
@@ -3109,7 +3108,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("distributes to users according to share amount", async function () {
         const firstOptionAddress = firstOption.address;
-        const secondOptionAddress = secondOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -3126,7 +3124,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ? premiumContract
           : assetContract;
 
-        let auctionDetails = await bidForOToken(
+        await bidForOToken(
           gnosisAuction,
           tokenContract,
           userSigner.address,
@@ -3147,11 +3145,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault
           .connect(keeperSigner)
           .chargeAndDistribute();
-        // console.log((await vault.previousPerformanceFee()).toString())
-        // console.log((await vault.performanceFeeOwed()).toString())
-        // Asset balance when auction closes only contains auction proceeds
-        // Remaining vault's balance is still in Opyn Gamma Controller
-        // let auctionProceeds = await tokenContract.balanceOf(vault.address);
 
         let userBalanceAfter = await premiumContract.balanceOf(user);
         let ownerBalanceAfter = await premiumContract.balanceOf(owner);
@@ -3349,7 +3342,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
 
         let bidMultiplier = 1;
 
@@ -3379,9 +3372,7 @@ function behavesLikeRibbonOptionsVault(params: {
           (await provider.getBlock("latest")).timestamp + auctionDuration
         );
 
-        // We just settle the auction without any bids
-        // So we simulate a loss when the options expire in the money
-        let tx = await vault
+        await vault
           .connect(keeperSigner)
           .settleAuction();
 

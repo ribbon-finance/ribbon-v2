@@ -761,7 +761,10 @@ library VaultLifecycleTreasury {
             (_initParams._period == 30) || ((_initParams._period % 7) == 0),
             "!_period"
         );
-        require(_initParams._weekday < 7, "!_weekday");
+        require(
+            _initParams._weekday <= 7 && _initParams._weekday > 0,
+            "!_weekday"
+        );
         require(
             _initParams._optionsPremiumPricer != address(0),
             "!_optionsPremiumPricer"
@@ -804,7 +807,7 @@ library VaultLifecycleTreasury {
     /**
      * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
-     * @param day is the weekday (0 for Sunday - 6 for Saturday)
+     * @param day is the weekday (1 (Monday) - 7 (Sunday))
      * @param period is no. of days in between option sales
      * @param initial if true, function will look for the next nearest weekday,
      * this is used when the vault just opens and there was not previous option expiry
@@ -829,12 +832,7 @@ library VaultLifecycleTreasury {
                 ? monthExpiry
                 : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
         } else {
-            uint256 weekday =
-                DateTime.getWeekday(currentExpiry) == 0
-                    ? 7
-                    : DateTime.getWeekday(currentExpiry);
-
-            day = day == 0 ? 7 : day;
+            uint256 weekday = DateTime.getDayOfWeek(currentExpiry);
 
             uint256 adjustment =
                 initial

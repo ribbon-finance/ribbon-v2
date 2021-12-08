@@ -1,40 +1,96 @@
 // SPDX-License-Identifier: MIT
-// Source: https://github.com/pipermerriam/ethereum-datetime/blob/master/contracts/DateTime.sol
+// Source: https://github.com/bokkypoobah/BokkyPooBahsDateTimeLibrary
+// ----------------------------------------------------------------------------
+// BokkyPooBah's DateTime Library v1.01
+// ----------------------------------------------------------------------------
 
 pragma solidity =0.8.4;
 
 library DateTime {
-    uint256 constant DAY_IN_SECONDS = 86400;
-    uint256 constant YEAR_IN_SECONDS = 31536000;
-    uint256 constant LEAP_YEAR_IN_SECONDS = 31622400;
+    uint256 constant SECONDS_PER_DAY = 24 * 60 * 60;
+    uint256 constant SECONDS_PER_HOUR = 60 * 60;
+    uint256 constant SECONDS_PER_MINUTE = 60;
+    int256 constant OFFSET19700101 = 2440588;
 
-    uint256 constant HOUR_IN_SECONDS = 3600;
-    uint256 constant MINUTE_IN_SECONDS = 60;
+    uint256 constant DOW_MON = 1;
+    uint256 constant DOW_TUE = 2;
+    uint256 constant DOW_WED = 3;
+    uint256 constant DOW_THU = 4;
+    uint256 constant DOW_FRI = 5;
+    uint256 constant DOW_SAT = 6;
+    uint256 constant DOW_SUN = 7;
 
-    uint16 constant ORIGIN_YEAR = 1970;
-
-    function isLeapYear(uint16 year) internal pure returns (bool) {
-        if (year % 4 != 0) {
-            return false;
-        }
-        if (year % 100 != 0) {
-            return true;
-        }
-        if (year % 400 != 0) {
-            return false;
-        }
-        return true;
-    }
-
-    function leapYearsBefore(uint256 year) internal pure returns (uint256) {
-        year -= 1;
-        return year / 4 - year / 100 + year / 400;
-    }
-
-    function getDaysInMonth(uint8 month, uint16 year)
+    // ------------------------------------------------------------------------
+    // Calculate year/month/day from the number of days since 1970/01/01 using
+    // the date conversion algorithm from
+    //   http://aa.usno.navy.mil/faq/docs/JD_Formula.php
+    // and adding the offset 2440588 so that 1970/01/01 is day 0
+    //
+    // int L = days + 68569 + offset
+    // int N = 4 * L / 146097
+    // L = L - (146097 * N + 3) / 4
+    // year = 4000 * (L + 1) / 1461001
+    // L = L - 1461 * year / 4 + 31
+    // month = 80 * L / 2447
+    // dd = L - 2447 * month / 80
+    // L = month / 11
+    // month = month + 2 - 12 * L
+    // year = 100 * (N - 49) + year + L
+    // ------------------------------------------------------------------------
+    function _daysToDate(uint256 _days)
         internal
         pure
-        returns (uint8)
+        returns (
+            uint256 year,
+            uint256 month,
+            uint256 day
+        )
+    {
+        int256 __days = int256(_days);
+
+        int256 L = __days + 68569 + OFFSET19700101;
+        int256 N = (4 * L) / 146097;
+        L = L - (146097 * N + 3) / 4;
+        int256 _year = (4000 * (L + 1)) / 1461001;
+        L = L - (1461 * _year) / 4 + 31;
+        int256 _month = (80 * L) / 2447;
+        int256 _day = L - (2447 * _month) / 80;
+        L = _month / 11;
+        _month = _month + 2 - 12 * L;
+        _year = 100 * (N - 49) + _year + L;
+
+        year = uint256(_year);
+        month = uint256(_month);
+        day = uint256(_day);
+    }
+
+    function isLeapYear(uint256 timestamp)
+        internal
+        pure
+        returns (bool leapYear)
+    {
+        (uint256 year, , ) = _daysToDate(timestamp / SECONDS_PER_DAY);
+        leapYear = _isLeapYear(year);
+    }
+
+    function _isLeapYear(uint256 year) internal pure returns (bool leapYear) {
+        leapYear = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+    }
+
+    function getDaysInMonth(uint256 timestamp)
+        internal
+        pure
+        returns (uint256 daysInMonth)
+    {
+        (uint256 year, uint256 month, ) =
+            _daysToDate(timestamp / SECONDS_PER_DAY);
+        daysInMonth = _getDaysInMonth(year, month);
+    }
+
+    function _getDaysInMonth(uint256 year, uint256 month)
+        internal
+        pure
+        returns (uint256 daysInMonth)
     {
         if (
             month == 1 ||
@@ -45,103 +101,62 @@ library DateTime {
             month == 10 ||
             month == 12
         ) {
-            return 31;
-        } else if (month == 4 || month == 6 || month == 9 || month == 11) {
-            return 30;
-        } else if (isLeapYear(year)) {
-            return 29;
+            daysInMonth = 31;
+        } else if (month != 2) {
+            daysInMonth = 30;
         } else {
-            return 28;
+            daysInMonth = _isLeapYear(year) ? 29 : 28;
         }
     }
 
-    function getYear(uint256 timestamp) internal pure returns (uint16) {
-        uint256 secondsAccountedFor = 0;
-        uint16 year;
-        uint256 numLeapYears;
-
-        // Year
-        year = uint16(ORIGIN_YEAR + timestamp / YEAR_IN_SECONDS);
-        numLeapYears = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
-
-        secondsAccountedFor += LEAP_YEAR_IN_SECONDS * numLeapYears;
-        secondsAccountedFor +=
-            YEAR_IN_SECONDS *
-            (year - ORIGIN_YEAR - numLeapYears);
-
-        while (secondsAccountedFor > timestamp) {
-            if (isLeapYear(uint16(year - 1))) {
-                secondsAccountedFor -= LEAP_YEAR_IN_SECONDS;
-            } else {
-                secondsAccountedFor -= YEAR_IN_SECONDS;
-            }
-            year -= 1;
-        }
-        return year;
+    // 1 = Monday, 7 = Sunday
+    function getDayOfWeek(uint256 timestamp)
+        internal
+        pure
+        returns (uint256 dayOfWeek)
+    {
+        uint256 _days = timestamp / SECONDS_PER_DAY;
+        dayOfWeek = ((_days + 3) % 7) + 1;
     }
 
-    function getWeekday(uint256 timestamp) internal pure returns (uint256) {
-        return uint256((timestamp / DAY_IN_SECONDS + 4) % 7);
+    function getYear(uint256 timestamp) internal pure returns (uint256 year) {
+        (year, , ) = _daysToDate(timestamp / SECONDS_PER_DAY);
+    }
+
+    function getMonth(uint256 timestamp) internal pure returns (uint256 month) {
+        (, month, ) = _daysToDate(timestamp / SECONDS_PER_DAY);
+    }
+
+    function getDay(uint256 timestamp) internal pure returns (uint256 day) {
+        (, , day) = _daysToDate(timestamp / SECONDS_PER_DAY);
     }
 
     /**
      * @notice Gets the last weekday of the month
      * @param timestamp is the timestamp from which the last weekday will be calculated
      * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
+     * @return lastWeekdayOfMonth is the last weekday of the month
      * Example:
      * getLastWeekdayOfMonth(11 June 2021, 5) -> Friday, 25 June 2021
      */
     function getLastWeekdayOfMonth(uint256 timestamp, uint256 weekday)
         internal
         pure
-        returns (uint256 nextMonthExpiry)
+        returns (uint256 lastWeekdayOfMonth)
     {
-        uint256 secondsAccountedFor = 0;
-        uint256 buf;
-        uint8 i;
-        uint8 month;
-        uint256 day;
+        uint256 daysInMonth = getDaysInMonth(timestamp);
+        uint256 timestampDate = getDay(timestamp);
 
-        // Year
-        uint16 year = getYear(timestamp);
-        buf = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
+        uint256 lastDay = timestamp + (daysInMonth - timestampDate) * 1 days;
 
-        secondsAccountedFor += LEAP_YEAR_IN_SECONDS * buf;
-        secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - buf);
+        uint256 lastDayWeekday = getDayOfWeek(lastDay);
 
-        // Month
-        uint256 secondsInMonth;
-        for (i = 1; i <= 12; i++) {
-            secondsInMonth = DAY_IN_SECONDS * getDaysInMonth(i, year);
-            if (secondsInMonth + secondsAccountedFor > timestamp) {
-                month = i;
-                break;
-            }
-            secondsAccountedFor += secondsInMonth;
-        }
-
-        // Day
-        for (i = 1; i <= getDaysInMonth(month, year); i++) {
-            if (DAY_IN_SECONDS + secondsAccountedFor > timestamp) {
-                day = i;
-                break;
-            }
-            secondsAccountedFor += DAY_IN_SECONDS;
-        }
-
-        // Get the last day of the month
-        nextMonthExpiry =
-            timestamp +
-            (getDaysInMonth(month, year) - day) *
-            1 days;
-
-        uint256 expiryWeekday =
-            getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
-
-        weekday = weekday == 0 ? 7 : weekday;
-
-        nextMonthExpiry -= expiryWeekday >= weekday
-            ? (expiryWeekday - weekday) * 1 days
-            : 7 days - (weekday - expiryWeekday) * 1 days;
+        lastWeekdayOfMonth =
+            lastDay -
+            (
+                (lastDayWeekday >= weekday)
+                    ? (lastDayWeekday - weekday) * 1 days
+                    : 1 weeks - (weekday - lastDayWeekday) * 1 days
+            );
     }
 }
