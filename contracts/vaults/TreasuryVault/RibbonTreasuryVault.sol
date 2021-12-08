@@ -272,10 +272,10 @@ contract RibbonTreasuryVault is
             "!_auctionDuration"
         );
         require(_initParams._premiumAsset != address(0), "!_premiumAsset");
+        require(_initParams._whitelist.length > 0, "!_whitelist");
         require(
-            _initParams._whitelist.length <= WHITELIST_LIMIT &&
-                _initParams._whitelist.length > 0,
-            "!_whitelist"
+            _initParams._whitelist.length <= WHITELIST_LIMIT,
+            "whitelist exceed limit"
         );
 
         optionsPremiumPricer = _initParams._optionsPremiumPricer;

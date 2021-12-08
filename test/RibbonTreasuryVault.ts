@@ -1112,6 +1112,15 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.equal(temp[i], newwhitelist[i]);
         }
       });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        const tx1 = await vault.connect(ownerSigner).addWhitelist(keeper);
+        const receipt1 = await tx1.wait();
+        assert.isAtMost(
+          receipt1.gasUsed.toNumber(),
+          84000
+        );
+      });
     });
 
     describe("#removeWhitelist", () => {
@@ -1173,6 +1182,15 @@ function behavesLikeRibbonOptionsVault(params: {
         for (let i = 0; i < temp.length; i++) {
           assert.equal(temp[i], newwhitelist[i]);
         }
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        const tx1 = await vault.connect(ownerSigner).removeWhitelist(owner);
+        const receipt1 = await tx1.wait();
+        assert.isAtMost(
+          receipt1.gasUsed.toNumber(),
+          44000
+        );
       });
     });
 
