@@ -741,7 +741,9 @@ library VaultLifecycleTreasury {
      */
     function verifyInitializerParams(
         InitParams calldata _initParams,
-        Vault.VaultParams calldata _vaultParams
+        Vault.VaultParams calldata _vaultParams,
+        uint256 _min_auction_duration,
+        uint256 _whitelist_limit
     ) external pure {
         require(_initParams._owner != address(0), "!_owner");
         require(_initParams._keeper != address(0), "!_keeper");
@@ -779,6 +781,18 @@ library VaultLifecycleTreasury {
         require(
             _initParams._premiumAsset != _vaultParams.asset,
             "!_premiumAsset"
+        );
+        require(
+            _initParams._auctionDuration >= _min_auction_duration,
+            "!_auctionDuration"
+        );
+        require(
+            _initParams._whitelist.length > 0,
+            "!_whitelist"
+        );
+        require(
+            _initParams._whitelist.length <= _whitelist_limit,
+            "whitelist exceed limit"
         );
 
         require(_vaultParams.asset != address(0), "!asset");

@@ -189,17 +189,9 @@ contract RibbonTreasuryVault is
     ) external initializer {
         VaultLifecycleTreasury.verifyInitializerParams(
             _initParams,
-            _vaultParams
-        );
-
-        require(
-            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
-            "!_auctionDuration"
-        );
-        require(
-            _initParams._whitelist.length <= WHITELIST_LIMIT &&
-                _initParams._whitelist.length > 0,
-            "!_whitelist"
+            _vaultParams,
+            MIN_AUCTION_DURATION,
+            WHITELIST_LIMIT
         );
 
         __ReentrancyGuard_init();
@@ -217,27 +209,13 @@ contract RibbonTreasuryVault is
         premiumAsset = _initParams._premiumAsset;
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
-
-        uint256 feeDivider =
-            _initParams._period == 30
-                ? Vault.FEE_MULTIPLIER.mul(12)
-                : WEEKS_PER_YEAR.div(_initParams._period / 7);
-
-        managementFee = 
-        _initParams
-            ._managementFee
-            .mul(Vault.FEE_MULTIPLIER)
-            .div(feeDivider);
+        managementFee = _perRoundManagementFee(_initParams._managementFee);
 
         vaultParams = _vaultParams;
-
-        uint256 assetBalance =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-
-        ShareMath.assertUint104(assetBalance);
-
-        vaultState.lastLockedAmount = uint104(assetBalance);
         vaultState.round = 1;
+        vaultState.lastLockedAmount = _getCap104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
 
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
             _addWhitelist(_initParams._whitelist[i]);
@@ -293,25 +271,17 @@ contract RibbonTreasuryVault is
             "Invalid management fee"
         );
 
-        _setManagementFee(newManagementFee);
-        // uint256 _period = period;
-        // uint256 feeDivider =
-        //     _period == 30
-        //         ? Vault.FEE_MULTIPLIER.mul(12)
-        //         : WEEKS_PER_YEAR.div(_period / 7);
-
-        // // We are dividing annualized management fee by num weeks in a year
-        // managementFee =
-        //     newManagementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
+        managementFee = _perRoundManagementFee(newManagementFee);
 
         emit ManagementFeeSet(managementFee, newManagementFee);
     }
 
     /**
      * @notice Internal function to set the management fee for the vault
-     * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
+     * @param managementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2
+     * @return perRoundManagementFee is the management divided by the number of rounds per year
      */
-    function _setManagementFee(uint256 newManagementFee) internal {
+    function _perRoundManagementFee(uint256 managementFee) internal view returns (uint256) {
         uint256 _period = period;
         uint256 feeDivider =
             _period == 30
@@ -319,11 +289,8 @@ contract RibbonTreasuryVault is
                 : WEEKS_PER_YEAR.div(_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
-        managementFee =
-            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
+        return managementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
     }
-
-    
 
     /**
      * @notice Sets the performance fee for the vault
@@ -346,9 +313,20 @@ contract RibbonTreasuryVault is
      */
     function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
+
+        uint256 previousCap = vaultParams.cap;
+        vaultParams.cap = _getCap104(newCap);
+        
+        emit CapSet(previousCap, newCap);
+    }
+
+    /**
+     * @notice Sets a new cap for deposits
+     * @param newCap is the new cap for deposits
+     */
+    function _getCap104(uint256 newCap) internal pure returns (uint104){
         ShareMath.assertUint104(newCap);
-        emit CapSet(vaultParams.cap, newCap);
-        vaultParams.cap = uint104(newCap);
+        return uint104(newCap);
     }
 
     /**
