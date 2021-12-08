@@ -69,6 +69,7 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
+    
     /// @notice Period between each options sale.
     uint256 public period;
 
@@ -83,9 +84,6 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
-
-    /// @notice Whether premium proceeds should be distributed.
-    bool public distribute;
 }
 
 // We are following Compound's method of upgrading new contract implementations

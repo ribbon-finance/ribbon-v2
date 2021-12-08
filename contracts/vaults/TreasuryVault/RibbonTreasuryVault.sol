@@ -447,7 +447,7 @@ contract RibbonTreasuryVault is
 
         for (uint256 i = 0; i < whitelistLength; i++) {
             if (excludeWhitelist == whitelistArray[i]) {
-                for (uint j = i; j < whitelistLength - 1; j++) {
+                for (uint256 j = i; j < (whitelistLength - 1); j++) {
                     whitelistArray[j] = whitelistArray[j + 1];
                 }
             }

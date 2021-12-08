@@ -1127,11 +1127,10 @@ function behavesLikeRibbonOptionsVault(params: {
         let dummy2 = "0x0000000000000000000000000000000000000002";
         let dummy3 = "0x0000000000000000000000000000000000000003";
         let dummy4 = "0x0000000000000000000000000000000000000004";
-        
-        await vault.connect(ownerSigner).addWhitelist(dummy1)
-        await vault.connect(ownerSigner).addWhitelist(dummy2)
-        await vault.connect(ownerSigner).addWhitelist(dummy3)
 
+        await vault.connect(ownerSigner).addWhitelist(dummy1);
+        await vault.connect(ownerSigner).addWhitelist(dummy2);
+        await vault.connect(ownerSigner).addWhitelist(dummy3);
         await expect(
           vault.connect(ownerSigner).addWhitelist(dummy4)
         ).to.be.revertedWith("Whitelist exceed limit");
