@@ -18,7 +18,6 @@ import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
-
 library VaultLifecycleTreasury {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
@@ -786,10 +785,7 @@ library VaultLifecycleTreasury {
             _initParams._auctionDuration >= _min_auction_duration,
             "!_auctionDuration"
         );
-        require(
-            _initParams._whitelist.length > 0,
-            "!_whitelist"
-        );
+        require(_initParams._whitelist.length > 0, "!_whitelist");
         require(
             _initParams._whitelist.length <= _whitelist_limit,
             "whitelist exceed limit"
@@ -827,14 +823,15 @@ library VaultLifecycleTreasury {
         bool initial
     ) internal pure returns (uint256 nextExpiry) {
         if (period % 30 == 0) {
-            uint256 monthExpiry = DateTime.getLastWeekdayOfMonth(currentExpiry, day);
+            uint256 monthExpiry =
+                DateTime.getLastWeekdayOfMonth(currentExpiry, day);
             nextExpiry = initial && monthExpiry > currentExpiry
                 ? monthExpiry
                 : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
         } else {
             uint256 weekday =
-                DateTime.getWeekday(currentExpiry) == 0 
-                    ? 7 
+                DateTime.getWeekday(currentExpiry) == 0
+                    ? 7
                     : DateTime.getWeekday(currentExpiry);
 
             day = day == 0 ? 7 : day;

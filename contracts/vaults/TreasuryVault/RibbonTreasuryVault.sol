@@ -281,7 +281,11 @@ contract RibbonTreasuryVault is
      * @param managementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2
      * @return perRoundManagementFee is the management divided by the number of rounds per year
      */
-    function _perRoundManagementFee(uint256 managementFee) internal view returns (uint256) {
+    function _perRoundManagementFee(uint256 managementFee)
+        internal
+        view
+        returns (uint256)
+    {
         uint256 _period = period;
         uint256 feeDivider =
             _period == 30
@@ -316,15 +320,15 @@ contract RibbonTreasuryVault is
 
         uint256 previousCap = vaultParams.cap;
         vaultParams.cap = _getCap104(newCap);
-        
+
         emit CapSet(previousCap, newCap);
     }
 
     /**
-     * @notice Sets a new cap for deposits
-     * @param newCap is the new cap for deposits
+     * @notice Internal function to convert cap into uint104
+     * @param newCap is the cap to convert into uint104
      */
-    function _getCap104(uint256 newCap) internal pure returns (uint104){
+    function _getCap104(uint256 newCap) internal pure returns (uint104) {
         ShareMath.assertUint104(newCap);
         return uint104(newCap);
     }

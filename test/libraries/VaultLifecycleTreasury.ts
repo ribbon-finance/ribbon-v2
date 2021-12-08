@@ -37,7 +37,7 @@ describe("VaultLifecycleTreasury", () => {
       await time.increaseTo(startDate.unix()); // May 31, 2021
     });
 
-    it("Gets the same initial weekly Friday expiry, when the current day is before Friday",  async () => {
+    it("Gets the same initial weekly Friday expiry, when the current day is before Friday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -51,23 +51,23 @@ describe("VaultLifecycleTreasury", () => {
       let correctExpiryDate = moment(currentTime)
           .startOf("isoWeek")
           .day(weekday)
-          .hour(8)
-      
-      for (let i=0; i<4; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+          .hour(8);
+
+      for (let i = 0; i < 4; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same initial weekly Friday expiry, when the current day is or is after Friday",  async () => {
+    it("Gets the same initial weekly Friday expiry, when the current day is or is after Friday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -82,23 +82,23 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(1, "week")
           .day(weekday)
-          .hour(8)
-      
-      for (let i=4; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+          .hour(8);
+
+      for (let i = 4; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same initial weekly Sunday expiry, when the current day is before Sunday",  async () => {
+    it("Gets the same initial weekly Sunday expiry, when the current day is before Sunday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -113,23 +113,23 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(1, "week")
           .day(weekday)
-          .hour(8)
-      
-      for (let i=0; i<6; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+          .hour(8);
+
+      for (let i = 0; i < 6; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct initial weekly Sunday expiry, when the current day is Sunday",  async () => {
+    it("Gets the correct initial weekly Sunday expiry, when the current day is Sunday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -141,21 +141,21 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(2, "week")
           .day(weekday)
-          .hour(8)
+          .hour(8);
 
-      let inputTime = moment(currentTime).add(6, "day")
+      let inputTime = moment(currentTime).add(6, "day");
 
       let nextExpiry = await lifecycle.getNextExpiry(
         inputTime.unix(), weekday, period, initial
-      )
-      
-      let nextExpiryDate = moment.unix(nextExpiry)
+      );
 
-      assert.equal(nextExpiryDate.weekday(), weekday)
+      let nextExpiryDate = moment.unix(nextExpiry);
+
+      assert.equal(nextExpiryDate.weekday(), weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
-    })
+    });
 
-    it("Gets the same next week Friday expiry, regardless of the day of the week",  async () => {
+    it("Gets the same next week Friday expiry, regardless of the day of the week", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -170,23 +170,23 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(1, "week")
           .day(weekday)
-          .hour(8)
-      
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same next week Sunday expiry, regardless of the day of the week",  async () => {
+    it("Gets the same next week Sunday expiry, regardless of the day of the week", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -201,23 +201,23 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(2, "week")
           .day(weekday)
-          .hour(8)
-      
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same Friday expiry two weeks from now, regardless of the day of the week",  async () => {
+    it("Gets the same Friday expiry two weeks from now, regardless of the day of the week", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -232,23 +232,23 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(2, "week")
           .day(weekday)
-          .hour(8)
-      
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same Sunday expiry two weeks from now, regardless of the day of the week",  async () => {
+    it("Gets the same Sunday expiry two weeks from now, regardless of the day of the week", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -263,23 +263,23 @@ describe("VaultLifecycleTreasury", () => {
           .startOf("isoWeek")
           .add(3, "week")
           .day(weekday)
-          .hour(8)
+          .hour(8);
 
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same initial monthly Friday expiry, regardless of the day in the month",  async () => {
+    it("Gets the same initial monthly Friday expiry, regardless of the day in the month", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -293,23 +293,23 @@ describe("VaultLifecycleTreasury", () => {
       let correctExpiryDate = moment(currentTime)
         .add(25, "day")
         .hour(8)
-        .seconds(0)
-          
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same initial monthly Sunday expiry, regardless of the day in the month",  async () => {
+    it("Gets the same initial monthly Sunday expiry, regardless of the day in the month", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -323,23 +323,23 @@ describe("VaultLifecycleTreasury", () => {
       let correctExpiryDate = moment(currentTime)
         .add(27, "day")
         .hour(8)
-        .seconds(0)
-          
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same next month Friday expiry, regardless of the day in the month",  async () => {
+    it("Gets the same next month Friday expiry, regardless of the day in the month", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp)
         .add(7, "day");
@@ -354,23 +354,23 @@ describe("VaultLifecycleTreasury", () => {
       let correctExpiryDate = moment(currentTime)
         .add(53, "day")
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the same next month Sunday expiry, regardless of the day in the month",  async () => {
+    it("Gets the same next month Sunday expiry, regardless of the day in the month", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp)
         .add(7, "day");
@@ -385,23 +385,23 @@ describe("VaultLifecycleTreasury", () => {
       let correctExpiryDate = moment(currentTime)
         .add(48, "day")
         .hour(8)
-        .seconds(0)
-      
-      for (let i=0; i<7; i++){
-        inputTime = moment(currentTime).add(i * 1, "day")
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
-        
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct initial monthly Friday expiry, when the last day of the month is a Friday",  async () => {
+    it("Gets the correct initial monthly Friday expiry, when the last day of the month is a Friday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -416,26 +416,26 @@ describe("VaultLifecycleTreasury", () => {
         .month("april")
         .date(30)
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
+      for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
           .month("april")
           .date(6)
-          .add(i * 1, "day")
+          .add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct initial monthly Sunday expiry, when the last day of the month is a Sunday",  async () => {
+    it("Gets the correct initial monthly Sunday expiry, when the last day of the month is a Sunday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -450,26 +450,26 @@ describe("VaultLifecycleTreasury", () => {
         .month("jan")
         .date(31)
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
+      for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
           .month("jan")
           .date(5)
-          .add(i * 1, "day")
+          .add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct next month Friday expiry, when the last day of the month is a Friday",  async () => {
+    it("Gets the correct next month Friday expiry, when the last day of the month is a Friday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -484,26 +484,26 @@ describe("VaultLifecycleTreasury", () => {
         .month("april")
         .date(30)
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
+      for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
           .month("march")
           .date(8)
-          .add(i * 1, "day")
+          .add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
+        );
 
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct next month Sunday expiry, when the last day of the month is a Sunday",  async () => {
+    it("Gets the correct next month Sunday expiry, when the last day of the month is a Sunday", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -518,27 +518,27 @@ describe("VaultLifecycleTreasury", () => {
         .month("jan")
         .date(31)
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
+      for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
           .month("dec")
           .year(2020)
           .date(20)
-          .add(i * 1, "day")
-        
+          .add(Number(i), "day");
+
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
-        
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct initial monthly expiry, when it falls on the last day of February non-leap year",  async () => {
+    it("Gets the correct initial monthly expiry, when it falls on the last day of February non-leap year", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -553,25 +553,25 @@ describe("VaultLifecycleTreasury", () => {
         .month("feb")
         .date(28)
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
+      for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
           .month("feb")
-          .date(1)
+          .date(1);
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
-        
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
 
-    it("Gets the correct initial monthly expiry, when it falls on the last day of February leap year",  async () => {
+    it("Gets the correct initial monthly expiry, when it falls on the last day of February leap year", async () => {
       const { timestamp } = await provider.getBlock("latest");
       const currentTime = moment.unix(timestamp);
 
@@ -587,23 +587,23 @@ describe("VaultLifecycleTreasury", () => {
         .year(2020)
         .date(29)
         .hour(8)
-        .seconds(0)
+        .seconds(0);
 
-      for (let i=0; i<7; i++){
+      for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
           .month("feb")
           .year(2020)
-          .date(1)
+          .date(1);
 
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period, initial
-        )
-        
-        nextExpiryDate = moment.unix(nextExpiry)
-        
-        assert.equal(nextExpiryDate.weekday(), weekday)
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
-    })
+    });
   });
 });

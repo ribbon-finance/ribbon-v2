@@ -137,7 +137,7 @@ library DateTime {
 
         uint256 expiryWeekday =
             getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
-        
+
         weekday = weekday == 0 ? 7 : weekday;
 
         nextMonthExpiry -= expiryWeekday >= weekday
