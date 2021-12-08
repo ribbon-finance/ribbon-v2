@@ -90,8 +90,6 @@ contract RibbonTreasuryVault is
         uint256 round
     );
 
-    event test(uint256 test);
-
     event Redeem(address indexed account, uint256 share, uint256 round);
 
     event ManagementFeeSet(uint256 managementFee, uint256 newManagementFee);
