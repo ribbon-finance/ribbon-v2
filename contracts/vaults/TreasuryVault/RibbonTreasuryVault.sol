@@ -168,9 +168,9 @@ contract RibbonTreasuryVault is
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_oTokenFactory != address(0), "!_oTokenFactory");
-        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
 
         WETH = _weth;
         USDC = _usdc;
