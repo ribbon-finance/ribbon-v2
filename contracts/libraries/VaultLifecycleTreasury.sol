@@ -7,6 +7,7 @@ import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
+import {DateTime} from "./DateTime.sol";
 import {
     IOtokenFactory,
     IOtoken,
@@ -30,6 +31,40 @@ library VaultLifecycleTreasury {
         uint256 overriddenStrikePrice;
         uint256 weekday;
         uint256 period;
+    }
+
+    /**
+     * @notice Initialization parameters for the vault.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
+     * @param _optionsPremiumPricer is the address of the contract with the
+       black-scholes premium calculation logic
+     * @param _strikeSelection is the address of the contract with strike selection logic
+     * @param _premiumDiscount is the vault's discount applied to the premium
+     * @param _auctionDuration is the duration of the gnosis auction
+     * @param _whitelist is an array of whitelisted user address who can deposit
+     * @param _premiumAsset is the asset which denominates the premium during auction
+     */
+    struct InitParams {
+        address _owner;
+        address _keeper;
+        address _feeRecipient;
+        uint256 _managementFee;
+        uint256 _performanceFee;
+        string _tokenName;
+        string _tokenSymbol;
+        address _optionsPremiumPricer;
+        address _strikeSelection;
+        uint32 _premiumDiscount;
+        uint256 _auctionDuration;
+        address[] _whitelist;
+        address _premiumAsset;
+        uint256 _period;
+        uint256 _weekday;
     }
 
     /**
@@ -67,16 +102,16 @@ library VaultLifecycleTreasury {
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
             expiry = getNextExpiry(
-                block.timestamp, 
-                closeParams.weekday, 
-                closeParams.period, 
+                block.timestamp,
+                closeParams.weekday,
+                closeParams.period,
                 true
             );
         } else {
             expiry = getNextExpiry(
                 IOtoken(closeParams.currentOption).expiryTimestamp(),
-                closeParams.weekday, 
-                closeParams.period, 
+                closeParams.weekday,
+                closeParams.period,
                 false
             );
         }
@@ -700,36 +735,61 @@ library VaultLifecycleTreasury {
 
     /**
      * @notice Verify the constructor params satisfy requirements
-     * @param owner is the owner of the vault with critical permissions
-     * @param feeRecipient is the address to recieve vault performance and management fees
-     * @param performanceFee is the perfomance fee pct.
-     * @param tokenName is the name of the token
-     * @param tokenSymbol is the symbol of the token
+     * @param _initParams is the initialization parameter including owner, keeper, etc.
      * @param _vaultParams is the struct with vault general data
      */
     function verifyInitializerParams(
-        address owner,
-        address keeper,
-        address feeRecipient,
-        uint256 performanceFee,
-        uint256 managementFee,
-        string calldata tokenName,
-        string calldata tokenSymbol,
-        Vault.VaultParams calldata _vaultParams
+        InitParams calldata _initParams,
+        Vault.VaultParams calldata _vaultParams,
+        uint256 _min_auction_duration,
+        uint256 _whitelist_limit
     ) external pure {
-        require(owner != address(0), "!owner");
-        require(keeper != address(0), "!keeper");
-        require(feeRecipient != address(0), "!feeRecipient");
+        require(_initParams._owner != address(0), "!_owner");
+        require(_initParams._keeper != address(0), "!_keeper");
+        require(_initParams._feeRecipient != address(0), "!_feeRecipient");
         require(
-            performanceFee < 100 * Vault.FEE_MULTIPLIER,
+            _initParams._performanceFee < 100 * Vault.FEE_MULTIPLIER,
             "performanceFee >= 100%"
         );
         require(
-            managementFee < 100 * Vault.FEE_MULTIPLIER,
+            _initParams._managementFee < 100 * Vault.FEE_MULTIPLIER,
             "managementFee >= 100%"
         );
-        require(bytes(tokenName).length > 0, "!tokenName");
-        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
+        require(bytes(_initParams._tokenName).length > 0, "!_tokenName");
+        require(bytes(_initParams._tokenSymbol).length > 0, "!_tokenSymbol");
+        require(
+            (_initParams._period == 30) || ((_initParams._period % 7) == 0),
+            "!_period"
+        );
+        require(_initParams._weekday < 7, "!_weekday");
+        require(
+            _initParams._optionsPremiumPricer != address(0),
+            "!_optionsPremiumPricer"
+        );
+        require(
+            _initParams._strikeSelection != address(0),
+            "!_strikeSelection"
+        );
+        require(
+            _initParams._premiumDiscount > 0 &&
+                _initParams._premiumDiscount <
+                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+            "!_premiumDiscount"
+        );
+        require(_initParams._premiumAsset != address(0), "!_premiumAsset");
+        require(
+            _initParams._premiumAsset != _vaultParams.asset,
+            "!_premiumAsset"
+        );
+        require(
+            _initParams._auctionDuration >= _min_auction_duration,
+            "!_auctionDuration"
+        );
+        require(_initParams._whitelist.length > 0, "!_whitelist");
+        require(
+            _initParams._whitelist.length <= _whitelist_limit,
+            "whitelist exceed limit"
+        );
 
         require(_vaultParams.asset != address(0), "!asset");
         require(_vaultParams.underlying != address(0), "!underlying");
@@ -741,201 +801,53 @@ library VaultLifecycleTreasury {
         );
     }
 
-     /**
+    /**
      * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
-     * Examples:
-     * getNextFriday(week 1 thursday) -> week 1 friday
-     * getNextFriday(week 1 friday) -> week 2 friday
-     * getNextFriday(week 1 saturday) -> week 2 friday
+     * @param day is the weekday (0 for Sunday - 6 for Saturday)
+     * @param period is no. of days in between option sales
+     * @param initial if true, function will look for the next nearest weekday,
+     * this is used when the vault just opens and there was not previous option expiry
+     * Example:
+     * getNextExpiry(10 June 2021, Friday, 7 days, initial) -> Friday, 11 June 2021
+     * getNextExpiry(12 June 2021, Friday, 7 days, initial) -> Friday, 18 June 2021
+     * getNextExpiry(10 June 2021, Friday, 7 days, !initial) -> Friday, 18 June 2021
+     * getNextExpiry(12 June 2021, Friday, 7 days, !initial) -> Friday, 18 June 2021
+     * getNextExpiry(10 June 2021, Friday, 30 days, initial) -> Friday, 25 June 2021
+     * getNextExpiry(10 June 2021, Friday, 30 days, !initial) -> Friday, 30 July 2021
      */
     function getNextExpiry(
         uint256 currentExpiry,
         uint256 day,
-        uint256 period, // no of days in between option selling
+        uint256 period,
         bool initial
     ) internal pure returns (uint256 nextExpiry) {
         if (period % 30 == 0) {
-            uint256 monthExpiry = getMonthExpiry(currentExpiry, day);
-            nextExpiry = initial
+            uint256 monthExpiry =
+                DateTime.getLastWeekdayOfMonth(currentExpiry, day);
+            nextExpiry = initial && monthExpiry > currentExpiry
                 ? monthExpiry
-                : getMonthExpiry(monthExpiry + 7 days, day);
+                : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
         } else {
             uint256 weekday =
-                getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
+                DateTime.getWeekday(currentExpiry) == 0
+                    ? 7
+                    : DateTime.getWeekday(currentExpiry);
 
-            uint256 adjustment = initial
-            ? (weekday >= day) ? 1 weeks : 0 weeks
-            : (period / 7) * 1 weeks;
+            day = day == 0 ? 7 : day;
 
-            nextExpiry = (currentExpiry + day * 1 days - weekday * 1 days)
-                + adjustment;
+            uint256 adjustment =
+                initial
+                    ? (weekday >= day) ? 1 weeks : 0 weeks
+                    : (period / 7) * 1 weeks;
+
+            nextExpiry =
+                (currentExpiry + day * 1 days - weekday * 1 days) +
+                adjustment;
         }
-
-        // if (initial) {
-        //     uint256 weekday =
-        //         getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
-
-        //     nextExpiry = (
-        //         weekday >= day
-        //             ? currentExpiry - (weekday - day) * 1 days + 1 weeks
-        //             : currentExpiry + (day - weekday) * 1 days
-        //     );
-        // } else if (period == 30) {
-        //     nextExpiry = getMonthExpiry(currentExpiry, day);
-        // } else if (period % 7 == 0) {
-        //     uint256 weekday =
-        //         getWeekday(currentExpiry) == 0 ? 7 : getWeekday(currentExpiry);
-
-        //     nextExpiry =
-        //         (
-        //             weekday >= day
-        //                 ? currentExpiry - (weekday - day) * 1 days
-        //                 : currentExpiry + (day - weekday) * 1 days
-        //         ) +
-        //         (period / 7) *
-        //         1 weeks;
-        // }
 
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
 
         return nextExpiry;
-    }
-
-    /************************************************
-     *  DATE HELPERS
-     ***********************************************/
-    // Reference 
-
-    uint256 constant DAY_IN_SECONDS = 86400;
-    uint256 constant YEAR_IN_SECONDS = 31536000;
-    uint256 constant LEAP_YEAR_IN_SECONDS = 31622400;
-
-    uint256 constant HOUR_IN_SECONDS = 3600;
-    uint256 constant MINUTE_IN_SECONDS = 60;
-
-    uint16 constant ORIGIN_YEAR = 1970;
-
-    function isLeapYear(uint16 year) internal pure returns (bool) {
-        if (year % 4 != 0) {
-            return false;
-        }
-        if (year % 100 != 0) {
-            return true;
-        }
-        if (year % 400 != 0) {
-            return false;
-        }
-        return true;
-    }
-
-    function leapYearsBefore(uint256 year) internal pure returns (uint256) {
-        year -= 1;
-        return year / 4 - year / 100 + year / 400;
-    }
-
-    function getDaysInMonth(uint8 month, uint16 year)
-        internal
-        pure
-        returns (uint8)
-    {
-        if (
-            month == 1 ||
-            month == 3 ||
-            month == 5 ||
-            month == 7 ||
-            month == 8 ||
-            month == 10 ||
-            month == 12
-        ) {
-            return 31;
-        } else if (month == 4 || month == 6 || month == 9 || month == 11) {
-            return 30;
-        } else if (isLeapYear(year)) {
-            return 29;
-        } else {
-            return 28;
-        }
-    }
-
-    function getMonthExpiry(uint256 timestamp, uint256 weekday)
-        internal
-        pure
-        returns (uint256 nextMonthExpiry)
-    {
-        uint256 secondsAccountedFor = 0;
-        uint256 buf;
-        uint8 i;
-        uint8 month;
-        uint256 day;
-
-        // Year
-        uint16 year = getYear(timestamp);
-        buf = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
-
-        secondsAccountedFor += LEAP_YEAR_IN_SECONDS * buf;
-        secondsAccountedFor += YEAR_IN_SECONDS * (year - ORIGIN_YEAR - buf);
-
-        // Month
-        uint256 secondsInMonth;
-        for (i = 1; i <= 12; i++) {
-            secondsInMonth = DAY_IN_SECONDS * getDaysInMonth(i, year);
-            if (secondsInMonth + secondsAccountedFor > timestamp) {
-                month = i;
-                break;
-            }
-            secondsAccountedFor += secondsInMonth;
-        }
-
-        // Day
-        for (i = 1; i <= getDaysInMonth(month, year); i++) {
-            if (DAY_IN_SECONDS + secondsAccountedFor > timestamp) {
-                day = i;
-                break;
-            }
-            secondsAccountedFor += DAY_IN_SECONDS;
-        }
-
-        // Adjust
-        nextMonthExpiry =
-            timestamp +
-            (getDaysInMonth(month, year) - day) *
-            1 days;
-
-        uint256 expiryWeekday = 
-            getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
-
-        nextMonthExpiry -= expiryWeekday >= weekday
-            ? (expiryWeekday - weekday) * 1 days
-            : 7 days - (weekday - expiryWeekday) * 1 days;
-    }
-
-    function getYear(uint256 timestamp) internal pure returns (uint16) {
-        uint256 secondsAccountedFor = 0;
-        uint16 year;
-        uint256 numLeapYears;
-
-        // Year
-        year = uint16(ORIGIN_YEAR + timestamp / YEAR_IN_SECONDS);
-        numLeapYears = leapYearsBefore(year) - leapYearsBefore(ORIGIN_YEAR);
-
-        secondsAccountedFor += LEAP_YEAR_IN_SECONDS * numLeapYears;
-        secondsAccountedFor +=
-            YEAR_IN_SECONDS *
-            (year - ORIGIN_YEAR - numLeapYears);
-
-        while (secondsAccountedFor > timestamp) {
-            if (isLeapYear(uint16(year - 1))) {
-                secondsAccountedFor -= LEAP_YEAR_IN_SECONDS;
-            } else {
-                secondsAccountedFor -= YEAR_IN_SECONDS;
-            }
-            year -= 1;
-        }
-        return year;
-    }
-
-    function getWeekday(uint256 timestamp) internal pure returns (uint256) {
-        return uint256((timestamp / DAY_IN_SECONDS + 4) % 7);
     }
 }

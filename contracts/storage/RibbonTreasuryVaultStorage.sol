@@ -4,19 +4,7 @@ pragma solidity =0.8.4;
 import {Vault} from "../libraries/Vault.sol";
 
 abstract contract RibbonTreasuryVaultStorageV1 {
-    /************************************************
-     *  NON UPGRADEABLE STORAGE
-     ***********************************************/
-
-<<<<<<< HEAD
-<<<<<<< HEAD
     /// @notice Vault's parameters like cap, decimals
-=======
-     /// @notice Vault's parameters like cap, decimals
->>>>>>> 71f1cf1 (Reorganize storage)
-=======
-    /// @notice Vault's parameters like cap, decimals
->>>>>>> 8d10055 (Formatting)
     Vault.VaultParams public vaultParams;
 
     /// @notice Vault's lifecycle state like round and locked amounts
@@ -81,8 +69,6 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-
-<<<<<<< HEAD
     /// @notice Period between each options sale.
     uint256 public period;
 
@@ -97,16 +83,9 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
-<<<<<<< HEAD
 
     /// @notice Whether premium proceeds should be distributed.
     bool public distribute;
-=======
-    /// @notice Last round id at which the strike was manually overridden
-    uint16 public lastStrikeOverrideRound;
->>>>>>> 71f1cf1 (Reorganize storage)
-=======
->>>>>>> a828917 (Added test cases and fixes)
 }
 
 // We are following Compound's method of upgrading new contract implementations

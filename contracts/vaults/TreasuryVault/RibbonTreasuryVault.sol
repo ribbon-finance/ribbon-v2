@@ -145,44 +145,6 @@ contract RibbonTreasuryVault is
     );
 
     /************************************************
-     *  STRUCTS
-     ***********************************************/
-
-    /**
-     * @notice Initialization parameters for the vault.
-     * @param _owner is the owner of the vault with critical permissions
-     * @param _feeRecipient is the address to recieve vault performance and management fees
-     * @param _managementFee is the management fee pct.
-     * @param _performanceFee is the perfomance fee pct.
-     * @param _tokenName is the name of the token
-     * @param _tokenSymbol is the symbol of the token
-     * @param _optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param _strikeSelection is the address of the contract with strike selection logic
-     * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
-     * @param _whitelist is an array of whitelisted user address who can deposit
-     * @param _premiumAsset is the asset which denominates the premium during auction
-     */
-    struct InitParams {
-        address _owner;
-        address _keeper;
-        address _feeRecipient;
-        uint256 _managementFee;
-        uint256 _performanceFee;
-        string _tokenName;
-        string _tokenSymbol;
-        address _optionsPremiumPricer;
-        address _strikeSelection;
-        uint32 _premiumDiscount;
-        uint256 _auctionDuration;
-        address[] _whitelist;
-        address _premiumAsset;
-        uint256 _period;
-        uint256 _weekday;
-    }
-
-    /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
 
@@ -206,9 +168,9 @@ contract RibbonTreasuryVault is
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_oTokenFactory != address(0), "!_oTokenFactory");
-        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
 
         WETH = _weth;
         USDC = _usdc;
@@ -222,18 +184,14 @@ contract RibbonTreasuryVault is
      * @notice Initializes the OptionVault contract with storage variables.
      */
     function initialize(
-        InitParams calldata _initParams,
+        VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         VaultLifecycleTreasury.verifyInitializerParams(
-            _initParams._owner,
-            _initParams._keeper,
-            _initParams._feeRecipient,
-            _initParams._performanceFee,
-            _initParams._managementFee,
-            _initParams._tokenName,
-            _initParams._tokenSymbol,
-            _vaultParams
+            _initParams,
+            _vaultParams,
+            MIN_AUCTION_DURATION,
+            WHITELIST_LIMIT
         );
 
         __ReentrancyGuard_init();
@@ -242,76 +200,23 @@ contract RibbonTreasuryVault is
         transferOwnership(_initParams._owner);
 
         keeper = _initParams._keeper;
-
-        require(
-            (_initParams._period == 30) || ((_initParams._period % 7) == 0),
-            "!_period"
-        );
-
-        require(_initParams._weekday < 7, "!_weekday");
-
         period = _initParams._period;
         weekday = _initParams._weekday;
-
-        uint256 feeDivider =
-            _initParams._period == 30
-                ? Vault.FEE_MULTIPLIER.mul(12)
-                : WEEKS_PER_YEAR.div(_initParams._period / 7);
-
-        feeRecipient = _initParams._feeRecipient;
-        performanceFee = _initParams._performanceFee;
-
-        managementFee = _initParams
-            ._managementFee
-            .mul(Vault.FEE_MULTIPLIER)
-            .div(feeDivider);
-
-        vaultParams = _vaultParams;
-
-        uint256 assetBalance =
-            IERC20(vaultParams.asset).balanceOf(address(this));
-
-        ShareMath.assertUint104(assetBalance);
-        vaultState.lastLockedAmount = uint104(assetBalance);
-
-        vaultState.round = 1;
-
-        require(
-            _initParams._optionsPremiumPricer != address(0),
-            "!_optionsPremiumPricer"
-        );
-        require(
-            _initParams._strikeSelection != address(0),
-            "!_strikeSelection"
-        );
-        require(
-            _initParams._premiumDiscount > 0 &&
-                _initParams._premiumDiscount <
-                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "!_premiumDiscount"
-        );
-        require(
-            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
-            "!_auctionDuration"
-        );
-        require(_initParams._premiumAsset != address(0), "!_premiumAsset");
-        require(
-            _initParams._whitelist.length <= WHITELIST_LIMIT &&
-                _initParams._whitelist.length > 0,
-            "!_whitelist"
-        );
-        require(
-            _initParams._premiumAsset != _vaultParams.asset,
-            "!_premiumAsset"
-        );
-
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
         premiumAsset = _initParams._premiumAsset;
+        feeRecipient = _initParams._feeRecipient;
+        performanceFee = _initParams._performanceFee;
+        managementFee = _perRoundManagementFee(_initParams._managementFee);
 
-        // Store whitelist into mapping
+        vaultParams = _vaultParams;
+        vaultState.round = 1;
+        vaultState.lastLockedAmount = _getCap104(
+            IERC20(vaultParams.asset).balanceOf(address(this))
+        );
+
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
             _addWhitelist(_initParams._whitelist[i]);
         }
@@ -366,6 +271,21 @@ contract RibbonTreasuryVault is
             "Invalid management fee"
         );
 
+        managementFee = _perRoundManagementFee(newManagementFee);
+
+        emit ManagementFeeSet(managementFee, newManagementFee);
+    }
+
+    /**
+     * @notice Internal function to set the management fee for the vault
+     * @param managementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2
+     * @return perRoundManagementFee is the management divided by the number of rounds per year
+     */
+    function _perRoundManagementFee(uint256 managementFee)
+        internal
+        view
+        returns (uint256)
+    {
         uint256 _period = period;
         uint256 feeDivider =
             _period == 30
@@ -373,12 +293,7 @@ contract RibbonTreasuryVault is
                 : WEEKS_PER_YEAR.div(_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
-        uint256 tmpManagementFee =
-            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
-
-        emit ManagementFeeSet(managementFee, newManagementFee);
-
-        managementFee = tmpManagementFee;
+        return managementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
     }
 
     /**
@@ -402,9 +317,20 @@ contract RibbonTreasuryVault is
      */
     function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
+
+        uint256 previousCap = vaultParams.cap;
+        vaultParams.cap = _getCap104(newCap);
+
+        emit CapSet(previousCap, newCap);
+    }
+
+    /**
+     * @notice Internal function to convert cap into uint104
+     * @param newCap is the cap to convert into uint104
+     */
+    function _getCap104(uint256 newCap) internal pure returns (uint104) {
         ShareMath.assertUint104(newCap);
-        emit CapSet(vaultParams.cap, newCap);
-        vaultParams.cap = uint104(newCap);
+        return uint104(newCap);
     }
 
     /**
@@ -484,10 +410,6 @@ contract RibbonTreasuryVault is
         external
         onlyOwner
         nonReentrant
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 8d10055 (Formatting)
     {
         _addWhitelist(newWhitelist);
     }
@@ -497,12 +419,6 @@ contract RibbonTreasuryVault is
      * @param newWhitelist is the address to include in the whitelist
      */
     function _addWhitelist(address newWhitelist) internal {
-<<<<<<< HEAD
-=======
-    {   
->>>>>>> 1d4bfe1 (Modified whitelist related method)
-=======
->>>>>>> 8d10055 (Formatting)
         require(newWhitelist != address(0), "Whitelist null");
         require(!whitelistMap[newWhitelist], "Whitelist duplicate");
         require(
@@ -522,8 +438,6 @@ contract RibbonTreasuryVault is
         external
         onlyOwner
         nonReentrant
-<<<<<<< HEAD
-<<<<<<< HEAD
     {
         uint256 whitelistLength = whitelistArray.length;
         require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
@@ -533,37 +447,7 @@ contract RibbonTreasuryVault is
 
         for (uint256 i = 0; i < whitelistLength; i++) {
             if (excludeWhitelist == whitelistArray[i]) {
-<<<<<<< HEAD
-                for (uint256 j = i; j < whitelistArray.length - 1; j++) {
-=======
-    {   
-        require(
-            whitelistMap[excludeWhitelist],
-            "Whitelist does not exist"
-        );
-        require(
-            (whitelistArray.length - 1) > 0,
-            "Whitelist cannot be empty"
-        );
-=======
-    {
-        require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
-        require((whitelistArray.length - 1) > 0, "Whitelist cannot be empty");
->>>>>>> 8d10055 (Formatting)
-
-        whitelistMap[excludeWhitelist] = false;
-
-        for (uint256 i = 0; i < whitelistArray.length; i++) {
-            if (excludeWhitelist == whitelistArray[i]) {
-<<<<<<< HEAD
-                for (uint j = i; j < whitelistArray.length - 1; j++) {
->>>>>>> 1d4bfe1 (Modified whitelist related method)
-=======
-                for (uint256 j = i; j < whitelistArray.length - 1; j++) {
->>>>>>> 8d10055 (Formatting)
-=======
-                for (uint256 j = i; j < (whitelistLength - 1); j++) {
->>>>>>> 4529f13 (Addressed PR comments)
+                for (uint j = i; j < whitelistLength - 1; j++) {
                     whitelistArray[j] = whitelistArray[j + 1];
                 }
             }
@@ -940,7 +824,7 @@ contract RibbonTreasuryVault is
      */
     function commitAndClose() external nonReentrant {
         uint256 premiumBalance = IERC20(premiumAsset).balanceOf(address(this));
-        
+
         if (premiumBalance > 0) {
             uint256 amountToDistribute = _chargePerformanceFee();
             _distribute(amountToDistribute);
@@ -1101,12 +985,14 @@ contract RibbonTreasuryVault is
 
         _distribute(amountToDistribute);
     }
-    
 
     /**
      * @notice Calculate performance fee and transfer to fee recipient
      */
-    function _chargePerformanceFee() internal returns (uint256 afterFeePremiumBalance){
+    function _chargePerformanceFee()
+        internal
+        returns (uint256 afterFeePremiumBalance)
+    {
         address recipient = feeRecipient;
         Vault.VaultState memory _vaultState = vaultState;
 
@@ -1120,14 +1006,12 @@ contract RibbonTreasuryVault is
             // Get transfer amount
             // If there is insufficient balance to cover the whole owed amount
             // transfer all the balance
-            uint256 transferAmount = performanceFeeOwed > premiumBalance
-                ? premiumBalance
-                : performanceFeeOwed;
+            uint256 transferAmount =
+                performanceFeeOwed > premiumBalance
+                    ? premiumBalance
+                    : performanceFeeOwed;
 
-            _premiumAsset.safeTransfer(
-                recipient, 
-                transferAmount
-            );
+            _premiumAsset.safeTransfer(recipient, transferAmount);
 
             emit CollectPerformanceFee(
                 transferAmount,
@@ -1139,16 +1023,16 @@ contract RibbonTreasuryVault is
             // this will set performance fee owed to 0
             performanceFeeOwed -= transferAmount;
         }
-        
+
         // Check balance after transferring fees out
         // Exclude any deposit if the premium is in underlying asset
         afterFeePremiumBalance = _premiumAsset.balanceOf(address(this));
 
         // Calculate performance for the current round and put in storage
         // to be charged in the next round
-        previousPerformanceFee = premiumBalance
-            .mul(performanceFee)
-            .div(100 * Vault.FEE_MULTIPLIER);
+        previousPerformanceFee = premiumBalance.mul(performanceFee).div(
+            100 * Vault.FEE_MULTIPLIER
+        );
     }
 
     /**
@@ -1163,16 +1047,14 @@ contract RibbonTreasuryVault is
             // Distribute to whitelist proportional to the amount of shares
             // they own
             IERC20(premiumAsset).safeTransfer(
-                _whitelist[i], 
-                shares(_whitelist[i])
-                    .mul(amountToDistribute)
-                    .div(totalSupply)
+                _whitelist[i],
+                shares(_whitelist[i]).mul(amountToDistribute).div(totalSupply)
             );
         }
 
         // In case there is a left over, send to the first person in the whitelist
         IERC20(premiumAsset).safeTransfer(
-            _whitelist[0], 
+            _whitelist[0],
             IERC20(premiumAsset).balanceOf(address(this))
         );
     }
@@ -1305,11 +1187,4 @@ contract RibbonTreasuryVault is
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
->>>>>>> 1d4bfe1 (Modified whitelist related method)
-=======
->>>>>>> 8d10055 (Formatting)
 }
