@@ -48,6 +48,8 @@ library VaultLifecycleTreasury {
      * @param _auctionDuration is the duration of the gnosis auction
      * @param _whitelist is an array of whitelisted user address who can deposit
      * @param _premiumAsset is the asset which denominates the premium during auction
+     * @param _period is the period between each option sales
+     * @param _weekday is the day of the week when option sales will be executed
      */
     struct InitParams {
         address _owner;

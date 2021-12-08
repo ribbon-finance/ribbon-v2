@@ -194,9 +194,10 @@ type Option = {
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
- * premiumAsset
- * premiumdecimals
- * period
+ * @param {string} params.premiumAsset: - Asset to denominate the options premium during auction
+ * @param {number} params.premiumDecimals: - Decimals of premiumAsset
+ * @param {number} params.period: - Period between each options sale
+ * @param {number} params.day: - Day of the week when option sale is executed
  */
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
@@ -219,10 +220,6 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   isPut: boolean;
-  swapPath?: {
-    tokens: string[];
-    fees: number[];
-  };
   gasLimits: {
     depositWorstCase: number;
     depositBestCase: number;
