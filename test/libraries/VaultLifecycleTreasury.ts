@@ -1,0 +1,609 @@
+import { ethers } from "hardhat";
+import { Contract } from "ethers";
+import moment from "moment-timezone";
+import { assert } from "../helpers/assertions";
+import * as time from "../helpers/time";
+import exp from "constants";
+
+moment.tz.setDefault("UTC");
+
+const provider = ethers.provider;
+
+describe("VaultLifecycleTreasury", () => {
+  let lifecycle: Contract;
+
+  before(async () => {
+    const VaultLifecycleTreasury = await ethers.getContractFactory("VaultLifecycleTreasury");
+    const lifecycleLib = await VaultLifecycleTreasury.deploy();
+
+    const TestVaultLifecycleTreasury = await ethers.getContractFactory(
+      "TestVaultLifecycleTreasury",
+      // { libraries: { VaultLifecycleTreasury: lifecycleLib.address } }
+    );
+    lifecycle = await TestVaultLifecycleTreasury.deploy();
+  });
+
+  describe("getNextExpiry", () => {
+    time.revertToSnapshotAfterEach(async () => {
+      const { timestamp } = await provider.getBlock("latest");
+
+      const now = moment.unix(timestamp);
+
+      const startDate = moment(now)
+        .startOf("isoWeek")
+        .add(1, "week")
+        .hour(9); // needs to be 8am UTC
+
+      await time.increaseTo(startDate.unix()); // May 31, 2021
+    });
+
+    it("Gets the same initial weekly Friday expiry, when the current day is before Friday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 7;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 0; i < 4; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same initial weekly Friday expiry, when the current day is or is after Friday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 7;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(1, "week")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 4; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same initial weekly Sunday expiry, when the current day is before Sunday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 7;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(1, "week")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 0; i < 6; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct initial weekly Sunday expiry, when the current day is Sunday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 7;
+      let initial = true;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(2, "week")
+          .day(weekday)
+          .hour(8);
+
+      let inputTime = moment(currentTime).add(6, "day");
+
+      let nextExpiry = await lifecycle.getNextExpiry(
+        inputTime.unix(), weekday, period, initial
+      );
+
+      let nextExpiryDate = moment.unix(nextExpiry);
+
+      assert.equal(nextExpiryDate.weekday(), weekday);
+      assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+    });
+
+    it("Gets the same next week Friday expiry, regardless of the day of the week", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 7;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(1, "week")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same next week Sunday expiry, regardless of the day of the week", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 7;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(2, "week")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same Friday expiry two weeks from now, regardless of the day of the week", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 14;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(2, "week")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same Sunday expiry two weeks from now, regardless of the day of the week", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 14;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+          .startOf("isoWeek")
+          .add(3, "week")
+          .day(weekday)
+          .hour(8);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same initial monthly Friday expiry, regardless of the day in the month", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 30;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .add(25, "day")
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same initial monthly Sunday expiry, regardless of the day in the month", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 30;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .add(27, "day")
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same next month Friday expiry, regardless of the day in the month", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp)
+        .add(7, "day");
+
+      let weekday = 5;
+      let period = 30;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .add(53, "day")
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the same next month Sunday expiry, regardless of the day in the month", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp)
+        .add(7, "day");
+
+      let weekday = 0;
+      let period = 30;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .add(48, "day")
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime).add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct initial monthly Friday expiry, when the last day of the month is a Friday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 30;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .month("april")
+        .date(30)
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime)
+          .month("april")
+          .date(6)
+          .add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct initial monthly Sunday expiry, when the last day of the month is a Sunday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 30;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .month("jan")
+        .date(31)
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime)
+          .month("jan")
+          .date(5)
+          .add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct next month Friday expiry, when the last day of the month is a Friday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 5;
+      let period = 30;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .month("april")
+        .date(30)
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime)
+          .month("march")
+          .date(8)
+          .add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct next month Sunday expiry, when the last day of the month is a Sunday", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 30;
+      let initial = false;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .month("jan")
+        .date(31)
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime)
+          .month("dec")
+          .year(2020)
+          .date(20)
+          .add(Number(i), "day");
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct initial monthly expiry, when it falls on the last day of February non-leap year", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 0;
+      let period = 30;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .month("feb")
+        .date(28)
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime)
+          .month("feb")
+          .date(1);
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+
+    it("Gets the correct initial monthly expiry, when it falls on the last day of February leap year", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      let weekday = 6;
+      let period = 30;
+      let initial = true;
+      let inputTime: moment.Moment;
+      let nextExpiry: number;
+      let nextExpiryDate: moment.Moment;
+
+      let correctExpiryDate = moment(currentTime)
+        .month("feb")
+        .year(2020)
+        .date(29)
+        .hour(8)
+        .seconds(0);
+
+      for (let i = 0; i < 7; i++) {
+        inputTime = moment(currentTime)
+          .month("feb")
+          .year(2020)
+          .date(1);
+
+        nextExpiry = await lifecycle.getNextExpiry(
+          inputTime.unix(), weekday, period, initial
+        );
+
+        nextExpiryDate = moment.unix(nextExpiry);
+
+        assert.equal(nextExpiryDate.weekday(), weekday);
+        assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+      }
+    });
+  });
+});
