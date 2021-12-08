@@ -4,11 +4,6 @@
 pragma solidity =0.8.4;
 
 library DateTime {
-    /************************************************
-     *  DATE HELPERS
-     ***********************************************/
-    // Reference
-
     uint256 constant DAY_IN_SECONDS = 86400;
     uint256 constant YEAR_IN_SECONDS = 31536000;
     uint256 constant LEAP_YEAR_IN_SECONDS = 31622400;
@@ -90,9 +85,9 @@ library DateTime {
     }
 
     /**
-     * @notice Gets the last weekday number of the month
-     * @param timestamp is the timestamp from which the last weekday number will be calculated
-     * @param weekday is the weekday number
+     * @notice Gets the last weekday of the month
+     * @param timestamp is the timestamp from which the last weekday will be calculated
+     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
      * Example:
      * getLastWeekdayOfMonth(11 June 2021, 5) -> Friday, 25 June 2021
      */
@@ -134,7 +129,7 @@ library DateTime {
             secondsAccountedFor += DAY_IN_SECONDS;
         }
 
-        // Adjust
+        // Get the last day of the month
         nextMonthExpiry =
             timestamp +
             (getDaysInMonth(month, year) - day) *
@@ -142,6 +137,8 @@ library DateTime {
 
         uint256 expiryWeekday =
             getWeekday(nextMonthExpiry) == 0 ? 7 : getWeekday(nextMonthExpiry);
+        
+        weekday = weekday == 0 ? 7 : weekday;
 
         nextMonthExpiry -= expiryWeekday >= weekday
             ? (expiryWeekday - weekday) * 1 days

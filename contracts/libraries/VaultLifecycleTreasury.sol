@@ -794,16 +794,27 @@ library VaultLifecycleTreasury {
     /**
      * @notice Gets the next options expiry timestamp
      * @param currentExpiry is the expiry timestamp of the current option
+     * @param day is the weekday (0 for Sunday - 6 for Saturday)
+     * @param period is no. of days in between option sales
+     * @param initial if true, function will look for the next nearest weekday,
+     * this is used when the vault just opens and there was not previous option expiry
+     * Example:
+     * getNextExpiry(10 June 2021, Friday, 7 days, initial) -> Friday, 11 June 2021
+     * getNextExpiry(12 June 2021, Friday, 7 days, initial) -> Friday, 18 June 2021
+     * getNextExpiry(10 June 2021, Friday, 7 days, !initial) -> Friday, 18 June 2021
+     * getNextExpiry(12 June 2021, Friday, 7 days, !initial) -> Friday, 18 June 2021
+     * getNextExpiry(10 June 2021, Friday, 30 days, initial) -> Friday, 25 June 2021
+     * getNextExpiry(10 June 2021, Friday, 30 days, !initial) -> Friday, 30 July 2021
      */
     function getNextExpiry(
         uint256 currentExpiry,
         uint256 day,
-        uint256 period, // no of days in between option selling
+        uint256 period,
         bool initial
     ) internal pure returns (uint256 nextExpiry) {
         if (period % 30 == 0) {
             uint256 monthExpiry = DateTime.getLastWeekdayOfMonth(currentExpiry, day);
-            nextExpiry = initial
+            nextExpiry = initial && monthExpiry > currentExpiry
                 ? monthExpiry
                 : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
         } else {
@@ -811,6 +822,8 @@ library VaultLifecycleTreasury {
                 DateTime.getWeekday(currentExpiry) == 0 
                     ? 7 
                     : DateTime.getWeekday(currentExpiry);
+
+            day = day == 0 ? 7 : day;
 
             uint256 adjustment =
                 initial
