@@ -7,15 +7,13 @@ contract TestVaultLifecycleTreasury {
     function getNextExpiry(
         uint256 currentExpiry,
         uint256 day,
-        uint256 interval,
-        bool initial
+        uint256 interval
     ) external pure returns (uint256) {
         return
             VaultLifecycleTreasury.getNextExpiry(
                 currentExpiry,
                 day,
-                interval,
-                initial
+                interval
             );
     }
 }

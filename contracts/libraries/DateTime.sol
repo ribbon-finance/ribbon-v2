@@ -21,6 +21,36 @@ library DateTime {
     uint256 constant DOW_SUN = 7;
 
     // ------------------------------------------------------------------------
+    // Calculate the number of days from 1970/01/01 to year/month/day using
+    // the date conversion algorithm from
+    //   http://aa.usno.navy.mil/faq/docs/JD_Formula.php
+    // and subtracting the offset 2440588 so that 1970/01/01 is day 0
+    //
+    // days = day
+    //      - 32075
+    //      + 1461 * (year + 4800 + (month - 14) / 12) / 4
+    //      + 367 * (month - 2 - (month - 14) / 12 * 12) / 12
+    //      - 3 * ((year + 4900 + (month - 14) / 12) / 100) / 4
+    //      - offset
+    // ------------------------------------------------------------------------
+    function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
+        require(year >= 1970);
+        int _year = int(year);
+        int _month = int(month);
+        int _day = int(day);
+
+        int __days = _day
+          - 32075
+          + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
+          + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
+          - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
+          - OFFSET19700101;
+
+        _days = uint(__days);
+    }
+
+
+    // ------------------------------------------------------------------------
     // Calculate year/month/day from the number of days since 1970/01/01 using
     // the date conversion algorithm from
     //   http://aa.usno.navy.mil/faq/docs/JD_Formula.php
@@ -131,6 +161,10 @@ library DateTime {
         (, , day) = _daysToDate(timestamp / SECONDS_PER_DAY);
     }
 
+    function timestampFromDate(uint year, uint month, uint day) internal pure returns (uint timestamp) {
+        timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY;
+    }
+
     /**
      * @notice Gets the last weekday of the month
      * @param timestamp is the timestamp from which the last weekday will be calculated
@@ -147,10 +181,11 @@ library DateTime {
         uint256 daysInMonth = getDaysInMonth(timestamp);
         uint256 timestampDate = getDay(timestamp);
 
+        // Get the last day of the month
         uint256 lastDay = timestamp + (daysInMonth - timestampDate) * 1 days;
 
+        // Adjust the weekday
         uint256 lastDayWeekday = getDayOfWeek(lastDay);
-
         lastWeekdayOfMonth =
             lastDay -
             (
@@ -158,5 +193,107 @@ library DateTime {
                     ? (lastDayWeekday - weekday) * 1 days
                     : 1 weeks - (weekday - lastDayWeekday) * 1 days
             );
+    }
+
+    /**
+     * @notice Gets the last weekday for every quarter
+     * @param timestamp is the timestamp from which the last weekday will be calculated
+     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
+     * @return quarterlyLastWeekday is the last weekday of the month
+     */
+    function getQuarterlyLastWeekday(uint256 timestamp, uint256 weekday)
+        internal
+        pure
+        returns (uint256 quarterlyLastWeekday)
+    {
+        quarterlyLastWeekday = _getQuarterlyLastWeekday(
+            timestamp, 
+            weekday
+        );
+
+        if (quarterlyLastWeekday < timestamp) {
+            quarterlyLastWeekday = _getQuarterlyLastWeekday(
+                quarterlyLastWeekday + 7 days, 
+                weekday
+            );
+        } 
+    }
+
+    /**
+     * @notice Internal function to get quarterly last weekday
+     * @param timestamp is the timestamp from which the last weekday will be calculated
+     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
+     * @return quarterlyLastWeekday is the last weekday of the month
+     */
+    function _getQuarterlyLastWeekday(uint256 timestamp, uint256 weekday) 
+        internal
+        pure
+        returns (uint256 quarterlyLastWeekday)
+    {
+        uint256 year = getYear(timestamp);
+        uint256 month = getMonth(timestamp);
+        
+        uint256 nearestQuarterMonth = 
+            (month <= 3)
+                ? 3
+                : (month <= 6)
+                    ? 6
+                    : (month <= 9)
+                        ? 9
+                        : 12;
+
+        quarterlyLastWeekday = getLastWeekdayOfMonth(
+            timestampFromDate(year, nearestQuarterMonth, 1), 
+            weekday
+        );
+    }
+
+    /**
+     * @notice Gets the last weekday for the next semiannual
+     * @param timestamp is the timestamp from which the last weekday will be calculated
+     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
+     * @return semiannualLastWeekday is the last weekday of the month
+     */
+    function getSemiannuallyLastWeekday(uint256 timestamp, uint256 weekday)
+        internal
+        pure
+        returns (uint256 semiannualLastWeekday)
+    {
+        semiannualLastWeekday = _getSemiannuallyLastWeekday(
+            timestamp, 
+            weekday
+        );
+
+        if (semiannualLastWeekday < timestamp) {
+            semiannualLastWeekday = _getSemiannuallyLastWeekday(
+                semiannualLastWeekday + 7 days, 
+                weekday
+            );
+        }
+    }
+
+    /**
+     * @notice Internal function to get semiannual last weekday
+     * @param timestamp is the timestamp from which the last weekday will be calculated
+     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
+     * @return semiannualLastWeekday is the last weekday of the month
+     */
+    function _getSemiannuallyLastWeekday(uint256 timestamp, uint256 weekday) 
+        internal
+        pure
+        returns (uint256 semiannualLastWeekday)
+    {
+        uint256 year = getYear(timestamp);
+        uint256 month = getMonth(timestamp);
+        
+        uint256 nearestQuarterMonth = 
+            (month <= 6)
+                ? 6
+                : 12;
+
+        semiannualLastWeekday = getLastWeekdayOfMonth(
+            timestampFromDate(year, nearestQuarterMonth, 1), 
+            weekday
+        );
     }
 }

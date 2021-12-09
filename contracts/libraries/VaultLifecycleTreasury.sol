@@ -106,15 +106,13 @@ library VaultLifecycleTreasury {
             expiry = getNextExpiry(
                 block.timestamp,
                 closeParams.weekday,
-                closeParams.period,
-                true
+                closeParams.period
             );
         } else {
             expiry = getNextExpiry(
                 IOtoken(closeParams.currentOption).expiryTimestamp(),
                 closeParams.weekday,
-                closeParams.period,
-                false
+                closeParams.period
             );
         }
 
@@ -809,12 +807,12 @@ library VaultLifecycleTreasury {
     }
 
     /**
-     * @notice Gets the next options expiry timestamp
+     * @notice Gets the next options expiry timestamp, this function should be called
+     when there is sufficient guard to ensure valid period
      * @param currentExpiry is the expiry timestamp of the current option
      * @param day is the weekday (1 (Monday) - 7 (Sunday))
-     * @param period is no. of days in between option sales
-     * @param initial if true, function will look for the next nearest weekday,
-     * this is used when the vault just opens and there was not previous option expiry
+     * @param period is no. of days in between option sales. Available periods are: 
+     * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
      * Example:
      * getNextExpiry(10 June 2021, Friday, 7 days, initial) -> Friday, 11 June 2021
      * getNextExpiry(12 June 2021, Friday, 7 days, initial) -> Friday, 18 June 2021
@@ -826,28 +824,49 @@ library VaultLifecycleTreasury {
     function getNextExpiry(
         uint256 currentExpiry,
         uint256 day,
-        uint256 period,
-        bool initial
+        uint256 period
+        // bool initial
     ) internal pure returns (uint256 nextExpiry) {
         if (period % 30 == 0) {
-            uint256 monthExpiry =
-                DateTime.getLastWeekdayOfMonth(currentExpiry, day);
-            nextExpiry = initial && monthExpiry > currentExpiry
-                ? monthExpiry
-                : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
+            // Logic for getting monthly expiries
+            if (period / 30 == 1) {
+                // Get the last weekday of the same month
+                uint256 monthExpiry =
+                    DateTime.getLastWeekdayOfMonth(currentExpiry, day);
+                
+                // If last day of the month has passed, move forward to next month's
+                // last weekday
+                nextExpiry = monthExpiry > currentExpiry
+                    ? monthExpiry
+                    : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
+            } else if (period / 30 == 3) {
+                nextExpiry = DateTime.getQuarterlyLastWeekday(currentExpiry, day);
+            } else if (period / 30 == 6) {
+                nextExpiry = DateTime.getSemiannuallyLastWeekday(currentExpiry, day);
+            }
         } else {
+            // Logic for getting weekly expiries
+
             uint256 weekday = DateTime.getDayOfWeek(currentExpiry);
 
-            uint256 adjustment =
-                initial
-                    ? (weekday >= day) ? 1 weeks : 0 weeks
-                    : (period / 7) * 1 weeks;
+            // Adjust the weekday number. The adjusted timestamp will be in the
+            // same week
+            nextExpiry = currentExpiry + day * 1 days - weekday * 1 days;
 
-            nextExpiry =
-                (currentExpiry + day * 1 days - weekday * 1 days) +
-                adjustment;
+            // If the adjusted timestamp is before currentExpiry, move it
+            // by one week
+            nextExpiry += nextExpiry >= currentExpiry ? 0 weeks : 1 weeks;
+
+            // When the vault is already running beyond the first round, 
+            // the weekday number of current expiry will always match the 
+            // parameter `day`. This is a signal to move the weekExpiry 
+            // by the `period` set in the vault. Otherwise, this function will 
+            // return the nearest weekly expiry. 
+            nextExpiry += weekday == day
+                ? (period / 7) * 1 weeks : 0 weeks;
         }
 
+        // Adjust the hours to 8 AM 
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
 
         return nextExpiry;
