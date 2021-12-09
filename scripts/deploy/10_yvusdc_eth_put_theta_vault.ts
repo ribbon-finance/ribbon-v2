@@ -1,5 +1,9 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { WETH_ADDRESS, YVUSDC_V0_4_3 } from "../../constants/constants";
+import {
+  USDC_ADDRESS,
+  WETH_ADDRESS,
+  YVUSDC_V0_4_3,
+} from "../../constants/constants";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
@@ -31,8 +35,8 @@ const main = async ({
   const lifecycle = await deployments.get("VaultLifecycle");
   const lifecycleYearn = await deployments.get("VaultLifecycleYearn");
 
-  const RibbonThetaVault = await ethers.getContractFactory(
-    "RibbonThetaVaultYearnLogic",
+  const RibbonThetaYearnVault = await ethers.getContractFactory(
+    "RibbonThetaYearnVault",
     {
       libraries: {
         VaultLifecycle: lifecycle.address,
@@ -42,32 +46,28 @@ const main = async ({
   );
 
   const initArgs = [
-    {
-      _owner: owner,
-      _keeper: keeper,
-      _feeRecipient: feeRecipient,
-      _managementFee: MANAGEMENT_FEE,
-      _performanceFee: PERFORMANCE_FEE,
-      _tokenName: TOKEN_NAME,
-      _tokenSymbol: TOKEN_SYMBOL,
-      _optionsPremiumPricer: pricer.address,
-      _strikeSelection: strikeSelection.address,
-      _premiumDiscount: PREMIUM_DISCOUNT,
-      _auctionDuration: AUCTION_DURATION,
-      _isUsdcAuction: false,
-      _swapPath: 0x0,
-    },
+    owner,
+    keeper,
+    feeRecipient,
+    MANAGEMENT_FEE,
+    PERFORMANCE_FEE,
+    TOKEN_NAME,
+    TOKEN_SYMBOL,
+    pricer.address,
+    strikeSelection.address,
+    PREMIUM_DISCOUNT,
+    AUCTION_DURATION,
     {
       isPut: true,
       decimals: 6,
-      asset: YVUSDC_V0_4_3, // new yvUSDC
+      asset: USDC_ADDRESS[chainId],
       underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(3),
       cap: ethers.utils.parseUnits("1000000", 6),
     },
   ];
 
-  const initData = RibbonThetaVault.interface.encodeFunctionData(
+  const initData = RibbonThetaYearnVault.interface.encodeFunctionData(
     "initialize",
     initArgs
   );
@@ -81,6 +81,6 @@ const main = async ({
   console.log(`RibbonThetaVaultETHPutYearn @ ${vault.address}`);
 };
 main.tags = ["RibbonThetaVaultETHPutYearn"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultYearnLogic"];
+main.dependencies = ["RibbonThetaVaultYearnLogic"];
 
 export default main;
