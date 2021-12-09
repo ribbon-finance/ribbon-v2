@@ -29,7 +29,6 @@ library VaultLifecycleTreasury {
         uint256 delay;
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
-        uint256 weekday;
         uint256 period;
     }
 
@@ -47,9 +46,7 @@ library VaultLifecycleTreasury {
      * @param _premiumDiscount is the vault's discount applied to the premium
      * @param _auctionDuration is the duration of the gnosis auction
      * @param _whitelist is an array of whitelisted user address who can deposit
-     * @param _premiumAsset is the asset which denominates the premium during auction
      * @param _period is the period between each option sales
-     * @param _weekday is the day of the week when option sales will be executed
      */
     struct InitParams {
         address _owner;
@@ -64,9 +61,7 @@ library VaultLifecycleTreasury {
         uint32 _premiumDiscount;
         uint256 _auctionDuration;
         address[] _whitelist;
-        address _premiumAsset;
         uint256 _period;
-        uint256 _weekday;
     }
 
     /**
@@ -103,15 +98,10 @@ library VaultLifecycleTreasury {
 
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextExpiry(
-                block.timestamp,
-                closeParams.weekday,
-                closeParams.period
-            );
+            expiry = getNextExpiry(block.timestamp, closeParams.period);
         } else {
             expiry = getNextExpiry(
                 IOtoken(closeParams.currentOption).expiryTimestamp(),
-                closeParams.weekday,
                 closeParams.period
             );
         }
@@ -759,16 +749,12 @@ library VaultLifecycleTreasury {
         require(bytes(_initParams._tokenName).length > 0, "!_tokenName");
         require(bytes(_initParams._tokenSymbol).length > 0, "!_tokenSymbol");
         require(
-            (_initParams._period == 30) ||
+            (_initParams._period == 7) ||
+                (_initParams._period == 14) ||
+                (_initParams._period == 30) ||
                 (_initParams._period == 90) ||
-                (_initParams._period == 180) ||
-                (_initParams._period == 7) ||
-                (_initParams._period == 14),
+                (_initParams._period == 180),
             "!_period"
-        );
-        require(
-            _initParams._weekday <= 7 && _initParams._weekday > 0,
-            "!_weekday"
         );
         require(
             _initParams._optionsPremiumPricer != address(0),
@@ -783,11 +769,6 @@ library VaultLifecycleTreasury {
                 _initParams._premiumDiscount <
                 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
-        );
-        require(_initParams._premiumAsset != address(0), "!_premiumAsset");
-        require(
-            _initParams._premiumAsset != _vaultParams.asset,
-            "!_premiumAsset"
         );
         require(
             _initParams._auctionDuration >= _min_auction_duration,
@@ -812,8 +793,7 @@ library VaultLifecycleTreasury {
     /**
      * @notice Gets the next options expiry timestamp, this function should be called
      when there is sufficient guard to ensure valid period
-     * @param currentExpiry is the expiry timestamp of the current option
-     * @param day is the weekday (1 (Monday) - 7 (Sunday))
+     * @param timestamp is the expiry timestamp of the current option
      * @param period is no. of days in between option sales. Available periods are: 
      * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
      * Example:
@@ -824,65 +804,38 @@ library VaultLifecycleTreasury {
      * getNextExpiry(10 June 2021, Friday, 30 days, initial) -> Friday, 25 June 2021
      * getNextExpiry(10 June 2021, Friday, 30 days, !initial) -> Friday, 30 July 2021
      */
-    function getNextExpiry(
-        uint256 currentExpiry,
-        uint256 day,
-        uint256 period
-    )
+    function getNextExpiry(uint256 timestamp, uint256 period)
         internal
         pure
-        returns (
-            // bool initial
-            uint256 nextExpiry
-        )
+        returns (uint256 nextExpiry)
     {
-        if (period % 30 == 0) {
-            // Logic for getting monthly expiries
-            if (period / 30 == 1) {
-                // Get the last weekday of the same month
-                uint256 monthExpiry =
-                    DateTime.getLastWeekdayOfMonth(currentExpiry, day);
-
-                // If last day of the month has passed, move forward to next month's
-                // last weekday
-                nextExpiry = monthExpiry > currentExpiry
-                    ? monthExpiry
-                    : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
-            } else if (period / 30 == 3) {
-                nextExpiry = DateTime.getQuarterlyLastWeekday(
-                    currentExpiry,
-                    day
-                );
-            } else if (period / 30 == 6) {
-                nextExpiry = DateTime.getSemiannualLastWeekday(
-                    currentExpiry,
-                    day
-                );
-            }
-        } else {
-            // Logic for getting weekly expiries
-
-            uint256 weekday = DateTime.getDayOfWeek(currentExpiry);
-
-            // Adjust the weekday number. The adjusted timestamp will be in the
-            // same week
-            nextExpiry = currentExpiry + day * 1 days - weekday * 1 days;
-
-            // If the adjusted timestamp is before currentExpiry, move it
-            // by one week
-            nextExpiry += nextExpiry >= currentExpiry ? 0 weeks : 1 weeks;
-
-            // When the vault is already running beyond the first round,
-            // the weekday number of current expiry will always match the
-            // parameter `day`. This is a signal to move the weekExpiry
-            // by the `period` set in the vault. Otherwise, this function will
-            // return the nearest weekly expiry.
-            nextExpiry += weekday == day ? (period / 7) * 1 weeks : 0 weeks;
+        if (period == 7) {
+            nextExpiry = DateTime.getNextFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? nextExpiry + 1 weeks
+                : nextExpiry;
+        } else if (period == 14) {
+            nextExpiry = DateTime.getNextFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? nextExpiry + 2 weeks
+                : nextExpiry;
+        } else if (period == 30) {
+            nextExpiry = DateTime.getMonthLastFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? DateTime.getMonthLastFriday(nextExpiry + 1 weeks)
+                : nextExpiry;
+        } else if (period == 90) {
+            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? DateTime.getQuarterLastFriday(nextExpiry + 1 weeks)
+                : nextExpiry;
+        } else if (period == 180) {
+            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? DateTime.getBiannualLastFriday(nextExpiry + 1 weeks)
+                : nextExpiry;
         }
 
-        // Adjust the hours to 8 AM
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
-
-        return nextExpiry;
     }
 }

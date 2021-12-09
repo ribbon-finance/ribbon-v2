@@ -177,119 +177,95 @@ library DateTime {
     }
 
     /**
-     * @notice Gets the last weekday of the month
-     * @param timestamp is the timestamp from which the last weekday will be calculated
-     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
-     * @return lastWeekdayOfMonth is the last weekday of the month
-     * Example:
-     * getLastWeekdayOfMonth(11 June 2021, 5) -> Friday, 25 June 2021
+     * @notice Gets the Friday of the same week
+     * @param timestamp is the given date and time
+     * @return the Friday of the same week in unix time
      */
-    function getLastWeekdayOfMonth(uint256 timestamp, uint256 weekday)
+    function getThisWeekFriday(uint256 timestamp)
         internal
         pure
-        returns (uint256 lastWeekdayOfMonth)
+        returns (uint256)
     {
-        uint256 daysInMonth = getDaysInMonth(timestamp);
-        uint256 timestampDate = getDay(timestamp);
-
-        // Get the last day of the month
-        uint256 lastDay = timestamp + (daysInMonth - timestampDate) * 1 days;
-
-        // Adjust the weekday
-        uint256 lastDayWeekday = getDayOfWeek(lastDay);
-        lastWeekdayOfMonth =
-            lastDay -
-            (
-                (lastDayWeekday >= weekday)
-                    ? (lastDayWeekday - weekday) * 1 days
-                    : 1 weeks - (weekday - lastDayWeekday) * 1 days
-            );
+        return timestamp + 5 days - getDayOfWeek(timestamp) * 1 days;
     }
 
     /**
-     * @notice Gets the last weekday for every quarter
-     * @param timestamp is the timestamp from which the last weekday will be calculated
-     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
-     * @return quarterlyLastWeekday is the last weekday of the month
+     * @notice Gets the next week's Friday
+     * @param timestamp is the given date and time
+     * @return the next Friday of the same week in unix time
      */
-    function getQuarterlyLastWeekday(uint256 timestamp, uint256 weekday)
-        internal
-        pure
-        returns (uint256 quarterlyLastWeekday)
-    {
-        quarterlyLastWeekday = _getQuarterlyLastWeekday(timestamp, weekday);
-
-        if (quarterlyLastWeekday < timestamp) {
-            quarterlyLastWeekday = _getQuarterlyLastWeekday(
-                quarterlyLastWeekday + 7 days,
-                weekday
-            );
-        }
+    function getNextFriday(uint256 timestamp) internal pure returns (uint256) {
+        uint256 friday = getThisWeekFriday(timestamp);
+        return friday >= timestamp ? friday : friday + 1 weeks;
     }
 
     /**
-     * @notice Internal function to get quarterly last weekday
-     * @param timestamp is the timestamp from which the last weekday will be calculated
-     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
-     * @return quarterlyLastWeekday is the last weekday of the month
+     * @notice Gets the last day of the month
+     * @param timestamp is the given date and time
+     * @return the last day of the same month in unix time
      */
-    function _getQuarterlyLastWeekday(uint256 timestamp, uint256 weekday)
+    function getLastDayOfMonth(uint256 timestamp)
         internal
         pure
-        returns (uint256 quarterlyLastWeekday)
+        returns (uint256)
     {
-        uint256 year = getYear(timestamp);
+        return
+            timestampFromDate(getYear(timestamp), getMonth(timestamp) + 1, 1) -
+            1 days;
+    }
+
+    /**
+     * @notice Gets the last Friday of the month
+     * @param timestamp is the given date and time
+     * @return the last Friday of the same month in unix time
+     */
+    function getMonthLastFriday(uint256 timestamp)
+        internal
+        pure
+        returns (uint256)
+    {
+        uint256 lastDay = getLastDayOfMonth(timestamp);
+        uint256 friday = getThisWeekFriday(lastDay);
+
+        return friday > lastDay ? friday - 1 weeks : friday;
+    }
+
+    /**
+     * @notice Gets the last Friday of the quarter
+     * @param timestamp is the given date and time
+     * @return the last Friday of the quarter in unix time
+     */
+    function getQuarterLastFriday(uint256 timestamp)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 month = getMonth(timestamp);
-
-        uint256 nearestQuarterMonth =
+        uint256 quarterMonth =
             (month <= 3) ? 3 : (month <= 6) ? 6 : (month <= 9) ? 9 : 12;
 
-        quarterlyLastWeekday = getLastWeekdayOfMonth(
-            timestampFromDate(year, nearestQuarterMonth, 1),
-            weekday
-        );
+        uint256 quarterDate =
+            timestampFromDate(getYear(timestamp), quarterMonth, 1);
+
+        return getMonthLastFriday(quarterDate);
     }
 
     /**
-     * @notice Gets the last weekday for the next semiannual
-     * @param timestamp is the timestamp from which the last weekday will be calculated
-     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
-     * @return semiannualLastWeekday is the last weekday of the month
+     * @notice Gets the last Friday of the half-year
+     * @param timestamp is the given date and time
+     * @return lastFriday of the half-year
      */
-    function getSemiannualLastWeekday(uint256 timestamp, uint256 weekday)
+    function getBiannualLastFriday(uint256 timestamp)
         internal
         pure
-        returns (uint256 semiannualLastWeekday)
+        returns (uint256)
     {
-        semiannualLastWeekday = _getSemiannualLastWeekday(timestamp, weekday);
-
-        if (semiannualLastWeekday < timestamp) {
-            semiannualLastWeekday = _getSemiannualLastWeekday(
-                semiannualLastWeekday + 7 days,
-                weekday
-            );
-        }
-    }
-
-    /**
-     * @notice Internal function to get semiannual last weekday
-     * @param timestamp is the timestamp from which the last weekday will be calculated
-     * @param weekday is the weekday (0 for Sunday - 6 for Saturday)
-     * @return semiannualLastWeekday is the last weekday of the month
-     */
-    function _getSemiannualLastWeekday(uint256 timestamp, uint256 weekday)
-        internal
-        pure
-        returns (uint256 semiannualLastWeekday)
-    {
-        uint256 year = getYear(timestamp);
         uint256 month = getMonth(timestamp);
+        uint256 biannualMonth = (month <= 6) ? 6 : 12;
 
-        uint256 nearestQuarterMonth = (month <= 6) ? 6 : 12;
+        uint256 biannualDate =
+            timestampFromDate(getYear(timestamp), biannualMonth, 1);
 
-        semiannualLastWeekday = getLastWeekdayOfMonth(
-            timestampFromDate(year, nearestQuarterMonth, 1),
-            weekday
-        );
+        return getMonthLastFriday(biannualDate);
     }
 }

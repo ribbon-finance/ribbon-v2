@@ -73,7 +73,7 @@ contract RibbonTreasuryVault is
     address public immutable OTOKEN_FACTORY;
 
     // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
+    uint256 private constant MIN_AUCTION_DURATION = 15 minutes;
 
     // Maximum number of whitelisted user address.
     uint256 private constant WHITELIST_LIMIT = 5;
@@ -199,12 +199,10 @@ contract RibbonTreasuryVault is
 
         keeper = _initParams._keeper;
         period = _initParams._period;
-        weekday = _initParams._weekday;
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
-        premiumAsset = _initParams._premiumAsset;
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
         managementFee = _perRoundManagementFee(_initParams._managementFee);
@@ -807,12 +805,6 @@ contract RibbonTreasuryVault is
      */
     function transferAsset(address recipient, uint256 amount) internal {
         address asset = vaultParams.asset;
-        // if (asset == WETH) {
-        //     IWETH(WETH).withdraw(amount);
-        //     (bool success, ) = recipient.call{value: amount}("");
-        //     require(success, "Transfer failed");
-        //     return;
-        // }
         IERC20(asset).safeTransfer(recipient, amount);
     }
 
@@ -821,11 +813,11 @@ contract RibbonTreasuryVault is
      *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose() external nonReentrant {
-        uint256 premiumBalance = IERC20(premiumAsset).balanceOf(address(this));
+        uint256 stableBalance = IERC20(USDC).balanceOf(address(this));
 
-        if (premiumBalance > 0) {
-            uint256 amountToDistribute = _chargePerformanceFee();
-            _distribute(amountToDistribute);
+        if (stableBalance > 0) {
+            _chargePerformanceFee();
+            _distribute();
         }
 
         address oldOption = optionState.currentOption;
@@ -838,7 +830,6 @@ contract RibbonTreasuryVault is
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice,
-                weekday: weekday,
                 period: period
             });
 
@@ -889,10 +880,6 @@ contract RibbonTreasuryVault is
             uint256 withdrawAmount =
                 VaultLifecycleTreasury.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
-
-            if (lockedAmount == withdrawAmount) {
-                performanceFeeOwed += previousPerformanceFee;
-            }
         }
     }
 
@@ -937,13 +924,12 @@ contract RibbonTreasuryVault is
 
         require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-        address _premiumAsset = premiumAsset;
-        uint256 _decimals = IERC20Detailed(_premiumAsset).decimals();
+        uint256 stableDecimals = IERC20Detailed(USDC).decimals();
 
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = _premiumAsset;
-        auctionDetails.assetDecimals = _decimals;
+        auctionDetails.asset = USDC;
+        auctionDetails.assetDecimals = stableDecimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
@@ -979,82 +965,52 @@ contract RibbonTreasuryVault is
      * @notice Charge performance fee and distribute remaining to whitelisted address
      */
     function chargeAndDistribute() external onlyKeeper nonReentrant {
-        uint256 amountToDistribute = _chargePerformanceFee();
-
-        _distribute(amountToDistribute);
+        _chargePerformanceFee();
+        _distribute();
     }
 
     /**
      * @notice Calculate performance fee and transfer to fee recipient
      */
-    function _chargePerformanceFee()
-        internal
-        returns (uint256 afterFeePremiumBalance)
-    {
+    function _chargePerformanceFee() internal {
         address recipient = feeRecipient;
-        Vault.VaultState memory _vaultState = vaultState;
+        IERC20 stableAsset = IERC20(USDC);
+        uint256 stableBalance = stableAsset.balanceOf(address(this));
 
-        // Get the total premium gained from the auction
-        // Exclude any deposit if the premium is in underlying asset
-        IERC20 _premiumAsset = IERC20(premiumAsset);
-        uint256 premiumBalance = _premiumAsset.balanceOf(address(this));
-
-        // Transfer any owed fees from previous rounds
-        if (performanceFeeOwed > 0) {
-            // Get transfer amount
-            // If there is insufficient balance to cover the whole owed amount
-            // transfer all the balance
+        if (stableBalance > 0) {
             uint256 transferAmount =
-                performanceFeeOwed > premiumBalance
-                    ? premiumBalance
-                    : performanceFeeOwed;
+                stableBalance.mul(performanceFee).div(
+                    100 * Vault.FEE_MULTIPLIER
+                );
 
-            _premiumAsset.safeTransfer(recipient, transferAmount);
+            stableAsset.safeTransfer(recipient, transferAmount);
 
             emit CollectPerformanceFee(
                 transferAmount,
-                _vaultState.round - 1,
+                vaultState.round - 1,
                 recipient
             );
-
-            // Adjust the performance fee owed, if balance is sufficient,
-            // this will set performance fee owed to 0
-            performanceFeeOwed -= transferAmount;
         }
-
-        // Check balance after transferring fees out
-        // Exclude any deposit if the premium is in underlying asset
-        afterFeePremiumBalance = _premiumAsset.balanceOf(address(this));
-
-        // Calculate performance for the current round and put in storage
-        // to be charged in the next round
-        previousPerformanceFee = premiumBalance.mul(performanceFee).div(
-            100 * Vault.FEE_MULTIPLIER
-        );
     }
 
     /**
      * @notice Distribute the premium to whitelisted addresses
      */
-    function _distribute(uint256 amountToDistribute) internal {
+    function _distribute() internal {
         // Distribute to whitelisted address
         address[] memory _whitelist = whitelistArray;
         uint256 totalSupply = totalSupply();
+        IERC20 stableAsset = IERC20(USDC);
+        uint256 stableBalance = stableAsset.balanceOf(address(this));
 
         for (uint256 i = 0; i < _whitelist.length; i++) {
             // Distribute to whitelist proportional to the amount of shares
             // they own
-            IERC20(premiumAsset).safeTransfer(
+            stableAsset.safeTransfer(
                 _whitelist[i],
-                shares(_whitelist[i]).mul(amountToDistribute).div(totalSupply)
+                shares(_whitelist[i]).mul(stableBalance).div(totalSupply)
             );
         }
-
-        // In case there is a left over, send to the first person in the whitelist
-        IERC20(premiumAsset).safeTransfer(
-            _whitelist[0],
-            IERC20(premiumAsset).balanceOf(address(this))
-        );
     }
 
     /************************************************
