@@ -7,9 +7,6 @@ import {
   USDC_PRICE_ORACLE,
   ETH_PRICE_ORACLE,
   OptionsPremiumPricer_BYTECODE,
-} from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
-import {
   AUCTION_DURATION,
   AVAX_STRIKE_STEP,
   ETH_STRIKE_STEP,
@@ -17,7 +14,8 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-} from "../utils/constants";
+} from "../../constants/constants";
+import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 
 const TOKEN_NAME = {
   [CHAINID.ETH_MAINNET]: "Ribbon ETH Theta Vault",

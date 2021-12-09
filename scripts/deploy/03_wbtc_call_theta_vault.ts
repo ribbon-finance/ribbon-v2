@@ -6,16 +6,14 @@ import {
   USDC_PRICE_ORACLE,
   WBTC_USDC_POOL,
   OptionsPremiumPricer_BYTECODE,
-} from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
-import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
   WBTC_STRIKE_STEP,
-} from "../utils/constants";
+} from "../../constants/constants";
+import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 
 const main = async ({
   network,

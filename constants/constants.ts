@@ -59,6 +59,11 @@ export const USDC_OWNER_ADDRESS = {
   [CHAINID.AVAX_FUJI]: "0x61a74365315d57a79a9c72a8394a8a959a29b9c1",
 };
 
+export const AAVE_ADDRESS = {
+  [CHAINID.ETH_MAINNET]: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+  [CHAINID.ETH_KOVAN]: "0xB597cd8D3217ea6477232F9217fa70837ff667Af",
+};
+
 export const SUSHI_ADDRESS = {
   [CHAINID.ETH_MAINNET]: "0x6B3595068778DD592e39A122f4f5a5cF09C90fE2",
 };
@@ -99,6 +104,11 @@ export const USDC_PRICE_ORACLE = {
   [CHAINID.ETH_KOVAN]: "0x9211c6b3BF41A10F78539810Cf5c64e1BB78Ec60",
   [CHAINID.AVAX_MAINNET]: "0xF096872672F44d6EBA71458D74fe67F9a77a23B9",
   [CHAINID.AVAX_FUJI]: "0x7898AcCC83587C3C55116c5230C17a6Cd9C71bad", // NOTE: This is the USDT oracle, no USDC oracle is on avax testnet
+};
+
+export const AAVE_PRICE_ORACLE = {
+  [CHAINID.ETH_MAINNET]: "0x547a514d5e3769680Ce22B2361c10Ea13619e8a9",
+  [CHAINID.ETH_KOVAN]: "0x6135b13325bfC4B00278B4abC5e20bbce2D6580e", // Aave has no price oracle on kovan, so we just use ETH.
 };
 
 /**
@@ -263,11 +273,26 @@ export const WBTC_USDC_POOL = {
   [CHAINID.ETH_KOVAN]: "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35",
 };
 
+export const AAVE_ETH_POOL = "0x5aB53EE1d50eeF2C1DD3d5402789cd27bB52c1bB";
+
 /**
  * Curve Pool
  */
 
 export const STETH_ETH_CRV_POOL = "0xDC24316b9AE028F1497c275EB9192a3Ea0f67022";
+
+/**
+ * Vault params
+ */
+export const AVAX_STRIKE_STEP = 10;
+export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 1000
+export const WBTC_STRIKE_STEP = 1000; // WBTC strike prices move in increments of 1000
+export const AAVE_STRIKE_STEP = 10;
+export const STRIKE_DELTA = 1000; // 0.1d
+export const PREMIUM_DISCOUNT = 200; // 0.20, 80% discount
+export const AUCTION_DURATION = 3600; // 1 hour
+export const PERFORMANCE_FEE = 10000000;
+export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result in 38356 per week.
 
 /**
  * RVol Bytecode

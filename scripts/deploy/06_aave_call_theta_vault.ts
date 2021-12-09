@@ -4,21 +4,17 @@ import {
   CHAINID,
   USDC_PRICE_ORACLE,
   OptionsPremiumPricer_BYTECODE,
-} from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
-import {
+  AAVE_ADDRESS,
   AAVE_ETH_POOL,
   AAVE_STRIKE_STEP,
   AUCTION_DURATION,
-  KOVAN_AAVE,
-  KOVAN_AAVE_ORACLE,
-  MAINNET_AAVE,
-  MAINNET_AAVE_ORACLE,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-} from "../utils/constants";
+  AAVE_PRICE_ORACLE,
+} from "../../constants/constants";
+import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 
 const main = async ({
   network,
@@ -42,11 +38,14 @@ const main = async ({
     await getNamedAccounts();
   console.log(`06 - Deploying AAVE Call Theta Vault on ${network.name}`);
 
-  const isMainnet = network.name === "mainnet";
-
   const manualVolOracle = await deployments.get("ManualVolOracle");
-  const underlyingOracle = isMainnet ? MAINNET_AAVE_ORACLE : KOVAN_AAVE_ORACLE;
-  const stablesOracle = USDC_PRICE_ORACLE[chainId];
+
+  console.log([
+    AAVE_ETH_POOL,
+    manualVolOracle.address,
+    AAVE_PRICE_ORACLE[chainId],
+    USDC_PRICE_ORACLE[chainId],
+  ]);
 
   const pricer = await deploy("OptionsPremiumPricerAAVE", {
     from: deployer,
@@ -57,8 +56,8 @@ const main = async ({
     args: [
       AAVE_ETH_POOL,
       manualVolOracle.address,
-      underlyingOracle,
-      stablesOracle,
+      AAVE_PRICE_ORACLE[chainId],
+      USDC_PRICE_ORACLE[chainId],
     ],
   });
 
@@ -96,8 +95,8 @@ const main = async ({
     {
       isPut: false,
       decimals: 18,
-      asset: isMainnet ? MAINNET_AAVE : KOVAN_AAVE,
-      underlying: isMainnet ? MAINNET_AAVE : KOVAN_AAVE,
+      asset: AAVE_ADDRESS[chainId],
+      underlying: AAVE_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("15500"),
     },
@@ -116,18 +115,13 @@ const main = async ({
   console.log(`RibbonThetaVaultAAVECall @ ${vault.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: vault.address,
-      constructorArguments: [
-        logicDeployment.address,
-        admin,
-        initData,
-      ],
+      constructorArguments: [logicDeployment.address, admin, initData],
     });
   } catch (error) {
     console.log(error);
   }
-
 };
 main.tags = ["RibbonThetaVaultAAVECall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
