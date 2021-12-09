@@ -57,6 +57,7 @@ export default {
     },
     kovan: {
       url: process.env.KOVAN_URI,
+      chainId: 42,
       accounts: {
         mnemonic: process.env.KOVAN_MNEMONIC,
       },
