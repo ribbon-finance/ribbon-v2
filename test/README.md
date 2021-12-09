@@ -18,12 +18,23 @@ truffle run verify --network avax ChainLinkPricer@0xAc12780B07bd623dE572c4e65719
 - Check if setAnnualVol has been called for the pool in ManualVolOracle and trigger it if not
 - Update the block number for the testcases in constants.ts
 
+
+### '!st'
+```
+Error: VM Exception while processing transaction: reverted with reason string '!st'
+```
+-
+-
+-
+
+
 ### 'Not commit phase'
 ```
 Error: VM Exception while processing transaction: reverted with reason string 'Not commit phase'
 ```
 - Make sure the block number is set during the commit phase
 - Block number must be set to during the commit phase - 12pm UTC
+
 
 ### 'Expiry must be in the future!'
 ```
