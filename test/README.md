@@ -18,12 +18,22 @@ truffle run verify --network avax ChainLinkPricer@0xAc12780B07bd623dE572c4e65719
 - Check if setAnnualVol has been called for the pool in ManualVolOracle and trigger it if not
 - Update the block number for the testcases in constants.ts
 
+
+### '!st'
+```
+Error: VM Exception while processing transaction: reverted with reason string '!st'
+```
+- I believe this is a timing issue with the Chainlink oracle updates.  Waiting a day seems to fix it.
+- I think the Gamma Protocol requires a window of time of oracle prices.
+- Don't forget to update the block number after waiting.
+
 ### 'Not commit phase'
 ```
 Error: VM Exception while processing transaction: reverted with reason string 'Not commit phase'
 ```
 - Make sure the block number is set during the commit phase
 - Block number must be set to during the commit phase - 12pm UTC
+
 
 ### 'Expiry must be in the future!'
 ```
@@ -58,3 +68,13 @@ Error: VM Exception while processing transaction: reverted with reason string 'E
         .seconds(0)
         .unix();
 ```
+
+### C29
+```
+Error: VM Exception while processing transaction: reverted with reason string 'C29'
+```
+- Call setExpiryPriceInOracle on the Chainlink Pricer
+- Timestamp should be the following Friday 8am UTC in unix time.
+- roundId should be from the Chainlink aggregator and greater than the current roundId.
+- E.g. Pass 1639123200 for timestamp and 18446744073709551763 for roundId
+- https://snowtrace.io/tx/0x5b92b884524443e0e7c9b26772d3e3c638d3748f207072fc06a60cbb039c91ca
