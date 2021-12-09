@@ -59,10 +59,12 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
   });
 
-  console.log(`RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`);
+  console.log(
+    `RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`
+  );
 
-   try {
-    await run('verify:verify', {
+  try {
+    await run("verify:verify", {
       address: strikeSelection.address,
       constructorArguments: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
     });
@@ -118,18 +120,13 @@ const main = async ({
   console.log(`RibbonThetaVaultWBTCCall @ ${proxy.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: proxy.address,
-      constructorArguments: [
-        logicDeployment.address,
-        admin,
-        initData,
-      ],
+      constructorArguments: [logicDeployment.address, admin, initData],
     });
   } catch (error) {
     console.log(error);
   }
-
 };
 main.tags = ["RibbonThetaVaultWBTCCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];

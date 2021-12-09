@@ -20,17 +20,17 @@ import {
 } from "../utils/constants";
 
 const TOKEN_NAME = {
-  [CHAINID.ETH_MAINNET]: 'Ribbon ETH Theta Vault',
-  [CHAINID.ETH_KOVAN]: 'Ribbon ETH Theta Vault',
-  [CHAINID.AVAX_MAINNET]: 'Ribbon AVAX Theta Vault',
-  [CHAINID.AVAX_FUJI]: 'Ribbon AVAX Theta Vault',
+  [CHAINID.ETH_MAINNET]: "Ribbon ETH Theta Vault",
+  [CHAINID.ETH_KOVAN]: "Ribbon ETH Theta Vault",
+  [CHAINID.AVAX_MAINNET]: "Ribbon AVAX Theta Vault",
+  [CHAINID.AVAX_FUJI]: "Ribbon AVAX Theta Vault",
 };
 
 const TOKEN_SYMBOL = {
-  [CHAINID.ETH_MAINNET]: 'rETH-THETA',
-  [CHAINID.ETH_KOVAN]: 'rETH-THETA',
-  [CHAINID.AVAX_MAINNET]: 'rAVAX-THETA',
-  [CHAINID.AVAX_FUJI]: 'rAVAX-THETA',
+  [CHAINID.ETH_MAINNET]: "rETH-THETA",
+  [CHAINID.ETH_KOVAN]: "rETH-THETA",
+  [CHAINID.AVAX_MAINNET]: "rAVAX-THETA",
+  [CHAINID.AVAX_FUJI]: "rAVAX-THETA",
 };
 
 const STRIKE_STEP = {
@@ -80,17 +80,15 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "StrikeSelection",
     from: deployer,
-    args: [
-      pricer.address,
-      STRIKE_DELTA,
-      STRIKE_STEP[chainId],
-    ],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[chainId]],
   });
 
-  console.log(`RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`);
+  console.log(
+    `RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`
+  );
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: strikeSelection.address,
       constructorArguments: [
         pricer.address,
@@ -145,7 +143,7 @@ const main = async ({
   console.log(`RibbonThetaVaultETHCall Proxy @ ${proxy.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: proxy.address,
       constructorArguments: [logicDeployment.address, admin, initData],
     });
