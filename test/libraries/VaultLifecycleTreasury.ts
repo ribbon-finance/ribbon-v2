@@ -58,7 +58,7 @@ describe("VaultLifecycleTreasury", () => {
         );
 
         nextExpiryDate = moment.unix(nextExpiry);
-        
+
         assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
@@ -196,18 +196,18 @@ describe("VaultLifecycleTreasury", () => {
           .day(weekday)
           .hour(8);
 
-    
-      inputTime = moment(currentTime).add(weekday-1, "day");
-      
+
+      inputTime = moment(currentTime).add(weekday - 1, "day");
+
       nextExpiry = await lifecycle.getNextExpiry(
         inputTime.unix(), weekday, period
       );
 
       nextExpiryDate = moment.unix(nextExpiry);
-      
+
       assert.equal(nextExpiryDate.weekday(), weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
-      
+
     });
 
     it("Gets the same Friday expiry when period is set to 2 weeks, when the current day is after Friday", async () => {
@@ -228,13 +228,13 @@ describe("VaultLifecycleTreasury", () => {
 
       for (let i = 5; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
-        
+
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period
         );
 
         nextExpiryDate = moment.unix(nextExpiry);
-        
+
         assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
@@ -264,7 +264,7 @@ describe("VaultLifecycleTreasury", () => {
 
         nextExpiryDate = moment.unix(nextExpiry);
 
-        assert.equal(nextExpiryDate.weekday(), weekday == 7 ? 0: weekday);
+        assert.equal(nextExpiryDate.weekday(), weekday === 7 ? 0 : weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
     });
@@ -285,18 +285,18 @@ describe("VaultLifecycleTreasury", () => {
           .day(weekday)
           .hour(8);
 
-    
-      inputTime = moment(currentTime).add(weekday-1, "day");
-      
+
+      inputTime = moment(currentTime).add(weekday - 1, "day");
+
       nextExpiry = await lifecycle.getNextExpiry(
         inputTime.unix(), weekday, period
       );
 
       nextExpiryDate = moment.unix(nextExpiry);
-      
-      assert.equal(nextExpiryDate.weekday(), weekday == 7 ? 0: weekday);
+
+      assert.equal(nextExpiryDate.weekday(), weekday === 7 ? 0 : weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
-      
+
     });
 
     it("Gets the same monthly Friday expiry, regardless of the day in the month", async () => {
@@ -376,13 +376,13 @@ describe("VaultLifecycleTreasury", () => {
 
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i) + 18, "day");
-       
+
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period
         );
 
         nextExpiryDate = moment.unix(nextExpiry);
-        
+
         assert.equal(nextExpiryDate.weekday(), weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
@@ -406,14 +406,14 @@ describe("VaultLifecycleTreasury", () => {
 
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i) + 20, "day");
-       
+
         nextExpiry = await lifecycle.getNextExpiry(
           inputTime.unix(), weekday, period
         );
 
         nextExpiryDate = moment.unix(nextExpiry);
-      
-        assert.equal(nextExpiryDate.weekday(), weekday == 7 ? 0 : weekday);
+
+        assert.equal(nextExpiryDate.weekday(), weekday === 7 ? 0 : weekday);
         assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
       }
     });
@@ -674,14 +674,14 @@ describe("VaultLifecycleTreasury", () => {
       inputTime = moment(currentTime)
         .month("march")
         .year(2021)
-        .date(26)
+        .date(26);
 
       nextExpiry = await lifecycle.getNextExpiry(
         inputTime.unix(), weekday, period
       );
 
       nextExpiryDate = moment.unix(nextExpiry);
-      
+
       assert.equal(nextExpiryDate.weekday(), weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
     });
@@ -705,8 +705,8 @@ describe("VaultLifecycleTreasury", () => {
 
       inputTime = moment(currentTime)
         .month("december")
-        .date(31)
-        
+        .date(31);
+
       nextExpiry = await lifecycle.getNextExpiry(
         inputTime.unix(), weekday, period
       );
@@ -771,14 +771,14 @@ describe("VaultLifecycleTreasury", () => {
       inputTime = moment(currentTime)
         .month("dec")
         .year(2020)
-        .date(25)
+        .date(25);
 
       nextExpiry = await lifecycle.getNextExpiry(
         inputTime.unix(), weekday, period
       );
 
       nextExpiryDate = moment.unix(nextExpiry);
-      
+
       assert.equal(nextExpiryDate.weekday(), weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
     });

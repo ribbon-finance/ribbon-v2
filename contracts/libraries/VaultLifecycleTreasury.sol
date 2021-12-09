@@ -274,7 +274,6 @@ library VaultLifecycleTreasury {
                 params.managementFee
             );
 
-
         // Take into account the fee
         // so we can calculate the newPricePerShare
         currentBalance = currentBalance.sub(managementFeeInAsset);
@@ -760,7 +759,11 @@ library VaultLifecycleTreasury {
         require(bytes(_initParams._tokenName).length > 0, "!_tokenName");
         require(bytes(_initParams._tokenSymbol).length > 0, "!_tokenSymbol");
         require(
-            (_initParams._period == 30) || ((_initParams._period % 7) == 0),
+            (_initParams._period == 30) ||
+                (_initParams._period == 90) ||
+                (_initParams._period == 180) ||
+                (_initParams._period == 7) ||
+                (_initParams._period == 14),
             "!_period"
         );
         require(
@@ -825,24 +828,36 @@ library VaultLifecycleTreasury {
         uint256 currentExpiry,
         uint256 day,
         uint256 period
-        // bool initial
-    ) internal pure returns (uint256 nextExpiry) {
+    )
+        internal
+        pure
+        returns (
+            // bool initial
+            uint256 nextExpiry
+        )
+    {
         if (period % 30 == 0) {
             // Logic for getting monthly expiries
             if (period / 30 == 1) {
                 // Get the last weekday of the same month
                 uint256 monthExpiry =
                     DateTime.getLastWeekdayOfMonth(currentExpiry, day);
-                
+
                 // If last day of the month has passed, move forward to next month's
                 // last weekday
                 nextExpiry = monthExpiry > currentExpiry
                     ? monthExpiry
                     : DateTime.getLastWeekdayOfMonth(monthExpiry + 7 days, day);
             } else if (period / 30 == 3) {
-                nextExpiry = DateTime.getQuarterlyLastWeekday(currentExpiry, day);
+                nextExpiry = DateTime.getQuarterlyLastWeekday(
+                    currentExpiry,
+                    day
+                );
             } else if (period / 30 == 6) {
-                nextExpiry = DateTime.getSemiannuallyLastWeekday(currentExpiry, day);
+                nextExpiry = DateTime.getSemiannualLastWeekday(
+                    currentExpiry,
+                    day
+                );
             }
         } else {
             // Logic for getting weekly expiries
@@ -857,16 +872,15 @@ library VaultLifecycleTreasury {
             // by one week
             nextExpiry += nextExpiry >= currentExpiry ? 0 weeks : 1 weeks;
 
-            // When the vault is already running beyond the first round, 
-            // the weekday number of current expiry will always match the 
-            // parameter `day`. This is a signal to move the weekExpiry 
-            // by the `period` set in the vault. Otherwise, this function will 
-            // return the nearest weekly expiry. 
-            nextExpiry += weekday == day
-                ? (period / 7) * 1 weeks : 0 weeks;
+            // When the vault is already running beyond the first round,
+            // the weekday number of current expiry will always match the
+            // parameter `day`. This is a signal to move the weekExpiry
+            // by the `period` set in the vault. Otherwise, this function will
+            // return the nearest weekly expiry.
+            nextExpiry += weekday == day ? (period / 7) * 1 weeks : 0 weeks;
         }
 
-        // Adjust the hours to 8 AM 
+        // Adjust the hours to 8 AM
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
 
         return nextExpiry;

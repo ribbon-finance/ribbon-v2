@@ -286,8 +286,8 @@ contract RibbonTreasuryVault is
     {
         uint256 _period = period;
         uint256 feeDivider =
-            _period == 30
-                ? Vault.FEE_MULTIPLIER.mul(12)
+            _period % 30 == 0
+                ? Vault.FEE_MULTIPLIER.mul(12 / (_period / 30))
                 : WEEKS_PER_YEAR.div(_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year

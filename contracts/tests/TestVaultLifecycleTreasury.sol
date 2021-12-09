@@ -10,10 +10,6 @@ contract TestVaultLifecycleTreasury {
         uint256 interval
     ) external pure returns (uint256) {
         return
-            VaultLifecycleTreasury.getNextExpiry(
-                currentExpiry,
-                day,
-                interval
-            );
+            VaultLifecycleTreasury.getNextExpiry(currentExpiry, day, interval);
     }
 }

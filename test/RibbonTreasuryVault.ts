@@ -58,7 +58,7 @@ const chainId = network.config.chainId;
 describe("RibbonTreasuryVault", () => {
   behavesLikeRibbonOptionsVault({
     tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction)`,
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Weekly)`,
     tokenSymbol: "rSUSHI-THETA",
     asset: SUSHI_ADDRESS[chainId],
     assetContractName: "IWBTC",
@@ -93,7 +93,7 @@ describe("RibbonTreasuryVault", () => {
 
   behavesLikeRibbonOptionsVault({
     tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (WETH Auction)`,
+    name: `Ribbon SUSHI Theta Vault (Call) (WETH Auction) (Monthly)`,
     tokenSymbol: "rSUSHI-THETA",
     asset: SUSHI_ADDRESS[chainId],
     assetContractName: "IWBTC",
@@ -128,7 +128,7 @@ describe("RibbonTreasuryVault", () => {
 
   behavesLikeRibbonOptionsVault({
     tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction)`,
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Bi-Weekly)`,
     tokenSymbol: "rSUSHI-THETA",
     asset: SUSHI_ADDRESS[chainId],
     assetContractName: "IWBTC",
@@ -157,6 +157,76 @@ describe("RibbonTreasuryVault", () => {
     premiumAsset: USDC_ADDRESS[chainId],
     period: 14,
     day: 6,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Quarterly)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
+    performanceFee: BigNumber.from("20000000"), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    premiumAsset: USDC_ADDRESS[chainId],
+    period: 90,
+    day: 5,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Semiannually)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"), //BigNumber.from("2000000") Temporarily setting as 0, new fee accounting WIP
+    performanceFee: BigNumber.from("20000000"), //BigNumber.from("20000000") Temporarily setting as 0, new fee accounting WIP
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    premiumAsset: USDC_ADDRESS[chainId],
+    period: 180,
+    day: 5,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -490,6 +560,14 @@ function behavesLikeRibbonOptionsVault(params: {
           .minutes(0)
           .seconds(0)
           .unix();
+      } else if (period === 90 || period === 180) {
+        firstOptionExpiry = moment(latestTimestamp * 1000)
+          .month("dec")
+          .date(31)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
       } else {
         firstOptionExpiry = moment(latestTimestamp * 1000)
           .startOf("isoWeek")
@@ -535,6 +613,24 @@ function behavesLikeRibbonOptionsVault(params: {
           .add(1, "month")
           .endOf("month")
           .day(day)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
+      } else if (period === 90) {
+        secondOptionExpiry = moment(latestTimestamp * 1000)
+          .year(2022)
+          .month("march")
+          .date(25)
+          .hours(8)
+          .minutes(0)
+          .seconds(0)
+          .unix();
+      } else if (period === 180) {
+        secondOptionExpiry = moment(latestTimestamp * 1000)
+          .year(2022)
+          .month("june")
+          .date(24)
           .hours(8)
           .minutes(0)
           .seconds(0)
@@ -664,8 +760,8 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(
           (await vault.managementFee()).toString(),
           managementFee.mul(FEE_SCALING)
-            .div(period === 30
-                ? FEE_SCALING.mul(12)
+            .div(period % 30 === 0
+                ? FEE_SCALING.mul(12 / (period / 30))
                 : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
         );
@@ -935,8 +1031,8 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.managementFee()).toString(),
           managementFee
             .mul(FEE_SCALING)
-            .div(period === 30
-              ? FEE_SCALING.mul(12)
+            .div(period % 30 === 0
+              ? FEE_SCALING.mul(12 / (period / 30))
               : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
         );
@@ -1055,8 +1151,8 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.managementFee()).toString(),
           BigNumber.from(1000000)
             .mul(FEE_SCALING)
-            .div(period === 30
-              ? FEE_SCALING.mul(12)
+            .div(period % 30 === 0
+              ? FEE_SCALING.mul(12 / (period / 30))
               : BigNumber.from(WEEKS_PER_YEAR).div(period / 7))
             .toString()
         );
