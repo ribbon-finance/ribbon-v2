@@ -30,6 +30,7 @@ library VaultLifecycleTreasury {
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
         uint256 period;
+        uint256 strikeMultiplier;
     }
 
     /**
@@ -47,6 +48,7 @@ library VaultLifecycleTreasury {
      * @param _auctionDuration is the duration of the gnosis auction
      * @param _whitelist is an array of whitelisted user address who can deposit
      * @param _period is the period between each option sales
+     * @param _strikeMultiplier is the multiplier for strike selection
      */
     struct InitParams {
         address _owner;
@@ -62,6 +64,7 @@ library VaultLifecycleTreasury {
         uint256 _auctionDuration;
         address[] _whitelist;
         uint256 _period;
+        uint256 _strikeMultiplier;
     }
 
     /**
@@ -115,7 +118,11 @@ library VaultLifecycleTreasury {
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(expiry, isPut);
+            : selection.getSimpleStrikePrice(
+                expiry,
+                isPut,
+                closeParams.strikeMultiplier
+            );
 
         require(strikePrice != 0, "!strikePrice");
 
@@ -763,6 +770,10 @@ library VaultLifecycleTreasury {
         require(
             _initParams._strikeSelection != address(0),
             "!_strikeSelection"
+        );
+        require(
+            _initParams._strikeMultiplier > Vault.STRIKE_MULTIPLIER,
+            "!_strikeMultiplier"
         );
         require(
             _initParams._premiumDiscount > 0 &&

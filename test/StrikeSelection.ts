@@ -200,4 +200,51 @@ describe("StrikeSelection", () => {
       );
     });
   });
+
+  describe("getSimpleStrikePrice", () => {
+    time.revertToSnapshotAfterEach();
+
+    let underlyingPrice: BigNumber;
+
+    beforeEach(async () => {
+      underlyingPrice = await mockOptionsPremiumPricer.getUnderlyingPrice();
+
+      let delta = 10000;
+      for (let i = -1000; i < 1100; i += 100) {
+        await mockOptionsPremiumPricer.setOptionDelta(
+          underlyingPrice.add(
+            BigNumber.from(i).mul(
+              BigNumber.from(10).pow(await mockPriceOracle.decimals())
+            )
+          ),
+          delta
+        );
+        delta -= 500;
+      }
+    });
+
+    it("reverts on timestamp being in the past", async function () {
+      const expiryTimestamp = (await time.now()).sub(100);
+      const isPut = false;
+      await expect(
+        strikeSelection.getSimpleStrikePrice(expiryTimestamp, isPut, 150)
+      ).to.be.revertedWith("Expiry must be in the future!");
+    });
+
+    it("gets the correct strike price given multiplier for calls", async function () {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = false;
+      const multiplier = 150;
+      const [strikePrice] = await strikeSelection.getSimpleStrikePrice(
+        expiryTimestamp,
+        isPut,
+        multiplier
+      );
+
+      let correctStrike = underlyingPrice.mul(multiplier).div(100);
+      correctStrike = correctStrike.add(100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8)));
+
+      assert.equal(strikePrice.toString(), correctStrike.toString());
+    });
+  });
 });

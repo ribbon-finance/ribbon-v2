@@ -8,6 +8,12 @@ interface IStrikeSelection {
         returns (uint256, uint256);
 
     function delta() external view returns (uint256);
+
+    function getSimpleStrikePrice(
+        uint256 expiryTimestamp,
+        bool isPut,
+        uint256 strikeMultiplier
+    ) external view returns (uint256, uint256);
 }
 
 interface IOptionsPremiumPricer {
