@@ -1,9 +1,8 @@
 import { ethers } from "hardhat";
-import { BigNumber, Contract } from "ethers";
+import { Contract } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
 import * as time from "../helpers/time";
-import { parseEther } from "ethers/lib/utils";
 
 moment.tz.setDefault("UTC");
 
@@ -132,35 +131,6 @@ describe("VaultLifecycle", () => {
       const fridayDate = moment.unix(nextFriday);
       assert.equal(fridayDate.weekday(), 5);
       assert.isTrue(fridayDate.isSame(expectedFriday));
-    });
-  });
-
-  describe("rollover", () => {
-    it("rolls over with correct math", async () => {
-      let [lockedAmount, queuedWithdrawAmount, pricePerShare, mintShares] =
-        await lifecycle.rollover(
-          parseEther("1"),
-          lifecycle.address, // pass in the lifecycle contract itself as the address to mock
-          18,
-          parseEther("0.1"),
-          parseEther("0.1")
-        );
-
-      // currentBalance - lockedAmount = queuedWithdrawAmount
-      queuedWithdrawAmount = parseEther("1").sub(lockedAmount);
-
-      const singleShare = BigNumber.from(10).pow(18);
-
-      // (1 ether - 0.1 ether)/1 ether
-      assert.bnEqual(pricePerShare, parseEther("0.9"));
-      assert.bnEqual(
-        mintShares,
-        parseEther("0.1").mul(singleShare).div(pricePerShare)
-      );
-      assert.bnEqual(
-        queuedWithdrawAmount,
-        parseEther("0.1").mul(pricePerShare).div(singleShare)
-      );
     });
   });
 });

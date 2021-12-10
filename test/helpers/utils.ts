@@ -2,14 +2,17 @@ import hre, { ethers, artifacts } from "hardhat";
 import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
+import CHAINLINK_PRICER_ABI from "../../constants/abis/ChainLinkPricer.json";
 import {
+  CHAINID,
   GAMMA_ORACLE,
-  GAMMA_ORACLE_STETH,
+  GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
   ORACLE_DISPUTE_PERIOD,
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  WBTC_ADDRESS,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -17,11 +20,12 @@ import { wmul } from "../helpers/math";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
+const chainId = hre.network.config.chainId;
 
 export async function deployProxy(
   logicContractName: string,
   adminSigner: SignerWithAddress,
-  initializeArgs: any[],
+  initializeArgs: any[], // eslint-disable-line @typescript-eslint/no-explicit-any
   logicDeployParams = [],
   factoryOptions = {}
 ) {
@@ -116,14 +120,14 @@ export async function setAssetPricer(
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
   const oracle = await ethers.getContractAt(
     "IOracle",
-    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE
+    isSTETH ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId]
   );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
@@ -139,19 +143,19 @@ export async function whitelistProduct(
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER);
+  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
   const whitelist = await ethers.getContractAt(
     "IGammaWhitelist",
-    GAMMA_WHITELIST
+    GAMMA_WHITELIST[chainId]
   );
 
   await adminSigner.sendTransaction({
-    to: ORACLE_OWNER,
-    value: parseEther("0.5"),
+    to: ORACLE_OWNER[chainId],
+    value: parseEther("1"),
   });
 
   await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
@@ -162,40 +166,52 @@ export async function whitelistProduct(
 }
 
 export async function setupOracle(
-  pricerOwner: string,
+  chainlinkPricer: string,
   signer: SignerWithAddress,
-  isSTETH = false
+  useNew = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [pricerOwner],
+    params: [chainlinkPricer],
   });
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
-  const pricerSigner = await provider.getSigner(pricerOwner);
+  const pricerSigner = await provider.getSigner(chainlinkPricer);
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
-  await forceSend.connect(signer).go(pricerOwner, { value: parseEther("0.5") });
+  await forceSend
+    .connect(signer)
+    .go(chainlinkPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    isSTETH ? GAMMA_ORACLE_STETH : GAMMA_ORACLE,
+    useNew ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
     ORACLE_ABI,
     pricerSigner
   );
 
-  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
   await signer.sendTransaction({
-    to: ORACLE_OWNER,
+    to: ORACLE_OWNER[chainId],
     value: parseEther("0.5"),
   });
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setStablePrice(USDC_ADDRESS, "100000000");
+    .setStablePrice(USDC_ADDRESS[chainId], "100000000");
+
+  const pricer = new ethers.Contract(
+    chainlinkPricer,
+    CHAINLINK_PRICER_ABI,
+    oracleOwnerSigner
+  );
+
+  await oracle
+    .connect(oracleOwnerSigner)
+    .setAssetPricer(await pricer.asset(), chainlinkPricer);
 
   return oracle;
 }
@@ -232,9 +248,9 @@ export async function setOpynOracleExpiryPriceYearn(
   await res.wait();
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER],
+    params: [ORACLE_OWNER[chainId]],
   });
-  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER);
+  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
   const res2 = await collateralPricer
     .connect(oracleOwnerSigner)
     .setExpiryPriceInOracle(expiry);
@@ -265,7 +281,17 @@ export async function mintToken(
     value: parseEther("0.5"),
   });
 
-  if (contract.address == USDC_ADDRESS) {
+  if (
+    chainId === CHAINID.AVAX_MAINNET &&
+    (contract.address === WBTC_ADDRESS[chainId] ||
+      contract.address === USDC_ADDRESS[chainId])
+  ) {
+    // Avax mainnet uses BridgeTokens which have a special mint function
+    const txid = ethers.utils.formatBytes32String("Hello World!");
+    await contract
+      .connect(tokenOwnerSigner)
+      .mint(recipient, amount, recipient, 0, txid);
+  } else if (contract.address === USDC_ADDRESS[chainId]) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
     await contract.connect(tokenOwnerSigner).mint(recipient, amount);
@@ -398,4 +424,25 @@ async function sharesToAsset(
   return shares
     .mul(assetPerShare)
     .div(BigNumber.from(10).pow(decimals.toString()));
+}
+
+export function encodePath(tokenAddresses, fees) {
+  // Encode path for Uniswap swap path
+  const FEE_SIZE = 3;
+
+  if (tokenAddresses.length !== fees.length + 1) {
+    throw new Error("path/fee lengths do not match");
+  }
+
+  let encoded = "0x";
+  for (let i = 0; i < fees.length; i++) {
+    // 20 byte encoding of the address
+    encoded += tokenAddresses[i].slice(2);
+    // 3 byte encoding of the fee
+    encoded += fees[i].toString(16).padStart(2 * FEE_SIZE, "0");
+  }
+  // encode the final token
+  encoded += tokenAddresses[tokenAddresses.length - 1].slice(2);
+
+  return encoded.toLowerCase();
 }

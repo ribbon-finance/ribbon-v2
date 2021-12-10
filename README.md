@@ -9,6 +9,37 @@ v2 changes include:
 - No more withdrawal fees, switching to performance fee
 - Meta-Vault strategies by composing multiple Theta Vaults
 
+## Getting Started
+
+First, install the dependencies with yarn:
+
+```bash
+yarn install
+```
+
+Next, we need to populate the .env file with these values.\
+Copy the .env.example -> .env and fill out the value.\
+Reach out to the team if you need help on these variables. The `TEST_URI` needs to be an archive node.
+
+```bash
+TEST_URI=
+MAINNET_URI=
+KOVAN_URI=
+ETHERSCAN_API_KEY=
+KOVAN_MNEMONIC=
+MAINNET_MNEMONIC=
+```
+
+Finally, we can run the tests:
+
+```bash
+# Run all the tests
+yarn test
+
+# Run specific test that matches the pattern -g
+yarn run ts-mocha test/RibbonThetaYearnVault.ts --timeout 500000 -g 'rollToNextOption'
+```
+
 ## Deployment
 
 Ribbon v2 uses [hardhat-deploy](https://github.com/wighawag/hardhat-deploy) to manage contract deployments to the blockchain.
@@ -29,4 +60,21 @@ Finally, we can verify the contracts on Etherscan:
 
 ```
 yarn etherscan-verify --network kovan
+```
+
+## Testing
+
+Will run all tests on Ethereum mainnet and a subset of tests on Avax
+```
+yarn test
+```
+
+Runs Ethereum mainnet
+```
+yarn test:eth
+```
+
+Runs Avax testnet
+```
+yarn test:avax
 ```

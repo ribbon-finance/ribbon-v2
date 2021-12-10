@@ -7,3 +7,4 @@ artifacts
 .env
 coverage.json
 coverage/
+.DS_Store

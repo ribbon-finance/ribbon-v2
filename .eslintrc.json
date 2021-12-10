@@ -18,8 +18,9 @@
         "artifacts": "readonly"
     },
     "rules": {
+        "@typescript-eslint/no-explicit-any": "error",
         "accessor-pairs": "error",
-        "array-bracket-newline": "error",
+        "array-bracket-newline": "off",
         "array-bracket-spacing": [
             "error",
             "never"
@@ -76,7 +77,7 @@
         ],
         "dot-notation": "error",
         "eol-last": "error",
-        "eqeqeq": "off",
+        "eqeqeq": "error",
         "func-call-spacing": "error",
         "func-name-matching": "error",
         "func-names": "off",

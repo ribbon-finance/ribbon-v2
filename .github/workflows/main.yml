@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.13.0]
+        node-version: [14.17.0]
 
     steps:
       - run: git config --global url."https://".insteadOf git://
@@ -39,6 +39,10 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
+          AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
+          FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
+          FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
           CI: true
       - run: yarn test
         env:
@@ -47,13 +51,17 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
+          AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
+          FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
+          FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
           CI: true
   lint:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [12.13.0]
+        node-version: [14.17.0]
 
     steps:
       - run: git config --global url."https://".insteadOf git://
@@ -78,5 +86,5 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: Lint contracts
         run: yarn lint:sol
-      - name: Lint tests
-        run: yarn lint:test
+      - name: Lint typescript
+        run: yarn lint:ts

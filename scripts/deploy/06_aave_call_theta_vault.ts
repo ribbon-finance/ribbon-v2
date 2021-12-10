@@ -1,8 +1,9 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
+  CHAINID,
+  USDC_PRICE_ORACLE,
   OptionsPremiumPricer_BYTECODE,
-  MAINNET_USDC_ORACLE,
-  KOVAN_USDC_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
 import {
@@ -17,7 +18,7 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-} from "./utils/constants";
+} from "../utils/constants";
 
 const main = async ({
   network,
@@ -25,6 +26,15 @@ const main = async ({
   ethers,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
+  const chainId = network.config.chainId;
+
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
+    console.log(
+      `06 - Skipping deployment AAVE Call Theta Vault on ${network.name}`
+    );
+    return;
+  }
+
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
@@ -33,11 +43,10 @@ const main = async ({
   console.log(`06 - Deploying AAVE Call Theta Vault on ${network.name}`);
 
   const isMainnet = network.name === "mainnet";
-  const asset = isMainnet ? MAINNET_AAVE : KOVAN_AAVE;
-  const manualVolOracle = await deployments.get("ManualVolOracle");
 
+  const manualVolOracle = await deployments.get("ManualVolOracle");
   const underlyingOracle = isMainnet ? MAINNET_AAVE_ORACLE : KOVAN_AAVE_ORACLE;
-  const stablesOracle = isMainnet ? MAINNET_USDC_ORACLE : KOVAN_USDC_ORACLE;
+  const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const pricer = await deploy("OptionsPremiumPricerAAVE", {
     from: deployer,
@@ -69,22 +78,26 @@ const main = async ({
   });
 
   const initArgs = [
-    owner,
-    keeper,
-    feeRecipient,
-    MANAGEMENT_FEE,
-    PERFORMANCE_FEE,
-    "Ribbon Aave Theta Vault",
-    "rAAVE-THETA",
-    pricer.address,
-    strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
+    {
+      _owner: owner,
+      _keeper: keeper,
+      _feeRecipient: feeRecipient,
+      _managementFee: MANAGEMENT_FEE,
+      _performanceFee: PERFORMANCE_FEE,
+      _tokenName: "Ribbon Aave Theta Vault",
+      _tokenSymbol: "rAAVE-THETA",
+      _optionsPremiumPricer: pricer.address,
+      _strikeSelection: strikeSelection.address,
+      _premiumDiscount: PREMIUM_DISCOUNT,
+      _auctionDuration: AUCTION_DURATION,
+      _isUsdcAuction: false,
+      _swapPath: 0x0,
+    },
     {
       isPut: false,
       decimals: 18,
-      asset,
-      underlying: asset,
+      asset: isMainnet ? MAINNET_AAVE : KOVAN_AAVE,
+      underlying: isMainnet ? MAINNET_AAVE : KOVAN_AAVE,
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("15500"),
     },
@@ -94,12 +107,27 @@ const main = async ({
     initArgs
   );
 
-  await deploy("RibbonThetaVaultAAVECall", {
+  const vault = await deploy("RibbonThetaVaultAAVECall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
-    gasPrice: ethers.utils.parseUnits("170", "gwei"),
   });
+
+  console.log(`RibbonThetaVaultAAVECall @ ${vault.address}`);
+
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
 };
 main.tags = ["RibbonThetaVaultAAVECall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
