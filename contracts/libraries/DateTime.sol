@@ -190,9 +190,9 @@ library DateTime {
     }
 
     /**
-     * @notice Gets the next week's Friday
+     * @notice Gets the next friday after the given date and time
      * @param timestamp is the given date and time
-     * @return the next Friday of the same week in unix time
+     * @return the next friday after the given date and time
      */
     function getNextFriday(uint256 timestamp) internal pure returns (uint256) {
         uint256 friday = getThisWeekFriday(timestamp);
@@ -253,7 +253,7 @@ library DateTime {
     /**
      * @notice Gets the last Friday of the half-year
      * @param timestamp is the given date and time
-     * @return lastFriday of the half-year
+     * @return the last friday of the half-year
      */
     function getBiannualLastFriday(uint256 timestamp)
         internal

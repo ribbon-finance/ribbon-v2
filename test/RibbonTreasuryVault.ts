@@ -89,137 +89,137 @@ describe("RibbonTreasuryVault", () => {
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
-  // behavesLikeRibbonOptionsVault({
-  //   tokenName: "Ribbon SUSHI Theta Vault",
-  //   name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Bi-Weekly)`,
-  //   tokenSymbol: "rSUSHI-THETA",
-  //   asset: SUSHI_ADDRESS[chainId],
-  //   assetContractName: "IWBTC",
-  //   strikeAsset: USDC_ADDRESS[chainId],
-  //   collateralAsset: SUSHI_ADDRESS[chainId],
-  //   chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-  //   deltaFirstOption: BigNumber.from("1000"),
-  //   deltaSecondOption: BigNumber.from("1000"),
-  //   deltaStep: BigNumber.from("100"),
-  //   depositAmount: parseEther("1"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("100000000"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   managementFee: BigNumber.from("2000000"),
-  //   performanceFee: BigNumber.from("20000000"),
-  //   auctionDuration: 21600,
-  //   tokenDecimals: 18,
-  //   isPut: false,
-  //   gasLimits: {
-  //     depositWorstCase: 101000,
-  //     depositBestCase: 90000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-  //   },
-  //   period: 14,
-  //   premiumDecimals: 6,
-  //   availableChains: [CHAINID.ETH_MAINNET],
-  // });
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Bi-Weekly)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    period: 14,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   tokenName: "Ribbon SUSHI Theta Vault",
-  //   name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Monthly)`,
-  //   tokenSymbol: "rSUSHI-THETA",
-  //   asset: SUSHI_ADDRESS[chainId],
-  //   assetContractName: "IWBTC",
-  //   strikeAsset: USDC_ADDRESS[chainId],
-  //   collateralAsset: SUSHI_ADDRESS[chainId],
-  //   chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-  //   deltaFirstOption: BigNumber.from("1000"),
-  //   deltaSecondOption: BigNumber.from("1000"),
-  //   deltaStep: BigNumber.from("100"),
-  //   depositAmount: parseEther("1"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("100000000"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   managementFee: BigNumber.from("2000000"),
-  //   performanceFee: BigNumber.from("20000000"),
-  //   auctionDuration: 21600,
-  //   tokenDecimals: 18,
-  //   isPut: false,
-  //   gasLimits: {
-  //     depositWorstCase: 101000,
-  //     depositBestCase: 90000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-  //   },
-  //   period: 30,
-  //   premiumDecimals: 6,
-  //   availableChains: [CHAINID.ETH_MAINNET],
-  // });
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Monthly)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    period: 30,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   tokenName: "Ribbon SUSHI Theta Vault",
-  //   name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Quarterly)`,
-  //   tokenSymbol: "rSUSHI-THETA",
-  //   asset: SUSHI_ADDRESS[chainId],
-  //   assetContractName: "IWBTC",
-  //   strikeAsset: USDC_ADDRESS[chainId],
-  //   collateralAsset: SUSHI_ADDRESS[chainId],
-  //   chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-  //   deltaFirstOption: BigNumber.from("1000"),
-  //   deltaSecondOption: BigNumber.from("1000"),
-  //   deltaStep: BigNumber.from("100"),
-  //   depositAmount: parseEther("1"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("100000000"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   managementFee: BigNumber.from("2000000"),
-  //   performanceFee: BigNumber.from("20000000"),
-  //   auctionDuration: 21600,
-  //   tokenDecimals: 18,
-  //   isPut: false,
-  //   gasLimits: {
-  //     depositWorstCase: 101000,
-  //     depositBestCase: 90000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-  //   },
-  //   period: 90,
-  //   premiumDecimals: 6,
-  //   availableChains: [CHAINID.ETH_MAINNET],
-  // });
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Quarterly)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    period: 90,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
 
-  // behavesLikeRibbonOptionsVault({
-  //   tokenName: "Ribbon SUSHI Theta Vault",
-  //   name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Semiannually)`,
-  //   tokenSymbol: "rSUSHI-THETA",
-  //   asset: SUSHI_ADDRESS[chainId],
-  //   assetContractName: "IWBTC",
-  //   strikeAsset: USDC_ADDRESS[chainId],
-  //   collateralAsset: SUSHI_ADDRESS[chainId],
-  //   chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-  //   deltaFirstOption: BigNumber.from("1000"),
-  //   deltaSecondOption: BigNumber.from("1000"),
-  //   deltaStep: BigNumber.from("100"),
-  //   depositAmount: parseEther("1"),
-  //   minimumSupply: BigNumber.from("10").pow("10").toString(),
-  //   expectedMintAmount: BigNumber.from("100000000"),
-  //   premiumDiscount: BigNumber.from("997"),
-  //   managementFee: BigNumber.from("2000000"),
-  //   performanceFee: BigNumber.from("20000000"),
-  //   auctionDuration: 21600,
-  //   tokenDecimals: 18,
-  //   isPut: false,
-  //   gasLimits: {
-  //     depositWorstCase: 101000,
-  //     depositBestCase: 90000,
-  //   },
-  //   mintConfig: {
-  //     contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-  //   },
-  //   period: 180,
-  //   premiumDecimals: 6,
-  //   availableChains: [CHAINID.ETH_MAINNET],
-  // });
+  behavesLikeRibbonOptionsVault({
+    tokenName: "Ribbon SUSHI Theta Vault",
+    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Biannually)`,
+    tokenSymbol: "rSUSHI-THETA",
+    asset: SUSHI_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SUSHI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from("100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
+    },
+    period: 180,
+    premiumDecimals: 6,
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
 });
 
 type Option = {
@@ -1581,7 +1581,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // auction settled without any bids
         // so we return 100% of the tokens
-        await vault.connect(keeperSigner).settleAuction();
+        await vault.connect(keeperSigner).concludeOptionsSale();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1656,7 +1656,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increase(auctionDuration);
 
         // we initiate a complete burn of the otokens
-        await vault.connect(keeperSigner).settleAuction();
+        await vault.connect(keeperSigner).concludeOptionsSale();
 
         assert.bnLte(
           await otoken.balanceOf(vault.address),
@@ -1735,7 +1735,9 @@ function behavesLikeRibbonOptionsVault(params: {
           "0"
         );
 
-        await vault.connect(keeperSigner).settleAuction();
+        await gnosisAuction
+            .connect(userSigner)
+            .settleAuction(await vault.optionAuctionID());
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
@@ -1789,7 +1791,9 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.address
         );
 
-        await vault.connect(keeperSigner).settleAuction();
+        await gnosisAuction
+            .connect(userSigner)
+            .settleAuction(await vault.optionAuctionID());
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
@@ -2064,7 +2068,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // We just settle the auction without any bids
         // So we simulate a loss when the options expire in the money
-        await vault.connect(keeperSigner).settleAuction();
+        await vault.connect(keeperSigner).concludeOptionsSale();
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
@@ -2201,7 +2205,9 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        await vault.connect(keeperSigner).settleAuction();
+        await gnosisAuction
+            .connect(userSigner)
+            .settleAuction(await vault.optionAuctionID());
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
@@ -2334,7 +2340,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration
         );
 
-        await vault.connect(keeperSigner).settleAuction();
+        await vault.connect(keeperSigner).concludeOptionsSale();
 
         let newOptionStrike = await (
           await getContractAt("IOtoken", await vault.currentOption())
@@ -3137,18 +3143,26 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#chargeAndDistribute", () => {
+      let oracle: Contract;
       const depositAmount = params.depositAmount;
 
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount, userSigner);
         await depositIntoVault(params.collateralAsset, vault, depositAmount.mul(2), ownerSigner);
 
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
       });
 
       it("reverts when not called with keeper", async function () {
         await expect(
           vault.connect(ownerSigner).chargeAndDistribute()
         ).to.be.revertedWith("!keeper");
+      });
+
+      it("reverts when there is no premium to distribute", async function () {
+        await expect(
+          vault.connect(keeperSigner).chargeAndDistribute()
+        ).to.be.revertedWith("no premium to distribute");
       });
 
       it("distributes to users according to share amount", async function () {
@@ -3183,12 +3197,14 @@ function behavesLikeRibbonOptionsVault(params: {
         let userBalanceBefore = await premiumContract.balanceOf(user);
         let ownerBalanceBefore = await premiumContract.balanceOf(owner);
 
-        await vault
+        await gnosisAuction
           .connect(keeperSigner)
-          .settleAuction();
+          .settleAuction(await vault.optionAuctionID());
+
         let auctionProceeds = (await premiumContract.balanceOf(vault.address))
           .mul(performanceFee)
           .div(FEE_SCALING.mul(100));
+
         await vault
           .connect(keeperSigner)
           .chargeAndDistribute();
@@ -3238,18 +3254,118 @@ function behavesLikeRibbonOptionsVault(params: {
           (await provider.getBlock("latest")).timestamp + auctionDuration
         );
 
-        // We just settle the auction without any bids
-        // So we simulate a loss when the options expire in the money
-        await vault
+        let tx = await vault
           .connect(keeperSigner)
-          .settleAuction();
+          .concludeOptionsSale();
+
+        expect(tx).to.emit(vault, "CollectPerformanceFee")
+          .withArgs(performanceFeeInAsset, 1, feeRecipient);
+      });
+
+      it("called by commit and close when not triggered in the previous round", async function () {
+        const firstOptionAddress = firstOption.address;
+
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+
+        let bidMultiplier = 1;
+
+        let tokenContract = multiAsset
+          ? premiumContract
+          : assetContract;
+
+        let auctionDetails = await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          multiAsset ? premiumDecimals : tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        let performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+
+        assert.equal(await vault.currentOption(), firstOptionAddress);
+        assert.equal(await getCurrentOptionExpiry(), firstOption.expiry);
+
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(keeperSigner)
+          .settleAuction(await vault.optionAuctionID());
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          firstOptionStrike
+        );
+
+        const tx = await vault.connect(ownerSigner).commitAndClose();
+
+        expect(tx).to.emit(vault, "CollectPerformanceFee")
+          .withArgs(performanceFeeInAsset, 1, feeRecipient);
+      });
+
+      it("fits gas budget [ @skip-on-coverage ]", async function () {
+        let dummy1 = "0x0000000000000000000000000000000000000001";
+        let dummy2 = "0x0000000000000000000000000000000000000002";
+        let dummy3 = "0x0000000000000000000000000000000000000003";
+
+        await vault.connect(ownerSigner).addWhitelist(dummy1);
+        await vault.connect(ownerSigner).addWhitelist(dummy2);
+        await vault.connect(ownerSigner).addWhitelist(dummy3);
+
+        const firstOptionAddress = firstOption.address;
+
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+
+        await expect(firstTx)
+          .to.emit(vault, "OpenShort")
+          .withArgs(firstOptionAddress, depositAmount.mul(3), keeper);
+
+        let bidMultiplier = 1;
+
+        let tokenContract = multiAsset
+          ? premiumContract
+          : assetContract;
+
+        await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          multiAsset ? premiumDecimals : tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(keeperSigner)
+          .settleAuction(await vault.optionAuctionID());
 
         let tx = await vault
           .connect(keeperSigner)
           .chargeAndDistribute();
 
-        expect(tx).to.emit(vault, "CollectPerformanceFee")
-          .withArgs(performanceFeeInAsset, 1, feeRecipient);
+        const receipt = await tx.wait();
+        assert.isAtMost(
+          receipt.gasUsed.toNumber(),
+          210000
+        );
       });
     });
 

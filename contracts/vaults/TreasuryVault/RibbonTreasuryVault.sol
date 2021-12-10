@@ -815,9 +815,10 @@ contract RibbonTreasuryVault is
     function commitAndClose() external nonReentrant {
         uint256 stableBalance = IERC20(USDC).balanceOf(address(this));
 
+        // In case chargeAndDistribute was not called last round, call
+        // the function to conclude last round's performance fee and distribution
         if (stableBalance > 0) {
-            _chargePerformanceFee();
-            _distribute();
+            _chargeAndDistribute();
         }
 
         address oldOption = optionState.currentOption;
@@ -952,63 +953,78 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Settles auction
+     * @notice Settles the round's Gnosis auction and distribute the premiums earned
      */
-    function settleAuction() external onlyKeeper nonReentrant {
+    function concludeOptionsSale() external onlyKeeper nonReentrant {
         VaultLifecycleTreasury.settleAuction(
             GNOSIS_EASY_AUCTION,
             optionAuctionID
         );
+
+        _chargeAndDistribute();
     }
 
     /**
      * @notice Charge performance fee and distribute remaining to whitelisted address
      */
     function chargeAndDistribute() external onlyKeeper nonReentrant {
-        _chargePerformanceFee();
-        _distribute();
+        require(
+            IERC20(USDC).balanceOf(address(this)) > 0,
+            "no premium to distribute"
+        );
+        _chargeAndDistribute();
     }
 
     /**
      * @notice Calculate performance fee and transfer to fee recipient
      */
-    function _chargePerformanceFee() internal {
-        address recipient = feeRecipient;
+    function _chargeAndDistribute() internal {
         IERC20 stableAsset = IERC20(USDC);
         uint256 stableBalance = stableAsset.balanceOf(address(this));
 
         if (stableBalance > 0) {
-            uint256 transferAmount =
-                stableBalance.mul(performanceFee).div(
-                    100 * Vault.FEE_MULTIPLIER
-                );
+            _chargePerformanceFee(stableAsset, stableBalance);
 
-            stableAsset.safeTransfer(recipient, transferAmount);
-
-            emit CollectPerformanceFee(
-                transferAmount,
-                vaultState.round - 1,
-                recipient
+            _distribute(
+                stableAsset,
+                stableAsset.balanceOf(address(this)) // Get the new balance
             );
         }
     }
 
     /**
+     * @notice Charge performance feee
+     */
+    function _chargePerformanceFee(IERC20 token, uint256 amount) internal {
+        address recipient = feeRecipient;
+        uint256 transferAmount =
+            amount.mul(performanceFee).div(100 * Vault.FEE_MULTIPLIER);
+
+        token.safeTransfer(recipient, transferAmount);
+
+        // Performance fee for the round is charged after rollover
+        // hence we need to adjust the round to the previous
+        emit CollectPerformanceFee(
+            transferAmount,
+            vaultState.round - 1,
+            recipient
+        );
+    }
+
+    /**
      * @notice Distribute the premium to whitelisted addresses
      */
-    function _distribute() internal {
+    function _distribute(IERC20 token, uint256 amount) internal {
         // Distribute to whitelisted address
         address[] memory _whitelist = whitelistArray;
         uint256 totalSupply = totalSupply();
-        IERC20 stableAsset = IERC20(USDC);
-        uint256 stableBalance = stableAsset.balanceOf(address(this));
 
         for (uint256 i = 0; i < _whitelist.length; i++) {
-            // Distribute to whitelist proportional to the amount of shares
-            // they own
-            stableAsset.safeTransfer(
+            // Distribute to whitelist proportional to the amount of
+            // shares they own
+            token.safeTransfer(
                 _whitelist[i],
-                shares(_whitelist[i]).mul(stableBalance).div(totalSupply)
+                shares(_whitelist[i]).mul(amount).div(totalSupply)
             );
         }
     }
@@ -1115,7 +1131,7 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Returns the next timing for options sale
+     * @notice Returns the date and time for the next options sale
      */
     function nextOptionReadyAt() external view returns (uint256) {
         return optionState.nextOptionReadyAt;

@@ -796,13 +796,6 @@ library VaultLifecycleTreasury {
      * @param timestamp is the expiry timestamp of the current option
      * @param period is no. of days in between option sales. Available periods are: 
      * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
-     * Example:
-     * getNextExpiry(10 June 2021, Friday, 7 days, initial) -> Friday, 11 June 2021
-     * getNextExpiry(12 June 2021, Friday, 7 days, initial) -> Friday, 18 June 2021
-     * getNextExpiry(10 June 2021, Friday, 7 days, !initial) -> Friday, 18 June 2021
-     * getNextExpiry(12 June 2021, Friday, 7 days, !initial) -> Friday, 18 June 2021
-     * getNextExpiry(10 June 2021, Friday, 30 days, initial) -> Friday, 25 June 2021
-     * getNextExpiry(10 June 2021, Friday, 30 days, !initial) -> Friday, 30 July 2021
      */
     function getNextExpiry(uint256 timestamp, uint256 period)
         internal
