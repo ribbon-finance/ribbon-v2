@@ -109,6 +109,14 @@ contract RibbonVault is
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
+    // UNISWAP_ROUTER is the contract address of UniswapV3 Router which handles swaps
+    // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
+    address public immutable UNISWAP_ROUTER;
+
+    // UNISWAP_FACTORY is the contract address of UniswapV3 Factory which stores pool information
+    // https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
+    address public immutable UNISWAP_FACTORY;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -149,25 +157,33 @@ contract RibbonVault is
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
+     * @param _uniswapFactory is the contract address for UniswapV3 factory
      */
     constructor(
         address _weth,
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction
+        address _gnosisEasyAuction,
+        address _uniswapRouter,
+        address _uniswapFactory
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_uniswapRouter != address(0), "!_uniswapRouter");
+        require(_uniswapFactory != address(0), "!_uniswapFactory");
 
         WETH = _weth;
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+        UNISWAP_ROUTER = _uniswapRouter;
+        UNISWAP_FACTORY = _uniswapFactory;
     }
 
     /**
@@ -572,83 +588,66 @@ contract RibbonVault is
     function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
         internal
         returns (
-            address,
-            uint256,
-            uint256
+            address newOption,
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount
         )
     {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
-        address newOption = optionState.nextOption;
+        newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
-        (
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount,
-            uint256 newPricePerShare,
-            uint256 mintShares
-        ) =
-            VaultLifecycle.rollover(
-                totalSupply(),
-                vaultParams.asset,
-                vaultParams.decimals,
-                uint256(vaultState.totalPending),
-                vaultState.queuedWithdrawShares
+        address recipient = feeRecipient;
+        uint256 mintShares;
+        uint256 performanceFeeInAsset;
+        uint256 totalVaultFee;
+        {
+            uint256 newPricePerShare;
+            (
+                lockedBalance,
+                queuedWithdrawAmount,
+                newPricePerShare,
+                mintShares,
+                performanceFeeInAsset,
+                totalVaultFee
+            ) = VaultLifecycle.rollover(
+                vaultState,
+                VaultLifecycle.RolloverParams(
+                    vaultParams.decimals,
+                    IERC20(vaultParams.asset).balanceOf(address(this)),
+                    totalSupply(),
+                    lastQueuedWithdrawAmount,
+                    performanceFee,
+                    managementFee
+                )
             );
 
-        optionState.currentOption = newOption;
-        optionState.nextOption = address(0);
+            optionState.currentOption = newOption;
+            optionState.nextOption = address(0);
 
-        // Finalize the pricePerShare at the end of the round
-        uint256 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
+            // Finalize the pricePerShare at the end of the round
+            uint256 currentRound = vaultState.round;
+            roundPricePerShare[currentRound] = newPricePerShare;
 
-        uint256 withdrawAmountDiff =
-            queuedWithdrawAmount > lastQueuedWithdrawAmount
-                ? queuedWithdrawAmount.sub(lastQueuedWithdrawAmount)
-                : 0;
+            emit CollectVaultFees(
+                performanceFeeInAsset,
+                totalVaultFee,
+                currentRound,
+                recipient
+            );
 
-        // Take management / performance fee from previous round and deduct
-        lockedBalance = lockedBalance.sub(
-            _collectVaultFees(lockedBalance.add(withdrawAmountDiff))
-        );
-
-        vaultState.totalPending = 0;
-        vaultState.round = uint16(currentRound + 1);
+            vaultState.totalPending = 0;
+            vaultState.round = uint16(currentRound + 1);
+        }
 
         _mint(address(this), mintShares);
 
-        return (newOption, lockedBalance, queuedWithdrawAmount);
-    }
-
-    /*
-     * @notice Helper function that transfers management fees and performance fees from previous round.
-     * @param pastWeekBalance is the balance we are about to lock for next round
-     * @return vaultFee is the fee deducted
-     */
-    function _collectVaultFees(uint256 pastWeekBalance)
-        internal
-        returns (uint256)
-    {
-        (uint256 performanceFeeInAsset, , uint256 vaultFee) =
-            VaultLifecycle.getVaultFees(
-                vaultState,
-                pastWeekBalance,
-                performanceFee,
-                managementFee
-            );
-
-        if (vaultFee > 0) {
-            transferAsset(payable(feeRecipient), vaultFee);
-            emit CollectVaultFees(
-                performanceFeeInAsset,
-                vaultFee,
-                vaultState.round,
-                feeRecipient
-            );
+        if (totalVaultFee > 0) {
+            transferAsset(payable(recipient), totalVaultFee);
         }
 
-        return vaultFee;
+        return (newOption, lockedBalance, queuedWithdrawAmount);
     }
 
     /**
@@ -784,4 +783,19 @@ contract RibbonVault is
     /************************************************
      *  HELPERS
      ***********************************************/
+
+    /**
+     * @notice Helper to check whether swap path goes from stables (USDC) to vault's underlying asset
+     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
+     * @return boolean whether the path is valid
+     */
+    function _checkPath(bytes calldata swapPath) internal view returns (bool) {
+        return
+            VaultLifecycle.checkPath(
+                swapPath,
+                USDC,
+                vaultParams.asset,
+                UNISWAP_FACTORY
+            );
+    }
 }

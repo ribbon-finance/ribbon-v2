@@ -301,6 +301,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
                 : VaultLifecycleSTETH.unwrapYieldToken(
                     amount,
                     address(collateralToken),
+                    STETH,
                     STETH_ETH_CRV_POOL,
                     minETHOut
                 );
@@ -310,6 +311,17 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         } else {
             VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
         }
+    }
+
+    /**
+     * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
+     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     */
+    function completeWithdraw(uint256 minETHOut) external nonReentrant {
+        uint256 withdrawAmount = _completeWithdraw(minETHOut);
+        lastQueuedWithdrawAmount = uint128(
+            uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
+        );
     }
 
     /**
@@ -442,10 +454,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             );
 
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            uint256(vaultState.lockedAmount).sub(
+                collateralToken.getStETHByWstETH(unlockedAssetAmount)
+            )
         );
 
         // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleSTETH.wrapToYieldToken(WETH, address(collateralToken));
+        VaultLifecycleSTETH.wrapToYieldToken(
+            WETH,
+            address(collateralToken),
+            STETH
+        );
     }
 }
