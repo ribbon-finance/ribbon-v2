@@ -77,7 +77,7 @@ contract RibbonTreasuryVault is
     address public immutable OTOKEN_FACTORY;
 
     // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
+    uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
     // Maximum number of whitelisted user address.
     uint256 private constant WHITELIST_LIMIT = 5;
