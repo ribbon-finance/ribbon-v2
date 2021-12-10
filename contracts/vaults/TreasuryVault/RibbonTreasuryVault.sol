@@ -50,7 +50,7 @@ contract RibbonTreasuryVault is
     address public immutable USDC;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
-    uint256 public constant DELAY = 15 minutes;
+    uint256 public constant DELAY = 0;
 
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;

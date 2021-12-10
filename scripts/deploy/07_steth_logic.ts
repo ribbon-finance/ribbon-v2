@@ -14,6 +14,7 @@ import {
 } from "../../constants/constants";
 
 const main = async ({
+  ethers,
   network,
   deployments,
   getNamedAccounts,
@@ -33,10 +34,11 @@ const main = async ({
 
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
-    contract: "VaultLifecycleSTETH",
-    from: deployer,
-  });
+  // const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
+  //   contract: "VaultLifecycleSTETH",
+  //   from: deployer,
+  // });
+  const lifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
 
   const vault = await deploy("RibbonThetaVaultSTETHLogic", {
     contract: "RibbonThetaSTETHVault",
@@ -56,12 +58,13 @@ const main = async ({
       VaultLifecycle: lifecycle.address,
       VaultLifecycleSTETH: lifecycleSTETH.address,
     },
+    gasPrice: ethers.utils.parseUnits("70", "gwei"),
   });
 
   console.log(`RibbonThetaVaultSTETHLogic @ ${vault.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: vault.address,
       constructorArguments: [
         WETH_ADDRESS[chainId],
@@ -78,7 +81,6 @@ const main = async ({
   } catch (error) {
     console.log(error);
   }
-
 };
 main.tags = ["RibbonThetaVaultSTETHLogic"];
 
