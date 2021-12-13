@@ -78,7 +78,7 @@ const main = async ({
   // Can't verify pricer because it's compiled with 0.7.3
 
   const strikeSelection = await deploy("StrikeSelectionETH", {
-    contract: "StrikeSelection",
+    contract: "DeltaStrikeSelection",
     from: deployer,
     args: [
       pricer.address,

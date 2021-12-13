@@ -63,7 +63,7 @@ const main = async ({
   });
 
   const strikeSelection = await deploy("StrikeSelectionAAVE", {
-    contract: "StrikeSelection",
+    contract: "DeltaStrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
   });
