@@ -12,7 +12,7 @@ import {
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {Vault} from "../libraries/Vault.sol";
 
-contract StrikeSelection is Ownable {
+contract DeltaStrikeSelection is Ownable {
     using SafeMath for uint256;
 
     /**
@@ -151,49 +151,6 @@ contract StrikeSelection is Ownable {
 
             prevDelta = currDelta;
         }
-    }
-
-    /**
-     * @notice Gets the strike price by multiplying the current spot price with a multiplier
-     * @param expiryTimestamp is the unix timestamp of expiration
-     * @param isPut is whether option is put or call
-     * @param strikeMultiplier is the multiplier to compute the strike price
-     * @return newStrikePrice is the strike price of the option (ex: for BTC might be 45000 * 10 ** 8)
-     * @return newDelta is the delta of the option given its parameters
-     */
-
-    function getSimpleStrikePrice(
-        uint256 expiryTimestamp,
-        bool isPut,
-        uint256 strikeMultiplier
-    ) external view returns (uint256 newStrikePrice, uint256 newDelta) {
-        require(
-            expiryTimestamp > block.timestamp,
-            "Expiry must be in the future!"
-        );
-
-        // asset price
-        uint256 strikePrice =
-            optionsPremiumPricer.getUnderlyingPrice().mul(strikeMultiplier).div(
-                Vault.STRIKE_MULTIPLIER
-            );
-
-        // asset's annualized volatility
-        uint256 annualizedVol =
-            volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
-                10**10
-            );
-
-        newStrikePrice = isPut
-            ? strikePrice.sub(strikePrice % step)
-            : strikePrice.add(step - (strikePrice % step));
-
-        newDelta = optionsPremiumPricer.getOptionDelta(
-            strikePrice.mul(ORACLE_PRICE_MULTIPLIER).div(assetOracleMultiplier),
-            newStrikePrice,
-            annualizedVol,
-            expiryTimestamp
-        );
     }
 
     /**
