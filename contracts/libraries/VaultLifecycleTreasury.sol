@@ -255,14 +255,11 @@ library VaultLifecycleTreasury {
                 .add(withdrawAmountDiff);
         }
 
-        // We do not charge on the first round
-        managementFeeInAsset = vaultState.round <= 1
-            ? 0
-            : getManagementFee(
-                balanceForVaultFees,
-                vaultState.totalPending,
-                params.managementFee
-            );
+        managementFeeInAsset = getManagementFee(
+            balanceForVaultFees,
+            vaultState.totalPending,
+            params.managementFee
+        );
 
         // Take into account the fee
         // so we can calculate the newPricePerShare
