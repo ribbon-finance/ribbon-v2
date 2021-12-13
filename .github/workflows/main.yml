@@ -34,7 +34,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ./cache/hardhat-network-fork
-          key: ${{ runner.OS }}-hardhat-${{ hashFiles('./cache/hardhat-network-fork/**') }}
+          # we use the constants.ts file as a cache-key because it holds the block height we are forking
+          key: ${{ runner.OS }}-hardhat-${{ hashFiles('./constants/constants.ts') }}
           restore-keys: |
             ${{ runner.OS }}-hardhat-
       - name: Install dependencies
