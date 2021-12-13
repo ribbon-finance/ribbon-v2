@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WETH_ADDRESS,
@@ -22,11 +22,10 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  // const lifecycle = await deploy("VaultLifecycle", {
-  //   contract: "VaultLifecycle",
-  //   from: deployer,
-  // });
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycle = await deploy("VaultLifecycle", {
+    contract: "VaultLifecycle",
+    from: deployer,
+  });
 
   const vault = await deploy("RibbonThetaVaultLogic", {
     contract: "RibbonThetaVault",
@@ -44,7 +43,6 @@ const main = async ({
     libraries: {
       VaultLifecycle: lifecycle.address,
     },
-    gasPrice: ethers.utils.parseUnits("70", "gwei"),
   });
   console.log(`RibbonThetaVaultLogic @ ${vault.address}`);
 
