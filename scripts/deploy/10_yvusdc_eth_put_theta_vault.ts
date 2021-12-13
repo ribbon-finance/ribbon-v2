@@ -1,9 +1,5 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
-  USDC_ADDRESS,
-  WETH_ADDRESS,
-  YVUSDC_V0_4_3,
-} from "../../constants/constants";
+import { USDC_ADDRESS, WETH_ADDRESS } from "../../constants/constants";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
