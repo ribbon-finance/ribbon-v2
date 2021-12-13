@@ -40,7 +40,7 @@ const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
-const OPTION_DELAY = 15 * 60; // 15 minutes
+const OPTION_DELAY = 0;
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
@@ -308,7 +308,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await vault.connect(ownerSigner).commitAndClose();
       await strikeSelection.setDelta(params.deltaFirstOption);
       await thetaVault.connect(keeperSigner).rollToNextOption();
-      await time.increaseTo((await getNextOptionReadyAt()) + 1);
+      await time.increaseTo((await getNextOptionReadyAt()) + 100);
       await vault.connect(keeperSigner).rollToNextOption(optionPremium);
     };
 
@@ -326,7 +326,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await time.increaseTo((await getNextOptionReadyAtTheta()) + 1);
       await vault.connect(ownerSigner).commitAndClose();
       await thetaVault.connect(keeperSigner).rollToNextOption();
-      await time.increaseTo((await getNextOptionReadyAt()) + 1);
+      await time.increaseTo((await getNextOptionReadyAt()) + 100);
       await vault.connect(keeperSigner).rollToNextOption(optionPremium);
     };
 
@@ -1505,21 +1505,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!keeper");
       });
 
-      it("reverts when delay not passed", async function () {
-        await rollToNextOptionSetup();
-
-        // will revert when trying to roll immediately
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption(optionPremium)
-        ).to.be.revertedWith("!ready");
-
-        await time.increaseTo((await getNextOptionReadyAt()) - 100);
-
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption(optionPremium)
-        ).to.be.revertedWith("!ready");
-      });
-
       it("places bid on oTokens and gains possession after auction settlement", async function () {
         let startGnosisBalance = await assetContract.balanceOf(
           GNOSIS_EASY_AUCTION[chainId]
@@ -1527,7 +1512,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -1599,7 +1584,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -1646,7 +1631,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -1807,7 +1792,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         await vault
           .connect(keeperSigner)
@@ -1839,7 +1824,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         await vault
           .connect(keeperSigner)
@@ -1934,7 +1919,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -2128,7 +2113,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("claims the tokens for the delta vault", async function () {
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + 100);
 
         await vault
           .connect(keeperSigner)
