@@ -5,7 +5,7 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
-import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import {IDeltaStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
@@ -72,7 +72,7 @@ library VaultLifecycle {
             );
         }
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IDeltaStrikeSelection selection = IDeltaStrikeSelection(strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;

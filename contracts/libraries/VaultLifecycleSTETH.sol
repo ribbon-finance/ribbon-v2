@@ -13,7 +13,7 @@ import {ShareMath} from "./ShareMath.sol";
 import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ICRV} from "../interfaces/ICRV.sol";
-import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import {IDeltaStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
@@ -70,7 +70,7 @@ library VaultLifecycleSTETH {
             );
         }
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IDeltaStrikeSelection selection = IDeltaStrikeSelection(strikeSelection);
 
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==

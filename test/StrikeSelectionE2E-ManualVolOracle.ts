@@ -12,7 +12,7 @@ import {
 } from "../constants/constants";
 const { getContractFactory } = ethers;
 
-describe("StrikeSelectionE2E-ManualVolOracle", () => {
+describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
   let volOracle: Contract;
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
@@ -52,7 +52,7 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
       OptionsPremiumPricer_BYTECODE,
       signer
     );
-    const StrikeSelection = await getContractFactory("StrikeSelection", signer);
+    const StrikeSelection = await getContractFactory("DeltaStrikeSelection", signer);
 
     volOracle = await ManualVolOracle.deploy(signer.address);
 
@@ -219,6 +219,120 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
             .toString()
         )
       );
+    });
+  });
+});
+
+describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
+  let volOracle: Contract;
+  let strikeSelection: Contract;
+  let optionsPremiumPricer: Contract;
+  let wethPriceOracle: Contract;
+  let signer: SignerWithAddress;
+  let signer2: SignerWithAddress;
+
+  const WEEK = 604800; // 7 days
+
+  const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
+
+  const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
+  const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
+
+  before(async function () {
+    // Reset block
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: 12529250,
+          },
+        },
+      ],
+    });
+
+    [signer, signer2] = await ethers.getSigners();
+    const ManualVolOracle = await getContractFactory(
+      ManualVolOracle_ABI,
+      ManualVolOracle_BYTECODE,
+      signer
+    );
+    const OptionsPremiumPricer = await getContractFactory(
+      OptionsPremiumPricer_ABI,
+      OptionsPremiumPricer_BYTECODE,
+      signer
+    );
+    const StrikeSelection = await getContractFactory("PercentStrikeSelection", signer);
+
+    volOracle = await ManualVolOracle.deploy(signer.address);
+
+    optionsPremiumPricer = await OptionsPremiumPricer.deploy(
+      ethusdcPool,
+      volOracle.address,
+      wethPriceOracleAddress,
+      usdcPriceOracleAddress
+    );
+
+    strikeSelection = await StrikeSelection.deploy(
+      optionsPremiumPricer.address,
+      1000,
+      100
+    );
+
+    wethPriceOracle = await ethers.getContractAt(
+      "IPriceOracle",
+      await optionsPremiumPricer.priceOracle()
+    );
+  });
+
+  describe("getStrikePrice", () => {
+    time.revertToSnapshotAfterEach();
+
+    let underlyingPrice: BigNumber;
+    let deltaAtUnderlying: BigNumber;
+    let expiryTimestamp: BigNumber;
+
+    beforeEach(async () => {
+      volOracle
+        .connect(signer)
+        .setAnnualizedVol(
+          ethusdcPool,
+          BigNumber.from("15").mul(BigNumber.from("10").pow("7"))
+        );
+      underlyingPrice = await optionsPremiumPricer.getUnderlyingPrice();
+      underlyingPrice = underlyingPrice.sub(
+        BigNumber.from(underlyingPrice).mod(await strikeSelection.step())
+      );
+      expiryTimestamp = (await time.now()).add(WEEK);
+      deltaAtUnderlying = await optionsPremiumPricer[
+        "getOptionDelta(uint256,uint256)"
+      ](underlyingPrice, expiryTimestamp);
+    });
+
+    it("reverts on timestamp being in the past", async function () {
+      const expiryTimestamp = (await time.now()).sub(100);
+      const isPut = false;
+      await expect(
+        strikeSelection.getStrikePrice(expiryTimestamp, isPut, 150)
+      ).to.be.revertedWith("Expiry must be in the future!");
+    });
+
+    it("gets the correct strike price given multiplier for calls", async function () {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = false;
+      const multiplier = 150;
+      const [strikePrice] = await strikeSelection.getStrikePrice(
+        expiryTimestamp,
+        isPut,
+        multiplier
+      );
+
+      let correctStrike = underlyingPrice.mul(multiplier).div(100);
+
+      correctStrike = correctStrike.add(100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8)));
+
+      assert.equal(strikePrice.toString(), correctStrike.toString());
     });
   });
 });

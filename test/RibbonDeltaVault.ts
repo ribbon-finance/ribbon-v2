@@ -391,7 +391,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner
       );
       const StrikeSelection = await getContractFactory(
-        "StrikeSelection",
+        "DeltaStrikeSelection",
         ownerSigner
       );
 

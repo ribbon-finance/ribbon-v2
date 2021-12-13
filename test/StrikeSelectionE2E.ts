@@ -15,7 +15,7 @@ const { provider, getContractFactory } = ethers;
 
 moment.tz.setDefault("UTC");
 
-describe("StrikeSelectionE2E", () => {
+describe("DeltaStrikeSelectionE2E", () => {
   let volOracle: Contract;
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
@@ -56,7 +56,7 @@ describe("StrikeSelectionE2E", () => {
       OptionsPremiumPricer_BYTECODE,
       signer
     );
-    const StrikeSelection = await getContractFactory("StrikeSelection", signer);
+    const StrikeSelection = await getContractFactory("DeltaStrikeSelection", signer);
 
     volOracle = await TestVolOracle.deploy(PERIOD, 7);
 
@@ -260,3 +260,154 @@ describe("StrikeSelectionE2E", () => {
     }
   };
 });
+
+describe("PercentStrikeSelectionE2E", () => {
+  let volOracle: Contract;
+  let strikeSelection: Contract;
+  let optionsPremiumPricer: Contract;
+  let wethPriceOracle: Contract;
+  let signer: SignerWithAddress;
+  let signer2: SignerWithAddress;
+
+  const PERIOD = 43200; // 12 hours
+  const WEEK = 604800; // 7 days
+
+  const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
+
+  const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
+  const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
+
+  before(async function () {
+    // Reset block
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.TEST_URI,
+            blockNumber: 12529250,
+          },
+        },
+      ],
+    });
+
+    [signer, signer2] = await ethers.getSigners();
+    const TestVolOracle = await getContractFactory(
+      TestVolOracle_ABI,
+      TestVolOracle_BYTECODE,
+      signer
+    );
+    const OptionsPremiumPricer = await getContractFactory(
+      OptionsPremiumPricer_ABI,
+      OptionsPremiumPricer_BYTECODE,
+      signer
+    );
+    const StrikeSelection = await getContractFactory("PercentStrikeSelection", signer);
+
+    volOracle = await TestVolOracle.deploy(PERIOD, 7);
+
+    await volOracle.initPool(ethusdcPool);
+
+    optionsPremiumPricer = await OptionsPremiumPricer.deploy(
+      ethusdcPool,
+      volOracle.address,
+      wethPriceOracleAddress,
+      usdcPriceOracleAddress
+    );
+
+    strikeSelection = await StrikeSelection.deploy(
+      optionsPremiumPricer.address,
+      1000,
+      100
+    );
+
+    wethPriceOracle = await ethers.getContractAt(
+      "IPriceOracle",
+      await optionsPremiumPricer.priceOracle()
+    );
+  });
+
+  describe("getStrikePrice", () => {
+    time.revertToSnapshotAfterEach();
+
+    let underlyingPrice: BigNumber;
+    let deltaAtUnderlying: BigNumber;
+    let expiryTimestamp: BigNumber;
+
+    beforeEach(async () => {
+      await updateVol();
+      underlyingPrice = await optionsPremiumPricer.getUnderlyingPrice();
+      underlyingPrice = underlyingPrice.sub(
+        BigNumber.from(underlyingPrice).mod(await strikeSelection.step())
+      );
+      expiryTimestamp = (await time.now()).add(WEEK);
+      deltaAtUnderlying = await optionsPremiumPricer[
+        "getOptionDelta(uint256,uint256)"
+      ](underlyingPrice, expiryTimestamp);
+    });
+
+    it("reverts on timestamp being in the past", async function () {
+      const expiryTimestamp = (await time.now()).sub(100);
+      const isPut = false;
+      await expect(
+        strikeSelection.getStrikePrice(expiryTimestamp, isPut, 150)
+      ).to.be.revertedWith("Expiry must be in the future!");
+    });
+
+    it("gets the correct strike price given multiplier for calls", async function () {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = false;
+      const multiplier = 150;
+      const [strikePrice] = await strikeSelection.getStrikePrice(
+        expiryTimestamp,
+        isPut,
+        multiplier
+      );
+
+      let correctStrike = underlyingPrice.mul(multiplier).div(100);
+
+      correctStrike = correctStrike.add(100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8)));
+
+      assert.equal(strikePrice.toString(), correctStrike.toString());
+    });
+  });
+
+  const getTopOfPeriod = async () => {
+    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
+    let topOfPeriod: number;
+
+    const rem = latestTimestamp % PERIOD;
+    if (rem < Math.floor(PERIOD / 2)) {
+      topOfPeriod = latestTimestamp - rem + PERIOD;
+    } else {
+      topOfPeriod = latestTimestamp + rem + PERIOD;
+    }
+    return topOfPeriod;
+  };
+
+  const updateVol = async () => {
+    const values = [
+      BigNumber.from("2000000000"),
+      BigNumber.from("2100000000"),
+      BigNumber.from("2200000000"),
+      BigNumber.from("2150000000"),
+      BigNumber.from("2250000000"),
+      BigNumber.from("2350000000"),
+      BigNumber.from("2450000000"),
+      BigNumber.from("2550000000"),
+      BigNumber.from("2350000000"),
+      BigNumber.from("2450000000"),
+      BigNumber.from("2250000000"),
+      BigNumber.from("2250000000"),
+      BigNumber.from("2650000000"),
+    ];
+
+    for (let i = 0; i < values.length; i++) {
+      await volOracle.setPrice(values[i]);
+      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
+      await time.increaseTo(topOfPeriod);
+      await volOracle.mockCommit(ethusdcPool);
+    }
+  };
+});
+

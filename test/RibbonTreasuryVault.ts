@@ -442,7 +442,7 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       const StrikeSelection = await getContractFactory(
-        "StrikeSelection",
+        "PercentStrikeSelection",
         ownerSigner
       );
 
@@ -568,7 +568,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .unix();
       }
 
-      [firstOptionStrike] = await strikeSelection.getSimpleStrikePrice(
+      [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
         params.isPut,
         multiplier
@@ -637,7 +637,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .unix();
       }
 
-      [secondOptionStrike] = await strikeSelection.getSimpleStrikePrice(
+      [secondOptionStrike] = await strikeSelection.getStrikePrice(
         secondOptionExpiry,
         params.isPut,
         multiplier

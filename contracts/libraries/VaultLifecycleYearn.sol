@@ -12,7 +12,7 @@ import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
-import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import {IDeltaStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
@@ -73,7 +73,7 @@ library VaultLifecycleYearn {
 
         bool isPut = vaultParams.isPut;
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IDeltaStrikeSelection selection = IDeltaStrikeSelection(strikeSelection);
 
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==

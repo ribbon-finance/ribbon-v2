@@ -5,7 +5,7 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
-import {IStrikeSelection} from "../interfaces/IRibbon.sol";
+import {IPercentStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {DateTime} from "./DateTime.sol";
 import {
@@ -109,7 +109,7 @@ library VaultLifecycleTreasury {
             );
         }
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IPercentStrikeSelection selection = IPercentStrikeSelection(strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
@@ -118,7 +118,7 @@ library VaultLifecycleTreasury {
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getSimpleStrikePrice(
+            : selection.getStrikePrice(
                 expiry,
                 isPut,
                 closeParams.strikeMultiplier
