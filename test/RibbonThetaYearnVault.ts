@@ -1843,27 +1843,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!keeper");
       });
 
-      it("reverts when delay not passed", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
-
-        await vault.connect(ownerSigner).commitAndClose();
-
-        // will revert when trying to roll immediately
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
-
-        time.increaseTo(
-          (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
-        );
-
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
-      });
-
       it("mints oTokens and deposits collateral into vault", async function () {
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -2149,23 +2128,6 @@ function behavesLikeRibbonOptionsVault(params: {
           await assetContract.balanceOf(vault.address),
           BigNumber.from(0)
         );
-      });
-
-      it("reverts when delay not passed", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-
-        // will revert when trying to roll immediately
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
-
-        time.increaseTo(
-          (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
-        );
-
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
       });
 
       it("reverts when calling before expiry", async function () {
