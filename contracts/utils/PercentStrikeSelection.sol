@@ -80,7 +80,7 @@ contract PercentStrikeSelection is Ownable {
      */
 
     function getStrikePrice(
-        uint256 expiryTimestamp, 
+        uint256 expiryTimestamp,
         bool isPut,
         uint256 strikeMultiplier
     ) external view returns (uint256 newStrikePrice, uint256 newDelta) {

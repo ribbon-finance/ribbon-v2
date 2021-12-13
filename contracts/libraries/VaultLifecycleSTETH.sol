@@ -70,7 +70,8 @@ library VaultLifecycleSTETH {
             );
         }
 
-        IDeltaStrikeSelection selection = IDeltaStrikeSelection(strikeSelection);
+        IDeltaStrikeSelection selection =
+            IDeltaStrikeSelection(strikeSelection);
 
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==

@@ -265,12 +265,9 @@ describe("PercentStrikeSelectionE2E", () => {
   let volOracle: Contract;
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
-  let wethPriceOracle: Contract;
   let signer: SignerWithAddress;
-  let signer2: SignerWithAddress;
 
   const PERIOD = 43200; // 12 hours
-  const WEEK = 604800; // 7 days
 
   const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
 
@@ -291,7 +288,7 @@ describe("PercentStrikeSelectionE2E", () => {
       ],
     });
 
-    [signer, signer2] = await ethers.getSigners();
+    [signer] = await ethers.getSigners();
     const TestVolOracle = await getContractFactory(
       TestVolOracle_ABI,
       TestVolOracle_BYTECODE,
@@ -321,18 +318,12 @@ describe("PercentStrikeSelectionE2E", () => {
       100
     );
 
-    wethPriceOracle = await ethers.getContractAt(
-      "IPriceOracle",
-      await optionsPremiumPricer.priceOracle()
-    );
   });
 
   describe("getStrikePrice", () => {
     time.revertToSnapshotAfterEach();
 
     let underlyingPrice: BigNumber;
-    let deltaAtUnderlying: BigNumber;
-    let expiryTimestamp: BigNumber;
 
     beforeEach(async () => {
       await updateVol();
@@ -340,10 +331,6 @@ describe("PercentStrikeSelectionE2E", () => {
       underlyingPrice = underlyingPrice.sub(
         BigNumber.from(underlyingPrice).mod(await strikeSelection.step())
       );
-      expiryTimestamp = (await time.now()).add(WEEK);
-      deltaAtUnderlying = await optionsPremiumPricer[
-        "getOptionDelta(uint256,uint256)"
-      ](underlyingPrice, expiryTimestamp);
     });
 
     it("reverts on timestamp being in the past", async function () {

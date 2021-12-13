@@ -109,7 +109,8 @@ library VaultLifecycleTreasury {
             );
         }
 
-        IPercentStrikeSelection selection = IPercentStrikeSelection(strikeSelection);
+        IPercentStrikeSelection selection =
+            IPercentStrikeSelection(strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;

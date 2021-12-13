@@ -72,7 +72,8 @@ library VaultLifecycle {
             );
         }
 
-        IDeltaStrikeSelection selection = IDeltaStrikeSelection(strikeSelection);
+        IDeltaStrikeSelection selection =
+            IDeltaStrikeSelection(strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;

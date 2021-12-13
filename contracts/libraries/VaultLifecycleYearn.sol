@@ -73,7 +73,8 @@ library VaultLifecycleYearn {
 
         bool isPut = vaultParams.isPut;
 
-        IDeltaStrikeSelection selection = IDeltaStrikeSelection(strikeSelection);
+        IDeltaStrikeSelection selection =
+            IDeltaStrikeSelection(strikeSelection);
 
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
