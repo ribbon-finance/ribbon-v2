@@ -44,7 +44,8 @@ const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
-const OPTION_DELAY = 15 * 60; // 15 minutes
+const OPTION_DELAY = 0;
+const DELAY_INCREMENT = 100;
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
@@ -248,7 +249,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     const rollToNextOption = async () => {
       await vault.connect(ownerSigner).commitAndClose();
-      await time.increaseTo((await getNextOptionReadyAt()) + 1);
+      await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await strikeSelection.setDelta(params.deltaFirstOption);
       await vault.connect(keeperSigner).rollToNextOption();
     };
@@ -1742,7 +1743,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).commitAndClose();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault.connect(keeperSigner).rollToNextOption();
 

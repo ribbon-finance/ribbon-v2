@@ -41,6 +41,7 @@ const { parseEther } = ethers.utils;
 moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 0;
+const DELAY_INCREMENT = 100;
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
@@ -308,7 +309,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await vault.connect(ownerSigner).commitAndClose();
       await strikeSelection.setDelta(params.deltaFirstOption);
       await thetaVault.connect(keeperSigner).rollToNextOption();
-      await time.increaseTo((await getNextOptionReadyAt()) + 100);
+      await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await vault.connect(keeperSigner).rollToNextOption(optionPremium);
     };
 
@@ -326,7 +327,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await time.increaseTo((await getNextOptionReadyAtTheta()) + 1);
       await vault.connect(ownerSigner).commitAndClose();
       await thetaVault.connect(keeperSigner).rollToNextOption();
-      await time.increaseTo((await getNextOptionReadyAt()) + 100);
+      await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await vault.connect(keeperSigner).rollToNextOption(optionPremium);
     };
 
@@ -1512,7 +1513,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -1584,7 +1585,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -1631,7 +1632,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -1792,7 +1793,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault
           .connect(keeperSigner)
@@ -1824,7 +1825,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault
           .connect(keeperSigner)
@@ -1919,7 +1920,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         let bidAmount = (await lockedBalanceForRollover(vault))[0]
           .mul(await vault.optionAllocation())
@@ -2113,7 +2114,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("claims the tokens for the delta vault", async function () {
         await rollToNextOptionSetup();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 100);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault
           .connect(keeperSigner)
