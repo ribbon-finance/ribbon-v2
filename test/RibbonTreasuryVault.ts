@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
-import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -25,7 +25,7 @@ import {
   SUSHI_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
   TestVolOracle_BYTECODE,
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -436,8 +436,8 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       const OptionsPremiumPricer = await getContractFactory(
-        OptionsPremiumPricer_ABI,
-        OptionsPremiumPricer_BYTECODE,
+        OptionsPremiumPricerInStables_ABI,
+        OptionsPremiumPricerInStables_BYTECODE,
         ownerSigner
       );
 
@@ -575,7 +575,7 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       firstOptionPremium = BigNumber.from(
-        await optionsPremiumPricer.getPremium(
+        await optionsPremiumPricer.getPremiumInStables(
           firstOptionStrike,
           firstOptionExpiry,
           params.isPut
@@ -1579,7 +1579,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(
           await vault.currentOtokenPremium(),
           (
-            await optionsPremiumPricer.getPremium(
+            await optionsPremiumPricer.getPremiumInStables(
               newStrikePrice,
               expiryTimestampOfNewOption,
               params.isPut
@@ -2005,7 +2005,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(feeDenominator.add(feeNumerator));
 
         const oTokenPremium = (
-          await optionsPremiumPricer.getPremium(
+          await optionsPremiumPricer.getPremiumInStables(
             await nextOption.strikePrice(),
             await nextOption.expiryTimestamp(),
             params.isPut
