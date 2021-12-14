@@ -5,10 +5,10 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
-import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import {
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
   TestVolOracle_BYTECODE,
 } from "../constants/constants";
 const { provider, getContractFactory } = ethers;
@@ -52,8 +52,8 @@ describe("DeltaStrikeSelectionE2E", () => {
       signer
     );
     const OptionsPremiumPricer = await getContractFactory(
-      OptionsPremiumPricer_ABI,
-      OptionsPremiumPricer_BYTECODE,
+      OptionsPremiumPricerInStables_ABI,
+      OptionsPremiumPricerInStables_BYTECODE,
       signer
     );
     const StrikeSelection = await getContractFactory("DeltaStrikeSelection", signer);
@@ -295,8 +295,8 @@ describe("PercentStrikeSelectionE2E", () => {
       signer
     );
     const OptionsPremiumPricer = await getContractFactory(
-      OptionsPremiumPricer_ABI,
-      OptionsPremiumPricer_BYTECODE,
+      OptionsPremiumPricerInStables_ABI,
+      OptionsPremiumPricerInStables_BYTECODE,
       signer
     );
     const StrikeSelection = await getContractFactory("PercentStrikeSelection", signer);

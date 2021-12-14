@@ -4,10 +4,10 @@ import { Contract } from "ethers";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
-import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
 import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import {
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
   ManualVolOracle_BYTECODE,
 } from "../constants/constants";
 const { getContractFactory } = ethers;
@@ -48,8 +48,8 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
       signer
     );
     const OptionsPremiumPricer = await getContractFactory(
-      OptionsPremiumPricer_ABI,
-      OptionsPremiumPricer_BYTECODE,
+      OptionsPremiumPricerInStables_ABI,
+      OptionsPremiumPricerInStables_BYTECODE,
       signer
     );
     const StrikeSelection = await getContractFactory("DeltaStrikeSelection", signer);
@@ -255,8 +255,8 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
       signer
     );
     const OptionsPremiumPricer = await getContractFactory(
-      OptionsPremiumPricer_ABI,
-      OptionsPremiumPricer_BYTECODE,
+      OptionsPremiumPricerInStables_ABI,
+      OptionsPremiumPricerInStables_BYTECODE,
       signer
     );
     const StrikeSelection = await getContractFactory("PercentStrikeSelection", signer);
