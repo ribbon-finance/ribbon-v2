@@ -47,7 +47,6 @@ import {
 import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
-import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import { forkBlock } from "./helpers/forking";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
