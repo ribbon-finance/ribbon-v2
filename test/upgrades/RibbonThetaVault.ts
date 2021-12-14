@@ -13,6 +13,7 @@ import {
 import { parseLog } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
 import { BigNumber, BigNumberish } from "ethers";
+import { forkBlock } from "../helpers/forking";
 
 const { parseEther } = ethers.utils;
 
@@ -31,19 +32,7 @@ describe("RibbonThetaVault upgrade", () => {
   let vaults: string[] = [];
 
   before(async function () {
-    // We need to checkpoint the contract on mainnet to a past block before the upgrade happens
-    // This means the `implementation` is pointing to an old contract
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.TEST_URI,
-            blockNumber: FORK_BLOCK,
-          },
-        },
-      ],
-    });
+    await forkBlock(FORK_BLOCK);
 
     // Fund & impersonate the admin account
     const [userSigner] = await ethers.getSigners();
@@ -63,9 +52,7 @@ describe("RibbonThetaVault upgrade", () => {
       "RibbonThetaVaultWBTCCall",
       "RibbonThetaVaultAAVECall",
     ];
-    deploymentNames.forEach((name) =>
-      vaults.push(deployments.mainnet[name])
-    );
+    deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
   });
 
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultETHCall);

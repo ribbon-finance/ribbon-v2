@@ -21,6 +21,7 @@ import {
   WSTETH_PRICER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
+  BLOCK_NUMBER_NEW,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -37,6 +38,7 @@ import {
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
+import { forkBlock } from "./helpers/forking";
 
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
@@ -264,18 +266,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     before(async function () {
-      // Reset block
-      await network.provider.request({
-        method: "hardhat_reset",
-        params: [
-          {
-            forking: {
-              jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 13056027,
-            },
-          },
-        ],
-      });
+      await forkBlock(BLOCK_NUMBER_NEW[chainId]);
 
       initSnapshotId = await time.takeSnapshot();
 
