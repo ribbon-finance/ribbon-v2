@@ -48,6 +48,7 @@ import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
+import { forkBlock } from "./helpers/forking";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -403,18 +404,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     before(async function () {
-      // Reset block
-      await network.provider.request({
-        method: "hardhat_reset",
-        params: [
-          {
-            forking: {
-              jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: BLOCK_NUMBER_NEW[chainId],
-            },
-          },
-        ],
-      });
+      await forkBlock(BLOCK_NUMBER_NEW[chainId]);
 
       initSnapshotId = await time.takeSnapshot();
 
