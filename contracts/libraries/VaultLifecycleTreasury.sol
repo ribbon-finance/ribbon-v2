@@ -139,7 +139,7 @@ library VaultLifecycleTreasury {
         );
 
         // get the black scholes premium of the option
-        premium = GnosisAuction.getOTokenPremium(
+        premium = GnosisAuction.getOTokenPremiumInStables(
             otokenAddress,
             optionsPremiumPricer,
             premiumDiscount
