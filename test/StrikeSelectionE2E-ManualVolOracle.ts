@@ -30,7 +30,8 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
   const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
   before(async function () {
-    await forkBlock(BLOCK_NUMBER);
+    const chainId = network.config.chainId;
+    await forkBlock(BLOCK_NUMBER[chainId]);
 
     [(signer, signer2)] = await ethers.getSigners();
     const ManualVolOracle = await getContractFactory(

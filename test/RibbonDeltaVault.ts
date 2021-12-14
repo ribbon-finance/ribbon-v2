@@ -360,7 +360,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     before(async function () {
-      await forkBlock(BLOCK_NUMBER);
+      await forkBlock(BLOCK_NUMBER[chainId]);
 
       initSnapshotId = await time.takeSnapshot();
 

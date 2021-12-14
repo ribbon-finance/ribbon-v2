@@ -22,6 +22,7 @@ import {
   YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
+  BLOCK_NUMBER_NEW,
 } from "../constants/constants";
 import {
   deployProxy,
