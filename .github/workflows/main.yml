@@ -30,10 +30,10 @@ jobs:
           restore-keys: |
             ${{ runner.OS }}-yarn-
       - name: Cache Hardhat forks
-        id: hardhat-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        id: hardhat-cache # use this to check for `cache-hit` (`steps.hardhat-cache.outputs.cache-hit != 'true'`)
         uses: actions/cache@v2
         with:
-          path: ./cache/hardhat-network-fork
+          path: cache/hardhat-network-fork
           # we use the constants.ts file as a cache-key because it holds the block height we are forking
           key: ${{ runner.OS }}-hardhat-${{ hashFiles('./constants/constants.ts') }}
           restore-keys: |
