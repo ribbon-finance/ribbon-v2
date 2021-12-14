@@ -8,9 +8,11 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import {
+  BLOCK_NUMBER,
   OptionsPremiumPricer_BYTECODE,
   TestVolOracle_BYTECODE,
 } from "../constants/constants";
+import { forkBlock } from "./helpers/forking";
 const { provider, getContractFactory } = ethers;
 
 moment.tz.setDefault("UTC");
@@ -32,18 +34,7 @@ describe("StrikeSelectionE2E", () => {
   const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
   before(async function () {
-    // Reset block
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.TEST_URI,
-            blockNumber: 12529250,
-          },
-        },
-      ],
-    });
+    await forkBlock(BLOCK_NUMBER)
 
     [signer, signer2] = await ethers.getSigners();
     const TestVolOracle = await getContractFactory(
