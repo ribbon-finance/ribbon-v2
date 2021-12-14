@@ -9,7 +9,9 @@ import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import {
   OptionsPremiumPricer_BYTECODE,
   ManualVolOracle_BYTECODE,
+  BLOCK_NUMBER,
 } from "../constants/constants";
+import { forkBlock } from "./helpers/forking";
 const { getContractFactory } = ethers;
 
 describe("StrikeSelectionE2E-ManualVolOracle", () => {
@@ -28,20 +30,9 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
   const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
 
   before(async function () {
-    // Reset block
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.TEST_URI,
-            blockNumber: 12529250,
-          },
-        },
-      ],
-    });
+    await forkBlock(BLOCK_NUMBER);
 
-    [signer, signer2] = await ethers.getSigners();
+    [(signer, signer2)] = await ethers.getSigners();
     const ManualVolOracle = await getContractFactory(
       ManualVolOracle_ABI,
       ManualVolOracle_BYTECODE,
