@@ -33,7 +33,8 @@ describe("StrikeSelectionE2E-ManualVolOracle", () => {
     const chainId = network.config.chainId;
     await forkBlock(BLOCK_NUMBER[chainId]);
 
-    [(signer, signer2)] = await ethers.getSigners();
+    [signer, signer2] = await ethers.getSigners();
+
     const ManualVolOracle = await getContractFactory(
       ManualVolOracle_ABI,
       ManualVolOracle_BYTECODE,
