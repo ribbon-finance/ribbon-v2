@@ -5,9 +5,9 @@ import {
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   WBTC_USDC_POOL,
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
@@ -38,8 +38,8 @@ const main = async ({
   const pricer = await deploy("OptionsPremiumPricerWBTC", {
     from: deployer,
     contract: {
-      abi: OptionsPremiumPricer_ABI,
-      bytecode: OptionsPremiumPricer_BYTECODE,
+      abi: OptionsPremiumPricerInStables_ABI,
+      bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
       WBTC_USDC_POOL[chainId],
