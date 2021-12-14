@@ -61,7 +61,7 @@ const main = async ({
   console.log(`RibbonThetaVaultSTETHLogic @ ${vault.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: vault.address,
       constructorArguments: [
         WETH_ADDRESS[chainId],
@@ -78,7 +78,6 @@ const main = async ({
   } catch (error) {
     console.log(error);
   }
-
 };
 main.tags = ["RibbonThetaVaultSTETHLogic"];
 

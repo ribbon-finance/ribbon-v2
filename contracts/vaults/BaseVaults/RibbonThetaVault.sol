@@ -35,7 +35,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     address public immutable OTOKEN_FACTORY;
 
     // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
+    uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
     /************************************************
      *  EVENTS
