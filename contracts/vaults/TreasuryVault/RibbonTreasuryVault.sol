@@ -50,7 +50,7 @@ contract RibbonTreasuryVault is
     address public immutable USDC;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
-    uint256 public constant DELAY = 15 minutes;
+    uint256 public constant DELAY = 0;
 
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
@@ -77,7 +77,7 @@ contract RibbonTreasuryVault is
     address public immutable OTOKEN_FACTORY;
 
     // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 1 hours;
+    uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
     // Maximum number of whitelisted user address.
     uint256 private constant WHITELIST_LIMIT = 5;
