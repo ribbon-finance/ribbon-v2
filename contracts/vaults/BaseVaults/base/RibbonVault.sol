@@ -85,8 +85,8 @@ contract RibbonVault is
     /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
 
-    /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
-    uint256 public constant DELAY = 15 minutes;
+    /// @notice Deprecated: 15 minute timelock between commitAndClose and rollToNexOption.
+    uint256 public constant DELAY = 0;
 
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;

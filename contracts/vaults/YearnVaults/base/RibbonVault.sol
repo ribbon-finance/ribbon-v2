@@ -91,7 +91,7 @@ contract RibbonVault is
     address public immutable USDC;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
-    uint256 public constant DELAY = 15 minutes;
+    uint256 public constant DELAY = 0;
 
     /// @notice Withdrawal buffer for yearn vault
     uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
