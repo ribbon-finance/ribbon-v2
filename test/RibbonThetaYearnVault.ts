@@ -19,7 +19,7 @@ import {
   YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricerInStables_BYTECODE,
   TestVolOracle_BYTECODE,
-  YVUSDC_V0_4_3,
+  YVUSDC_V0_3_0,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -68,7 +68,7 @@ describe("RibbonThetaYearnVault", () => {
     assetContractName: "IWETH",
     collateralContractName: "IYearnVault",
     strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: YVUSDC_V0_4_3,
+    collateralAsset: YVUSDC_V0_3_0,
     depositAsset: USDC_ADDRESS[chainId],
     collateralPricer: YEARN_USDC_PRICER,
     underlyingPricer: CHAINLINK_WETH_PRICER[chainId],
