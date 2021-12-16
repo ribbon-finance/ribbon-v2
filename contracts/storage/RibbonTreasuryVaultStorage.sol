@@ -43,9 +43,6 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     /// @notice Logic contract used to select strike prices
     address public strikeSelection;
 
-    /// @notice The asset which denominates the premium during auction
-    address public premiumAsset;
-
     /// @notice Performance fee charged on premiums earned in rollToNextOption. Only charged when there is no loss.
     uint256 public performanceFee;
 
@@ -69,6 +66,10 @@ abstract contract RibbonTreasuryVaultStorageV1 {
 
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
+
+    /// @notice Period between each options sale.
+    /// Available options 7 (weekly), 14 (biweekly), 30 (monthly), 90 (quarterly), 180 (biannually)
+    uint256 public period;
 
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
