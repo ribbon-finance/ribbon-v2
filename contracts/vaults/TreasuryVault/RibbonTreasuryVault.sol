@@ -315,20 +315,9 @@ contract RibbonTreasuryVault is
      */
     function setCap(uint256 newCap) external onlyOwner {
         require(newCap > 0, "!newCap");
-
-        uint256 previousCap = vaultParams.cap;
-        vaultParams.cap = _getCap104(newCap);
-
-        emit CapSet(previousCap, newCap);
-    }
-
-    /**
-     * @notice Internal function to convert cap into uint104
-     * @param newCap is the cap to convert into uint104
-     */
-    function _getCap104(uint256 newCap) internal pure returns (uint104) {
         ShareMath.assertUint104(newCap);
-        return uint104(newCap);
+        emit CapSet(vaultParams.cap, newCap);
+        vaultParams.cap = uint104(newCap);
     }
 
     /**
