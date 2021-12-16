@@ -266,6 +266,8 @@ describe("PercentStrikeSelectionE2E", () => {
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
   let signer: SignerWithAddress;
+  let signer2: SignerWithAddress;
+  let wethPriceOracle: Contract;
   let multiplier: number;
 
   const PERIOD = 43200; // 12 hours
@@ -289,7 +291,7 @@ describe("PercentStrikeSelectionE2E", () => {
       ],
     });
 
-    [signer] = await ethers.getSigners();
+    [signer, signer2] = await ethers.getSigners();
     const TestVolOracle = await getContractFactory(
       TestVolOracle_ABI,
       TestVolOracle_BYTECODE,
@@ -320,6 +322,60 @@ describe("PercentStrikeSelectionE2E", () => {
       multiplier
     );
 
+    wethPriceOracle = await ethers.getContractAt(
+      "IPriceOracle",
+      await optionsPremiumPricer.priceOracle()
+    );
+  });
+
+  describe("setStep", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("reverts when not owner call", async function () {
+      await expect(
+        strikeSelection.connect(signer2).setStep(50)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("sets the step", async function () {
+      await strikeSelection.connect(signer).setStep(50);
+      assert.equal(
+        (await strikeSelection.step()).toString(),
+        BigNumber.from(50)
+          .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
+          .toString()
+      );
+    });
+  });
+
+  describe("setStrikeMultiplier", () => {
+    time.revertToSnapshotAfterEach();
+
+    it("reverts when not owner call", async function () {
+      await expect(
+        strikeSelection.connect(signer2).setStrikeMultiplier(multiplier)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("reverts when multiplier is below 1", async function () {
+      await expect(
+        strikeSelection.connect(signer).setStrikeMultiplier(80)
+      ).to.be.revertedWith("Multiplier must be bigger than 1");
+    });
+
+    it("reverts when multiplier is equal 1", async function () {
+      await expect(
+        strikeSelection.connect(signer).setStrikeMultiplier(100)
+      ).to.be.revertedWith("Multiplier must be bigger than 1");
+    });
+
+    it("sets the strike multiplier", async function () {
+      await strikeSelection.connect(signer).setStrikeMultiplier(multiplier);
+      assert.equal(
+        (await strikeSelection.strikeMultiplier()).toString(),
+        multiplier.toString()
+      );
+    });
   });
 
   describe("getStrikePrice", () => {

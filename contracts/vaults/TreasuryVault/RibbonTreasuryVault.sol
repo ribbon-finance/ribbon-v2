@@ -805,14 +805,6 @@ contract RibbonTreasuryVault is
      *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose() external nonReentrant {
-        uint256 stableBalance = IERC20(USDC).balanceOf(address(this));
-
-        // In case chargeAndDistribute was not called last round, call
-        // the function to conclude last round's performance fee and distribution
-        if (stableBalance > 0) {
-            _chargeAndDistribute();
-        }
-
         address oldOption = optionState.currentOption;
 
         VaultLifecycleTreasury.CloseParams memory closeParams =
