@@ -49,7 +49,7 @@ contract RibbonTreasuryVault is
     address public immutable USDC;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
-    uint256 public constant DELAY = 15 minutes;
+    uint256 public constant DELAY = 0;
 
     // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
@@ -73,7 +73,7 @@ contract RibbonTreasuryVault is
     address public immutable OTOKEN_FACTORY;
 
     // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 15 minutes;
+    uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
     // Maximum number of whitelisted user address.
     uint256 private constant WHITELIST_LIMIT = 5;
@@ -210,9 +210,11 @@ contract RibbonTreasuryVault is
 
         vaultParams = _vaultParams;
         vaultState.round = 1;
-        vaultState.lastLockedAmount = _getCap104(
-            IERC20(vaultParams.asset).balanceOf(address(this))
-        );
+
+        uint256 assetBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+        ShareMath.assertUint104(assetBalance);
+        vaultState.lastLockedAmount = uint104(assetBalance);
 
         for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
             _addWhitelist(_initParams._whitelist[i]);
@@ -286,8 +288,8 @@ contract RibbonTreasuryVault is
         uint256 _period = period;
         uint256 feeDivider =
             _period % 30 == 0
-                ? Vault.FEE_MULTIPLIER.mul(12 / (_period / 30))
-                : WEEKS_PER_YEAR.div(_period / 7);
+                ? Vault.FEE_MULTIPLIER * (12 / (_period / 30))
+                : WEEKS_PER_YEAR / (_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
         return managementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
@@ -767,6 +769,7 @@ contract RibbonTreasuryVault is
         newOption = optionState.nextOption;
         require(newOption != address(0), "!nextOption");
 
+        uint256 currentRound = vaultState.round;
         address recipient = feeRecipient;
         uint256 mintShares;
         uint256 managementFeeInAsset;
@@ -785,7 +788,7 @@ contract RibbonTreasuryVault is
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
                     lastQueuedWithdrawAmount,
-                    managementFee
+                    currentRound != 1 ? managementFee : 0
                 )
             );
 
@@ -793,7 +796,7 @@ contract RibbonTreasuryVault is
             optionState.nextOption = address(0);
 
             // Finalize the pricePerShare at the end of the round
-            uint256 currentRound = vaultState.round;
+
             roundPricePerShare[currentRound] = newPricePerShare;
 
             emit CollectManagementFee(
@@ -881,6 +884,12 @@ contract RibbonTreasuryVault is
         optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         _closeShort(oldOption);
+
+        // In case chargeAndDistribute was not called last round, call
+        // the function to conclude last round's performance fee and distribution
+        if (IERC20(USDC).balanceOf(address(this)) > 0) {
+            _chargeAndDistribute();
+        }
     }
 
     /**
@@ -979,17 +988,15 @@ contract RibbonTreasuryVault is
             optionAuctionID
         );
 
-        _chargeAndDistribute();
+        if (IERC20(USDC).balanceOf(address(this)) > 0) {
+            _chargeAndDistribute();
+        }
     }
 
     /**
      * @notice Charge performance fee and distribute remaining to whitelisted address
      */
     function chargeAndDistribute() external onlyKeeper nonReentrant {
-        require(
-            IERC20(USDC).balanceOf(address(this)) > 0,
-            "no premium to distribute"
-        );
         _chargeAndDistribute();
     }
 
@@ -1000,18 +1007,18 @@ contract RibbonTreasuryVault is
         IERC20 stableAsset = IERC20(USDC);
         uint256 stableBalance = stableAsset.balanceOf(address(this));
 
-        if (stableBalance > 0) {
-            _chargePerformanceFee(stableAsset, stableBalance);
+        require(stableBalance > 0, "no premium to distribute");
 
-            _distribute(
-                stableAsset,
-                stableAsset.balanceOf(address(this)) // Get the new balance
-            );
-        }
+        _chargePerformanceFee(stableAsset, stableBalance);
+
+        _distributePremium(
+            stableAsset,
+            stableAsset.balanceOf(address(this)) // Get the new balance
+        );
     }
 
     /**
-     * @notice Charge performance feee
+     * @notice Charge performance fee
      */
     function _chargePerformanceFee(IERC20 token, uint256 amount) internal {
         address recipient = feeRecipient;
@@ -1032,9 +1039,9 @@ contract RibbonTreasuryVault is
     /**
      * @notice Distribute the premium to whitelisted addresses
      */
-    function _distribute(IERC20 token, uint256 amount) internal {
+    function _distributePremium(IERC20 token, uint256 amount) internal {
         // Distribute to whitelisted address
-        address[] memory _whitelist = whitelistArray;
+        address[] storage _whitelist = whitelistArray;
         uint256 totalSupply = totalSupply();
 
         for (uint256 i = 0; i < _whitelist.length; i++) {

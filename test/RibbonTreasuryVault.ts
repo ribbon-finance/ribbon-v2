@@ -46,7 +46,8 @@ const { parseEther } = ethers.utils;
 
 moment.tz.setDefault("UTC");
 
-const OPTION_DELAY = 15 * 60; // 15 minutes
+const OPTION_DELAY = 0;
+const DELAY_INCREMENT = 100;
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
@@ -362,7 +363,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
     const rollToNextOption = async () => {
       await vault.connect(ownerSigner).commitAndClose();
-      await time.increaseTo((await getNextOptionReadyAt()) + 1);
+      await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await strikeSelection.setDelta(params.deltaFirstOption);
       await vault.connect(keeperSigner).rollToNextOption();
     };
@@ -1261,10 +1262,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         const tx1 = await vault.connect(ownerSigner).addWhitelist(keeper);
         const receipt1 = await tx1.wait();
-        assert.isAtMost(
-          receipt1.gasUsed.toNumber(),
-          84000
-        );
+        assert.isAtMost(receipt1.gasUsed.toNumber(), 84000);
       });
     });
 
@@ -1332,10 +1330,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         const tx1 = await vault.connect(ownerSigner).removeWhitelist(owner);
         const receipt1 = await tx1.wait();
-        assert.isAtMost(
-          receipt1.gasUsed.toNumber(),
-          44000
-        );
+        assert.isAtMost(receipt1.gasUsed.toNumber(), 44000);
       });
     });
 
@@ -1714,7 +1709,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not called with keeper", async function () {
         await vault.connect(ownerSigner).commitAndClose();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1726,7 +1721,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when trying to burn 0 OTokens", async function () {
         await vault.connect(ownerSigner).commitAndClose();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1782,7 +1777,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("burns all remaining oTokens", async function () {
         await vault.connect(ownerSigner).commitAndClose();
 
-        await time.increaseTo((await getNextOptionReadyAt()) + 1);
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
 
         await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1885,23 +1880,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.connect(ownerSigner).rollToNextOption()
         ).to.be.revertedWith("!keeper");
-      });
-
-      it("reverts when delay not passed", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-
-        // will revert when trying to roll immediately
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
-
-        time.increaseTo(
-          (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
-        );
-
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
@@ -2145,23 +2123,6 @@ function behavesLikeRibbonOptionsVault(params: {
           await assetContract.balanceOf(vault.address),
           BigNumber.from(0)
         );
-      });
-
-      it("reverts when delay not passed", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-
-        // will revert when trying to roll immediately
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
-
-        time.increaseTo(
-          (await vault.nextOptionReadyAt()).sub(BigNumber.from("1"))
-        );
-
-        await expect(
-          vault.connect(keeperSigner).rollToNextOption()
-        ).to.be.revertedWith("!ready");
       });
 
       it("reverts when calling before expiry", async function () {
@@ -2658,7 +2619,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx2)
           .to.emit(vault, "Redeem")
-          .withArgs(user, expectedMintAmountAfterLoss, 2);
+          .withArgs(user, expectedMintAmountAfterLoss
+            .mul(FEE_SCALING.mul(100))
+            .div(FEE_SCALING.mul(100).sub(await vault.managementFee())), 2);
 
         const {
           round: round2,
@@ -2671,6 +2634,8 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(
           await vault.balanceOf(user),
           expectedMintAmountAfterLoss
+            .mul(FEE_SCALING.mul(100))
+            .div(FEE_SCALING.mul(100).sub(await vault.managementFee()))
         );
       });
     });
