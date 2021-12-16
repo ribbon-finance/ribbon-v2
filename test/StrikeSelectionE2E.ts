@@ -266,6 +266,7 @@ describe("PercentStrikeSelectionE2E", () => {
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
   let signer: SignerWithAddress;
+  let multiplier: number;
 
   const PERIOD = 43200; // 12 hours
 
@@ -312,10 +313,11 @@ describe("PercentStrikeSelectionE2E", () => {
       usdcPriceOracleAddress
     );
 
+    multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
-      1000,
-      100
+      100,
+      multiplier
     );
 
   });
@@ -337,18 +339,16 @@ describe("PercentStrikeSelectionE2E", () => {
       const expiryTimestamp = (await time.now()).sub(100);
       const isPut = false;
       await expect(
-        strikeSelection.getStrikePrice(expiryTimestamp, isPut, 150)
+        strikeSelection.getStrikePrice(expiryTimestamp, isPut)
       ).to.be.revertedWith("Expiry must be in the future!");
     });
 
     it("gets the correct strike price given multiplier for calls", async function () {
       const expiryTimestamp = (await time.now()).add(100);
       const isPut = false;
-      const multiplier = 150;
       const [strikePrice] = await strikeSelection.getStrikePrice(
         expiryTimestamp,
-        isPut,
-        multiplier
+        isPut
       );
 
       let correctStrike = underlyingPrice.mul(multiplier).div(100);

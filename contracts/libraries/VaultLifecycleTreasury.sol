@@ -5,7 +5,7 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
-import {IPercentStrikeSelection} from "../interfaces/IRibbon.sol";
+import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
 import {DateTime} from "./DateTime.sol";
 import {
@@ -30,7 +30,6 @@ library VaultLifecycleTreasury {
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
         uint256 period;
-        uint256 strikeMultiplier;
     }
 
     /**
@@ -48,7 +47,6 @@ library VaultLifecycleTreasury {
      * @param _auctionDuration is the duration of the gnosis auction
      * @param _whitelist is an array of whitelisted user address who can deposit
      * @param _period is the period between each option sales
-     * @param _strikeMultiplier is the multiplier for strike selection
      */
     struct InitParams {
         address _owner;
@@ -64,7 +62,6 @@ library VaultLifecycleTreasury {
         uint256 _auctionDuration;
         address[] _whitelist;
         uint256 _period;
-        uint256 _strikeMultiplier;
     }
 
     /**
@@ -109,8 +106,7 @@ library VaultLifecycleTreasury {
             );
         }
 
-        IPercentStrikeSelection selection =
-            IPercentStrikeSelection(strikeSelection);
+        IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
@@ -118,12 +114,8 @@ library VaultLifecycleTreasury {
 
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
-            ? (closeParams.overriddenStrikePrice, selection.delta())
-            : selection.getStrikePrice(
-                expiry,
-                isPut,
-                closeParams.strikeMultiplier
-            );
+            ? (closeParams.overriddenStrikePrice, 0)
+            : selection.getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
@@ -768,10 +760,6 @@ library VaultLifecycleTreasury {
         require(
             _initParams._strikeSelection != address(0),
             "!_strikeSelection"
-        );
-        require(
-            _initParams._strikeMultiplier > Vault.STRIKE_MULTIPLIER,
-            "!_strikeMultiplier"
         );
         require(
             _initParams._premiumDiscount > 0 &&

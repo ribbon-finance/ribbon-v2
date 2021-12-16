@@ -70,9 +70,6 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     /// @notice Period between each options sale.
     uint256 public period;
 
-    /// @notice Multiplier for strike selection
-    uint256 public strikeMultiplier;
-
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
 }

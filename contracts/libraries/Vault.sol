@@ -21,9 +21,6 @@ library Vault {
     // Placeholder uint value to prevent cold writes
     uint256 internal constant PLACEHOLDER_UINT = 1;
 
-    // Strike multiplier has 2 decimal places. For example: 150 = 1.5x spot price
-    uint256 internal constant STRIKE_MULTIPLIER = 10**2;
-
     struct VaultParams {
         // Option type the vault is selling
         bool isPut;

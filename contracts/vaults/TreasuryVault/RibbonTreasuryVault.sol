@@ -201,7 +201,6 @@ contract RibbonTreasuryVault is
         period = _initParams._period;
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
-        strikeMultiplier = _initParams._strikeMultiplier;
         premiumDiscount = _initParams._premiumDiscount;
         auctionDuration = _initParams._auctionDuration;
         feeRecipient = _initParams._feeRecipient;
@@ -399,22 +398,6 @@ contract RibbonTreasuryVault is
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
-    }
-
-    /**
-     * @notice Set the multiplier for setting the strike price
-     * @param newStrikeMultiplier is the strike multiplier (decimals = 2)
-     */
-    function setStrikeMultiplier(uint256 newStrikeMultiplier)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(
-            newStrikeMultiplier > Vault.STRIKE_MULTIPLIER,
-            "!strikeMultiplier"
-        );
-        strikeMultiplier = newStrikeMultiplier;
     }
 
     /**
@@ -851,8 +834,7 @@ contract RibbonTreasuryVault is
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice,
-                period: period,
-                strikeMultiplier: strikeMultiplier
+                period: period
             });
 
         (

@@ -208,6 +208,7 @@ describe("PercentStrikeSelection", () => {
   let mockPriceOracle: Contract;
   let mockVolatilityOracle: Contract;
   let signer: SignerWithAddress;
+  let multiplier: number;
 
   before(async function () {
     [signer] = await ethers.getSigners();
@@ -241,10 +242,11 @@ describe("PercentStrikeSelection", () => {
       )
     );
 
+    multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
-      1000,
-      100
+      100,
+      multiplier
     );
   });
 
@@ -274,18 +276,16 @@ describe("PercentStrikeSelection", () => {
       const expiryTimestamp = (await time.now()).sub(100);
       const isPut = false;
       await expect(
-        strikeSelection.getStrikePrice(expiryTimestamp, isPut, 150)
+        strikeSelection.getStrikePrice(expiryTimestamp, isPut)
       ).to.be.revertedWith("Expiry must be in the future!");
     });
 
     it("gets the correct strike price given multiplier for calls", async function () {
       const expiryTimestamp = (await time.now()).add(100);
       const isPut = false;
-      const multiplier = 150;
       const [strikePrice] = await strikeSelection.getStrikePrice(
         expiryTimestamp,
-        isPut,
-        multiplier
+        isPut
       );
 
       let correctStrike = underlyingPrice.mul(multiplier).div(100);

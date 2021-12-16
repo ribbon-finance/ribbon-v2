@@ -66,8 +66,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -100,8 +98,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -134,8 +130,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -168,8 +162,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -202,8 +194,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -246,8 +236,6 @@ type Option = {
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
  * @param {string} params.chainlinkPricer - Address of chainlink pricer
- * @param {BigNumber} params.deltaFirstOption - Delta of first option
- * @param {BigNumber} params.deltaSecondOption - Delta of second option
  * @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
  * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
@@ -273,8 +261,6 @@ function behavesLikeRibbonOptionsVault(params: {
   strikeAsset: string;
   collateralAsset: string;
   chainlinkPricer: string;
-  deltaFirstOption: BigNumber;
-  deltaSecondOption: BigNumber;
   deltaStep: BigNumber;
   depositAmount: BigNumber;
   minimumSupply: string;
@@ -334,7 +320,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let whitelistLimit = 5;
   let premiumAsset = USDC_ADDRESS[chainId];
   let multiAsset = true;
-  let multiplier = params.multiplier;
 
   // Contracts
   let strikeSelection: Contract;
@@ -364,7 +349,6 @@ function behavesLikeRibbonOptionsVault(params: {
     const rollToNextOption = async () => {
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
-      await strikeSelection.setDelta(params.deltaFirstOption);
       await vault.connect(keeperSigner).rollToNextOption();
     };
 
@@ -381,7 +365,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await getCurrentOptionExpiry(),
         settlementPrice
       );
-      await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
       await vault.connect(keeperSigner).rollToNextOption();
@@ -460,8 +443,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
-        params.deltaFirstOption,
-        params.deltaStep
+        params.deltaStep,
+        params.multiplier
       );
 
       const VaultLifecycleTreasury = await ethers.getContractFactory("VaultLifecycleTreasury");
@@ -486,8 +469,7 @@ function behavesLikeRibbonOptionsVault(params: {
           premiumDiscount,
           auctionDuration,
           whitelist,
-          period,
-          multiplier
+          period
         ],
         [
           isPut,
@@ -571,8 +553,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
-        params.isPut,
-        multiplier
+        params.isPut
       );
 
       firstOptionPremium = BigNumber.from(
@@ -640,11 +621,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       [secondOptionStrike] = await strikeSelection.getStrikePrice(
         secondOptionExpiry,
-        params.isPut,
-        multiplier
+        params.isPut
       );
-
-      await strikeSelection.setDelta(params.deltaFirstOption);
 
       const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
@@ -810,8 +788,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               whitelist,
-              period,
-              multiplier
+              period
             ],
             [
               isPut,
@@ -841,8 +818,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               whitelist,
-              period,
-              multiplier
+              period
             ],
             [
               isPut,
@@ -872,8 +848,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               whitelist,
-              period,
-              multiplier
+              period
             ],
             [
               isPut,
@@ -903,8 +878,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               whitelist,
-              period,
-              multiplier
+              period
             ],
             [
               isPut,
@@ -934,8 +908,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               whitelist,
-              period,
-              multiplier
+              period
             ],
             [
               isPut,
@@ -965,8 +938,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               whitelist,
-              period,
-              multiplier
+              period
             ],
             [
               isPut,
@@ -2578,10 +2550,7 @@ function behavesLikeRibbonOptionsVault(params: {
           settlementPriceITM
         );
 
-        await strikeSelection.setDelta(params.deltaSecondOption);
-
         await vault.connect(ownerSigner).commitAndClose();
-
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(keeperSigner).rollToNextOption();
@@ -2619,9 +2588,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx2)
           .to.emit(vault, "Redeem")
-          .withArgs(user, expectedMintAmountAfterLoss
-            .mul(FEE_SCALING.mul(100))
-            .div(FEE_SCALING.mul(100).sub(await vault.managementFee())), 2);
+          .withArgs(user, expectedMintAmountAfterLoss, 2);
 
         const {
           round: round2,
@@ -2633,10 +2600,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
         assert.bnEqual(
           await vault.balanceOf(user),
-          expectedMintAmountAfterLoss
-            .mul(FEE_SCALING.mul(100))
-            .div(FEE_SCALING.mul(100).sub(await vault.managementFee()))
-        );
+          expectedMintAmountAfterLoss);
       });
     });
 
