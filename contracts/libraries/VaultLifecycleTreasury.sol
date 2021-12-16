@@ -7,6 +7,7 @@ import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
+import {DateTime} from "./DateTime.sol";
 import {
     IOtokenFactory,
     IOtoken,
@@ -16,7 +17,6 @@ import {
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
-import {UniswapRouter} from "./UniswapRouter.sol";
 
 library VaultLifecycleTreasury {
     using SafeMath for uint256;
@@ -29,6 +29,39 @@ library VaultLifecycleTreasury {
         uint256 delay;
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
+        uint256 period;
+    }
+
+    /**
+     * @notice Initialization parameters for the vault.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
+     * @param _optionsPremiumPricer is the address of the contract with the
+       black-scholes premium calculation logic
+     * @param _strikeSelection is the address of the contract with strike selection logic
+     * @param _premiumDiscount is the vault's discount applied to the premium
+     * @param _auctionDuration is the duration of the gnosis auction
+     * @param _whitelist is an array of whitelisted user address who can deposit
+     * @param _period is the period between each option sales
+     */
+    struct InitParams {
+        address _owner;
+        address _keeper;
+        address _feeRecipient;
+        uint256 _managementFee;
+        uint256 _performanceFee;
+        string _tokenName;
+        string _tokenSymbol;
+        address _optionsPremiumPricer;
+        address _strikeSelection;
+        uint32 _premiumDiscount;
+        uint256 _auctionDuration;
+        address[] _whitelist;
+        uint256 _period;
     }
 
     /**
@@ -65,10 +98,11 @@ library VaultLifecycleTreasury {
 
         // uninitialized state
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextFriday(block.timestamp);
+            expiry = getNextExpiry(block.timestamp, closeParams.period);
         } else {
-            expiry = getNextFriday(
-                IOtoken(closeParams.currentOption).expiryTimestamp()
+            expiry = getNextExpiry(
+                IOtoken(closeParams.currentOption).expiryTimestamp(),
+                closeParams.period
             );
         }
 
@@ -148,7 +182,6 @@ library VaultLifecycleTreasury {
      * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
      * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
-     * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
      */
     struct RolloverParams {
@@ -156,7 +189,6 @@ library VaultLifecycleTreasury {
         uint256 totalBalance;
         uint256 currentShareSupply;
         uint256 lastQueuedWithdrawAmount;
-        uint256 performanceFee;
         uint256 managementFee;
     }
 
@@ -169,8 +201,7 @@ library VaultLifecycleTreasury {
      * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
-     * @return performanceFeeInAsset is the performance fee charged by vault
-     * @return totalVaultFee is the total amount of fee charged by vault
+     * @return managementFeeInAsset is the amount of management fee charged by vault
      */
     function rollover(
         Vault.VaultState storage vaultState,
@@ -183,8 +214,7 @@ library VaultLifecycleTreasury {
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
             uint256 mintShares,
-            uint256 performanceFeeInAsset,
-            uint256 totalVaultFee
+            uint256 managementFeeInAsset
         )
     {
         uint256 currentBalance = params.totalBalance;
@@ -225,19 +255,15 @@ library VaultLifecycleTreasury {
                 .add(withdrawAmountDiff);
         }
 
-        {
-            (performanceFeeInAsset, , totalVaultFee) = getVaultFees(
-                balanceForVaultFees,
-                vaultState.lastLockedAmount,
-                vaultState.totalPending,
-                params.performanceFee,
-                params.managementFee
-            );
-        }
+        managementFeeInAsset = getManagementFee(
+            balanceForVaultFees,
+            vaultState.totalPending,
+            params.managementFee
+        );
 
         // Take into account the fee
         // so we can calculate the newPricePerShare
-        currentBalance = currentBalance.sub(totalVaultFee);
+        currentBalance = currentBalance.sub(managementFeeInAsset);
 
         {
             newPricePerShare = ShareMath.pricePerShare(
@@ -272,8 +298,7 @@ library VaultLifecycleTreasury {
             queuedWithdrawAmount,
             newPricePerShare,
             mintShares,
-            performanceFeeInAsset,
-            totalVaultFee
+            managementFeeInAsset
         );
     }
 
@@ -549,31 +574,17 @@ library VaultLifecycleTreasury {
     }
 
     /**
-     * @notice Calculates the performance and management fee for this week's round
+     * @notice Calculates the management fee for this week's round
      * @param currentBalance is the balance of funds held on the vault after closing short
-     * @param lastLockedAmount is the amount of funds locked from the previous round
      * @param pendingAmount is the pending deposit amount
-     * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
-     * @return performanceFeeInAsset is the performance fee
      * @return managementFeeInAsset is the management fee
-     * @return vaultFee is the total fees
      */
-    function getVaultFees(
+    function getManagementFee(
         uint256 currentBalance,
-        uint256 lastLockedAmount,
         uint256 pendingAmount,
-        uint256 performanceFeePercent,
         uint256 managementFeePercent
-    )
-        internal
-        pure
-        returns (
-            uint256 performanceFeeInAsset,
-            uint256 managementFeeInAsset,
-            uint256 vaultFee
-        )
-    {
+    ) internal pure returns (uint256 managementFeeInAsset) {
         // At the first round, currentBalance=0, pendingAmount>0
         // so we just do not charge anything on the first round
         uint256 lockedBalanceSansPending =
@@ -581,32 +592,17 @@ library VaultLifecycleTreasury {
                 ? currentBalance.sub(pendingAmount)
                 : 0;
 
-        uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
-        uint256 _vaultFee;
 
-        // Take performance fee and management fee ONLY if difference between
-        // last week and this week's vault deposits, taking into account pending
-        // deposits and withdrawals, is positive. If it is negative, last week's
-        // option expired ITM past breakeven, and the vault took a loss so we
-        // do not collect performance fee for last week
-        if (lockedBalanceSansPending > lastLockedAmount) {
-            _performanceFeeInAsset = performanceFeePercent > 0
-                ? lockedBalanceSansPending
-                    .sub(lastLockedAmount)
-                    .mul(performanceFeePercent)
-                    .div(100 * Vault.FEE_MULTIPLIER)
-                : 0;
-            _managementFeeInAsset = managementFeePercent > 0
-                ? lockedBalanceSansPending.mul(managementFeePercent).div(
-                    100 * Vault.FEE_MULTIPLIER
-                )
-                : 0;
+        // Always charge management fee regardless of whether the vault is
+        // making a profit from the previous options sale
+        _managementFeeInAsset = managementFeePercent > 0
+            ? lockedBalanceSansPending.mul(managementFeePercent).div(
+                100 * Vault.FEE_MULTIPLIER
+            )
+            : 0;
 
-            _vaultFee = _performanceFeeInAsset.add(_managementFeeInAsset);
-        }
-
-        return (_performanceFeeInAsset, _managementFeeInAsset, _vaultFee);
+        return _managementFeeInAsset;
     }
 
     /**
@@ -727,36 +723,59 @@ library VaultLifecycleTreasury {
 
     /**
      * @notice Verify the constructor params satisfy requirements
-     * @param owner is the owner of the vault with critical permissions
-     * @param feeRecipient is the address to recieve vault performance and management fees
-     * @param performanceFee is the perfomance fee pct.
-     * @param tokenName is the name of the token
-     * @param tokenSymbol is the symbol of the token
+     * @param _initParams is the initialization parameter including owner, keeper, etc.
      * @param _vaultParams is the struct with vault general data
      */
     function verifyInitializerParams(
-        address owner,
-        address keeper,
-        address feeRecipient,
-        uint256 performanceFee,
-        uint256 managementFee,
-        string calldata tokenName,
-        string calldata tokenSymbol,
-        Vault.VaultParams calldata _vaultParams
+        InitParams calldata _initParams,
+        Vault.VaultParams calldata _vaultParams,
+        uint256 _min_auction_duration,
+        uint256 _whitelist_limit
     ) external pure {
-        require(owner != address(0), "!owner");
-        require(keeper != address(0), "!keeper");
-        require(feeRecipient != address(0), "!feeRecipient");
+        require(_initParams._owner != address(0), "!_owner");
+        require(_initParams._keeper != address(0), "!_keeper");
+        require(_initParams._feeRecipient != address(0), "!_feeRecipient");
         require(
-            performanceFee < 100 * Vault.FEE_MULTIPLIER,
+            _initParams._performanceFee < 100 * Vault.FEE_MULTIPLIER,
             "performanceFee >= 100%"
         );
         require(
-            managementFee < 100 * Vault.FEE_MULTIPLIER,
+            _initParams._managementFee < 100 * Vault.FEE_MULTIPLIER,
             "managementFee >= 100%"
         );
-        require(bytes(tokenName).length > 0, "!tokenName");
-        require(bytes(tokenSymbol).length > 0, "!tokenSymbol");
+        require(bytes(_initParams._tokenName).length > 0, "!_tokenName");
+        require(bytes(_initParams._tokenSymbol).length > 0, "!_tokenSymbol");
+        require(
+            (_initParams._period == 7) ||
+                (_initParams._period == 14) ||
+                (_initParams._period == 30) ||
+                (_initParams._period == 90) ||
+                (_initParams._period == 180),
+            "!_period"
+        );
+        require(
+            _initParams._optionsPremiumPricer != address(0),
+            "!_optionsPremiumPricer"
+        );
+        require(
+            _initParams._strikeSelection != address(0),
+            "!_strikeSelection"
+        );
+        require(
+            _initParams._premiumDiscount > 0 &&
+                _initParams._premiumDiscount <
+                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+            "!_premiumDiscount"
+        );
+        require(
+            _initParams._auctionDuration >= _min_auction_duration,
+            "!_auctionDuration"
+        );
+        require(_initParams._whitelist.length > 0, "!_whitelist");
+        require(
+            _initParams._whitelist.length <= _whitelist_limit,
+            "whitelist exceed limit"
+        );
 
         require(_vaultParams.asset != address(0), "!asset");
         require(_vaultParams.underlying != address(0), "!underlying");
@@ -769,28 +788,44 @@ library VaultLifecycleTreasury {
     }
 
     /**
-     * @notice Gets the next options expiry timestamp
-     * @param currentExpiry is the expiry timestamp of the current option
-     * Reference: https://codereview.stackexchange.com/a/33532
-     * Examples:
-     * getNextFriday(week 1 thursday) -> week 1 friday
-     * getNextFriday(week 1 friday) -> week 2 friday
-     * getNextFriday(week 1 saturday) -> week 2 friday
+     * @notice Gets the next options expiry timestamp, this function should be called
+     when there is sufficient guard to ensure valid period
+     * @param timestamp is the expiry timestamp of the current option
+     * @param period is no. of days in between option sales. Available periods are: 
+     * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
      */
-    function getNextFriday(uint256 currentExpiry)
+    function getNextExpiry(uint256 timestamp, uint256 period)
         internal
         pure
-        returns (uint256)
+        returns (uint256 nextExpiry)
     {
-        // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
-        uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
-
-        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (currentExpiry >= friday8am) {
-            friday8am += 7 days;
+        if (period == 7) {
+            nextExpiry = DateTime.getNextFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? nextExpiry + 1 weeks
+                : nextExpiry;
+        } else if (period == 14) {
+            nextExpiry = DateTime.getNextFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? nextExpiry + 2 weeks
+                : nextExpiry;
+        } else if (period == 30) {
+            nextExpiry = DateTime.getMonthLastFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? DateTime.getMonthLastFriday(nextExpiry + 1 weeks)
+                : nextExpiry;
+        } else if (period == 90) {
+            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? DateTime.getQuarterLastFriday(nextExpiry + 1 weeks)
+                : nextExpiry;
+        } else if (period == 180) {
+            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
+            nextExpiry = nextExpiry <= timestamp
+                ? DateTime.getBiannualLastFriday(nextExpiry + 1 weeks)
+                : nextExpiry;
         }
-        return friday8am;
+
+        nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
     }
 }
