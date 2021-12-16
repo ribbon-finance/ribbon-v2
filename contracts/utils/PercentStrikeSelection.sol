@@ -71,12 +71,12 @@ contract PercentStrikeSelection is Ownable {
     }
 
     /**
-     * @notice Gets the strike price satisfying the delta value
-     * given the expiry timestamp and whether option is call or put
+     * @notice Gets the strike price by multiplying the current underlying price
+     * with a multiplier
      * @param expiryTimestamp is the unix timestamp of expiration
      * @param isPut is whether option is put or call
      * @return newStrikePrice is the strike price of the option (ex: for BTC might be 45000 * 10 ** 8)
-     * @return newDelta is the delta of the option given its parameters
+     * @return newDelta will be set to zero for percent strike selection
      */
 
     function getStrikePrice(uint256 expiryTimestamp, bool isPut)
