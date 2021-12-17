@@ -236,7 +236,7 @@ contract RibbonDeltaVault is RibbonVault, RibbonDeltaVaultStorage {
 
             if (heldByAccount < sharesLeftForWithdrawal) {
                 // Redeem all shares custodied by vault to user
-                _redeem(0, true);
+                _redeem(msg.sender, 0, true);
             }
 
             // Burn shares

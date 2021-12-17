@@ -3403,6 +3403,33 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         assert.bnEqual(await vault.shares(owner), redeemAmount);
       });
+
+      it("shows correct share balance after redemptions for a recipient", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        const redeemAmount = BigNumber.from(1);
+        await vault.connect(keeperSigner).redeemFor(userSigner.address, redeemAmount);
+
+        // Share balance should remain the same because the 1 share
+        // is transferred to the user
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        await vault.transfer(owner, redeemAmount);
+
+        assert.bnEqual(
+          await vault.shares(user),
+          depositAmount.sub(redeemAmount)
+        );
+        assert.bnEqual(await vault.shares(owner), redeemAmount);
+      });
+
     });
 
     describe("#shareBalances", () => {
