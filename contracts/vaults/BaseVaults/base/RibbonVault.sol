@@ -426,7 +426,7 @@ contract RibbonVault is
             depositReceipts[msg.sender].amount > 0 ||
             depositReceipts[msg.sender].unredeemedShares > 0
         ) {
-            _redeem(0, true);
+            _redeem(msg.sender, 0, true);
         }
 
         // This caches the `round` variable used in shareBalances
@@ -503,14 +503,24 @@ contract RibbonVault is
      */
     function redeem(uint256 numShares) external nonReentrant {
         require(numShares > 0, "!numShares");
-        _redeem(numShares, false);
+        _redeem(msg.sender, numShares, false);
+    }
+
+    /**
+     * @notice Redeems shares that are owed to the account
+     * @param numShares is the number of shares to redeem
+     */
+    function redeemFor(address recipient, uint256 numShares) external nonReentrant {
+        require(recipient != address(0), "!recipient");
+        require(numShares > 0, "!numShares");
+        _redeem(recipient, numShares, false);
     }
 
     /**
      * @notice Redeems the entire unredeemedShares balance that is owed to the account
      */
     function maxRedeem() external nonReentrant {
-        _redeem(0, true);
+        _redeem(msg.sender, 0, true);
     }
 
     /**
@@ -518,9 +528,9 @@ contract RibbonVault is
      * @param numShares is the number of shares to redeem, could be 0 when isMax=true
      * @param isMax is flag for when callers do a max redemption
      */
-    function _redeem(uint256 numShares, bool isMax) internal {
+    function _redeem(address recipient, uint256 numShares, bool isMax) internal {
         Vault.DepositReceipt memory depositReceipt =
-            depositReceipts[msg.sender];
+            depositReceipts[recipient];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
@@ -543,17 +553,17 @@ contract RibbonVault is
         // we debit from the unredeemedShares, but leave the amount field intact
         // If the round has past, with no new deposits, we just zero it out for new deposits.
         if (depositReceipt.round < currentRound) {
-            depositReceipts[msg.sender].amount = 0;
+            depositReceipts[recipient].amount = 0;
         }
 
         ShareMath.assertUint128(numShares);
-        depositReceipts[msg.sender].unredeemedShares = uint128(
+        depositReceipts[recipient].unredeemedShares = uint128(
             unredeemedShares.sub(numShares)
         );
 
-        emit Redeem(msg.sender, numShares, depositReceipt.round);
+        emit Redeem(recipient, numShares, depositReceipt.round);
 
-        _transfer(address(this), msg.sender, numShares);
+        _transfer(address(this), recipient, numShares);
     }
 
     /************************************************
