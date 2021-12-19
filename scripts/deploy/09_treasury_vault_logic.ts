@@ -1,14 +1,13 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
-  WETH_ADDRESS,
+  CHAINID,
   USDC_ADDRESS,
   OTOKEN_FACTORY,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   GNOSIS_EASY_AUCTION,
-  DEX_ROUTER,
-  DEX_FACTORY,
+  WETH_ADDRESS,
 } from "../../constants/constants";
 
 const main = async ({
@@ -16,19 +15,26 @@ const main = async ({
   deployments,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
-  const { deploy } = deployments;
-  const { deployer } = await getNamedAccounts();
-  console.log(`01 - Deploying Theta Vault logic on ${network.name}`);
-
   const chainId = network.config.chainId;
 
-  const lifecycle = await deploy("VaultLifecycle", {
-    contract: "VaultLifecycle",
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
+    console.log(
+      `09 - Skipping deployment of Treasury Vault logic on ${network.name}`
+    );
+    return;
+  }
+
+  const { deploy } = deployments;
+  const { deployer } = await getNamedAccounts();
+  console.log(`09 - Deploying Treasury Vault logic on ${network.name}`);
+
+  const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
+    contract: "VaultLifecycleTreasury",
     from: deployer,
   });
 
-  const vault = await deploy("RibbonThetaVaultLogic", {
-    contract: "RibbonThetaVault",
+  const vault = await deploy("RibbonTreasuryVaultLogic", {
+    contract: "RibbonTreasuryVault",
     from: deployer,
     args: [
       WETH_ADDRESS[chainId],
@@ -37,14 +43,13 @@ const main = async ({
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
-      DEX_ROUTER[chainId],
-      DEX_FACTORY[chainId],
     ],
     libraries: {
-      VaultLifecycle: lifecycle.address,
+      VaultLifecycleTreasury: lifecycleTreasury.address,
     },
   });
-  console.log(`RibbonThetaVaultLogic @ ${vault.address}`);
+
+  console.log(`RibbonTreasuryVaultLogic @ ${vault.address}`);
 
   if (chainId !== 42) {
     try {
@@ -57,8 +62,6 @@ const main = async ({
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
           GNOSIS_EASY_AUCTION[chainId],
-          DEX_ROUTER[chainId],
-          DEX_FACTORY[chainId],
         ],
       });
     } catch (error) {
@@ -66,6 +69,6 @@ const main = async ({
     }
   }
 };
-main.tags = ["RibbonThetaVaultLogic"];
+main.tags = ["RibbonTreasuryVaultLogic"];
 
 export default main;

@@ -1,10 +1,11 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
-  WBTC_ADDRESS,
-  BTC_PRICE_ORACLE,
+  PERP_ADDRESS,
+  PERP_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  WBTC_USDC_POOL,
+  PERP_ETH_POOL, 
+  ETH_PRICE_ORACLE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
@@ -13,8 +14,8 @@ import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
-  WBTC_STRIKE_STEP,
+  PERP_STRIKE_STEP,
+  PERP_STRIKE_MULTIPLIER
 } from "../utils/constants";
 
 const main = async ({
@@ -24,100 +25,102 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { BigNumber } = ethers;
-  const { parseUnits } = ethers.utils;
+  const { parseEther } = ethers.utils;
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`03 - Deploying WBTC Call Theta Vault on ${network.name}`);
+  console.log(`10 - Deploying PERP Treasury Vault on ${network.name}`);
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
-  const underlyingOracle = BTC_PRICE_ORACLE[chainId];
+  const underlyingOracle = PERP_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerWBTC", {
+  const pricer = await deploy("OptionsPremiumPricerPERP", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      WBTC_USDC_POOL[chainId],
+      PERP_ETH_POOL,
       manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
     ],
   });
 
-  console.log(`RibbonThetaVaultWBTCCall pricer @ ${pricer.address}`);
+  console.log(`RibbonTreasuryVaultPERP pricer @ ${pricer.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionWBTC", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("StrikeSelectionPERP", {
+    contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
+    args: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], //change this
   });
 
-  console.log(`RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`);
+  console.log(`RibbonTreasuryVaultPERP strikeSelection @ ${strikeSelection.address}`);
 
   if (chainId !== 42) {
     try {
       await run('verify:verify', {
         address: strikeSelection.address,
-        constructorArguments: [pricer.address, STRIKE_DELTA, WBTC_STRIKE_STEP],
+        constructorArguments: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], // change this
       });
     } catch (error) {
       console.log(error);
     }
   }
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const logicDeployment = await deployments.get("RibbonTreasuryVaultLogic");
+  const lifecycle = await deployments.get("VaultLifecycleTreasury");
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
+  const RibbonTreasuryVault = await ethers.getContractFactory("RibbonTreasuryVault", 
+    {
+      libraries: {
+        VaultLifecycleTreasury: lifecycle.address,
+      },
+    }
+  );
 
-  const initArgs = [
+  const initArgs = [ 
     {
       _owner: owner,
       _keeper: keeper,
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: "Ribbon BTC Theta Vault",
-      _tokenSymbol: "rBTC-THETA",
+      _tokenName: "Ribbon PERP Treasury Vault",
+      _tokenSymbol: "rPERP-TSRY",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
       _auctionDuration: AUCTION_DURATION,
-      _isUsdcAuction: false,
-      _swapPath: 0x0,
+      _whitelist: [keeper],
+      _period: 14,
     },
     {
       isPut: false,
-      decimals: 8,
-      asset: WBTC_ADDRESS[chainId],
-      underlying: WBTC_ADDRESS[chainId],
-      minimumSupply: BigNumber.from(10).pow(3),
-      cap: parseUnits("100", 8),
+      decimals: 18,
+      asset: PERP_ADDRESS[chainId],
+      underlying: PERP_ADDRESS[chainId],
+      minimumSupply: BigNumber.from(10).pow(10),
+      cap: parseEther("1000"),
     },
   ];
-  const initData = RibbonThetaVault.interface.encodeFunctionData(
+  const initData = RibbonTreasuryVault.interface.encodeFunctionData(
     "initialize",
     initArgs
   );
-
-  const proxy = await deploy("RibbonThetaVaultWBTCCall", {
+  
+  const proxy = await deploy("RibbonTreasuryVaultPERP", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultWBTCCall @ ${proxy.address}`);
+  console.log(`RibbonTreasuryVaultPERP Proxy @ ${proxy.address}`);
 
   if (chainId !== 42) {
     try {
@@ -134,7 +137,7 @@ const main = async ({
     }
   }
 };
-main.tags = ["RibbonThetaVaultWBTCCall"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.tags = ["RibbonTreasuryVaultPERP"];
+main.dependencies = ["ManualVolOracle", "RibbonTreasuryVaultLogic"];
 
 export default main;

@@ -41,23 +41,24 @@ const main = async ({
 
   console.log(`RibbonDeltaVaultLogic @ ${vault.address}`);
 
-  try {
-    await run('verify:verify', {
-      address: vault.address,
-      constructorArguments: [
-        WETH_ADDRESS[chainId],
-        USDC_ADDRESS[chainId],
-        GAMMA_CONTROLLER[chainId],
-        MARGIN_POOL[chainId],
-        GNOSIS_EASY_AUCTION[chainId],
-        DEX_ROUTER[chainId],
-        DEX_FACTORY[chainId]
-      ],
-    });
-  } catch (error) {
-    console.log(error);
+  if (chainId !== 42) {
+    try {
+      await run('verify:verify', {
+        address: vault.address,
+        constructorArguments: [
+          WETH_ADDRESS[chainId],
+          USDC_ADDRESS[chainId],
+          GAMMA_CONTROLLER[chainId],
+          MARGIN_POOL[chainId],
+          GNOSIS_EASY_AUCTION[chainId],
+          DEX_ROUTER[chainId],
+          DEX_FACTORY[chainId]
+        ],
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
-
 };
 main.tags = ["RibbonDeltaVaultLogic"];
 

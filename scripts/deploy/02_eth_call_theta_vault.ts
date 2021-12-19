@@ -89,21 +89,28 @@ const main = async ({
 
   console.log(`RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`);
 
-  try {
-    await run('verify:verify', {
-      address: strikeSelection.address,
-      constructorArguments: [
-        pricer.address,
-        STRIKE_DELTA,
-        STRIKE_STEP[chainId],
-      ],
-    });
-  } catch (error) {
-    console.log(error);
+  if (chainId !== 42) {
+    try {
+      await run('verify:verify', {
+        address: strikeSelection.address,
+        constructorArguments: [
+          pricer.address,
+          STRIKE_DELTA,
+          STRIKE_STEP[chainId],
+        ],
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
+  const lifecycle = await deployments.get("VaultLifecycle");
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
+    libraries: {
+      VaultLifecycle: lifecycle.address,
+    },
+  });
 
   const initArgs = [
     {
@@ -144,13 +151,15 @@ const main = async ({
 
   console.log(`RibbonThetaVaultETHCall Proxy @ ${proxy.address}`);
 
-  try {
-    await run('verify:verify', {
-      address: proxy.address,
-      constructorArguments: [logicDeployment.address, admin, initData],
-    });
-  } catch (error) {
-    console.log(error);
+  if (chainId !== 42) {
+    try {
+      await run('verify:verify', {
+        address: proxy.address,
+        constructorArguments: [logicDeployment.address, admin, initData],
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
 };
 main.tags = ["RibbonThetaVaultETHCall"];

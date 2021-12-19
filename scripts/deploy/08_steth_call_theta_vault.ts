@@ -78,19 +78,20 @@ const main = async ({
 
   console.log(`RibbonThetaVaultSTETHCall Proxy @ ${proxy.address}`);
 
-  try {
-    await run('verify:verify', {
-      address: proxy.address,
-      constructorArguments: [
-        logicDeployment.address,
-        admin,
-        initData,
-      ],
-    });
-  } catch (error) {
-    console.log(error);
+  if (chainId !== 42) {
+    try {
+      await run('verify:verify', {
+        address: proxy.address,
+        constructorArguments: [
+          logicDeployment.address,
+          admin,
+          initData,
+        ],
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
-
 };
 main.tags = ["RibbonThetaVaultSTETHCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultSTETHLogic"];
