@@ -820,7 +820,7 @@ library VaultLifecycleTreasury {
                 ? DateTime.getQuarterLastFriday(nextExpiry + 1 weeks)
                 : nextExpiry;
         } else if (period == 180) {
-            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
+            nextExpiry = DateTime.getBiannualLastFriday(timestamp);
             nextExpiry = nextExpiry <= timestamp
                 ? DateTime.getBiannualLastFriday(nextExpiry + 1 weeks)
                 : nextExpiry;
