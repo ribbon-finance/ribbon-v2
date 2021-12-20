@@ -12,6 +12,7 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  MIM_ADDRESS,
   WBTC_ADDRESS,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -166,25 +167,26 @@ export async function whitelistProduct(
 }
 
 export async function setupOracle(
-  chainlinkPricer: string,
+  assetPricer: string,
   signer: SignerWithAddress,
-  useNew = false
+  useNew = false,
+  strikePricer?: string,
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [chainlinkPricer],
+    params: [assetPricer],
   });
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER[chainId]],
   });
-  const pricerSigner = await provider.getSigner(chainlinkPricer);
+  const pricerSigner = await provider.getSigner(assetPricer);
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend
     .connect(signer)
-    .go(chainlinkPricer, { value: parseEther("0.5") });
+    .go(assetPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
     useNew ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
@@ -199,19 +201,25 @@ export async function setupOracle(
     value: parseEther("0.5"),
   });
 
-  await oracle
-    .connect(oracleOwnerSigner)
-    .setStablePrice(USDC_ADDRESS[chainId], "100000000");
+  // For example, we don't consider MIM to be stable, could de-peg
+  if (strikePricer) {
+    await oracle
+      .connect(oracleOwnerSigner)
+      .setStablePrice(MIM_ADDRESS[chainId], "100000000");
 
-  const pricer = new ethers.Contract(
-    chainlinkPricer,
+  } else {
+    await oracle.connect(oracleOwnerSigner).setStablePrice(USDC_ADDRESS[chainId], "100000000");
+  }
+
+  const asset = new ethers.Contract(
+    assetPricer,
     CHAINLINK_PRICER_ABI,
     oracleOwnerSigner
   );
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setAssetPricer(await pricer.asset(), chainlinkPricer);
+    .setAssetPricer(await asset.asset(), assetPricer);
 
   return oracle;
 }
