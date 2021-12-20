@@ -166,25 +166,25 @@ export async function whitelistProduct(
 }
 
 export async function setupOracle(
-  chainlinkPricer: string,
+  assetPricer: string,
   signer: SignerWithAddress,
   useNew = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [chainlinkPricer],
+    params: [assetPricer],
   });
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER[chainId]],
   });
-  const pricerSigner = await provider.getSigner(chainlinkPricer);
+  const pricerSigner = await provider.getSigner(assetPricer);
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend
     .connect(signer)
-    .go(chainlinkPricer, { value: parseEther("0.5") });
+    .go(assetPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
     useNew ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
@@ -199,19 +199,17 @@ export async function setupOracle(
     value: parseEther("0.5"),
   });
 
-  await oracle
-    .connect(oracleOwnerSigner)
-    .setStablePrice(USDC_ADDRESS[chainId], "100000000");
+  await oracle.connect(oracleOwnerSigner).setStablePrice(USDC_ADDRESS[chainId], "100000000");
 
   const pricer = new ethers.Contract(
-    chainlinkPricer,
+    assetPricer,
     CHAINLINK_PRICER_ABI,
     oracleOwnerSigner
   );
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setAssetPricer(await pricer.asset(), chainlinkPricer);
+    .setAssetPricer(await pricer.asset(), assetPricer);
 
   return oracle;
 }
