@@ -3129,7 +3129,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ? premiumContract
           : assetContract;
 
-        await bidForOToken(
+        let auctionDetails = await bidForOToken(
           gnosisAuction,
           tokenContract,
           userSigner.address,
@@ -3151,7 +3151,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(performanceFee)
           .div(FEE_SCALING.mul(100));
 
-        await vault
+        let tx = await vault
           .connect(keeperSigner)
           .chargeAndDistribute();
 
@@ -3162,6 +3162,19 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionProceeds.div(3));
         assert.bnGte(ownerBalanceAfter.sub(ownerBalanceBefore),
           auctionProceeds.mul(2).div(3));
+
+        let performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+        let totalDistributed = BigNumber.from(auctionDetails[2]).sub(performanceFeeInAsset);
+
+        expect(tx).to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
+            whitelist,
+            1
+          );
       });
 
       it("charge the correct fees", async function () {
@@ -3206,6 +3219,16 @@ function behavesLikeRibbonOptionsVault(params: {
 
         expect(tx).to.emit(vault, "CollectPerformanceFee")
           .withArgs(performanceFeeInAsset, 1, feeRecipient);
+
+        let totalDistributed = BigNumber.from(auctionDetails[2]).sub(performanceFeeInAsset);
+
+        expect(tx).to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
+            whitelist,
+            1
+          );
       });
 
       it("called by commit and close when not triggered in the previous round", async function () {
