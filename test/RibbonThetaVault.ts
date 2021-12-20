@@ -10,6 +10,7 @@ import {
   CHAINLINK_WBTC_PRICER_NEW,
   CHAINLINK_WETH_PRICER_NEW,
   CHAINLINK_SUSHI_PRICER,
+  CHAINLINK_MIM_PRICER,
   CHAINID,
   BLOCK_NUMBER_NEW,
   ETH_PRICE_ORACLE,
@@ -27,6 +28,8 @@ import {
   WETH_ADDRESS,
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
+  MIM_ADDRESS,
+  MIM_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
   DEX_ROUTER,
   DEX_FACTORY,
@@ -73,7 +76,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WBTC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
+    assetPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
@@ -106,7 +109,7 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WETH_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    assetPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
@@ -136,7 +139,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    assetPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
@@ -146,7 +149,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from(
-      chainId === CHAINID.AVAX_MAINNET ? "111111111111" : "2702702702"
+      chainId === CHAINID.AVAX_MAINNET ? "100000000000" : "2702702702"
     ),
     auctionDuration: 21600,
     tokenDecimals: 6,
@@ -170,7 +173,7 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    assetPricer: CHAINLINK_SUSHI_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
@@ -202,7 +205,7 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
+    assetPricer: CHAINLINK_SUSHI_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
@@ -229,6 +232,40 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET],
   });
+
+  behavesLikeRibbonOptionsVault({
+    name: "Ribbon AVAX Theta Vault Put",
+    tokenName: "Ribbon AVAX Theta Vault (Put)",
+    tokenSymbol: "rAVAX-MIM-THETA-P",
+    asset: WETH_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: MIM_ADDRESS[chainId],
+    collateralAsset: MIM_ADDRESS[chainId],
+    assetPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    strikePricer: CHAINLINK_MIM_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    expectedMintAmount: BigNumber.from("1000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: true,
+    isUsdcAuction: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: MIM_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [CHAINID.AVAX_MAINNET],
+  });
+
 });
 
 type Option = {
@@ -236,7 +273,6 @@ type Option = {
   strikePrice: BigNumber;
   expiry: number;
 };
-
 /**
  *
  * @param {Object} params - Parameter of option vault
@@ -248,7 +284,7 @@ type Option = {
  * @param {string} params.assetContractName - Name of collateral asset contract
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
- * @param {string} params.chainlinkPricer - Address of chainlink pricer
+ * @param {string} params.assetPricer - Address of chainlink pricer
  * @param {BigNumber} params.deltaFirstOption - Delta of first option
  * @param {BigNumber} params.deltaSecondOption - Delta of second option
  * @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
@@ -275,9 +311,10 @@ function behavesLikeRibbonOptionsVault(params: {
   tokenDecimals: number;
   asset: string;
   assetContractName: string;
+  strikePricer?: string;
   strikeAsset: string;
   collateralAsset: string;
-  chainlinkPricer: string;
+  assetPricer: string;
   deltaFirstOption: BigNumber;
   deltaSecondOption: BigNumber;
   deltaStep: BigNumber;
@@ -375,9 +412,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
       const oracle = await setupOracle(
-        params.chainlinkPricer,
+        params.assetPricer,
         ownerSigner,
-        true
+        true,
+        params.strikePricer,
       );
 
       await setOpynOracleExpiryPrice(
@@ -495,7 +533,7 @@ function behavesLikeRibbonOptionsVault(params: {
         [
           isPut,
           tokenDecimals,
-          isPut ? USDC_ADDRESS[chainId] : asset,
+          isPut ? params.strikeAsset : asset,
           asset,
           minimumSupply,
           parseEther("500"),
@@ -504,7 +542,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       const deployArgs = [
         WETH_ADDRESS[chainId],
-        USDC_ADDRESS[chainId],
+        params.strikeAsset,
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
@@ -618,8 +656,6 @@ function behavesLikeRibbonOptionsVault(params: {
         params.assetContractName,
         collateralAsset
       );
-      usdcContract = await getContractAt("IERC20", USDC_ADDRESS[chainId]);
-
       // If mintable token, then mine the token
       if (params.mintConfig) {
         const addressToDeposit = [userSigner, ownerSigner, adminSigner];
@@ -630,10 +666,11 @@ function behavesLikeRibbonOptionsVault(params: {
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             vault.address,
-            params.collateralAsset === USDC_ADDRESS[chainId]
-              ? BigNumber.from("10000000000000")
+            params.collateralAsset === USDC_ADDRESS[chainId] || params.collateralAsset === MIM_ADDRESS[chainId]
+              ? BigNumber.from("100000000000000000000")
               : parseEther("200")
           );
+          usdcContract = await getContractAt("IERC20", USDC_ADDRESS[chainId]);
           if (isUsdcAuction) {
             await mintToken(
               usdcContract,
@@ -669,7 +706,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         testVault = await RibbonThetaVault.deploy(
           WETH_ADDRESS[chainId],
-          USDC_ADDRESS[chainId],
+          params.strikeAsset,
           OTOKEN_FACTORY[chainId],
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
@@ -706,7 +743,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(assetFromContract, collateralAsset);
         assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
-        assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
+        assert.equal(await vault.USDC(), params.strikeAsset);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);
@@ -746,7 +783,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? params.strikeAsset : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -776,7 +813,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? params.strikeAsset : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -806,7 +843,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? params.strikeAsset : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -836,7 +873,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? params.strikeAsset : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -866,7 +903,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? params.strikeAsset : asset,
               asset,
               minimumSupply,
               0,
@@ -1887,9 +1924,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("reverts when trying to burn 0 OTokens", async function () {
         let oracle = await setupOracle(
-          params.chainlinkPricer,
+          params.assetPricer,
           ownerSigner,
-          true
+          true,
+          params.strikePricer,
         );
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -2067,7 +2105,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.assetPricer, ownerSigner, true, params.strikePricer);
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2660,7 +2698,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.assetPricer, ownerSigner, true, params.strikePricer);
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -3014,7 +3052,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.assetPricer, ownerSigner, true, params.strikePricer);
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -3511,7 +3549,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.assetPricer, ownerSigner, true, params.strikePricer);
       });
 
       if (isUsdcAuction) {
