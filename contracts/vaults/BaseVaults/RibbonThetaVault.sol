@@ -14,6 +14,7 @@ import {
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
+import {IStakingRewards} from "../../interfaces/IStakingRewards.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 /**
@@ -289,6 +290,18 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         swapPath = newSwapPath;
     }
 
+    /**
+     * @notice Sets the new stakingRewards contract for this vault
+     * @param newStakingRewards is the address of the new stakingRewards contract
+     */
+    function setStakingRewards(address newStakingRewards)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        stakingRewards = newStakingRewards;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -327,6 +340,18 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
+    }
+
+    /**
+     * @notice Stakes a users vault shares
+     * @param numShares is the number of shares to stake
+     */
+    function stake(uint256 numShares) external nonReentrant {
+        require(stakingRewards != address(0), "!stakingRewards");
+        _redeem(numShares, false);
+        _transfer(msg.sender, address(this), numShares);
+        _approve(address(this), stakingRewards, numShares);
+        IStakingRewards(stakingRewards).stakeFor(numShares, msg.sender);
     }
 
     /**
