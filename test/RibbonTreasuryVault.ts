@@ -1223,7 +1223,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.includeMembers(temp, [keeper]); // (superset, subset)
 
-        let newwhitelist = whitelist;
+        let newwhitelist = Object.assign([], whitelist);
         newwhitelist.push(keeper);
         // check that order is preserved
         for (let i = 0; i < temp.length; i++) {
