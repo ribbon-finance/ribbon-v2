@@ -1,3 +1,4 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   USDC_ADDRESS,
@@ -27,23 +28,35 @@ const main = async ({
     from: deployer,
   });
 
-  await deploy("RibbonThetaVaultYearnLogic", {
+  const args = [
+    WETH_ADDRESS[chainId],
+    USDC_ADDRESS[chainId],
+    OTOKEN_FACTORY[chainId],
+    GAMMA_CONTROLLER[chainId],
+    MARGIN_POOL[chainId],
+    GNOSIS_EASY_AUCTION[chainId],
+    YEARN_REGISTRY_ADDRESS,
+  ];
+
+  const vault = await deploy("RibbonThetaVaultYearnLogic", {
     contract: "RibbonThetaYearnVault",
     from: deployer,
-    args: [
-      WETH_ADDRESS[chainId],
-      USDC_ADDRESS[chainId],
-      OTOKEN_FACTORY[chainId],
-      GAMMA_CONTROLLER[chainId],
-      MARGIN_POOL[chainId],
-      GNOSIS_EASY_AUCTION[chainId],
-      YEARN_REGISTRY_ADDRESS,
-    ],
+    args,
     libraries: {
       VaultLifecycle: lifecycle.address,
       VaultLifecycleYearn: lifecycleYearn.address,
     },
   });
+  console.log(`RibbonThetaYearnVaultLogic @ ${vault.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: vault.address,
+      constructorArguments: args,
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
 main.tags = ["RibbonThetaVaultYearnLogic"];
 

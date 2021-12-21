@@ -1,3 +1,4 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { USDC_ADDRESS, WETH_ADDRESS } from "../../constants/constants";
 import {
@@ -68,13 +69,23 @@ const main = async ({
     initArgs
   );
 
+  const args = [logicDeployment.address, admin, initData];
+
   const vault = await deploy("RibbonThetaVaultETHPutYearn", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
-    args: [logicDeployment.address, admin, initData],
+    args,
   });
 
   console.log(`RibbonThetaVaultETHPutYearn @ ${vault.address}`);
+  try {
+    await run("verify:verify", {
+      address: vault.address,
+      constructorArguments: args,
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
 main.tags = ["RibbonThetaVaultETHPutYearn"];
 main.dependencies = ["RibbonThetaVaultYearnLogic"];
