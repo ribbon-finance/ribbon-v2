@@ -2273,7 +2273,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
 
-      it.skip("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+      it("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
         await depositIntoVault(
           params.collateralAsset,
           vault,
@@ -2352,7 +2352,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
           await lockedBalanceForRollover(vault);
-        const startBalance = await vault.totalBalance();
+        const secondInitialBalance = await vault.totalBalance();
 
         await vault.connect(keeperSigner).rollToNextOption();
 
@@ -2370,21 +2370,23 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
         );
 
-        assert.bnEqual(startBalance.sub(await vault.totalBalance()), vaultFees);
+        let dustForWithdraw = queuedWithdrawAmount
+          .mul(await vault.YEARN_WITHDRAWAL_BUFFER())
+          .div(10000);
 
         assert.bnLt(
-          (await vault.vaultState()).lockedAmount,
-          depositAmount.add(auctionDetails[2]).sub(vaultFees).toString()
+          vaultFees,
+          secondInitialBalance
+            .sub(await vault.totalBalance())
+            .add(dustForWithdraw)
         );
         assert.bnGt(
-          (await vault.vaultState()).lockedAmount,
-          depositAmount
-            .add(auctionDetails[2])
-            .sub(vaultFees)
+          vaultFees,
+          secondInitialBalance
+            .sub(await vault.totalBalance())
+            .add(dustForWithdraw)
             .mul(99)
             .div(100)
-            .sub(queuedWithdrawAmount)
-            .toString()
         );
       });
 
