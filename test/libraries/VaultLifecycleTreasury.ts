@@ -423,8 +423,8 @@ describe("VaultLifecycleTreasury", () => {
 
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime)
-          .month("may")
-          .date(10)
+          .month("feb")
+          .date(22)
           .add(Number(i), "day");
 
         nextExpiry = await lifecycle.getNextExpiry(
