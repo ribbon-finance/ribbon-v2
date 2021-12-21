@@ -3351,6 +3351,122 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#stake", () => {
+      let stakingRewards: Contract;
+
+      time.revertToSnapshotAfterEach(async () => {
+        const MockStakingRewards = await getContractFactory(
+          "MockStakingRewards",
+          ownerSigner
+        );
+        stakingRewards = await MockStakingRewards.deploy(vault.address);
+      });
+
+      it("reverts when stakingRewards is not set", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+        await rollToNextOption();
+        await expect(vault.stake(depositAmount)).to.be.revertedWith(
+          "!stakingRewards"
+        );
+      });
+
+      it("reverts when 0 passed", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(stakingRewards.address);
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+        await rollToNextOption();
+        await expect(vault.stake(0)).to.be.revertedWith("!numShares");
+      });
+
+      it("reverts when staking more than available", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(stakingRewards.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await expect(vault.stake(depositAmount.add(1))).to.be.revertedWith(
+          "Exceeds available"
+        );
+      });
+
+      it("stakes shares", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(stakingRewards.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        const userOldBalance = await vault.balanceOf(user);
+
+        await rollToNextOption();
+
+        const stakeAmount = BigNumber.from(1);
+        const tx1 = await vault.connect(userSigner).stake(stakeAmount);
+
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, stakeAmount, 1);
+
+        assert.bnEqual(await stakingRewards.balanceOf(user), stakeAmount);
+        assert.bnEqual(
+          await vault.balanceOf(stakingRewards.address),
+          stakeAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(stakeAmount));
+
+        const tx2 = await vault
+          .connect(userSigner)
+          .stake(depositAmount.sub(stakeAmount));
+
+        await expect(tx2)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, depositAmount.sub(stakeAmount), 1);
+
+        assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
+        assert.bnEqual(
+          await vault.balanceOf(stakingRewards.address),
+          depositAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+      });
+    });
+
     describe("#setStrikePrice", () => {
       time.revertToSnapshotAfterEach();
 
@@ -3404,6 +3520,35 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.deposit(depositAmount)).to.be.revertedWith(
           "Exceed cap"
         );
+      });
+    });
+
+    describe("#setStakingRewards", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not owner", async function () {
+        await expect(
+          vault.connect(userSigner).setStakingRewards(constants.AddressZero)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("should set the new stakingRewards", async function () {
+        const MockStakingRewards = await getContractFactory(
+          "MockStakingRewards",
+          ownerSigner
+        );
+        const stakingRewards = await MockStakingRewards.deploy(vault.address);
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(stakingRewards.address);
+        assert.equal(await vault.stakingRewards(), stakingRewards.address);
+      });
+
+      it("should remove stakingRewards", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(constants.AddressZero);
+        assert.equal(await vault.stakingRewards(), constants.AddressZero);
       });
     });
 

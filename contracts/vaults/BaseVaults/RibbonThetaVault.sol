@@ -348,6 +348,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     function stake(uint256 numShares) external nonReentrant {
         require(stakingRewards != address(0), "!stakingRewards");
+        require(numShares > 0, "!numShares");
         _redeem(numShares, false);
         _transfer(msg.sender, address(this), numShares);
         _approve(address(this), stakingRewards, numShares);
