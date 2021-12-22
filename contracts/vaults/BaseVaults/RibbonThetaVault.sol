@@ -340,9 +340,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param numShares is the number of shares to stake
      */
     function stake(uint256 numShares) external nonReentrant {
-        require(stakingRewards != address(0), "!stakingRewards");
-        require(numShares > 0, "!numShares");
-        _redeem(numShares, false);
+        require(stakingRewards != address(0)); // Removed revert msgs due to contract size limit
+        require(numShares > 0);
+        (uint256 heldByAccount, ) = shareBalances(msg.sender);
+        if (heldByAccount < numShares) {
+            _redeem(numShares.sub(heldByAccount), false);
+        }
         _transfer(msg.sender, address(this), numShares);
         _approve(address(this), stakingRewards, numShares);
         IStakingRewards(stakingRewards).stakeFor(numShares, msg.sender);
