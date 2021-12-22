@@ -259,11 +259,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setStrikePrice(uint128 strikePrice) external onlyOwner {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
@@ -273,11 +269,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets a new path for swaps
      * @param newSwapPath is the new path
      */
-    function setSwapPath(bytes calldata newSwapPath)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setSwapPath(bytes calldata newSwapPath) external onlyOwner {
         require(isUsdcAuction, "!isUsdcAuction");
         require(_checkPath(newSwapPath), "Invalid swapPath");
         swapPath = newSwapPath;
@@ -287,11 +279,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets the new stakingRewards contract for this vault
      * @param newStakingRewards is the address of the new stakingRewards contract
      */
-    function setStakingRewards(address newStakingRewards)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setStakingRewards(address newStakingRewards) external onlyOwner {
         stakingRewards = newStakingRewards;
     }
 
