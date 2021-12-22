@@ -51,7 +51,7 @@ const main = async ({
 
   console.log(`RibbonTreasuryVaultLogic @ ${vault.address}`);
 
-  if (chainId !== 42) {
+  // if (chainId !== 42) {
     try {
       await run("verify:verify", {
         address: vault.address,
@@ -68,7 +68,7 @@ const main = async ({
       console.log(error);
     }
   }
-};
+// };
 main.tags = ["RibbonTreasuryVaultLogic"];
 
 export default main;

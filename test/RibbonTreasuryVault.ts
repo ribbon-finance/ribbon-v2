@@ -1597,6 +1597,8 @@ function behavesLikeRibbonOptionsVault(params: {
           gnosisAuction.address
         );
 
+        console.log(initialOtokenBalance.toString())
+
         const totalOptionsAvailableToBuy = initialOtokenBalance
           .mul(await gnosisAuction.FEE_DENOMINATOR())
           .div(
@@ -1606,6 +1608,8 @@ function behavesLikeRibbonOptionsVault(params: {
           )
           .div(bidMultiplier)
           .div(2);
+        
+        console.log(totalOptionsAvailableToBuy.toString())
 
         let decimals = multiAsset ? premiumDecimals : tokenDecimals;
         const bid = wmul(
@@ -1614,6 +1618,8 @@ function behavesLikeRibbonOptionsVault(params: {
         )
           .div(BigNumber.from(10).pow(18 - decimals))
           .toString();
+
+        console.log(bid)
 
         const queueStartElement =
           "0x0000000000000000000000000000000000000000000000000000000000000001";
