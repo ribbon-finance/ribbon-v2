@@ -342,7 +342,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     function stake(uint256 numShares) external nonReentrant {
         require(stakingRewards != address(0)); // Removed revert msgs due to contract size limit
         require(numShares > 0);
-        (uint256 heldByAccount, ) = shareBalances(msg.sender);
+        uint256 heldByAccount = balanceOf(msg.sender);
         if (heldByAccount < numShares) {
             _redeem(numShares.sub(heldByAccount), false);
         }
