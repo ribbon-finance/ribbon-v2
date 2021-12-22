@@ -114,7 +114,7 @@ library VaultLifecycleTreasury {
 
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
-            ? (closeParams.overriddenStrikePrice, selection.delta())
+            ? (closeParams.overriddenStrikePrice, 0)
             : selection.getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
@@ -131,7 +131,7 @@ library VaultLifecycleTreasury {
         );
 
         // get the black scholes premium of the option
-        premium = GnosisAuction.getOTokenPremium(
+        premium = GnosisAuction.getOTokenPremiumInStables(
             otokenAddress,
             optionsPremiumPricer,
             premiumDiscount
