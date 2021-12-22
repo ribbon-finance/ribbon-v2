@@ -12,8 +12,7 @@ contract MockStakingRewards {
     using SafeERC20 for IERC20;
 
     IERC20 public stakingToken;
-
-    uint256 private _totalSupply;
+    uint256 public totalSupply;
     mapping(address => uint256) private _balances;
 
     constructor(address _stakingToken) {
@@ -22,10 +21,6 @@ contract MockStakingRewards {
             "Staking token must be non-zero address"
         );
         stakingToken = IERC20(_stakingToken);
-    }
-
-    function totalSupply() external view returns (uint256) {
-        return _totalSupply;
     }
 
     function balanceOf(address account) external view returns (uint256) {
@@ -38,14 +33,14 @@ contract MockStakingRewards {
 
     function stakeFor(uint256 amount, address account) public {
         require(amount > 0, "Cannot stake 0");
-        _totalSupply = _totalSupply.add(amount);
+        totalSupply = totalSupply.add(amount);
         _balances[account] = _balances[account].add(amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
     }
 
     function withdraw(uint256 amount) public {
         require(amount > 0, "Cannot withdraw 0");
-        _totalSupply = _totalSupply.sub(amount);
+        totalSupply = totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         stakingToken.safeTransfer(msg.sender, amount);
     }

@@ -3339,9 +3339,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.stake(depositAmount)).to.be.revertedWith(
-          "!stakingRewards"
-        );
+        await expect(vault.stake(depositAmount)).to.be.reverted;
       });
 
       it("reverts when 0 passed", async function () {
@@ -3353,7 +3351,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.stake(0)).to.be.revertedWith("!numShares");
+        await expect(vault.stake(0)).to.be.reverted;
       });
 
       it("reverts when staking more than available", async function () {
@@ -3364,13 +3362,32 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
 
         await rollToNextOption();
 
-        await expect(vault.stake(depositAmount.add(1))).to.be.revertedWith(
-          "Exceeds available"
-        );
+        await expect(
+          vault.connect(userSigner).stake(depositAmount.add(1))
+        ).to.be.revertedWith("Exceeds available");
+      });
+
+      it("reverts when staking more than available after redeeming", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(stakingRewards.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.connect(userSigner).maxRedeem();
+
+        await expect(
+          vault.connect(userSigner).stake(depositAmount.add(1))
+        ).to.be.revertedWith("Exceeds available");
       });
 
       it("stakes shares", async function () {
@@ -3418,6 +3435,68 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(tx2)
           .to.emit(vault, "Redeem")
           .withArgs(user, depositAmount.sub(stakeAmount), 1);
+
+        assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
+        assert.bnEqual(
+          await vault.balanceOf(stakingRewards.address),
+          depositAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+      });
+
+      it("stakes shares after redeeming", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setStakingRewards(stakingRewards.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        const userOldBalance = await vault.balanceOf(user);
+
+        await rollToNextOption();
+
+        const stakeAmount = depositAmount.div(2);
+        const redeemAmount = depositAmount.div(3);
+
+        await vault.connect(userSigner).redeem(redeemAmount);
+        const tx1 = await vault.connect(userSigner).stake(stakeAmount);
+
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, stakeAmount.sub(redeemAmount), 1);
+
+        assert.bnEqual(await stakingRewards.balanceOf(user), stakeAmount);
+        assert.bnEqual(
+          await vault.balanceOf(stakingRewards.address),
+          stakeAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(stakeAmount));
+
+        await vault.connect(userSigner).maxRedeem();
+        await vault.connect(userSigner).stake(depositAmount.sub(stakeAmount));
 
         assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
         assert.bnEqual(
