@@ -58,3 +58,32 @@ Error: VM Exception while processing transaction: reverted with reason string 'E
         .seconds(0)
         .unix();
 ```
+
+### 'Oracle: caller is not authorized to set expiry price'
+```
+Error: VM Exception while processing transaction: reverted with reason string 'Oracle: caller is not authorized to set expiry price'
+```
+- Check is owner of the contract
+
+### 'Oracle: could not set stable price for an asset with pricer'
+```
+Error: VM Exception while processing transaction: reverted with reason string 'Oracle: could not set stable price for an asset with pricer'
+```
+- Deploy a new pricer from Gamma repo and Call setAssetPricer on the Oracle
+- If it's a stable coin, use setStablePricer 1E8.  We made an exception for MIM which has it's own pricer and used setAssetPricer because we are selling puts on it.
+
+### reverted with reason string '!sSQRT'
+```
+Error: VM Exception while processing transaction: reverted with reason string '!sSQRT'
+```
+- Call setAnnualizedVol in ManualVolOracle
+
+### C29
+```
+Error: VM Exception while processing transaction: reverted with reason string 'C29'
+```
+- Call setExpiryPriceInOracle on the Chainlink Pricer
+- Timestamp should be the following Friday 8am UTC in unix time.
+- roundId should be from the Chainlink aggregator and greater than the current roundId.
+- E.g. Pass 1639123200 for timestamp and 18446744073709551763 for roundId
+- https://snowtrace.io/tx/0x5b92b884524443e0e7c9b26772d3e3c638d3748f207072fc06a60cbb039c91ca
