@@ -17,6 +17,12 @@ interface IOptionsPremiumPricer {
         bool isPut
     ) external view returns (uint256);
 
+    function getPremiumInStables(
+        uint256 strikePrice,
+        uint256 timeToExpiry,
+        bool isPut
+    ) external view returns (uint256);
+
     function getOptionDelta(
         uint256 spotPrice,
         uint256 strikePrice,
