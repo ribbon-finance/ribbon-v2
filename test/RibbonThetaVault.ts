@@ -94,7 +94,8 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: WBTC_OWNER_ADDRESS[chainId],
     },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
+    // Need to deploy ChainlinkPricer and update Oracle for WBTC on AVAX
+    availableChains: [CHAINID.ETH_MAINNET],
   });
 
   behavesLikeRibbonOptionsVault({
@@ -145,7 +146,7 @@ describe("RibbonThetaVault", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from(
-      chainId === CHAINID.AVAX_MAINNET ? "142857142857" : "2702702702"
+      chainId === CHAINID.AVAX_MAINNET ? "111111111111" : "2702702702"
     ),
     auctionDuration: 21600,
     tokenDecimals: 6,
@@ -546,7 +547,6 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 0, "week") // Hack for Avax blocknumber not a week in the pas
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -584,7 +584,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(chainId === CHAINID.AVAX_MAINNET ? 2 : 1, "week") // Hack for Avax blocknumber not a week in the past
+        .add(1, "week")
         .day("friday")
         .hours(8)
         .minutes(0)
