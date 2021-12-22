@@ -112,6 +112,13 @@ contract RibbonTreasuryVault is
         address indexed feeRecipient
     );
 
+    event DistributePremium(
+        uint256 amount,
+        uint256[] amounts,
+        address[] recipients,
+        uint256 round
+    );
+
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
@@ -1005,16 +1012,23 @@ contract RibbonTreasuryVault is
     function _distributePremium(IERC20 token, uint256 amount) internal {
         // Distribute to whitelisted address
         address[] storage _whitelist = whitelistArray;
+        uint256[] memory _amounts = new uint256[](_whitelist.length);
         uint256 totalSupply = totalSupply();
 
         for (uint256 i = 0; i < _whitelist.length; i++) {
             // Distribute to whitelist proportional to the amount of
             // shares they own
-            token.safeTransfer(
-                _whitelist[i],
-                shares(_whitelist[i]).mul(amount).div(totalSupply)
-            );
+            _amounts[i] = shares(_whitelist[i]).mul(amount).div(totalSupply);
+
+            token.safeTransfer(_whitelist[i], _amounts[i]);
         }
+
+        emit DistributePremium(
+            amount,
+            _amounts,
+            _whitelist,
+            vaultState.round - 1
+        );
     }
 
     /************************************************

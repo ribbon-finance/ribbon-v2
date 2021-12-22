@@ -6,9 +6,9 @@ import {
   ETH_USDC_POOL,
   USDC_PRICE_ORACLE,
   ETH_PRICE_ORACLE,
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
   AVAX_STRIKE_STEP,
@@ -62,8 +62,8 @@ const main = async ({
   const pricer = await deploy("OptionsPremiumPricerETH", {
     from: deployer,
     contract: {
-      abi: OptionsPremiumPricer_ABI,
-      bytecode: OptionsPremiumPricer_BYTECODE,
+      abi: OptionsPremiumPricerInStables_ABI,
+      bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
       ETH_USDC_POOL[chainId],
@@ -78,7 +78,7 @@ const main = async ({
   // Can't verify pricer because it's compiled with 0.7.3
 
   const strikeSelection = await deploy("StrikeSelectionETH", {
-    contract: "StrikeSelection",
+    contract: "DeltaStrikeSelection",
     from: deployer,
     args: [
       pricer.address,

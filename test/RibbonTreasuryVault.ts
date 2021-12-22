@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
-import OptionsPremiumPricer_ABI from "../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -25,7 +25,7 @@ import {
   SUSHI_OWNER_ADDRESS,
   GNOSIS_EASY_AUCTION,
   TestVolOracle_BYTECODE,
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -66,8 +66,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -86,6 +84,7 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     period: 7,
+    multiplier: 110,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -99,8 +98,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -119,6 +116,7 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     period: 14,
+    multiplier: 110,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -132,8 +130,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -152,6 +148,7 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     period: 30,
+    multiplier: 150,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -165,8 +162,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -185,6 +180,7 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     period: 90,
+    multiplier: 150,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -198,8 +194,6 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: SUSHI_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
@@ -218,6 +212,7 @@ describe("RibbonTreasuryVault", () => {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     period: 180,
+    multiplier: 150,
     premiumDecimals: 6,
     availableChains: [CHAINID.ETH_MAINNET],
   });
@@ -241,8 +236,6 @@ type Option = {
  * @param {string} params.strikeAsset - Address of strike assets
  * @param {string} params.collateralAsset - Address of asset used for collateral
  * @param {string} params.chainlinkPricer - Address of chainlink pricer
- * @param {BigNumber} params.deltaFirstOption - Delta of first option
- * @param {BigNumber} params.deltaSecondOption - Delta of second option
  * @param {BigNumber} params.deltaStep - Step to use for iterating over strike prices and corresponding deltas
  * @param {Object=} params.mintConfig - Optional: For minting asset, if asset can be minted
  * @param {string} params.mintConfig.contractOwnerAddress - Impersonate address of mintable asset contract owner
@@ -268,8 +261,6 @@ function behavesLikeRibbonOptionsVault(params: {
   strikeAsset: string;
   collateralAsset: string;
   chainlinkPricer: string;
-  deltaFirstOption: BigNumber;
-  deltaSecondOption: BigNumber;
   deltaStep: BigNumber;
   depositAmount: BigNumber;
   minimumSupply: string;
@@ -288,6 +279,7 @@ function behavesLikeRibbonOptionsVault(params: {
   };
   premiumDecimals: number;
   period: number;
+  multiplier: number;
   availableChains: number[];
 }) {
   // Test configs
@@ -357,7 +349,6 @@ function behavesLikeRibbonOptionsVault(params: {
     const rollToNextOption = async () => {
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
-      await strikeSelection.setDelta(params.deltaFirstOption);
       await vault.connect(keeperSigner).rollToNextOption();
     };
 
@@ -374,7 +365,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await getCurrentOptionExpiry(),
         settlementPrice
       );
-      await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
       await vault.connect(keeperSigner).rollToNextOption();
@@ -430,13 +420,13 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       const OptionsPremiumPricer = await getContractFactory(
-        OptionsPremiumPricer_ABI,
-        OptionsPremiumPricer_BYTECODE,
+        OptionsPremiumPricerInStables_ABI,
+        OptionsPremiumPricerInStables_BYTECODE,
         ownerSigner
       );
 
       const StrikeSelection = await getContractFactory(
-        "StrikeSelection",
+        "PercentStrikeSelection",
         ownerSigner
       );
 
@@ -453,8 +443,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
-        params.deltaFirstOption,
-        params.deltaStep
+        params.deltaStep,
+        params.multiplier
       );
 
       const VaultLifecycleTreasury = await ethers.getContractFactory("VaultLifecycleTreasury");
@@ -567,7 +557,7 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       firstOptionPremium = BigNumber.from(
-        await optionsPremiumPricer.getPremium(
+        await optionsPremiumPricer.getPremiumInStables(
           firstOptionStrike,
           firstOptionExpiry,
           params.isPut
@@ -629,9 +619,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .unix();
       }
 
-      secondOptionStrike = firstOptionStrike.add(await strikeSelection.step());
-
-      await strikeSelection.setDelta(params.deltaFirstOption);
+      [secondOptionStrike] = await strikeSelection.getStrikePrice(
+        secondOptionExpiry,
+        params.isPut
+      );
 
       const secondOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
@@ -1232,7 +1223,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.includeMembers(temp, [keeper]); // (superset, subset)
 
-        let newwhitelist = whitelist;
+        let newwhitelist = Object.assign([], whitelist);
         newwhitelist.push(keeper);
         // check that order is preserved
         for (let i = 0; i < temp.length; i++) {
@@ -1555,7 +1546,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(
           await vault.currentOtokenPremium(),
           (
-            await optionsPremiumPricer.getPremium(
+            await optionsPremiumPricer.getPremiumInStables(
               newStrikePrice,
               expiryTimestampOfNewOption,
               params.isPut
@@ -1607,14 +1598,14 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         const totalOptionsAvailableToBuy = initialOtokenBalance
-          .div(2)
           .mul(await gnosisAuction.FEE_DENOMINATOR())
           .div(
             (await gnosisAuction.FEE_DENOMINATOR()).add(
               await gnosisAuction.feeNumerator()
             )
           )
-          .div(bidMultiplier);
+          .div(bidMultiplier)
+          .div(2);
 
         let decimals = multiAsset ? premiumDecimals : tokenDecimals;
         const bid = wmul(
@@ -1964,7 +1955,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(feeDenominator.add(feeNumerator));
 
         const oTokenPremium = (
-          await optionsPremiumPricer.getPremium(
+          await optionsPremiumPricer.getPremiumInStables(
             await nextOption.strikePrice(),
             await nextOption.expiryTimestamp(),
             params.isPut
@@ -2559,17 +2550,16 @@ function behavesLikeRibbonOptionsVault(params: {
           settlementPriceITM
         );
 
-        await strikeSelection.setDelta(params.deltaSecondOption);
-
         await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeperSigner).rollToNextOption();
+
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
         const expectedMintAmountAfterLoss = params.depositAmount
           .mul(BigNumber.from(10).pow(params.tokenDecimals))
           .div(afterPps);
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(keeperSigner).rollToNextOption();
 
         assert.bnGt(beforeBalance, afterBalance);
         assert.bnGt(beforePps, afterPps);
@@ -2598,9 +2588,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx2)
           .to.emit(vault, "Redeem")
-          .withArgs(user, expectedMintAmountAfterLoss
-            .mul(FEE_SCALING.mul(100))
-            .div(FEE_SCALING.mul(100).sub(await vault.managementFee())), 2);
+          .withArgs(user, expectedMintAmountAfterLoss, 2);
 
         const {
           round: round2,
@@ -2612,10 +2600,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
         assert.bnEqual(
           await vault.balanceOf(user),
-          expectedMintAmountAfterLoss
-            .mul(FEE_SCALING.mul(100))
-            .div(FEE_SCALING.mul(100).sub(await vault.managementFee()))
-        );
+          expectedMintAmountAfterLoss);
       });
     });
 
@@ -3144,7 +3129,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ? premiumContract
           : assetContract;
 
-        await bidForOToken(
+        let auctionDetails = await bidForOToken(
           gnosisAuction,
           tokenContract,
           userSigner.address,
@@ -3166,7 +3151,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(performanceFee)
           .div(FEE_SCALING.mul(100));
 
-        await vault
+        let tx = await vault
           .connect(keeperSigner)
           .chargeAndDistribute();
 
@@ -3177,6 +3162,19 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionProceeds.div(3));
         assert.bnGte(ownerBalanceAfter.sub(ownerBalanceBefore),
           auctionProceeds.mul(2).div(3));
+
+        let performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+        let totalDistributed = BigNumber.from(auctionDetails[2]).sub(performanceFeeInAsset);
+
+        expect(tx).to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
+            whitelist,
+            1
+          );
       });
 
       it("charge the correct fees", async function () {
@@ -3221,6 +3219,16 @@ function behavesLikeRibbonOptionsVault(params: {
 
         expect(tx).to.emit(vault, "CollectPerformanceFee")
           .withArgs(performanceFeeInAsset, 1, feeRecipient);
+
+        let totalDistributed = BigNumber.from(auctionDetails[2]).sub(performanceFeeInAsset);
+
+        expect(tx).to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
+            whitelist,
+            1
+          );
       });
 
       it("called by commit and close when not triggered in the previous round", async function () {
