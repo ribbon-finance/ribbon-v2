@@ -252,6 +252,37 @@ library GnosisAuction {
         return optionPremium;
     }
 
+    function getOTokenPremiumInStables(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount
+    ) internal view returns (uint256) {
+        IOtoken newOToken = IOtoken(oTokenAddress);
+        IOptionsPremiumPricer premiumPricer =
+            IOptionsPremiumPricer(optionsPremiumPricer);
+
+        // Apply black-scholes formula (from rvol library) to option given its features
+        // and get price for 100 contracts denominated USDC for both call and put options
+        uint256 optionPremium =
+            premiumPricer.getPremiumInStables(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
+
+        // Apply a discount to incentivize arbitraguers
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
+        );
+
+        require(
+            optionPremium <= type(uint96).max,
+            "optionPremium > type(uint96) max value!"
+        );
+
+        return optionPremium;
+    }
+
     function encodeOrder(
         uint64 userId,
         uint96 buyAmount,

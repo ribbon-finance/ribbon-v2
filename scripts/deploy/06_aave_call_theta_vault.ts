@@ -3,9 +3,9 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
   USDC_PRICE_ORACLE,
-  OptionsPremiumPricer_BYTECODE,
+  OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
-import OptionsPremiumPricer_ABI from "../../constants/abis/OptionsPremiumPricer.json";
+import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AAVE_ETH_POOL,
   AAVE_STRIKE_STEP,
@@ -51,8 +51,8 @@ const main = async ({
   const pricer = await deploy("OptionsPremiumPricerAAVE", {
     from: deployer,
     contract: {
-      abi: OptionsPremiumPricer_ABI,
-      bytecode: OptionsPremiumPricer_BYTECODE,
+      abi: OptionsPremiumPricerInStables_ABI,
+      bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
       AAVE_ETH_POOL,
@@ -63,7 +63,7 @@ const main = async ({
   });
 
   const strikeSelection = await deploy("StrikeSelectionAAVE", {
-    contract: "StrikeSelection",
+    contract: "DeltaStrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
   });
