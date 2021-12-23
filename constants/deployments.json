@@ -52,10 +52,12 @@
         "RibbonThetaVaultSTETHCall": "0x53773E034d9784153471813dacAFF53dBBB78E8c",
         "RibbonThetaVaultSTETHLogic": "0x8a0eFf819D7e197eE79Ff3fef520fe56a2c36cA5",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
+        "RibbonThetaVaultYearnLogic": "0x403dceC12484C0C1B6816025c80f45A6FDFf1aC6",
         "StrikeSelectionAAVE": "0xc2b10e716987cCD35d642506Fd546315C0753563",
         "StrikeSelectionETH": "0x39d3799b8ABEfC3d05db5BA3b3B2770146475000",
         "StrikeSelectionWBTC": "0x5E68b6F5C82FC5F3711541CA4A12E01B967Fc641",
         "VaultLifecycle": "0x1c3774C538A50Db827f7f7b450160E0aFcbD41F8",
-        "VaultLifecycleSTETH": "0x5CbB58FBd5E53A8db156C1261403b14dc618F3db"
+        "VaultLifecycleSTETH": "0x5CbB58FBd5E53A8db156C1261403b14dc618F3db",
+        "VaultLifecycleYearn": "0x94c20E7FDCc677116c8D0D8F9F57e4f681d0F9f4"
     }
 }

@@ -11,6 +11,7 @@ import {
   USDC_ADDRESS,
   WETH_ADDRESS,
   WSTETH_ADDRESS,
+  YEARN_REGISTRY_ADDRESS,
 } from "../../constants/constants";
 
 const main = async (
@@ -22,8 +23,12 @@ const main = async (
   const RibbonThetaVaultSTETHLogic = await deployments.get(
     "RibbonThetaVaultSTETHLogic"
   );
+  const RibbonThetaVaultYearnLogic = await deployments.get(
+    "RibbonThetaVaultYearnLogic"
+  );
   const VaultLifecycle = await deployments.get("VaultLifecycle");
   const VaultLifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
+  const VaultLifecycleYearn = await deployments.get("VaultLifecycleYearn");
 
   try {
     await run("verify:verify", {
@@ -36,6 +41,14 @@ const main = async (
   try {
     await run("verify:verify", {
       address: VaultLifecycleSTETH.address,
+    });
+  } catch (e) {
+    console.error(e);
+  }
+
+  try {
+    await run("verify:verify", {
+      address: VaultLifecycleYearn.address,
     });
   } catch (e) {
     console.error(e);
@@ -81,6 +94,29 @@ const main = async (
       libraries: {
         VaultLifecycle: VaultLifecycle.address,
         VaultLifecycleSTETH: VaultLifecycleSTETH.address,
+      },
+    });
+  } catch (e) {
+    console.error(e);
+  }
+
+  const THETA_VAULT_YEARN_ARGS = [
+    WETH_ADDRESS[chainId],
+    USDC_ADDRESS[chainId],
+    OTOKEN_FACTORY[chainId],
+    GAMMA_CONTROLLER[chainId],
+    MARGIN_POOL[chainId],
+    GNOSIS_EASY_AUCTION[chainId],
+    YEARN_REGISTRY_ADDRESS,
+  ];
+
+  try {
+    await run("verify:verify", {
+      address: RibbonThetaVaultYearnLogic.address,
+      constructorArguments: THETA_VAULT_YEARN_ARGS,
+      libraries: {
+        VaultLifecycle: VaultLifecycle.address,
+        VaultLifecycleYearn: VaultLifecycleYearn.address,
       },
     });
   } catch (e) {
