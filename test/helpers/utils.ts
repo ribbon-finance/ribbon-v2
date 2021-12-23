@@ -447,7 +447,8 @@ export function encodePath(tokenAddresses, fees) {
   return encoded.toLowerCase();
 }
 
-export const objectEquals = (a: Object, b: Object) => {
+/* eslint @typescript-eslint/no-explicit-any: "off" */
+export const objectEquals = (a: any, b: any) => {
   if (a === b) return true;
   if (a instanceof Date && b instanceof Date)
     return a.getTime() === b.getTime();
