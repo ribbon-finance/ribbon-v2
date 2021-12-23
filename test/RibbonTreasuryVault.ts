@@ -3168,7 +3168,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(FEE_SCALING.mul(100));
         let totalDistributed = BigNumber.from(auctionDetails[2]).sub(performanceFeeInAsset);
 
-        expect(tx).to.emit(vault, "DistributePremium")
+        await expect(tx).to.emit(vault, "DistributePremium")
           .withArgs(
             totalDistributed,
             [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
@@ -3217,12 +3217,12 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(keeperSigner)
           .concludeOptionsSale();
 
-        expect(tx).to.emit(vault, "CollectPerformanceFee")
+        await expect(tx).to.emit(vault, "CollectPerformanceFee")
           .withArgs(performanceFeeInAsset, 1, feeRecipient);
 
         let totalDistributed = BigNumber.from(auctionDetails[2]).sub(performanceFeeInAsset);
 
-        expect(tx).to.emit(vault, "DistributePremium")
+        await expect(tx).to.emit(vault, "DistributePremium")
           .withArgs(
             totalDistributed,
             [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
