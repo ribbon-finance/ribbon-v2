@@ -61,16 +61,7 @@ library VaultLifecycle {
             uint256 delta
         )
     {
-        uint256 expiry;
-
-        // uninitialized state
-        if (closeParams.currentOption == address(0)) {
-            expiry = getNextFriday(block.timestamp);
-        } else {
-            expiry = getNextFriday(
-                IOtoken(closeParams.currentOption).expiryTimestamp()
-            );
-        }
+        uint256 expiry = getNextExpiry(closeParams.currentOption);
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
@@ -812,26 +803,45 @@ library VaultLifecycle {
     }
 
     /**
+     * @notice Gets the next option expiry timestamp
+     * @param currentOption is the otoken address that the vault is currently writing
+     */
+    function getNextExpiry(address currentOption)
+        internal
+        view
+        returns (uint256)
+    {
+        // uninitialized state
+        if (currentOption == address(0)) {
+            return getNextFriday(block.timestamp);
+        }
+        uint256 currentExpiry = IOtoken(currentOption).expiryTimestamp();
+
+        // After options expiry if no options are written for >1 week
+        // We need to give the ability continue writing options
+        if (block.timestamp > currentExpiry + 7 days) {
+            return getNextFriday(block.timestamp);
+        }
+        return getNextFriday(currentExpiry);
+    }
+
+    /**
      * @notice Gets the next options expiry timestamp
-     * @param currentExpiry is the expiry timestamp of the current option
+     * @param timestamp is the expiry timestamp of the current option
      * Reference: https://codereview.stackexchange.com/a/33532
      * Examples:
      * getNextFriday(week 1 thursday) -> week 1 friday
      * getNextFriday(week 1 friday) -> week 2 friday
      * getNextFriday(week 1 saturday) -> week 2 friday
      */
-    function getNextFriday(uint256 currentExpiry)
-        internal
-        pure
-        returns (uint256)
-    {
+    function getNextFriday(uint256 timestamp) internal pure returns (uint256) {
         // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
-        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
+        uint256 dayOfWeek = ((timestamp / 1 days) + 4) % 7;
+        uint256 nextFriday = timestamp + ((7 + 5 - dayOfWeek) % 7) * 1 days;
         uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
 
-        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (currentExpiry >= friday8am) {
+        // If the passed timestamp is day=Friday hour>8am, we simply increment it by a week to next Friday
+        if (timestamp >= friday8am) {
             friday8am += 7 days;
         }
         return friday8am;
