@@ -3,6 +3,13 @@ import { Contract } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
 import * as time from "../helpers/time";
+import {
+  CHAINID,
+  OTOKEN_FACTORY,
+  USDC_ADDRESS,
+  WETH_ADDRESS,
+} from "../../constants/constants";
+import { parseUnits } from "@ethersproject/units";
 
 moment.tz.setDefault("UTC");
 
@@ -129,6 +136,119 @@ describe("VaultLifecycle", () => {
 
       const nextFriday = await lifecycle.getNextFriday(thisFriday.unix());
       const fridayDate = moment.unix(nextFriday);
+      assert.equal(fridayDate.weekday(), 5);
+      assert.isTrue(fridayDate.isSame(expectedFriday));
+    });
+  });
+
+  describe("getNextExpiry", () => {
+    let factory: Contract;
+
+    time.revertToSnapshotAfterEach(async () => {
+      factory = await ethers.getContractAt(
+        "IOtokenFactory",
+        OTOKEN_FACTORY[CHAINID.ETH_MAINNET]
+      );
+    });
+
+    it("returns the next friday if options is address(0)", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      const nextFriday = await lifecycle.getNextExpiry(
+        ethers.constants.AddressZero
+      );
+
+      const expectedFriday = currentTime
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(8); // needs to be 8am UTC
+
+      const fridayDate = moment.unix(nextFriday);
+      assert.equal(fridayDate.weekday(), 5);
+      assert.isTrue(fridayDate.isSame(expectedFriday));
+    });
+
+    it("returns the next friday if current options expired, but less than a week", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      const thisFriday = currentTime
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(8)
+        .minutes(0)
+        .seconds(0); // needs to be 8am UTC
+
+      const thisFridayTimestamp = thisFriday.clone().unix();
+
+      const otokenArgs = [
+        WETH_ADDRESS[CHAINID.ETH_MAINNET],
+        USDC_ADDRESS[CHAINID.ETH_MAINNET],
+        WETH_ADDRESS[CHAINID.ETH_MAINNET],
+        parseUnits("3000", 8),
+        thisFridayTimestamp,
+        false,
+      ];
+
+      await factory.createOtoken(...otokenArgs);
+
+      const otoken = await factory.getOtoken(...otokenArgs);
+
+      await time.increaseTo(thisFridayTimestamp + 1);
+
+      const nextFriday = await lifecycle.getNextExpiry(otoken);
+
+      const expectedFriday = thisFriday
+        .clone()
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(8); // needs to be 8am UTC
+
+      const fridayDate = moment.unix(nextFriday);
+      assert.equal(fridayDate.weekday(), 5);
+      assert.isTrue(fridayDate.isSame(expectedFriday));
+    });
+
+    it("returns the next friday if current options expired by more than a week", async () => {
+      const { timestamp } = await provider.getBlock("latest");
+      const currentTime = moment.unix(timestamp);
+
+      const thisFriday = currentTime
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day("friday")
+        .hour(8)
+        .minutes(0)
+        .seconds(0); // needs to be 8am UTC
+
+      const nextFriday = thisFriday.clone().add(1, "week");
+
+      const thisFridayTimestamp = thisFriday.clone().unix();
+
+      const otokenArgs = [
+        WETH_ADDRESS[CHAINID.ETH_MAINNET],
+        USDC_ADDRESS[CHAINID.ETH_MAINNET],
+        WETH_ADDRESS[CHAINID.ETH_MAINNET],
+        parseUnits("3000", 8),
+        thisFridayTimestamp,
+        false,
+      ];
+
+      await factory.createOtoken(...otokenArgs);
+
+      const otoken = await factory.getOtoken(...otokenArgs);
+
+      await time.increaseTo(nextFriday.clone().unix() + 1);
+
+      const nextNextFriday = await lifecycle.getNextExpiry(otoken);
+
+      const expectedFriday = nextFriday.clone().add(1, "week");
+
+      const fridayDate = moment.unix(nextNextFriday);
       assert.equal(fridayDate.weekday(), 5);
       assert.isTrue(fridayDate.isSame(expectedFriday));
     });
