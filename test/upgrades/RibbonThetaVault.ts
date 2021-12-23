@@ -12,14 +12,12 @@ import {
 } from "../../constants/constants";
 import { objectEquals, parseLog, serializeMap } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
-import { BigNumber, BigNumberish, Contract } from "ethers";
+import { BigNumberish, Contract } from "ethers";
 import * as time from "../helpers/time";
 
 const { parseEther } = ethers.utils;
 
 const UPGRADE_ADMIN = "0x223d59FA315D7693dF4238d1a5748c964E615923";
-const ADMIN_SLOT =
-  "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
@@ -98,7 +96,7 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "swapPath",
   ];
 
-  let variables: Record<string, any> = {};
+  let variables: Record<string, unknown> = {};
 
   describe(`Vault ${vaultAddress}`, () => {
     let newImplementation: string;

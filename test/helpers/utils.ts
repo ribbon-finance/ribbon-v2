@@ -17,7 +17,6 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
-import { string } from "hardhat/internal/core/params/argumentTypes";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -448,12 +447,13 @@ export function encodePath(tokenAddresses, fees) {
   return encoded.toLowerCase();
 }
 
-export const objectEquals = (a, b) => {
+export const objectEquals = (a: Object, b: Object) => {
   if (a === b) return true;
   if (a instanceof Date && b instanceof Date)
     return a.getTime() === b.getTime();
   if (!a || !b || (typeof a !== "object" && typeof b !== "object"))
     return a === b;
+  /* eslint no-undefined: "off" */
   if (a === null || a === undefined || b === null || b === undefined)
     return false;
   if (a.prototype !== b.prototype) return false;
@@ -462,7 +462,7 @@ export const objectEquals = (a, b) => {
   return keys.every((k) => objectEquals(a[k], b[k]));
 };
 
-export const serializeMap = (map: Record<string, any>) => {
+export const serializeMap = (map: Record<string, unknown>) => {
   return Object.fromEntries(
     Object.keys(map).map((key) => {
       return [key, serializeToObject(map[key])];
@@ -470,7 +470,7 @@ export const serializeMap = (map: Record<string, any>) => {
   );
 };
 
-export const serializeToObject = (solidityValue: any) => {
+export const serializeToObject = (solidityValue: unknown) => {
   if (BigNumber.isBigNumber(solidityValue)) {
     return solidityValue.toString();
   }
