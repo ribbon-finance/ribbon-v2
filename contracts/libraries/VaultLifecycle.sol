@@ -813,6 +813,8 @@ library VaultLifecycle {
         }
         uint256 currentExpiry = IOtoken(currentOption).expiryTimestamp();
 
+        // After options expiry if no options are written for >1 week
+        // We need to give the ability continue writing options
         if (block.timestamp > currentExpiry + 7 days) {
             return getNextFriday(block.timestamp);
         }
