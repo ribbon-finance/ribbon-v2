@@ -17,6 +17,7 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
+import { string } from "hardhat/internal/core/params/argumentTypes";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -446,3 +447,36 @@ export function encodePath(tokenAddresses, fees) {
 
   return encoded.toLowerCase();
 }
+
+export const objectEquals = (a, b) => {
+  if (a === b) return true;
+  if (a instanceof Date && b instanceof Date)
+    return a.getTime() === b.getTime();
+  if (!a || !b || (typeof a !== "object" && typeof b !== "object"))
+    return a === b;
+  if (a === null || a === undefined || b === null || b === undefined)
+    return false;
+  if (a.prototype !== b.prototype) return false;
+  let keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((k) => objectEquals(a[k], b[k]));
+};
+
+export const serializeMap = (map: Record<string, any>) => {
+  return Object.fromEntries(
+    Object.keys(map).map((key) => {
+      return [key, serializeToObject(map[key])];
+    })
+  );
+};
+
+export const serializeToObject = (solidityValue: any) => {
+  if (BigNumber.isBigNumber(solidityValue)) {
+    return solidityValue.toString();
+  }
+  // Handle structs recursively
+  if (Array.isArray(solidityValue)) {
+    return solidityValue.map((val) => serializeToObject(val));
+  }
+  return solidityValue;
+};
