@@ -59,16 +59,8 @@ library VaultLifecycleSTETH {
             uint256 delta
         )
     {
-        uint256 expiry;
-
-        // uninitialized state
-        if (closeParams.currentOption == address(0)) {
-            expiry = VaultLifecycle.getNextFriday(block.timestamp);
-        } else {
-            expiry = VaultLifecycle.getNextFriday(
-                IOtoken(closeParams.currentOption).expiryTimestamp()
-            );
-        }
+        uint256 expiry =
+            VaultLifecycle.getNextExpiry(closeParams.currentOption);
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
