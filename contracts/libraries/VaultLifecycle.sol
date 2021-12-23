@@ -802,6 +802,10 @@ library VaultLifecycle {
         );
     }
 
+    /**
+     * @notice Gets the next option expiry timestamp
+     * @param currentOption is the otoken address that the vault is currently writing
+     */
     function getNextExpiry(address currentOption)
         internal
         view
