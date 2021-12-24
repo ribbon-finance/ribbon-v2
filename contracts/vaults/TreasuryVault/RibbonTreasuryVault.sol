@@ -149,6 +149,13 @@ contract RibbonTreasuryVault is
         uint256 round
     );
 
+    event InitiateGnosisAuction(
+        address indexed auctioningToken,
+        address indexed biddingToken,
+        uint256 auctionCounter,
+        address indexed manager
+    );
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -1018,9 +1025,12 @@ contract RibbonTreasuryVault is
         for (uint256 i = 0; i < _whitelist.length; i++) {
             // Distribute to whitelist proportional to the amount of
             // shares they own
-            _amounts[i] = shares(_whitelist[i]).mul(amount).div(totalSupply);
+            address whitelistedAddress = _whitelist[i];
+            _amounts[i] = shares(whitelistedAddress).mul(amount).div(
+                totalSupply
+            );
 
-            token.safeTransfer(_whitelist[i], _amounts[i]);
+            token.safeTransfer(whitelistedAddress, _amounts[i]);
         }
 
         emit DistributePremium(

@@ -15,6 +15,14 @@ contract TestVaultLifecycle {
         return VaultLifecycle.getNextFriday(currentExpiry);
     }
 
+    function getNextExpiry(address currentOption)
+        external
+        view
+        returns (uint256 nextExpiry)
+    {
+        return VaultLifecycle.getNextExpiry(currentOption);
+    }
+
     function balanceOf(address account) public view returns (uint256) {
         if (account == address(this)) {
             return 1 ether;
