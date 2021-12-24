@@ -10,20 +10,19 @@ import {
   DEX_ROUTER,
   DEX_FACTORY,
 } from "../../constants/constants";
-import { parseLog } from "../helpers/utils";
+import { objectEquals, parseLog, serializeMap } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
-import { BigNumber, BigNumberish } from "ethers";
+import { BigNumberish, Contract } from "ethers";
+import * as time from "../helpers/time";
 
 const { parseEther } = ethers.utils;
 
 const UPGRADE_ADMIN = "0x223d59FA315D7693dF4238d1a5748c964E615923";
-const ADMIN_SLOT =
-  "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103";
 const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 13731470;
+const FORK_BLOCK = 13860094;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -63,9 +62,7 @@ describe("RibbonThetaVault upgrade", () => {
       "RibbonThetaVaultWBTCCall",
       "RibbonThetaVaultAAVECall",
     ];
-    deploymentNames.forEach((name) =>
-      vaults.push(deployments.mainnet[name])
-    );
+    deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
   });
 
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultETHCall);
@@ -78,52 +75,47 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     return await ethers.provider.getStorageAt(vaultAddress, storageIndex);
   };
 
-  const storageSlots = [
-    ADMIN_SLOT,
-    0,
-    1,
-    101,
-    153,
-    154,
-    155,
-    204,
-    205,
-    206,
-    207,
-    208,
-    209,
-    210,
-    211,
-    212,
-    213,
-    214,
-    245,
-    246,
-    247,
-    248,
-    249,
-    250,
-    251,
-    252,
-    253,
-    254,
-    255,
-    256,
-  ].map((s) => BigNumber.from(s));
+  const variableNames = [
+    "vaultParams",
+    "vaultState",
+    "optionState",
+    "feeRecipient",
+    "keeper",
+    "performanceFee",
+    "managementFee",
+    "optionsPremiumPricer",
+    "strikeSelection",
+    "premiumDiscount",
+    "currentOtokenPremium",
+    "lastStrikeOverrideRound",
+    "overriddenStrikePrice",
+    "auctionDuration",
+    "optionAuctionID",
+    "lastQueuedWithdrawAmount",
+    "isUsdcAuction",
+    "swapPath",
+  ];
 
-  let storageLayout: [BigNumber, string][];
+  let variables: Record<string, unknown> = {};
 
   describe(`Vault ${vaultAddress}`, () => {
     let newImplementation: string;
+    let vaultProxy: Contract;
+    let vault: Contract;
+
+    time.revertToSnapshotAfterEach();
 
     before(async () => {
-      const storageValues = await Promise.all(
-        storageSlots.map((slotIndex) => getVaultStorage(slotIndex))
+      const adminSigner = await ethers.provider.getSigner(UPGRADE_ADMIN);
+
+      vaultProxy = await ethers.getContractAt(
+        "AdminUpgradeabilityProxy",
+        vaultAddress,
+        adminSigner
       );
-      storageLayout = storageSlots.map((slotIndex, arrIndex) => [
-        slotIndex,
-        storageValues[arrIndex],
-      ]);
+      vault = await ethers.getContractAt("RibbonThetaVault", vaultAddress);
+
+      variables = await getVariablesFromContract(vault);
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       const vaultLifecycleLib = await VaultLifecycle.deploy();
@@ -149,16 +141,19 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
       newImplementation = newImplementationContract.address;
     });
 
-    it("has the correct storage state after an upgrade", async () => {
-      const vaultProxy = await ethers.getContractAt(
-        "AdminUpgradeabilityProxy",
-        vaultAddress
+    it("has the correct return values for all public variables", async () => {
+      await vaultProxy.upgradeTo(newImplementation);
+      const newVariables = await getVariablesFromContract(vault);
+      assert.isTrue(
+        objectEquals(variables, newVariables),
+        `Public variables do not match:
+Old: ${JSON.stringify(variables, null, 4)}
+New: ${JSON.stringify(newVariables, null, 4)}`
       );
-      const adminSigner = await ethers.provider.getSigner(UPGRADE_ADMIN);
+    });
 
-      const res = await vaultProxy
-        .connect(adminSigner)
-        .upgradeTo(newImplementation);
+    it("updates the implementation slot correctly after an upgrade", async () => {
+      const res = await vaultProxy.upgradeTo(newImplementation);
 
       const receipt = await res.wait();
 
@@ -168,16 +163,17 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
         await getVaultStorage(IMPLEMENTATION_SLOT),
         "0x000000000000000000000000" + newImplementation.slice(2).toLowerCase()
       );
-
-      // Now we verify that the storage values are not corrupted after an upgrade
-      for (let i = 0; i < storageLayout.length; i++) {
-        const [index, value] = storageLayout[i];
-        assert.equal(
-          await getVaultStorage(index),
-          value,
-          `Mismatched value at index ${index}`
-        );
-      }
     });
+
+    const getVariablesFromContract = async (vault: Contract) => {
+      // get contract values with solidity getter
+      const variableReturns = await Promise.all(
+        variableNames.map((varName) => vault[varName]())
+      );
+      const variables = Object.fromEntries(
+        variableNames.map((varName, index) => [varName, variableReturns[index]])
+      );
+      return serializeMap(variables);
+    };
   });
 }
