@@ -24,11 +24,11 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     /// @notice Stores pending user withdrawals
     mapping(address => Vault.Withdrawal) public withdrawals;
 
-    /// @notice Whitelist of eligible depositors in mapping
-    mapping(address => bool) public whitelistMap;
+    /// @notice Mapping of depositors in the vault
+    mapping(address => bool) public depositorsMap;
 
-    /// @notice Whitelist of eligible depositors in array
-    address[] public whitelistArray;
+    /// @notice Array of depositors in the vault
+    address[] public depositorsArray;
 
     /// @notice Fee recipient for the performance and management fees
     address public feeRecipient;

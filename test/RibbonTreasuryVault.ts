@@ -77,7 +77,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 150000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -109,7 +109,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 150000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -141,7 +141,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 150000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -173,7 +173,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 150000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -205,7 +205,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 150000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -314,10 +314,9 @@ function behavesLikeRibbonOptionsVault(params: {
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
-  let whitelist: string[];
   let premiumDecimals = params.premiumDecimals;
   let period = params.period;
-  let whitelistLimit = 5;
+  let depositorsLimit = 30;
   let premiumAsset = USDC_ADDRESS[chainId];
   let multiAsset = true;
 
@@ -403,7 +402,6 @@ function behavesLikeRibbonOptionsVault(params: {
       keeper = keeperSigner.address;
       user = userSigner.address;
       feeRecipient = feeRecipientSigner.address;
-      whitelist = [user, owner];
 
       const TestVolOracle = await getContractFactory(
         TestVolOracle_ABI,
@@ -468,7 +466,6 @@ function behavesLikeRibbonOptionsVault(params: {
           strikeSelection.address,
           premiumDiscount,
           auctionDuration,
-          whitelist,
           period
         ],
         [
@@ -763,13 +760,6 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
         assert.equal(await vault.auctionDuration(), auctionDuration);
-
-        for (let i = 0; i < whitelist.length; i++) {
-          assert.equal(
-            (await vault.whitelistArray(i)).toString(),
-            whitelist[i].toString()
-          );
-        }
       });
 
       it("cannot be initialized twice", async function () {
@@ -787,7 +777,6 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              whitelist,
               period
             ],
             [
@@ -817,7 +806,6 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              whitelist,
               period
             ],
             [
@@ -847,7 +835,6 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              whitelist,
               period
             ],
             [
@@ -877,7 +864,6 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              whitelist,
               period
             ],
             [
@@ -907,7 +893,6 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              whitelist,
               period
             ],
             [
@@ -937,7 +922,6 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              whitelist,
               period
             ],
             [
@@ -1157,155 +1141,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#addWhitelist", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("reverts when not owner call", async function () {
-        await expect(
-          vault.connect(keeperSigner).addWhitelist(user)
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-
-      it("reverts when list exceeds limit", async function () {
-        let dummy1 = "0x0000000000000000000000000000000000000001";
-        let dummy2 = "0x0000000000000000000000000000000000000002";
-        let dummy3 = "0x0000000000000000000000000000000000000003";
-        let dummy4 = "0x0000000000000000000000000000000000000004";
-
-        await vault.connect(ownerSigner).addWhitelist(dummy1);
-        await vault.connect(ownerSigner).addWhitelist(dummy2);
-        await vault.connect(ownerSigner).addWhitelist(dummy3);
-        await expect(
-          vault.connect(ownerSigner).addWhitelist(dummy4)
-        ).to.be.revertedWith("Whitelist exceed limit");
-      });
-
-      it("reverts when address is already whitelisted", async function () {
-        await expect(
-          vault.connect(ownerSigner).addWhitelist(user)
-        ).to.be.revertedWith("Whitelist duplicate");
-      });
-
-      it("reverts when adding zero address", async function () {
-        await expect(
-          vault.connect(ownerSigner).addWhitelist(constants.AddressZero)
-        ).to.be.revertedWith("Whitelist null");
-      });
-
-      it("adds address to whitelist", async function () {
-        let temp: string[] = [];
-        let i = 0;
-
-        while (i <= whitelistLimit) {
-          try {
-            temp.push((await vault.whitelistArray(i)).toString());
-            i++;
-          } catch {
-            break;
-          }
-        }
-
-        assert.notIncludeMembers(temp, [keeper]); // (superset, subset)
-
-        await vault.connect(ownerSigner).addWhitelist(keeper);
-
-        temp = [];
-        i = 0;
-
-        while (i <= whitelistLimit) {
-          try {
-            temp.push((await vault.whitelistArray(i)).toString());
-            i++;
-          } catch {
-            break;
-          }
-        }
-
-        assert.includeMembers(temp, [keeper]); // (superset, subset)
-
-        let newwhitelist = Object.assign([], whitelist);
-        newwhitelist.push(keeper);
-        // check that order is preserved
-        for (let i = 0; i < temp.length; i++) {
-          assert.equal(temp[i], newwhitelist[i]);
-        }
-      });
-
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
-        const tx1 = await vault.connect(ownerSigner).addWhitelist(keeper);
-        const receipt1 = await tx1.wait();
-        assert.isAtMost(receipt1.gasUsed.toNumber(), 84000);
-      });
-    });
-
-    describe("#removeWhitelist", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("reverts when not keeper call", async function () {
-        await expect(
-          vault.connect(keeperSigner).removeWhitelist(user)
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-
-      it("reverts when removal will empty the whitelist", async function () {
-        await vault.connect(ownerSigner).removeWhitelist(owner);
-        await expect(
-          vault.connect(ownerSigner).removeWhitelist(user)
-        ).to.be.revertedWith("Whitelist cannot be empty");
-      });
-
-      it("reverts when trying to remove non-whitelisted address", async function () {
-        await expect(
-          vault.connect(ownerSigner).removeWhitelist(keeper)
-        ).to.be.revertedWith("Whitelist does not exist");
-      });
-
-      it("remove address from whitelist", async function () {
-        let temp: string[] = [];
-        let i = 0;
-
-        await vault.connect(ownerSigner).addWhitelist(keeper);
-
-        while (i <= whitelistLimit) {
-          try {
-            temp.push((await vault.whitelistArray(i)).toString());
-            i++;
-          } catch {
-            break;
-          }
-        }
-
-        assert.includeMembers(temp, [owner]); // (superset, subset)
-
-        await vault.connect(ownerSigner).removeWhitelist(owner);
-
-        temp = [];
-        i = 0;
-
-        while (i <= whitelistLimit) {
-          try {
-            temp.push((await vault.whitelistArray(i)).toString());
-            i++;
-          } catch {
-            break;
-          }
-        }
-
-        assert.notIncludeMembers(temp, [owner]); // (superset, subset)
-
-        let newwhitelist = [user, keeper];
-        for (let i = 0; i < temp.length; i++) {
-          assert.equal(temp[i], newwhitelist[i]);
-        }
-      });
-
-      it("fits gas budget [ @skip-on-coverage ]", async function () {
-        const tx1 = await vault.connect(ownerSigner).removeWhitelist(owner);
-        const receipt1 = await tx1.wait();
-        assert.isAtMost(receipt1.gasUsed.toNumber(), 44000);
-      });
-    });
-
     describe("#deposit", () => {
       time.revertToSnapshotAfterEach();
 
@@ -1471,10 +1306,15 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares3, params.depositAmount);
       });
 
-      it("reverts when user is not whitelisted", async function () {
-        await expect(vault.connect(keeperSigner).deposit(1)).to.be.revertedWith(
-          "!whitelist"
-        );
+      it("adds depositor to list and mapping", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount.mul(2));
+
+        await vault.deposit(params.depositAmount);
+
+        assert.equal((await vault.depositorsArray(0)), user)
+        assert.equal((await vault.depositorsMap(user)), true)
       });
     });
 
@@ -2417,12 +2257,6 @@ function behavesLikeRibbonOptionsVault(params: {
         oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
       });
 
-      it("reverts when user is not whitelisted", async function () {
-        await expect(
-          vault.connect(keeperSigner).maxRedeem()
-        ).to.be.revertedWith("!whitelist");
-      });
-
       it("is able to redeem deposit at new price per share", async function () {
         await assetContract
           .connect(userSigner)
@@ -2607,12 +2441,6 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#redeem", () => {
       time.revertToSnapshotAfterEach();
 
-      it("reverts when user is not whitelisted", async function () {
-        await expect(vault.connect(keeperSigner).redeem(0)).to.be.revertedWith(
-          "!whitelist"
-        );
-      });
-
       it("reverts when 0 passed", async function () {
         await assetContract
           .connect(userSigner)
@@ -2768,6 +2596,28 @@ function behavesLikeRibbonOptionsVault(params: {
         // Should decrement the pending amounts
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
       });
+
+      it("removes user from whitelist if all deposit amount is withdrawn", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+
+          await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+
+        await vault.connect(ownerSigner).deposit(depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+        await vault.connect(userSigner).withdrawInstantly(depositAmount)
+        
+        assert.equal(await vault.depositorsArray(0), owner)
+        assert.equal(await vault.depositorsMap(owner), true)
+
+        await expect(
+          vault.depositorsArray(1)
+        ).to.be.reverted
+        assert.equal(await vault.depositorsMap(user), false)
+      });
     });
 
     describe("#initiateWithdraw", () => {
@@ -2775,12 +2625,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async () => {
         oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
-      });
-
-      it("reverts when user is not whitelisted", async function () {
-        await expect(
-          vault.connect(keeperSigner).initiateWithdraw(depositAmount)
-        ).to.be.revertedWith("!whitelist");
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -3079,7 +2923,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 84571);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 94689);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
@@ -3172,7 +3016,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             totalDistributed,
             [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
-            whitelist,
+            [user, owner],
             1
           );
       });
@@ -3226,7 +3070,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(
             totalDistributed,
             [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
-            whitelist,
+            [user, owner],
             1
           );
       });
@@ -3286,14 +3130,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
-        let dummy1 = "0x0000000000000000000000000000000000000001";
-        let dummy2 = "0x0000000000000000000000000000000000000002";
-        let dummy3 = "0x0000000000000000000000000000000000000003";
-
-        await vault.connect(ownerSigner).addWhitelist(dummy1);
-        await vault.connect(ownerSigner).addWhitelist(dummy2);
-        await vault.connect(ownerSigner).addWhitelist(dummy3);
-
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
