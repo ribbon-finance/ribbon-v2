@@ -411,9 +411,7 @@ contract RibbonTreasuryVault is
      * @notice Remove addresses from depositors list
      * @param excludeDepositor is the address to exclude from the depositors list
      */
-    function _removeDepositor(address excludeDepositor)
-        internal
-    {
+    function _removeDepositor(address excludeDepositor) internal {
         uint256 DepositorListLength = depositorsArray.length;
         require(depositorsMap[excludeDepositor], "Depositor does not exist");
 
@@ -507,10 +505,7 @@ contract RibbonTreasuryVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares)
-        external
-        nonReentrant
-    {
+    function initiateWithdraw(uint256 numShares) external nonReentrant {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -653,10 +648,7 @@ contract RibbonTreasuryVault is
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw
      */
-    function withdrawInstantly(uint256 amount)
-        external
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 amount) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -693,7 +685,7 @@ contract RibbonTreasuryVault is
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
-        
+
         if (depositReceipt.amount == 0 && shares(msg.sender) == 0) {
             _removeDepositor(msg.sender);
         }
@@ -1012,9 +1004,7 @@ contract RibbonTreasuryVault is
             // Distribute to DepositorList proportional to the amount of
             // shares they own
             address depositorAddress = _depositors[i];
-            _amounts[i] = shares(depositorAddress).mul(amount).div(
-                totalSupply
-            );
+            _amounts[i] = shares(depositorAddress).mul(amount).div(totalSupply);
 
             token.safeTransfer(depositorAddress, _amounts[i]);
         }

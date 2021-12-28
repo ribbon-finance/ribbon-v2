@@ -316,7 +316,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let isPut = params.isPut;
   let premiumDecimals = params.premiumDecimals;
   let period = params.period;
-  let depositorsLimit = 30;
+  // let depositorsLimit = 30;
   let premiumAsset = USDC_ADDRESS[chainId];
   let multiAsset = true;
 
@@ -1313,8 +1313,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(params.depositAmount);
 
-        assert.equal((await vault.depositorsArray(0)), user)
-        assert.equal((await vault.depositorsMap(user)), true)
+        assert.equal((await vault.depositorsArray(0)), user);
+        assert.equal((await vault.depositorsMap(user)), true);
       });
     });
 
@@ -2608,15 +2608,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).deposit(depositAmount);
         await vault.connect(userSigner).deposit(depositAmount);
-        await vault.connect(userSigner).withdrawInstantly(depositAmount)
-        
-        assert.equal(await vault.depositorsArray(0), owner)
-        assert.equal(await vault.depositorsMap(owner), true)
+        await vault.connect(userSigner).withdrawInstantly(depositAmount);
+
+        assert.equal(await vault.depositorsArray(0), owner);
+        assert.equal(await vault.depositorsMap(owner), true);
 
         await expect(
           vault.depositorsArray(1)
-        ).to.be.reverted
-        assert.equal(await vault.depositorsMap(user), false)
+        ).to.be.reverted;
+        assert.equal(await vault.depositorsMap(user), false);
       });
     });
 
