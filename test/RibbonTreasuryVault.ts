@@ -1171,7 +1171,7 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!newMaxDepositors");
       });
 
-      it("changes the auction duration", async function () {
+      it("changes the maximum depositors", async function () {
         await vault.connect(ownerSigner).setMaxDepositors(BigNumber.from("10").toString());
         assert.equal((await vault.maxDepositors()).toString(), "10");
       });

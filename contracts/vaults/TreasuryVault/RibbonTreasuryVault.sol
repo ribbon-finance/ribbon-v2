@@ -1010,7 +1010,7 @@ contract RibbonTreasuryVault is
         uint256 totalSupply = totalSupply();
 
         for (uint256 i = 0; i < _depositors.length; i++) {
-            // Distribute to DepositorList proportional to the amount of
+            // Distribute to depositors proportional to the amount of
             // shares they own
             address depositorAddress = _depositors[i];
             _amounts[i] = shares(depositorAddress).mul(amount).div(totalSupply);
