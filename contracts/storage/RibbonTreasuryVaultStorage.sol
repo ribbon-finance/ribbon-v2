@@ -71,6 +71,9 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     /// Available options 7 (weekly), 14 (biweekly), 30 (monthly), 90 (quarterly), 180 (biannually)
     uint256 public period;
 
+    /// @notice Maximum number of depositors
+    uint256 public maxDepositors;
+
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
 }

@@ -75,9 +75,6 @@ contract RibbonTreasuryVault is
     // The minimum duration for an option auction.
     uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
-    // Maximum number of depositor user address.
-    uint256 private constant DEPOSITORS_LIMIT = 30;
-
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -219,6 +216,7 @@ contract RibbonTreasuryVault is
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
         managementFee = _perRoundManagementFee(_initParams._managementFee);
+        maxDepositors = _initParams._maxDepositors;
 
         vaultParams = _vaultParams;
         vaultState.round = 1;
@@ -391,6 +389,23 @@ contract RibbonTreasuryVault is
     }
 
     /**
+     * @notice Set the maximum number of depositors
+     * @param newMaxDepositors is the new cap for number of depositors
+     */
+    function setMaxDepositors(uint128 newMaxDepositors)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(newMaxDepositors > 0, "!newMaxDepositors");
+        maxDepositors = newMaxDepositors;
+    }
+
+    /************************************************
+     *  DEPOSIT & WITHDRAWALS
+     ***********************************************/
+
+    /**
      * @notice Internal function to add new depositor address
      * @param newDepositor is the address to include in the depositors list
      */
@@ -398,7 +413,7 @@ contract RibbonTreasuryVault is
         if (!depositorsMap[newDepositor]) {
             require(newDepositor != address(0), "Depositor address null");
             require(
-                (depositorsArray.length + 1) <= DEPOSITORS_LIMIT,
+                (depositorsArray.length + 1) <= maxDepositors,
                 "Number of depositors exceeds limit"
             );
 
@@ -427,10 +442,6 @@ contract RibbonTreasuryVault is
         depositorsArray.pop();
     }
 
-    /************************************************
-     *  DEPOSIT & WITHDRAWALS
-     ***********************************************/
-
     /**
      * @notice Deposits the `asset` from msg.sender.
      * @param amount is the amount of `asset` to deposit
@@ -438,11 +449,9 @@ contract RibbonTreasuryVault is
     function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
 
-        _depositFor(amount, msg.sender);
-
-        // if (!depositorsMap[msg.sender]) {
         _addDepositor(msg.sender);
-        // }
+
+        _depositFor(amount, msg.sender);
 
         // An approve() by the msg.sender is required beforehand
         IERC20(vaultParams.asset).safeTransferFrom(

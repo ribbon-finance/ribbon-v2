@@ -60,6 +60,7 @@ library VaultLifecycleTreasury {
         uint32 _premiumDiscount;
         uint256 _auctionDuration;
         uint256 _period;
+        uint256 _maxDepositors;
     }
 
     /**
@@ -768,6 +769,7 @@ library VaultLifecycleTreasury {
             _initParams._auctionDuration >= _min_auction_duration,
             "!_auctionDuration"
         );
+        require(_initParams._maxDepositors > 0, "!_maxDepositors");
 
         require(_vaultParams.asset != address(0), "!asset");
         require(_vaultParams.underlying != address(0), "!underlying");

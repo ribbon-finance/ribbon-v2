@@ -77,7 +77,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 150000,
+      depositWorstCase: 151000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -86,6 +86,7 @@ describe("RibbonTreasuryVault", () => {
     period: 7,
     multiplier: 110,
     premiumDecimals: 6,
+    maxDepositors: 30,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
@@ -109,7 +110,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 150000,
+      depositWorstCase: 151000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -118,6 +119,7 @@ describe("RibbonTreasuryVault", () => {
     period: 14,
     multiplier: 110,
     premiumDecimals: 6,
+    maxDepositors: 30,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
@@ -141,7 +143,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 150000,
+      depositWorstCase: 151000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -150,6 +152,7 @@ describe("RibbonTreasuryVault", () => {
     period: 30,
     multiplier: 150,
     premiumDecimals: 6,
+    maxDepositors: 30,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
@@ -173,7 +176,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 150000,
+      depositWorstCase: 151000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -182,6 +185,7 @@ describe("RibbonTreasuryVault", () => {
     period: 90,
     multiplier: 150,
     premiumDecimals: 6,
+    maxDepositors: 30,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
@@ -205,7 +209,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 150000,
+      depositWorstCase: 151000,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -214,6 +218,7 @@ describe("RibbonTreasuryVault", () => {
     period: 180,
     multiplier: 150,
     premiumDecimals: 6,
+    maxDepositors: 30,
     availableChains: [CHAINID.ETH_MAINNET],
   });
 });
@@ -280,6 +285,7 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDecimals: number;
   period: number;
   multiplier: number;
+  maxDepositors: number;
   availableChains: number[];
 }) {
   // Test configs
@@ -319,6 +325,7 @@ function behavesLikeRibbonOptionsVault(params: {
   // let depositorsLimit = 30;
   let premiumAsset = USDC_ADDRESS[chainId];
   let multiAsset = true;
+  let maxDepositors = params.maxDepositors;
 
   // Contracts
   let strikeSelection: Contract;
@@ -466,7 +473,8 @@ function behavesLikeRibbonOptionsVault(params: {
           strikeSelection.address,
           premiumDiscount,
           auctionDuration,
-          period
+          period,
+          maxDepositors,
         ],
         [
           isPut,
@@ -740,6 +748,7 @@ function behavesLikeRibbonOptionsVault(params: {
           minimumSupply,
           cap,
         ] = await vault.vaultParams();
+        assert.equal(await vault.maxDepositors(), maxDepositors);
         assert.equal(await decimals, tokenDecimals);
         assert.equal(decimals, tokenDecimals);
         assert.equal(assetFromContract, collateralAsset);
@@ -777,7 +786,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              period
+              period,
+              maxDepositors
             ],
             [
               isPut,
@@ -806,7 +816,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              period
+              period,
+              maxDepositors,
             ],
             [
               isPut,
@@ -835,7 +846,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              period
+              period,
+              maxDepositors,
             ],
             [
               isPut,
@@ -864,7 +876,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              period
+              period,
+              maxDepositors,
             ],
             [
               isPut,
@@ -893,7 +906,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              period
+              period,
+              maxDepositors,
             ],
             [
               isPut,
@@ -922,7 +936,8 @@ function behavesLikeRibbonOptionsVault(params: {
               strikeSelection.address,
               premiumDiscount,
               auctionDuration,
-              period
+              period,
+              maxDepositors,
             ],
             [
               isPut,
@@ -1138,6 +1153,27 @@ function behavesLikeRibbonOptionsVault(params: {
       it("changes the auction duration", async function () {
         await vault.connect(ownerSigner).setAuctionDuration("1000000");
         assert.equal((await vault.auctionDuration()).toString(), "1000000");
+      });
+    });
+
+    describe("#setMaxDepositors", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when not owner call", async function () {
+        await expect(
+          vault.setMaxDepositors(BigNumber.from("10").toString())
+        ).to.be.revertedWith("caller is not the owner");
+      });
+
+      it("reverts when not larger than 0", async function () {
+        await expect(
+          vault.connect(ownerSigner).setMaxDepositors(BigNumber.from("0").toString())
+        ).to.be.revertedWith("!newMaxDepositors");
+      });
+
+      it("changes the auction duration", async function () {
+        await vault.connect(ownerSigner).setMaxDepositors(BigNumber.from("10").toString());
+        assert.equal((await vault.maxDepositors()).toString(), "10");
       });
     });
 
