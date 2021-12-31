@@ -392,7 +392,7 @@ contract RibbonTreasuryVault is
      * @notice Set the maximum number of depositors
      * @param newMaxDepositors is the new cap for number of depositors
      */
-    function setMaxDepositors(uint128 newMaxDepositors)
+    function setMaxDepositors(uint256 newMaxDepositors)
         external
         onlyOwner
         nonReentrant
