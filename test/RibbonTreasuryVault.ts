@@ -1597,7 +1597,7 @@ function behavesLikeRibbonOptionsVault(params: {
           gnosisAuction.address
         );
 
-        console.log(initialOtokenBalance.toString())
+        console.log(initialOtokenBalance.toString());
 
         const totalOptionsAvailableToBuy = initialOtokenBalance
           .mul(await gnosisAuction.FEE_DENOMINATOR())
@@ -1617,7 +1617,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .div(BigNumber.from(10).pow(18 - decimals))
           .toString();
 
-        console.log(bid)
+        console.log(bid);
 
         const queueStartElement =
           "0x0000000000000000000000000000000000000000000000000000000000000001";

@@ -4,8 +4,7 @@ import {
   PERP_ADDRESS,
   PERP_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  PERP_ETH_POOL, 
-  ETH_PRICE_ORACLE,
+  PERP_ETH_POOL,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
@@ -76,7 +75,7 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonTreasuryVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycleTreasury");
 
-  const RibbonTreasuryVault = await ethers.getContractFactory("RibbonTreasuryVault", 
+  const RibbonTreasuryVault = await ethers.getContractFactory("RibbonTreasuryVault",
     {
       libraries: {
         VaultLifecycleTreasury: lifecycle.address,
@@ -84,7 +83,7 @@ const main = async ({
     }
   );
 
-  const initArgs = [ 
+  const initArgs = [
     {
       _owner: owner,
       _keeper: keeper,
@@ -113,7 +112,7 @@ const main = async ({
     "initialize",
     initArgs
   );
-  
+
   const proxy = await deploy("RibbonTreasuryVaultPERP", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,

@@ -1,17 +1,11 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { ManualVolOracle_BYTECODE } from "../../constants/constants";
 import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
-import { ethers, network } from "hardhat";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
-const {getContractAt} = ethers;
+import { ethers } from "hardhat";
+const { getContractAt } = ethers;
 
 const setAnnualizedVol = async (
   oracle: string, pool: string, vol: number) => {
 
-  let keeperSigner: SignerWithAddress
-
-  [, , keeperSigner, , ] =
-    await ethers.getSigners();
+  let keeperSigner = (await ethers.getSigners())[2];
 
   const oracleContract = await getContractAt(
     ManualVolOracle_ABI,
@@ -19,7 +13,7 @@ const setAnnualizedVol = async (
   );
 
   await oracleContract.connect(keeperSigner).setAnnualizedVol(pool, vol);
-  console.log((await oracleContract.annualizedVol(pool)).toString())
+  console.log((await oracleContract.annualizedVol(pool)).toString());
 };
 
 export default setAnnualizedVol;
