@@ -51,24 +51,22 @@ const main = async ({
 
   console.log(`RibbonTreasuryVaultLogic @ ${vault.address}`);
 
-  // if (chainId !== 42) {
-    try {
-      await run("verify:verify", {
-        address: vault.address,
-        constructorArguments: [
-          WETH_ADDRESS[chainId],
-          USDC_ADDRESS[chainId],
-          OTOKEN_FACTORY[chainId],
-          GAMMA_CONTROLLER[chainId],
-          MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId],
-        ],
-      });
-    } catch (error) {
-      console.log(error);
-    }
-  };
-// };
+  try {
+    await run("verify:verify", {
+      address: vault.address,
+      constructorArguments: [
+        WETH_ADDRESS[chainId],
+        USDC_ADDRESS[chainId],
+        OTOKEN_FACTORY[chainId],
+        GAMMA_CONTROLLER[chainId],
+        MARGIN_POOL[chainId],
+        GNOSIS_EASY_AUCTION[chainId],
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
 main.tags = ["RibbonTreasuryVaultLogic"];
 
 export default main;

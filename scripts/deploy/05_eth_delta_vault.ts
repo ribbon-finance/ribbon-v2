@@ -79,19 +79,17 @@ const main = async ({
 
   console.log(`RibbonDeltaVaultETHCall @ ${vault.address}`);
 
-  if (chainId !== 42) {
-    try {
-      await run('verify:verify', {
-        address: vault.address,
-        constructorArguments: [
-          logicDeployment.address,
-          admin,
-          initData,
-        ],
-      });
-    } catch (error) {
-      console.log(error);
-    }
+  try {
+    await run('verify:verify', {
+      address: vault.address,
+      constructorArguments: [
+        logicDeployment.address,
+        admin,
+        initData,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
   }
 };
 main.tags = ["RibbonDeltaVaultETHCall"];

@@ -60,25 +60,23 @@ const main = async ({
 
   console.log(`RibbonThetaVaultSTETHLogic @ ${vault.address}`);
 
-  if (chainId !== 42) {
-    try {
-      await run("verify:verify", {
-        address: vault.address,
-        constructorArguments: [
-          WETH_ADDRESS[chainId],
-          USDC_ADDRESS[chainId],
-          WSTETH_ADDRESS,
-          LDO_ADDRESS,
-          OTOKEN_FACTORY[chainId],
-          GAMMA_CONTROLLER[chainId],
-          MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId],
-          STETH_ETH_CRV_POOL,
-        ],
-      });
-    } catch (error) {
-      console.log(error);
-    }
+  try {
+    await run("verify:verify", {
+      address: vault.address,
+      constructorArguments: [
+        WETH_ADDRESS[chainId],
+        USDC_ADDRESS[chainId],
+        WSTETH_ADDRESS,
+        LDO_ADDRESS,
+        OTOKEN_FACTORY[chainId],
+        GAMMA_CONTROLLER[chainId],
+        MARGIN_POOL[chainId],
+        GNOSIS_EASY_AUCTION[chainId],
+        STETH_ETH_CRV_POOL,
+      ],
+    });
+  } catch (error) {
+    console.log(error);
   }
 };
 main.tags = ["RibbonThetaVaultSTETHLogic"];
