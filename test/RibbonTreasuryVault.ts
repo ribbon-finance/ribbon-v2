@@ -1608,8 +1608,6 @@ function behavesLikeRibbonOptionsVault(params: {
           )
           .div(bidMultiplier)
           .div(2);
-        
-        console.log(totalOptionsAvailableToBuy.toString())
 
         let decimals = multiAsset ? premiumDecimals : tokenDecimals;
         const bid = wmul(

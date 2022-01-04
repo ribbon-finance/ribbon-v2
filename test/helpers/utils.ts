@@ -446,3 +446,38 @@ export function encodePath(tokenAddresses, fees) {
 
   return encoded.toLowerCase();
 }
+
+/* eslint @typescript-eslint/no-explicit-any: "off" */
+export const objectEquals = (a: any, b: any) => {
+  if (a === b) return true;
+  if (a instanceof Date && b instanceof Date)
+    return a.getTime() === b.getTime();
+  if (!a || !b || (typeof a !== "object" && typeof b !== "object"))
+    return a === b;
+  /* eslint no-undefined: "off" */
+  if (a === null || a === undefined || b === null || b === undefined)
+    return false;
+  if (a.prototype !== b.prototype) return false;
+  let keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((k) => objectEquals(a[k], b[k]));
+};
+
+export const serializeMap = (map: Record<string, unknown>) => {
+  return Object.fromEntries(
+    Object.keys(map).map((key) => {
+      return [key, serializeToObject(map[key])];
+    })
+  );
+};
+
+export const serializeToObject = (solidityValue: unknown) => {
+  if (BigNumber.isBigNumber(solidityValue)) {
+    return solidityValue.toString();
+  }
+  // Handle structs recursively
+  if (Array.isArray(solidityValue)) {
+    return solidityValue.map((val) => serializeToObject(val));
+  }
+  return solidityValue;
+};
