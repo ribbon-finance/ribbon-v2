@@ -61,15 +61,13 @@ const main = async ({
 
   console.log(`RibbonTreasuryVaultPERP strikeSelection @ ${strikeSelection.address}`);
 
-  if (chainId !== 42) {
-    try {
-      await run('verify:verify', {
-        address: strikeSelection.address,
-        constructorArguments: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], // change this
-      });
-    } catch (error) {
-      console.log(error);
-    }
+  try {
+    await run('verify:verify', {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], // change this
+    });
+  } catch (error) {
+    console.log(error);
   }
 
   const logicDeployment = await deployments.get("RibbonTreasuryVaultLogic");

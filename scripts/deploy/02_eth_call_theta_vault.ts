@@ -89,19 +89,17 @@ const main = async ({
 
   console.log(`RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`);
 
-  if (chainId !== 42) {
-    try {
-      await run('verify:verify', {
-        address: strikeSelection.address,
-        constructorArguments: [
-          pricer.address,
-          STRIKE_DELTA,
-          STRIKE_STEP[chainId],
-        ],
-      });
-    } catch (error) {
-      console.log(error);
-    }
+  try {
+    await run('verify:verify', {
+      address: strikeSelection.address,
+      constructorArguments: [
+        pricer.address,
+        STRIKE_DELTA,
+        STRIKE_STEP[chainId],
+      ],
+    });
+  } catch (error) {
+    console.log(error);
   }
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");

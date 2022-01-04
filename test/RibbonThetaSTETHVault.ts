@@ -69,7 +69,7 @@ describe("RibbonThetaSTETHVault", () => {
     assetContractName: "IWETH",
     collateralContractName: "IWSTETH",
     strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: WSTETH_ADDRESS,
+    collateralAsset: WSTETH_ADDRESS[chainId],
     intermediaryAsset: STETH_ADDRESS,
     depositAsset: WETH_ADDRESS[chainId],
     collateralPricer: WSTETH_PRICER,
