@@ -27,6 +27,12 @@ import {
   WETH_ADDRESS,
   SUSHI_ADDRESS,
   SUSHI_OWNER_ADDRESS,
+  NEAR_ADDRESS,
+  NEAR_OWNER_ADDRESS,
+  CHAINLINK_NEAR_PRICER,
+  AURORA_ADDRESS,
+  AURORA_OWNER_ADDRESS,
+  CHAINLINK_AURORA_PRICER,
   GNOSIS_EASY_AUCTION,
   DEX_ROUTER,
   DEX_FACTORY,
@@ -58,8 +64,12 @@ const DELAY_INCREMENT = 100;
 const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
-
 const PERIOD = 43200; // 12 hours
+const PUT_EXPECTED_MINT_AMOUNT = {
+  [CHAINID.ETH_MAINNET]: "111111111111",
+  [CHAINID.AVAX_MAINNET]: "2702702702",
+  [CHAINID.AURORA_MAINNET]: "263157894736",
+};
 
 const chainId = network.config.chainId;
 
@@ -109,7 +119,7 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.ETH_MAINNET ? "100" : "10"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
@@ -124,7 +134,7 @@ describe("RibbonThetaVault", () => {
       depositWorstCase: 101000,
       depositBestCase: 90000,
     },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET, CHAINID.AURORA_MAINNET],
   });
 
   behavesLikeRibbonOptionsVault({
@@ -139,15 +149,13 @@ describe("RibbonThetaVault", () => {
     chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: BigNumber.from(chainId === CHAINID.AVAX_MAINNET ? "10" : "100"),
+    deltaStep: BigNumber.from(chainId === CHAINID.ETH_MAINNET ? "100" : "1"),
     depositAmount: BigNumber.from("100000000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from(
-      chainId === CHAINID.AVAX_MAINNET ? "111111111111" : "2702702702"
-    ),
+    expectedMintAmount: BigNumber.from(PUT_EXPECTED_MINT_AMOUNT[chainId]),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -159,7 +167,7 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET, CHAINID.AURORA_MAINNET],
   });
 
   behavesLikeRibbonOptionsVault({
@@ -229,7 +237,72 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET],
   });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon NEAR Theta Vault (Call)`,
+    tokenName: "Ribbon NEAR Theta Vault",
+    tokenSymbol: "NEAR-THETA",
+    asset: NEAR_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: NEAR_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_NEAR_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from(chainId === CHAINID.ETH_MAINNET ? "100" : "10"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 24,
+    isPut: false,
+    isUsdcAuction: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: NEAR_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon AURORA Theta Vault (Call)`,
+    tokenName: "Ribbon AURORA Theta Vault",
+    tokenSymbol: "AURORA-THETA",
+    asset: AURORA_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: AURORA_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_AURORA_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: BigNumber.from(chainId === CHAINID.ETH_MAINNET ? "100" : "10"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    isUsdcAuction: false,
+    gasLimits: {
+      depositWorstCase: 101000,
+      depositBestCase: 90000,
+    },
+    mintConfig: {
+      contractOwnerAddress: AURORA_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [CHAINID.AURORA_MAINNET],
+  });
 });
+
 
 type Option = {
   address: string;
@@ -1694,14 +1767,17 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("sets the correct strike when overriding strike price", async function () {
-        const strikePriceForChain =
-          chainId === CHAINID.ETH_MAINNET
-            ? BigNumber.from("250000000000")
-            : BigNumber.from("20000000000");
+        const WETH_STRIKE_PRICE = {
+          [CHAINID.ETH_MAINNET]: 250000000000, // WETH
+          [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+          [CHAINID.AURORA_MAINNET]: 20000000000, // WETH
+        };
+
+        const altStrikePrice = BigNumber.from(chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000");
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
-            ? strikePriceForChain
-            : BigNumber.from("4050000000000");
+            ? WETH_STRIKE_PRICE[chainId]
+            : altStrikePrice;
 
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
@@ -2212,6 +2288,7 @@ function behavesLikeRibbonOptionsVault(params: {
           // "Controller: can not settle vault with un-expired otoken",
           [CHAINID.AVAX_MAINNET]: "C31",
           [CHAINID.AVAX_FUJI]: "C31",
+          [CHAINID.AURORA_MAINNET]: "C31",
         };
 
         const firstOptionAddress = firstOption.address;
@@ -2327,6 +2404,7 @@ function behavesLikeRibbonOptionsVault(params: {
           // "Controller: can not settle vault with un-expired otoken",
           [CHAINID.AVAX_MAINNET]: "C31",
           [CHAINID.AVAX_FUJI]: "C31",
+          [CHAINID.AURORA_MAINNET]: "C31",
         };
 
         const firstOptionAddress = firstOption.address;
@@ -2781,6 +2859,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
+          [CHAINID.AURORA_MAINNET]: "1000000000",
         };
 
         const settlementPriceITM = isPut
@@ -3454,7 +3533,6 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
-
         await rollToNextOption();
 
         assert.bnEqual(
@@ -3477,6 +3555,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
+          [CHAINID.AURORA_MAINNET]: "1000000000",
         };
 
         const settlementPriceITM = isPut
