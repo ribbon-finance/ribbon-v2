@@ -291,7 +291,7 @@ export async function mintToken(
     await contract
       .connect(tokenOwnerSigner)
       .mint(recipient, amount, recipient, 0, txid);
-  } else if (contract.address === USDC_ADDRESS[chainId]) {
+  } else if (contract.address === USDC_ADDRESS[chainId] || chainId === CHAINID.AURORA_MAINNET) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
     await contract.connect(tokenOwnerSigner).mint(recipient, amount);
