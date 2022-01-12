@@ -24,6 +24,7 @@ const TOKEN_NAME = {
   [CHAINID.ETH_KOVAN]: 'Ribbon ETH Theta Vault',
   [CHAINID.AVAX_MAINNET]: 'Ribbon AVAX Theta Vault',
   [CHAINID.AVAX_FUJI]: 'Ribbon AVAX Theta Vault',
+  [CHAINID.AURORA_MAINNET]: 'Ribbon ETH Theta Vault',
 };
 
 const TOKEN_SYMBOL = {
@@ -31,6 +32,7 @@ const TOKEN_SYMBOL = {
   [CHAINID.ETH_KOVAN]: 'rETH-THETA',
   [CHAINID.AVAX_MAINNET]: 'rAVAX-THETA',
   [CHAINID.AVAX_FUJI]: 'rAVAX-THETA',
+  [CHAINID.AURORA_MAINNET]: 'rETH-THETA',
 };
 
 const STRIKE_STEP = {
@@ -38,6 +40,7 @@ const STRIKE_STEP = {
   [CHAINID.ETH_KOVAN]: ETH_STRIKE_STEP,
   [CHAINID.AVAX_MAINNET]: AVAX_STRIKE_STEP,
   [CHAINID.AVAX_FUJI]: AVAX_STRIKE_STEP,
+  [CHAINID.AURORA_MAINNET]: ETH_STRIKE_STEP,
 };
 
 const main = async ({
@@ -102,8 +105,14 @@ const main = async ({
     console.log(error);
   }
 
+  const lifecycle = await deployments.get("VaultLifecycle");
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
+  const RibbonThetaVault = await ethers.getContractFactory(
+    "RibbonThetaVault", {
+      libraries: {
+        VaultLifecycle: lifecycle.address,
+      },
+  });
 
   const initArgs = [
     {
