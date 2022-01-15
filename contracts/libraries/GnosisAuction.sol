@@ -74,8 +74,10 @@ library GnosisAuction {
                 oTokenSellAmount.mul(10**10),
                 auctionDetails
                     .oTokenPremium
-            )
-                .div(10**(uint256(18).sub(auctionDetails.assetDecimals)));
+            );
+
+        // uint256 baseDecimals = auctionDetails.assetDecimals > 18 ? auctionDetails.assetDecimals : 18;
+        minBidAmount = minBidAmount.div(10**(uint256(24).sub(auctionDetails.assetDecimals)));
 
         require(
             minBidAmount <= type(uint96).max,

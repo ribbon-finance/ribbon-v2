@@ -18,6 +18,9 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
 
+// Can only support up to 31 decimals because cap is uint104 and 2^104 -1 is +31
+export const VAULT_DECIMAL_PRECISION = 24;
+
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
 const chainId = hre.network.config.chainId;
@@ -336,7 +339,7 @@ export async function bidForOToken(
     totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
     premium
   )
-    .div(BigNumber.from(10).pow(18 - assetDecimals))
+    .div(BigNumber.from(10).pow(VAULT_DECIMAL_PRECISION - assetDecimals))
     .toString();
 
   const queueStartElement =

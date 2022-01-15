@@ -313,11 +313,10 @@ library VaultLifecycle {
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
                 .mul(10**Vault.OTOKEN_DECIMALS)
-                .mul(10**18) // we use 10**18 to give extra precision
+                .mul(10**24) // FIXME we use 10**18 to give extra precision
                 .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
-
             if (collateralDecimals > 8) {
                 uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
                 if (mintAmount > scaleBy) {
