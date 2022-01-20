@@ -95,7 +95,7 @@ const main = async ({
       asset: NEAR_ADDRESS[chainId],
       underlying: NEAR_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(16),
-      cap: ethers.utils.parseUnits("1000", 24),
+      cap: ethers.utils.parseUnits("100000", 24),
     },
   ];
 
