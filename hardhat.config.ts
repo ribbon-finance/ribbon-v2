@@ -75,6 +75,21 @@ export default {
         mnemonic: process.env.FUJI_MNEMONIC,
       },
     },
+    aurora: {
+      url: process.env.AURORA_URI,
+      chainId: 1313161554,
+      gasPrice: 0,
+      accounts: {
+        mnemonic: process.env.AURORA_MNEMONIC,
+      },
+    },
+    'aurora-testnet': {
+      url: process.env.AURORA_TESTNET_URI,
+      chainId: 1313161555,
+      accounts: {
+        mnemonic: process.env.AURORA_TESTNET_MNEMONIC,
+      },
+    },
   },
   namedAccounts: {
     deployer: {
@@ -83,6 +98,8 @@ export default {
       42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
       43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
     },
     owner: {
       default: 0,
@@ -90,6 +107,8 @@ export default {
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
     },
     keeper: {
       default: 0,
@@ -97,6 +116,8 @@ export default {
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
       43114: "0xa4290c9eae274c7a8fbc57a1e68adc3e95e7c67e",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      1313161554: "0xa4290c9eae274c7a8fbc57a1e68adc3e95e7c67e",
+      1313161555: "0xa4290c9eae274c7a8fbc57a1e68adc3e95e7c67e",
     },
     admin: {
       default: 0,
@@ -104,6 +125,8 @@ export default {
       42: "0x50378505679B9e7247ffe89EAa1b136131Ea8362",
       43114: "0x31351f2BD9e94813BCf0cA04B5E6e2b7ceAFC7c6",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
     },
     feeRecipient: {
       default: 0,
@@ -111,6 +134,8 @@ export default {
       42: "0x35364e2d193D423f106B92766088A71bFC9b8370",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
     },
   },
   mocha: {

@@ -281,17 +281,16 @@ export async function mintToken(
     value: parseEther("0.5"),
   });
 
-  if (
-    chainId === CHAINID.AVAX_MAINNET &&
-    (contract.address === WBTC_ADDRESS[chainId] ||
-      contract.address === USDC_ADDRESS[chainId])
-  ) {
+  if (isBridgeToken(chainId, contract.address)) {
     // Avax mainnet uses BridgeTokens which have a special mint function
     const txid = ethers.utils.formatBytes32String("Hello World!");
     await contract
       .connect(tokenOwnerSigner)
       .mint(recipient, amount, recipient, 0, txid);
-  } else if (contract.address === USDC_ADDRESS[chainId]) {
+  } else if (
+    contract.address === USDC_ADDRESS[chainId] ||
+    chainId === CHAINID.AURORA_MAINNET
+  ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
     await contract.connect(tokenOwnerSigner).mint(recipient, amount);
@@ -305,6 +304,10 @@ export async function mintToken(
     params: [contractOwner],
   });
 }
+
+export const isBridgeToken = (chainId: number, address: string) =>
+  chainId === CHAINID.AVAX_MAINNET &&
+  (address === WBTC_ADDRESS[chainId] || address === USDC_ADDRESS[chainId]);
 
 export async function bidForOToken(
   gnosisAuction: Contract,
@@ -332,17 +335,16 @@ export async function bidForOToken(
     )
     .div(multiplier);
 
-  const bid = wmul(
+  let bid = wmul(
     totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
     premium
-  )
-    .div(BigNumber.from(10).pow(18 - assetDecimals))
-    .toString();
+  );
+  bid = assetDecimals > 18 ? bid.mul(BigNumber.from(10).pow(assetDecimals - 18)) : bid.div(BigNumber.from(10).pow(18 - assetDecimals));
 
   const queueStartElement =
     "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-  await assetContract.connect(userSigner).approve(gnosisAuction.address, bid);
+  await assetContract.connect(userSigner).approve(gnosisAuction.address, bid.toString());
 
   // BID OTOKENS HERE
   await gnosisAuction
@@ -350,7 +352,7 @@ export async function bidForOToken(
     .placeSellOrders(
       latestAuction,
       [totalOptionsAvailableToBuy.toString()],
-      [bid],
+      [bid.toString()],
       [queueStartElement],
       "0x"
     );
@@ -480,4 +482,25 @@ export const serializeToObject = (solidityValue: unknown) => {
     return solidityValue.map((val) => serializeToObject(val));
   }
   return solidityValue;
+};
+
+export const getDeltaStep = (asset: string) => {
+  switch (asset) {
+    case "WBTC":
+      return BigNumber.from("1000");
+    case "AAVE":
+      return BigNumber.from("10");
+    case "NEAR":
+    case "AURORA":
+      return BigNumber.from("5");
+    case "SUSHI":
+      return BigNumber.from("1");
+    case "WETH":
+      if (chainId === CHAINID.AVAX_MAINNET) {
+        return BigNumber.from("5");
+      }
+      return BigNumber.from("100");
+    default:
+      throw new Error(`Delta Step not found for asset: ${asset}`);
+  }
 };
