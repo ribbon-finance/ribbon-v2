@@ -2675,7 +2675,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
       });
 
-      it("removes user from whitelist if all deposit amount is withdrawn", async function () {
+      it("removes user from list if all deposit amount is withdrawn", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -3022,7 +3022,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 94821);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 95028);
         // console.log(
         //   params.name,
         //   "completeWithdraw",

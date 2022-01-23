@@ -441,19 +441,22 @@ contract RibbonTreasuryVault is
      * @param excludeDepositor is the address to exclude from the depositors list
      */
     function _removeDepositor(address excludeDepositor) internal {
-        uint256 DepositorListLength = depositorsArray.length;
+        address[] storage array = depositorsArray;
+        uint256 arrayLength = array.length;
+
         require(depositorsMap[excludeDepositor], "Depositor does not exist");
 
         depositorsMap[excludeDepositor] = false;
 
-        for (uint256 i = 0; i < DepositorListLength; i++) {
-            if (excludeDepositor == depositorsArray[i]) {
-                for (uint256 j = i; j < (DepositorListLength - 1); j++) {
-                    depositorsArray[j] = depositorsArray[j + 1];
-                }
+        for (uint256 i = 0; i < arrayLength - 1; i++) {
+            if (excludeDepositor == array[i]) {
+                (array[i], array[arrayLength - 1]) = (
+                    array[arrayLength - 1],
+                    array[i]
+                );
             }
         }
-        depositorsArray.pop();
+        array.pop();
     }
 
     /**
