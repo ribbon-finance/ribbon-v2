@@ -843,7 +843,7 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @notice Helper function to make either an ERC20 transfer
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
