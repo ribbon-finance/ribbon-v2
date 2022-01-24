@@ -1108,7 +1108,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("tops up existing deposit", async function () {
         const startBalance = await assetContract.balanceOf(user);
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
+        const totalDepositAmount = depositAmount.add(depositAmount.div(2));
 
         await assetContract
           .connect(userSigner)
@@ -1116,7 +1116,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(depositAmount);
 
-        const tx = await vault.deposit(depositAmount);
+        const tx = await vault.deposit(depositAmount.div(2));
 
         assert.bnEqual(
           await assetContract.balanceOf(user),
@@ -1126,7 +1126,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue((await vault.balanceOf(user)).isZero());
         await expect(tx)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 1);
+          .withArgs(user, depositAmount.div(2), 1);
 
         assert.bnEqual(await vault.totalPending(), totalDepositAmount);
         const { round, amount } = await vault.depositReceipts(user);

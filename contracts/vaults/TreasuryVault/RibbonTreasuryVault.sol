@@ -486,7 +486,12 @@ contract RibbonTreasuryVault is
     function _depositFor(uint256 amount, address creditor) private {
         uint256 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
-        uint256 totalUserDeposit = accountVaultBalance(msg.sender).add(amount);
+
+        Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
+        uint256 totalUserDeposit =
+            accountVaultBalance(msg.sender).add(depositReceipt.amount).add(
+                amount
+            );
 
         require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
@@ -496,8 +501,6 @@ contract RibbonTreasuryVault is
         require(totalUserDeposit >= minDeposit, "Minimum deposit not reached");
 
         emit Deposit(creditor, amount, currentRound);
-
-        Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint256 unredeemedShares =
