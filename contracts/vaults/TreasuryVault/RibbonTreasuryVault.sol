@@ -515,8 +515,6 @@ contract RibbonTreasuryVault is
             depositAmount = newAmount;
         }
 
-        // depositAmount > minDeposit
-
         ShareMath.assertUint104(depositAmount);
 
         depositReceipts[creditor] = Vault.DepositReceipt({
