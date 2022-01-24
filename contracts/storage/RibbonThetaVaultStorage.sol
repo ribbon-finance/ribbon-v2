@@ -33,8 +33,8 @@ abstract contract RibbonThetaVaultStorageV3 {
 }
 
 abstract contract RibbonThetaVaultStorageV4 {
-    // StakingRewards contract for the vault
-    address public stakingRewards;
+    // LiquidityGauge contract for the vault
+    address public liquidityGauge;
 }
 
 // We are following Compound's method of upgrading new contract implementations
