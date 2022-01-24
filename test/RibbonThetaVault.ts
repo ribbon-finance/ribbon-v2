@@ -9,7 +9,6 @@ import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER_NEW,
   CHAINLINK_WETH_PRICER_NEW,
-  CHAINLINK_SUSHI_PRICER,
   CHAINID,
   BLOCK_NUMBER_NEW,
   ETH_PRICE_ORACLE,
@@ -25,8 +24,6 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  SUSHI_ADDRESS,
-  SUSHI_OWNER_ADDRESS,
   NEAR_ADDRESS,
   NEAR_OWNER_ADDRESS,
   CHAINLINK_NEAR_PRICER,
@@ -69,7 +66,7 @@ const PERIOD = 43200; // 12 hours
 const PUT_EXPECTED_MINT_AMOUNT = {
   [CHAINID.ETH_MAINNET]: "2702702702",
   [CHAINID.AVAX_MAINNET]: "105263157894",
-  [CHAINID.AURORA_MAINNET]: "263157894736",
+  [CHAINID.AURORA_MAINNET]: "3448275862",
 };
 
 const chainId = network.config.chainId;
@@ -172,75 +169,7 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon SUSHI Theta Vault (Call)`,
-    tokenName: "Ribbon SUSHI Theta Vault",
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("SUSHI"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    isUsdcAuction: false,
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.ETH_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction)`,
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("SUSHI"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    isUsdcAuction: true,
-    swapPath: {
-      tokens: [USDC_ADDRESS[chainId], SUSHI_ADDRESS[chainId]],
-      fees: [10000],
-    },
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.ETH_MAINNET],
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET, CHAINID.AURORA_MAINNET],
   });
 
   behavesLikeRibbonOptionsVault({
