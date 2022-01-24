@@ -3352,17 +3352,17 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#stake", () => {
-      let stakingRewards: Contract;
+      let liquidityGauge: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        const MockStakingRewards = await getContractFactory(
-          "MockStakingRewards",
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
           ownerSigner
         );
-        stakingRewards = await MockStakingRewards.deploy(vault.address);
+        liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
       });
 
-      it("reverts when stakingRewards is not set", async function () {
+      it("reverts when liquidityGauge is not set", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -3374,7 +3374,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when 0 passed", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -3386,7 +3386,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when staking more than available", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3403,7 +3403,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when staking more than available after redeeming", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3422,7 +3422,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("stakes shares", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3440,9 +3440,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, stakeAmount, 1);
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), stakeAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           stakeAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3465,9 +3465,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, depositAmount.sub(stakeAmount), 1);
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           depositAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3486,7 +3486,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("stakes shares after redeeming", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3507,9 +3507,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, stakeAmount.sub(redeemAmount), 1);
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), stakeAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           stakeAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3527,9 +3527,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(userSigner).maxRedeem();
         await vault.connect(userSigner).stake(depositAmount.sub(stakeAmount));
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           depositAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3602,32 +3602,32 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setStakingRewards", () => {
+    describe("#setLiquidityGauge", () => {
       time.revertToSnapshotAfterEach();
 
       it("should revert if not owner", async function () {
         await expect(
-          vault.connect(userSigner).setStakingRewards(constants.AddressZero)
+          vault.connect(userSigner).setLiquidityGauge(constants.AddressZero)
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
-      it("should set the new stakingRewards", async function () {
-        const MockStakingRewards = await getContractFactory(
-          "MockStakingRewards",
+      it("should set the new liquidityGauge", async function () {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
           ownerSigner
         );
-        const stakingRewards = await MockStakingRewards.deploy(vault.address);
+        const liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
-        assert.equal(await vault.stakingRewards(), stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
+        assert.equal(await vault.liquidityGauge(), liquidityGauge.address);
       });
 
-      it("should remove stakingRewards", async function () {
+      it("should remove liquidityGauge", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(constants.AddressZero);
-        assert.equal(await vault.stakingRewards(), constants.AddressZero);
+          .setLiquidityGauge(constants.AddressZero);
+        assert.equal(await vault.liquidityGauge(), constants.AddressZero);
       });
     });
 

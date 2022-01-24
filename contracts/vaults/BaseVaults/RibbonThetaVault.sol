@@ -14,7 +14,7 @@ import {
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
-import {IStakingRewards} from "../../interfaces/IStakingRewards.sol";
+import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 /**
@@ -283,11 +283,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
-     * @notice Sets the new stakingRewards contract for this vault
-     * @param newStakingRewards is the address of the new stakingRewards contract
+     * @notice Sets the new liquidityGauge contract for this vault
+     * @param newLiquidityGauge is the address of the new liquidityGauge contract
      */
-    function setStakingRewards(address newStakingRewards) external onlyOwner {
-        stakingRewards = newStakingRewards;
+    function setLiquidityGauge(address newLiquidityGauge) external onlyOwner {
+        liquidityGauge = newLiquidityGauge;
     }
 
     /************************************************
@@ -335,16 +335,16 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param numShares is the number of shares to stake
      */
     function stake(uint256 numShares) external nonReentrant {
-        address _stakingRewards = stakingRewards;
-        require(_stakingRewards != address(0)); // Removed revert msgs due to contract size limit
+        address _liquidityGauge = liquidityGauge;
+        require(_liquidityGauge != address(0)); // Removed revert msgs due to contract size limit
         require(numShares > 0);
         uint256 heldByAccount = balanceOf(msg.sender);
         if (heldByAccount < numShares) {
             _redeem(numShares.sub(heldByAccount), false);
         }
         _transfer(msg.sender, address(this), numShares);
-        _approve(address(this), _stakingRewards, numShares);
-        IStakingRewards(_stakingRewards).stakeFor(numShares, msg.sender);
+        _approve(address(this), _liquidityGauge, numShares);
+        ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
     }
 
     /**
