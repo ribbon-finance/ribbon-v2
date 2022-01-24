@@ -757,7 +757,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("initializes with correct values", async function () {
-        assert.equal((await vault.cap()).toString(), parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18));
+        assert.equal(
+          (await vault.cap()).toString(),
+          parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18)
+        );
         assert.equal(await vault.owner(), owner);
         assert.equal(await vault.keeper(), keeper);
         assert.equal(await vault.feeRecipient(), feeRecipient);
@@ -791,7 +794,10 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.premiumDiscount()).toString(),
           params.premiumDiscount.toString()
         );
-        assert.bnEqual(cap, parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18));
+        assert.bnEqual(
+          cap,
+          parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18)
+        );
         assert.equal(
           await vault.optionsPremiumPricer(),
           optionsPremiumPricer.address
@@ -1777,7 +1783,8 @@ function behavesLikeRibbonOptionsVault(params: {
           [CHAINID.AURORA_MAINNET]: 250000000000, // WETH
         };
 
-        const altStrikePrice = chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
+        const altStrikePrice =
+          chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
             ? WETH_STRIKE_PRICE[chainId]
@@ -1881,7 +1888,10 @@ function behavesLikeRibbonOptionsVault(params: {
           totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
           firstOptionPremium
         );
-        bid = decimals > 18 ? bid.mul(BigNumber.from(10).pow(decimals - 18)) : bid.div(BigNumber.from(10).pow(18 - decimals));
+        bid =
+          decimals > 18
+            ? bid.mul(BigNumber.from(10).pow(decimals - 18))
+            : bid.div(BigNumber.from(10).pow(18 - decimals));
 
         const queueStartElement =
           "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -2270,8 +2280,14 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         let decimals = isUsdcAuction ? 6 : tokenDecimals;
 
-        let bid = wmul(oTokenSellAmount.mul(BigNumber.from(10).pow(10)), oTokenPremium);
-        bid = decimals > 18 ? bid.mul(BigNumber.from(10).pow(decimals - 18)) : bid.div(BigNumber.from(10).pow(18 - decimals));
+        let bid = wmul(
+          oTokenSellAmount.mul(BigNumber.from(10).pow(10)),
+          oTokenPremium
+        );
+        bid =
+          decimals > 18
+            ? bid.mul(BigNumber.from(10).pow(decimals - 18))
+            : bid.div(BigNumber.from(10).pow(18 - decimals));
         assert.equal(initialAuctionOrder.buyAmount.toString(), bid.toString());
 
         // Hardcoded
@@ -3403,17 +3419,17 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#stake", () => {
-      let stakingRewards: Contract;
+      let liquidityGauge: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        const MockStakingRewards = await getContractFactory(
-          "MockStakingRewards",
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
           ownerSigner
         );
-        stakingRewards = await MockStakingRewards.deploy(vault.address);
+        liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
       });
 
-      it("reverts when stakingRewards is not set", async function () {
+      it("reverts when liquidityGauge is not set", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -3425,7 +3441,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when 0 passed", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -3437,7 +3453,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when staking more than available", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3454,7 +3470,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when staking more than available after redeeming", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3473,7 +3489,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("stakes shares", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3491,9 +3507,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, stakeAmount, 1);
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), stakeAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           stakeAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3516,9 +3532,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, depositAmount.sub(stakeAmount), 1);
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           depositAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3537,7 +3553,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("stakes shares after redeeming", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
 
         await assetContract
           .connect(userSigner)
@@ -3558,9 +3574,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "Redeem")
           .withArgs(user, stakeAmount.sub(redeemAmount), 1);
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), stakeAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           stakeAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3578,9 +3594,9 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(userSigner).maxRedeem();
         await vault.connect(userSigner).stake(depositAmount.sub(stakeAmount));
 
-        assert.bnEqual(await stakingRewards.balanceOf(user), depositAmount);
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
         assert.bnEqual(
-          await vault.balanceOf(stakingRewards.address),
+          await vault.balanceOf(liquidityGauge.address),
           depositAmount
         );
         assert.bnEqual(await vault.balanceOf(user), userOldBalance);
@@ -3629,7 +3645,10 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("10"));
         await expect(tx)
           .to.emit(vault, "CapSet")
-          .withArgs(parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18), parseEther("10"));
+          .withArgs(
+            parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18),
+            parseEther("10")
+          );
       });
 
       it("should revert when depositing over the cap", async function () {
@@ -3650,32 +3669,32 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setStakingRewards", () => {
+    describe("#setLiquidityGauge", () => {
       time.revertToSnapshotAfterEach();
 
       it("should revert if not owner", async function () {
         await expect(
-          vault.connect(userSigner).setStakingRewards(constants.AddressZero)
+          vault.connect(userSigner).setLiquidityGauge(constants.AddressZero)
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
-      it("should set the new stakingRewards", async function () {
-        const MockStakingRewards = await getContractFactory(
-          "MockStakingRewards",
+      it("should set the new liquidityGauge", async function () {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
           ownerSigner
         );
-        const stakingRewards = await MockStakingRewards.deploy(vault.address);
+        const liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(stakingRewards.address);
-        assert.equal(await vault.stakingRewards(), stakingRewards.address);
+          .setLiquidityGauge(liquidityGauge.address);
+        assert.equal(await vault.liquidityGauge(), liquidityGauge.address);
       });
 
-      it("should remove stakingRewards", async function () {
+      it("should remove liquidityGauge", async function () {
         await vault
           .connect(ownerSigner)
-          .setStakingRewards(constants.AddressZero);
-        assert.equal(await vault.stakingRewards(), constants.AddressZero);
+          .setLiquidityGauge(constants.AddressZero);
+        assert.equal(await vault.liquidityGauge(), constants.AddressZero);
       });
     });
 
