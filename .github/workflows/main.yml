@@ -43,6 +43,10 @@ jobs:
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
           FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
+          AURORA_URI: "https://mainnet.aurora.dev"
+          AURORA_MNEMONIC: ${{ secrets.AURORA_MNEMONIC }}
+          AURORA_TESTNET_URI: "https://testnet.aurora.dev"
+          AURORA_TESTNET_MNEMONIC: ${{ secrets.AURORA_TESTNET_MNEMONIC }}
           CI: true
       - run: yarn test
         env:
@@ -55,6 +59,10 @@ jobs:
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
           FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
+          AURORA_URI: "https://mainnet.aurora.dev"
+          AURORA_MNEMONIC: ${{ secrets.AURORA_MNEMONIC }}
+          AURORA_TESTNET_URI: "https://testnet.aurora.dev"
+          AURORA_TESTNET_MNEMONIC: ${{ secrets.AURORA_TESTNET_MNEMONIC }}
           CI: true
   lint:
     runs-on: ubuntu-latest
