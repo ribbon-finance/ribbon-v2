@@ -26,7 +26,7 @@ const main = async ({
   const { BigNumber } = ethers;
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
-  console.log(`11 - Deploying NEAR Call Theta Vault on ${network.name}`);
+  console.log(`11 - Deploying WNEAR Call Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
 
@@ -39,7 +39,7 @@ const main = async ({
   const underlyingOracle = NEAR_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerNEAR", {
+  const pricer = await deploy("OptionsPremiumPricerWNEAR", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
@@ -53,15 +53,15 @@ const main = async ({
     ],
   });
 
-  console.log(`RibbonThetaVaultNEARCall pricer @ ${pricer.address}`);
+  console.log(`RibbonThetaVaultWNEARCall pricer @ ${pricer.address}`);
 
-  const strikeSelection = await deploy("StrikeSelectionNEAR", {
+  const strikeSelection = await deploy("StrikeSelectionWNEAR", {
     contract: "DeltaStrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, NEAR_STRIKE_STEP],
   });
 
-  console.log(`RibbonThetaVaultNEARCall strikeSelection @ ${strikeSelection.address}`);
+  console.log(`RibbonThetaVaultWNEARCall strikeSelection @ ${strikeSelection.address}`);
 
   // Assumes these contracts are already deployed
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -70,9 +70,6 @@ const main = async ({
       libraries: { VaultLifecycle: lifecycle.address }
   });
 
-  const TOKEN_NAME = 'Ribbon NEAR Theta Vault';
-  const TOKEN_SYMBOL = 'rNEAR-THETA';
-
   const initArgs = [
     {
       _owner: owner,
@@ -80,8 +77,8 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: TOKEN_NAME,
-      _tokenSymbol: TOKEN_SYMBOL,
+      _tokenName: 'Ribbon WNEAR Theta Vault',
+      _tokenSymbol: 'rNEAR-THETA',
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
@@ -95,7 +92,7 @@ const main = async ({
       asset: NEAR_ADDRESS[chainId],
       underlying: NEAR_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(16),
-      cap: ethers.utils.parseUnits("1000", 24),
+      cap: ethers.utils.parseUnits("100000", 24),
     },
   ];
 
@@ -104,13 +101,13 @@ const main = async ({
     initArgs
   );
 
-  const proxy = await deploy("RibbonThetaVaultNEARCall", {
+  const proxy = await deploy("RibbonThetaVaultWNEARCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultNEARCall @ ${proxy.address}`);
+  console.log(`RibbonThetaVaultWNEARCall @ ${proxy.address}`);
 };
 main.tags = ["RibbonThetaVaultAurora"];
 export default main;
