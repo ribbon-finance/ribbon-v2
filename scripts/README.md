@@ -1,7 +1,12 @@
 # Deployments
 
 ## Run
-- yarn deploy --network fuji
+
+Example to deploy to Aurora:
+- yarn deploy --network aurora --tags ManualVolOracle
+- yarn deploy --network aurora --tags RibbonThetaVaultLogic
+- yarn deploy --network aurora --tags RibbonThetaVaultETHCall
+- yarn deploy --network aurora --tags RibbonThetaVaultAurora
 
 ## Verifications
 - We can't verify the rvol contracts because they are compiled with 7.3.0.

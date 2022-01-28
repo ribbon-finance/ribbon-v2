@@ -45,7 +45,6 @@ library VaultLifecycleTreasury {
      * @param _strikeSelection is the address of the contract with strike selection logic
      * @param _premiumDiscount is the vault's discount applied to the premium
      * @param _auctionDuration is the duration of the gnosis auction
-     * @param _whitelist is an array of whitelisted user address who can deposit
      * @param _period is the period between each option sales
      */
     struct InitParams {
@@ -60,8 +59,8 @@ library VaultLifecycleTreasury {
         address _strikeSelection;
         uint32 _premiumDiscount;
         uint256 _auctionDuration;
-        address[] _whitelist;
         uint256 _period;
+        uint256 _maxDepositors;
     }
 
     /**
@@ -729,8 +728,7 @@ library VaultLifecycleTreasury {
     function verifyInitializerParams(
         InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams,
-        uint256 _min_auction_duration,
-        uint256 _whitelist_limit
+        uint256 _min_auction_duration
     ) external pure {
         require(_initParams._owner != address(0), "!_owner");
         require(_initParams._keeper != address(0), "!_keeper");
@@ -771,11 +769,7 @@ library VaultLifecycleTreasury {
             _initParams._auctionDuration >= _min_auction_duration,
             "!_auctionDuration"
         );
-        require(_initParams._whitelist.length > 0, "!_whitelist");
-        require(
-            _initParams._whitelist.length <= _whitelist_limit,
-            "whitelist exceed limit"
-        );
+        require(_initParams._maxDepositors > 0, "!_maxDepositors");
 
         require(_vaultParams.asset != address(0), "!asset");
         require(_vaultParams.underlying != address(0), "!underlying");

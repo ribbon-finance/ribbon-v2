@@ -75,9 +75,6 @@ contract RibbonTreasuryVault is
     // The minimum duration for an option auction.
     uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
-    // Maximum number of whitelisted user address.
-    uint256 private constant WHITELIST_LIMIT = 5;
-
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -202,8 +199,7 @@ contract RibbonTreasuryVault is
         VaultLifecycleTreasury.verifyInitializerParams(
             _initParams,
             _vaultParams,
-            MIN_AUCTION_DURATION,
-            WHITELIST_LIMIT
+            MIN_AUCTION_DURATION
         );
 
         __ReentrancyGuard_init();
@@ -220,6 +216,7 @@ contract RibbonTreasuryVault is
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
         managementFee = _perRoundManagementFee(_initParams._managementFee);
+        maxDepositors = _initParams._maxDepositors;
 
         vaultParams = _vaultParams;
         vaultState.round = 1;
@@ -228,10 +225,6 @@ contract RibbonTreasuryVault is
             IERC20(vaultParams.asset).balanceOf(address(this));
         ShareMath.assertUint104(assetBalance);
         vaultState.lastLockedAmount = uint104(assetBalance);
-
-        for (uint256 i = 0; i < _initParams._whitelist.length; i++) {
-            _addWhitelist(_initParams._whitelist[i]);
-        }
     }
 
     /**
@@ -239,14 +232,6 @@ contract RibbonTreasuryVault is
      */
     modifier onlyKeeper() {
         require(msg.sender == keeper, "!keeper");
-        _;
-    }
-
-    /**
-     * @dev Throws if called by any account other than the keeper.
-     */
-    modifier onlyWhitelist() {
-        require(whitelistMap[msg.sender], "!whitelist");
         _;
     }
 
@@ -404,56 +389,16 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Adds new whitelisted address
-     * @param newWhitelist is the address to include in the whitelist
+     * @notice Set the maximum number of depositors
+     * @param newMaxDepositors is the new cap for number of depositors
      */
-    function addWhitelist(address newWhitelist)
+    function setMaxDepositors(uint256 newMaxDepositors)
         external
         onlyOwner
         nonReentrant
     {
-        _addWhitelist(newWhitelist);
-    }
-
-    /**
-     * @notice Internal function to add new whitelisted address
-     * @param newWhitelist is the address to include in the whitelist
-     */
-    function _addWhitelist(address newWhitelist) internal {
-        require(newWhitelist != address(0), "Whitelist null");
-        require(!whitelistMap[newWhitelist], "Whitelist duplicate");
-        require(
-            (whitelistArray.length + 1) <= WHITELIST_LIMIT,
-            "Whitelist exceed limit"
-        );
-
-        whitelistMap[newWhitelist] = true;
-        whitelistArray.push(newWhitelist);
-    }
-
-    /**
-     * @notice Remove addresses from whitelist
-     * @param excludeWhitelist is the address to exclude from the whitelist
-     */
-    function removeWhitelist(address excludeWhitelist)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        uint256 whitelistLength = whitelistArray.length;
-        require(whitelistMap[excludeWhitelist], "Whitelist does not exist");
-        require(whitelistLength > 1, "Whitelist cannot be empty");
-
-        whitelistMap[excludeWhitelist] = false;
-
-        for (uint256 i = 0; i < whitelistLength; i++) {
-            if (excludeWhitelist == whitelistArray[i]) {
-                for (uint256 j = i; j < (whitelistLength - 1); j++) {
-                    whitelistArray[j] = whitelistArray[j + 1];
-                }
-            }
-        }
-        whitelistArray.pop();
+        require(newMaxDepositors > 0, "!newMaxDepositors");
+        maxDepositors = newMaxDepositors;
     }
 
     /************************************************
@@ -461,11 +406,50 @@ contract RibbonTreasuryVault is
      ***********************************************/
 
     /**
+     * @notice Internal function to add new depositor address
+     * @param newDepositor is the address to include in the depositors list
+     */
+    function _addDepositor(address newDepositor) internal {
+        if (!depositorsMap[newDepositor]) {
+            require(newDepositor != address(0), "Depositor address null");
+            require(
+                (depositorsArray.length + 1) <= maxDepositors,
+                "Number of depositors exceeds limit"
+            );
+
+            depositorsMap[newDepositor] = true;
+            depositorsArray.push(newDepositor);
+        }
+    }
+
+    /**
+     * @notice Remove addresses from depositors list
+     * @param excludeDepositor is the address to exclude from the depositors list
+     */
+    function _removeDepositor(address excludeDepositor) internal {
+        uint256 DepositorListLength = depositorsArray.length;
+        require(depositorsMap[excludeDepositor], "Depositor does not exist");
+
+        depositorsMap[excludeDepositor] = false;
+
+        for (uint256 i = 0; i < DepositorListLength; i++) {
+            if (excludeDepositor == depositorsArray[i]) {
+                for (uint256 j = i; j < (DepositorListLength - 1); j++) {
+                    depositorsArray[j] = depositorsArray[j + 1];
+                }
+            }
+        }
+        depositorsArray.pop();
+    }
+
+    /**
      * @notice Deposits the `asset` from msg.sender.
      * @param amount is the amount of `asset` to deposit
      */
-    function deposit(uint256 amount) external onlyWhitelist nonReentrant {
+    function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
+
+        _addDepositor(msg.sender);
 
         _depositFor(amount, msg.sender);
 
@@ -530,11 +514,7 @@ contract RibbonTreasuryVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares)
-        external
-        onlyWhitelist
-        nonReentrant
-    {
+    function initiateWithdraw(uint256 numShares) external nonReentrant {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -618,7 +598,7 @@ contract RibbonTreasuryVault is
      * @notice Redeems shares that are owed to the account
      * @param numShares is the number of shares to redeem
      */
-    function redeem(uint256 numShares) external onlyWhitelist nonReentrant {
+    function redeem(uint256 numShares) external nonReentrant {
         require(numShares > 0, "!numShares");
         _redeem(numShares, false);
     }
@@ -626,7 +606,7 @@ contract RibbonTreasuryVault is
     /**
      * @notice Redeems the entire unredeemedShares balance that is owed to the account
      */
-    function maxRedeem() external onlyWhitelist nonReentrant {
+    function maxRedeem() external nonReentrant {
         _redeem(0, true);
     }
 
@@ -677,11 +657,7 @@ contract RibbonTreasuryVault is
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw
      */
-    function withdrawInstantly(uint256 amount)
-        external
-        onlyWhitelist
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 amount) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -700,17 +676,28 @@ contract RibbonTreasuryVault is
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
+        if (depositReceipt.amount == 0 && shares(msg.sender) == 0) {
+            _removeDepositor(msg.sender);
+        }
+
         transferAsset(msg.sender, amount);
     }
 
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
-    function completeWithdraw() external onlyWhitelist nonReentrant {
+    function completeWithdraw() external nonReentrant {
+        Vault.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
+
         uint256 withdrawAmount = _completeWithdraw();
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
+
+        if (depositReceipt.amount == 0 && shares(msg.sender) == 0) {
+            _removeDepositor(msg.sender);
+        }
     }
 
     /************************************************
@@ -971,7 +958,7 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Charge performance fee and distribute remaining to whitelisted address
+     * @notice Charge performance fee and distribute remaining to depositors addresses
      */
     function chargeAndDistribute() external onlyKeeper nonReentrant {
         _chargeAndDistribute();
@@ -1014,29 +1001,27 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Distribute the premium to whitelisted addresses
+     * @notice Distribute the premium to depositor addresses
      */
     function _distributePremium(IERC20 token, uint256 amount) internal {
-        // Distribute to whitelisted address
-        address[] storage _whitelist = whitelistArray;
-        uint256[] memory _amounts = new uint256[](_whitelist.length);
+        // Distribute to depositor address
+        address[] storage _depositors = depositorsArray;
+        uint256[] memory _amounts = new uint256[](_depositors.length);
         uint256 totalSupply = totalSupply();
 
-        for (uint256 i = 0; i < _whitelist.length; i++) {
-            // Distribute to whitelist proportional to the amount of
+        for (uint256 i = 0; i < _depositors.length; i++) {
+            // Distribute to depositors proportional to the amount of
             // shares they own
-            address whitelistedAddress = _whitelist[i];
-            _amounts[i] = shares(whitelistedAddress).mul(amount).div(
-                totalSupply
-            );
+            address depositorAddress = _depositors[i];
+            _amounts[i] = shares(depositorAddress).mul(amount).div(totalSupply);
 
-            token.safeTransfer(whitelistedAddress, _amounts[i]);
+            token.safeTransfer(depositorAddress, _amounts[i]);
         }
 
         emit DistributePremium(
             amount,
             _amounts,
-            _whitelist,
+            _depositors,
             vaultState.round - 1
         );
     }

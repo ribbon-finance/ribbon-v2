@@ -76,6 +76,7 @@ Error: VM Exception while processing transaction: reverted with reason string 'O
 ```
 Error: VM Exception while processing transaction: reverted with reason string '!sSQRT'
 ```
+- Pricer could be wrong price and you need to change the price.  e.g. Off by a few zeros.
 - Call setAnnualizedVol in ManualVolOracle
 
 ### C29
