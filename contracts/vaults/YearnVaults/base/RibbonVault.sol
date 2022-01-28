@@ -87,8 +87,7 @@ contract RibbonVault is
     /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     address public immutable WETH;
 
-    /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
-    address public immutable USDC;
+    address public immutable STRIKE_ASSET;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
     uint256 public constant DELAY = 0;
@@ -159,7 +158,7 @@ contract RibbonVault is
     /**
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
-     * @param _usdc is the USDC contract
+     * @param _strikeAsset is the STRIKE_ASSET contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
@@ -167,21 +166,21 @@ contract RibbonVault is
      */
     constructor(
         address _weth,
-        address _usdc,
+        address _strikeAsset,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
         address _yearnRegistry
     ) {
         require(_weth != address(0), "!_weth");
-        require(_usdc != address(0), "!_usdc");
+        require(_strikeAsset != address(0), "!_strikeAsset");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
         require(_yearnRegistry != address(0), "!_yearnRegistry");
 
         WETH = _weth;
-        USDC = _usdc;
+        STRIKE_ASSET = _strikeAsset;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;

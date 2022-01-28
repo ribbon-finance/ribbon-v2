@@ -85,8 +85,7 @@ contract RibbonVault is
     /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     address public immutable WETH;
 
-    /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
-    address public immutable USDC;
+    address public immutable STRIKE_ASSET;
 
     /// @notice Lido DAO token 0x5a98fcbea516cf06857215779fd812ca3bef1b32
     address public immutable LDO;
@@ -155,7 +154,7 @@ contract RibbonVault is
     /**
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
-     * @param _usdc is the USDC contract
+     * @param _strikeAsset is the strike asset contract
      * @param _wsteth is the wstETH contract
      * @param _ldo is the LDO contract
      * @param _gammaController is the contract address for opyn actions
@@ -165,7 +164,7 @@ contract RibbonVault is
      */
     constructor(
         address _weth,
-        address _usdc,
+        address _strikeAsset,
         address _wsteth,
         address _ldo,
         address _gammaController,
@@ -174,7 +173,7 @@ contract RibbonVault is
         address _crvPool
     ) {
         require(_weth != address(0), "!_weth");
-        require(_usdc != address(0), "!_usdc");
+        require(_strikeAsset != address(0), "!_usdc");
         require(_wsteth != address(0), "!_wsteth");
         require(_ldo != address(0), "!_ldo");
 
@@ -184,7 +183,7 @@ contract RibbonVault is
         require(_crvPool != address(0), "!_crvPool");
 
         WETH = _weth;
-        USDC = _usdc;
+        STRIKE_ASSET = _strikeAsset;
         LDO = _ldo;
         STETH = IWSTETH(_wsteth).stETH();
 

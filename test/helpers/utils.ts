@@ -8,6 +8,7 @@ import {
   GAMMA_ORACLE,
   GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
+  GAMMA_WHITELIST_OWNER,
   ORACLE_DISPUTE_PERIOD,
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
@@ -143,10 +144,10 @@ export async function whitelistProduct(
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER[chainId]],
+    params: [GAMMA_WHITELIST_OWNER[chainId]],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
+  const ownerSigner = await provider.getSigner(GAMMA_WHITELIST_OWNER[chainId]);
 
   const whitelist = await ethers.getContractAt(
     "IGammaWhitelist",
@@ -154,7 +155,7 @@ export async function whitelistProduct(
   );
 
   await adminSigner.sendTransaction({
-    to: ORACLE_OWNER[chainId],
+    to: GAMMA_WHITELIST_OWNER[chainId],
     value: parseEther("1"),
   });
 
@@ -168,7 +169,8 @@ export async function whitelistProduct(
 export async function setupOracle(
   chainlinkPricer: string,
   signer: SignerWithAddress,
-  useNew = false
+  useNew = false,
+  collateralAssetPricer?: string,
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -199,10 +201,6 @@ export async function setupOracle(
     value: parseEther("0.5"),
   });
 
-  await oracle
-    .connect(oracleOwnerSigner)
-    .setStablePrice(USDC_ADDRESS[chainId], "100000000");
-
   const pricer = new ethers.Contract(
     chainlinkPricer,
     CHAINLINK_PRICER_ABI,
@@ -213,18 +211,84 @@ export async function setupOracle(
     .connect(oracleOwnerSigner)
     .setAssetPricer(await pricer.asset(), chainlinkPricer);
 
+  if (collateralAssetPricer) {
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [collateralAssetPricer],
+    });
+
+    const forceSend2 = await forceSendContract.deploy();
+    await forceSend2
+      .connect(signer)
+      .go(collateralAssetPricer, { value: parseEther("0.5") });
+
+    await setAssetPricerForCollateral(
+      oracle,
+      oracleOwnerSigner,
+      collateralAssetPricer
+    );
+  } else {
+    await oracle
+      .connect(oracleOwnerSigner)
+      .setStablePrice(USDC_ADDRESS[chainId], "100000000");
+  }
+
   return oracle;
 }
 
-export async function setOpynOracleExpiryPrice(
-  asset: string,
+export const setAssetPricerForCollateral = async (
   oracle: Contract,
+  oracleOwnerSigner: any,
+  collateralPricer: string
+) => {
+  const mimpricer = new ethers.Contract(
+    collateralPricer,
+    CHAINLINK_PRICER_ABI,
+    oracleOwnerSigner
+  );
+
+  await oracle
+    .connect(oracleOwnerSigner)
+    .setAssetPricer(await mimpricer.asset(), collateralPricer);
+};
+
+export const setExpiryPriceForCollateral = async (
+  oracle: Contract,
+  collateralPricer: string,
+  collateralAsset: string,
   expiry: BigNumber,
   settlePrice: BigNumber
+) => {
+  const oracleOwnerSigner = await provider.getSigner(collateralPricer);
+  const res = await oracle
+    .connect(oracleOwnerSigner)
+    .setExpiryPrice(collateralAsset, expiry, settlePrice);
+  await res.wait();
+};
+
+export async function setOpynOracleExpiryPrice(
+  asset: string,
+  collateralAsset: string,
+  oracle: Contract,
+  expiry: BigNumber,
+  settlePrice: BigNumber,
+  collateralAssetPricer?: string
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
+  // If no pricer, assume stable asset (e.g. USDC)
+  if (collateralAssetPricer) {
+    await setExpiryPriceForCollateral(
+      oracle,
+      collateralAssetPricer,
+      collateralAsset,
+      expiry,
+      settlePrice
+    );
+  }
+
   const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
@@ -246,6 +310,7 @@ export async function setOpynOracleExpiryPriceYearn(
     underlyingSettlePrice
   );
   await res.wait();
+
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER[chainId]],

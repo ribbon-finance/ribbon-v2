@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
-
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
@@ -121,7 +120,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
-     * @param _usdc is the USDC contract
+     * @param _strikeAsset is the strike asset address
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -131,7 +130,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     constructor(
         address _weth,
-        address _usdc,
+        address _strikeAsset,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
@@ -141,7 +140,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     )
         RibbonVault(
             _weth,
-            _usdc,
+            _strikeAsset,
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
@@ -339,7 +338,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         VaultLifecycle.CloseParams memory closeParams =
             VaultLifecycle.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
+                STRIKE_ASSET: STRIKE_ASSET,
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
@@ -440,7 +439,9 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         bool _isUsdcAuction = isUsdcAuction;
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = _isUsdcAuction ? USDC : vaultParams.asset;
+        auctionDetails.asset = _isUsdcAuction
+            ? STRIKE_ASSET
+            : vaultParams.asset;
         auctionDetails.assetDecimals = _isUsdcAuction
             ? 6
             : vaultParams.decimals;
@@ -479,6 +480,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         VaultLifecycle.settleAuction(GNOSIS_EASY_AUCTION, optionAuctionID);
 
-        VaultLifecycle.swap(USDC, minAmountOut, UNISWAP_ROUTER, swapPath);
+        VaultLifecycle.swap(
+            STRIKE_ASSET,
+            minAmountOut,
+            UNISWAP_ROUTER,
+            swapPath
+        );
     }
 }

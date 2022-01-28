@@ -85,7 +85,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     /**
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
-     * @param _usdc is the USDC contract
+     * @param _strikeAsset is the strike asset contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -94,7 +94,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      */
     constructor(
         address _weth,
-        address _usdc,
+        address _strikeAsset,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
@@ -103,7 +103,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     )
         RibbonVault(
             _weth,
-            _usdc,
+            _strikeAsset,
             _gammaController,
             _marginPool,
             _gnosisEasyAuction,
@@ -302,7 +302,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         VaultLifecycle.CloseParams memory closeParams =
             VaultLifecycle.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
+                STRIKE_ASSET: STRIKE_ASSET,
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,

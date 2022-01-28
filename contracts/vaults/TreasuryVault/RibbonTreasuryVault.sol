@@ -46,7 +46,7 @@ contract RibbonTreasuryVault is
     address public immutable WETH;
 
     /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
-    address public immutable USDC;
+    address public immutable STRIKE_ASSET;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
     uint256 public constant DELAY = 0;
@@ -160,7 +160,7 @@ contract RibbonTreasuryVault is
     /**
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
-     * @param _usdc is the USDC contract
+     * @param _strikeAsset is the strikeAsset contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -168,21 +168,21 @@ contract RibbonTreasuryVault is
      */
     constructor(
         address _weth,
-        address _usdc,
+        address _strikeAsset,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
-        require(_usdc != address(0), "!_usdc");
+        require(_strikeAsset != address(0), "!_strikeAsset");
         require(_oTokenFactory != address(0), "!_oTokenFactory");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
 
         WETH = _weth;
-        USDC = _usdc;
+        STRIKE_ASSET = _strikeAsset;
         OTOKEN_FACTORY = _oTokenFactory;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
@@ -863,7 +863,7 @@ contract RibbonTreasuryVault is
         VaultLifecycleTreasury.CloseParams memory closeParams =
             VaultLifecycleTreasury.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
+                strikeAsset: STRIKE_ASSET,
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
@@ -903,7 +903,7 @@ contract RibbonTreasuryVault is
 
         // In case chargeAndDistribute was not called last round, call
         // the function to conclude last round's performance fee and distribution
-        if (IERC20(USDC).balanceOf(address(this)) > 0) {
+        if (IERC20(STRIKE_ASSET).balanceOf(address(this)) > 0) {
             _chargeAndDistribute();
         }
     }
@@ -968,11 +968,11 @@ contract RibbonTreasuryVault is
 
         require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-        uint256 stableDecimals = IERC20Detailed(USDC).decimals();
+        uint256 stableDecimals = IERC20Detailed(STRIKE_ASSET).decimals();
 
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = USDC;
+        auctionDetails.asset = STRIKE_ASSET;
         auctionDetails.assetDecimals = stableDecimals;
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
@@ -1004,7 +1004,7 @@ contract RibbonTreasuryVault is
             optionAuctionID
         );
 
-        if (IERC20(USDC).balanceOf(address(this)) > 0) {
+        if (IERC20(STRIKE_ASSET).balanceOf(address(this)) > 0) {
             _chargeAndDistribute();
         }
     }
@@ -1020,7 +1020,7 @@ contract RibbonTreasuryVault is
      * @notice Calculate performance fee and transfer to fee recipient
      */
     function _chargeAndDistribute() internal {
-        IERC20 stableAsset = IERC20(USDC);
+        IERC20 stableAsset = IERC20(STRIKE_ASSET);
         uint256 stableBalance = stableAsset.balanceOf(address(this));
 
         require(stableBalance > 0, "no premium to distribute");

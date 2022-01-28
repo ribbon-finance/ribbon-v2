@@ -1,3 +1,7 @@
+For calls, bidders pay the premiun asset (e.g. WBTC - the collateral asset is the vault asset) and the strike is always USDC (unless defined otherwise).
+For puts, the bidders pay in USDC and the strike is in USDC.
+
+
 # Debugging tips
 
 ### '!premium'
