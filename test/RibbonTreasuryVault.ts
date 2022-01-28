@@ -58,8 +58,8 @@ const chainId = network.config.chainId;
 
 describe("RibbonTreasuryVault", () => {
   behavesLikeRibbonOptionsVault({
-    tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Weekly)`,
+    tokenName: "Ribbon SUSHI Treasury Vault",
+    name: `Ribbon SUSHI Treasury Vault (Call)`,
     tokenSymbol: "rSUSHI-THETA",
     asset: SUSHI_ADDRESS[chainId],
     assetContractName: "IWBTC",
@@ -77,148 +77,17 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 151000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-    },
-    period: 7,
-    multiplier: 110,
-    premiumDecimals: 6,
-    maxDepositors: 30,
-    availableChains: [CHAINID.ETH_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Bi-Weekly)`,
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 151000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-    },
-    period: 14,
-    multiplier: 110,
-    premiumDecimals: 6,
-    maxDepositors: 30,
-    availableChains: [CHAINID.ETH_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Monthly)`,
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 151000,
-      depositBestCase: 90000,
+      depositWorstCase: 161000,
+      depositBestCase: 95000,
     },
     mintConfig: {
       contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
     },
     period: 30,
-    multiplier: 150,
+    multiplier: 110,
     premiumDecimals: 6,
     maxDepositors: 30,
-    availableChains: [CHAINID.ETH_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Quarterly)`,
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 151000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-    },
-    period: 90,
-    multiplier: 150,
-    premiumDecimals: 6,
-    maxDepositors: 30,
-    availableChains: [CHAINID.ETH_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    tokenName: "Ribbon SUSHI Theta Vault",
-    name: `Ribbon SUSHI Theta Vault (Call) (USDC Auction) (Biannually)`,
-    tokenSymbol: "rSUSHI-THETA",
-    asset: SUSHI_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SUSHI_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_SUSHI_PRICER[chainId],
-    deltaStep: BigNumber.from("100"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 151000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      contractOwnerAddress: SUSHI_OWNER_ADDRESS[chainId],
-    },
-    period: 180,
-    multiplier: 150,
-    premiumDecimals: 6,
-    maxDepositors: 30,
+    minDeposit: parseUnits("1", 18),
     availableChains: [CHAINID.ETH_MAINNET],
   });
 });
@@ -254,6 +123,8 @@ type Option = {
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
  * @param {number} params.premiumDecimals: - Decimals of premiumAsset
+ * @param {number} params.maxDepositors: - Max. depositors allowed
+ * @param {BigNumber} params.minDeposit: - Minimum deposit per depositor
  * @param {number} params.period: - Period between each options sale
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -286,6 +157,7 @@ function behavesLikeRibbonOptionsVault(params: {
   period: number;
   multiplier: number;
   maxDepositors: number;
+  minDeposit: BigNumber;
   availableChains: number[];
 }) {
   // Test configs
@@ -326,6 +198,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let premiumAsset = USDC_ADDRESS[chainId];
   let multiAsset = true;
   let maxDepositors = params.maxDepositors;
+  let minDeposit = params.minDeposit;
 
   // Contracts
   let strikeSelection: Contract;
@@ -475,6 +348,7 @@ function behavesLikeRibbonOptionsVault(params: {
           auctionDuration,
           period,
           maxDepositors,
+          minDeposit,
         ],
         [
           isPut,
@@ -787,7 +661,8 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
               period,
-              maxDepositors
+              maxDepositors,
+              minDeposit,
             ],
             [
               isPut,
@@ -818,6 +693,7 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               period,
               maxDepositors,
+              minDeposit,
             ],
             [
               isPut,
@@ -848,6 +724,7 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               period,
               maxDepositors,
+              minDeposit,
             ],
             [
               isPut,
@@ -878,6 +755,7 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               period,
               maxDepositors,
+              minDeposit,
             ],
             [
               isPut,
@@ -908,6 +786,7 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               period,
               maxDepositors,
+              minDeposit,
             ],
             [
               isPut,
@@ -938,6 +817,7 @@ function behavesLikeRibbonOptionsVault(params: {
               auctionDuration,
               period,
               maxDepositors,
+              minDeposit,
             ],
             [
               isPut,
@@ -1193,6 +1073,14 @@ function behavesLikeRibbonOptionsVault(params: {
         }
       });
 
+      it("reverts when deposit does not reach the minimum", async function () {
+        await expect(
+          vault
+            .connect(userSigner)
+            .deposit(minDeposit.div(100))
+        ).to.be.revertedWith("Minimum deposit not reached");
+      });
+
       it("creates a pending deposit", async function () {
         const startBalance = await assetContract.balanceOf(user);
 
@@ -1220,7 +1108,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("tops up existing deposit", async function () {
         const startBalance = await assetContract.balanceOf(user);
-        const totalDepositAmount = depositAmount.mul(BigNumber.from(2));
+        const totalDepositAmount = depositAmount.add(depositAmount.div(2));
 
         await assetContract
           .connect(userSigner)
@@ -1228,7 +1116,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(depositAmount);
 
-        const tx = await vault.deposit(depositAmount);
+        const tx = await vault.deposit(depositAmount.div(2));
 
         assert.bnEqual(
           await assetContract.balanceOf(user),
@@ -1238,7 +1126,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.isTrue((await vault.balanceOf(user)).isZero());
         await expect(tx)
           .to.emit(vault, "Deposit")
-          .withArgs(user, depositAmount, 1);
+          .withArgs(user, depositAmount.div(2), 1);
 
         assert.bnEqual(await vault.totalPending(), totalDepositAmount);
         const { round, amount } = await vault.depositReceipts(user);
@@ -1269,13 +1157,12 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("does not inflate the share tokens on initialization", async function () {
-        const depositAmount = BigNumber.from("100000000000");
 
         await assetContract
           .connect(adminSigner)
-          .transfer(vault.address, depositAmount);
+          .transfer(vault.address, depositAmount.mul(10));
 
-        await vault.connect(userSigner).deposit(BigNumber.from("10000000000"));
+        await vault.connect(userSigner).deposit(depositAmount);
 
         // user needs to get back exactly 1 ether
         // even though the total has been incremented
@@ -2122,19 +2009,29 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("withdraws and roll funds into next option, after expiry OTM (initiateWithdraw)", async function () {
+        const withdrawAmount = 100000000;
+
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          depositAmount.mul(2),
+          ownerSigner
+        );
+
         await depositIntoVault(
           params.collateralAsset,
           vault,
           depositAmount,
-          ownerSigner
+          userSigner
         );
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).rollToNextOption();
         await vault
           .connect(ownerSigner)
-          .initiateWithdraw(params.depositAmount.div(2));
+          .initiateWithdraw(withdrawAmount);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
@@ -2187,7 +2084,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
-        await vault.initiateWithdraw(params.depositAmount.div(2));
+        await vault.initiateWithdraw(withdrawAmount);
 
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -2593,6 +2490,15 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("Invalid round");
       });
 
+      it("reverts when causing total deposit to go down below minimum", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await expect(vault.withdrawInstantly(depositAmount.div(2))).to.be.revertedWith("Minimum deposit not reached");
+      });
+
       it("withdraws the amount in deposit receipt", async function () {
         await assetContract
           .connect(userSigner)
@@ -2633,7 +2539,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
       });
 
-      it("removes user from whitelist if all deposit amount is withdrawn", async function () {
+      it("removes user from list if all deposit amount is withdrawn", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -2705,14 +2611,15 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when initiating with past existing withdrawal", async function () {
+        const withdrawAmount = 100000000;
         await assetContract
           .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
+          .approve(vault.address, depositAmount.add(withdrawAmount));
+        await vault.deposit(depositAmount.add(withdrawAmount));
 
         await rollToNextOption();
 
-        await vault.initiateWithdraw(depositAmount.div(2));
+        await vault.initiateWithdraw(withdrawAmount);
 
         await setOpynOracleExpiryPrice(
           params.asset,
@@ -2726,7 +2633,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
-          vault.initiateWithdraw(depositAmount.div(2))
+          vault.initiateWithdraw(withdrawAmount)
         ).to.be.revertedWith("Existing withdraw");
       });
 
@@ -2788,32 +2695,52 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("tops up existing withdrawal", async function () {
+        const firstWithdrawAmount = 100000000;
+        const secondWithdrawAmount = 200000000;
+        const totalDeposit = depositAmount.add(firstWithdrawAmount).add(secondWithdrawAmount);
+
         await assetContract
           .connect(userSigner)
-          .approve(vault.address, depositAmount);
-        await vault.deposit(depositAmount);
+          .approve(vault.address, totalDeposit);
+        await vault.deposit(totalDeposit);
 
         await rollToNextOption();
 
-        const tx1 = await vault.initiateWithdraw(depositAmount.div(2));
+        const tx1 = await vault.initiateWithdraw(firstWithdrawAmount);
         // We redeem the full amount on the first initiateWithdraw
         await expect(tx1)
           .to.emit(vault, "Transfer")
-          .withArgs(vault.address, user, depositAmount);
+          .withArgs(vault.address, user, totalDeposit);
         await expect(tx1)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.div(2));
+          .withArgs(user, vault.address, firstWithdrawAmount);
 
-        const tx2 = await vault.initiateWithdraw(depositAmount.div(2));
+        const tx2 = await vault.initiateWithdraw(secondWithdrawAmount);
         await expect(tx2)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.div(2));
+          .withArgs(user, vault.address, secondWithdrawAmount);
 
         const { round, shares } = await vault.withdrawals(user);
         assert.equal(round, 2);
-        assert.bnEqual(shares, depositAmount);
+        assert.bnEqual(shares, BigNumber.from(firstWithdrawAmount).add(secondWithdrawAmount));
       });
       it("reverts when there is insufficient balance over multiple calls", async function () {
+        const withdrawAmount = BigNumber.from(100000000);
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount.add(withdrawAmount));
+        await vault.deposit(depositAmount.add(withdrawAmount));
+
+        await rollToNextOption();
+
+        await vault.initiateWithdraw(withdrawAmount);
+
+        await expect(
+          vault.initiateWithdraw(depositAmount.add(1))
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      });
+
+      it("allows withdrawal if taking out full balance", async function () {
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
@@ -2821,11 +2748,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        await vault.initiateWithdraw(depositAmount.div(2));
+        const tx1 = await vault.initiateWithdraw(depositAmount);
 
-        await expect(
-          vault.initiateWithdraw(depositAmount.div(2).add(1))
-        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount);
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2838,7 +2765,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 105700);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 117000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
@@ -2959,7 +2886,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 94821);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 95028);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
