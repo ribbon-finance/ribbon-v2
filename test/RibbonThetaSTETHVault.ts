@@ -577,7 +577,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(collateralAsset, await vault.collateralToken());
         assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
-        assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
+        assert.equal(await vault.STRIKE_ASSET(), params.strikeAsset);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);

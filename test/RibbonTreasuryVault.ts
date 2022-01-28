@@ -240,6 +240,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await setOpynOracleExpiryPrice(
         params.asset,
+        params.strikeAsset,
         oracle,
         await getCurrentOptionExpiry(),
         settlementPrice
@@ -633,7 +634,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(assetFromContract, collateralAsset);
         assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
-        assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
+        assert.equal(await vault.STRIKE_ASSET(), params.strikeAsset);
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);
@@ -1819,6 +1820,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceITM
@@ -1954,6 +1956,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
@@ -2047,6 +2050,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           firstOptionStrike
@@ -2088,6 +2092,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
@@ -2323,6 +2328,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceITM
@@ -2635,6 +2641,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           firstOptionStrike
@@ -3109,6 +3116,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           asset,
+          params.strikeAsset,
           oracle,
           await getCurrentOptionExpiry(),
           firstOptionStrike

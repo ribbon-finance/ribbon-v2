@@ -303,7 +303,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         VaultLifecycle.CloseParams memory closeParams =
             VaultLifecycle.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
+                STRIKE_ASSET: STRIKE_ASSET,
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,

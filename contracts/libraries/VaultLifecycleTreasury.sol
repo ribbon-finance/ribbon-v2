@@ -24,7 +24,7 @@ library VaultLifecycleTreasury {
 
     struct CloseParams {
         address OTOKEN_FACTORY;
-        address USDC;
+        address strikeAsset;
         address currentOption;
         uint256 delay;
         uint16 lastStrikeOverrideRound;
@@ -147,14 +147,14 @@ library VaultLifecycleTreasury {
      * @param otokenAddress is the address of the otoken
      * @param vaultParams is the struct with vault general data
      * @param collateralAsset is the address of the collateral asset
-     * @param USDC is the address of usdc
+     * @param strikeAsset is the address of usdc
      * @param delay is the delay between commitAndClose and rollToNextOption
      */
     function verifyOtoken(
         address otokenAddress,
         Vault.VaultParams storage vaultParams,
         address collateralAsset,
-        address USDC,
+        address strikeAsset,
         uint256 delay
     ) private view {
         require(otokenAddress != address(0), "!otokenAddress");
@@ -170,8 +170,10 @@ library VaultLifecycleTreasury {
             "Wrong collateralAsset"
         );
 
-        // we just assume all options use USDC as the strike
-        require(otoken.strikeAsset() == USDC, "strikeAsset != USDC");
+        require(
+            otoken.strikeAsset() == strikeAsset,
+            "otoken.strikeAsset != strikeAsset"
+        );
 
         uint256 readyAt = block.timestamp.add(delay);
         require(otoken.expiryTimestamp() >= readyAt, "Expiry before delay");
@@ -630,7 +632,7 @@ library VaultLifecycleTreasury {
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                closeParams.USDC,
+                closeParams.strikeAsset,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -644,7 +646,7 @@ library VaultLifecycleTreasury {
         address otoken =
             factory.createOtoken(
                 underlying,
-                closeParams.USDC,
+                closeParams.strikeAsset,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -655,7 +657,7 @@ library VaultLifecycleTreasury {
             otoken,
             vaultParams,
             collateralAsset,
-            closeParams.USDC,
+            closeParams.strikeAsset,
             closeParams.delay
         );
 
@@ -787,7 +789,7 @@ library VaultLifecycleTreasury {
      * @notice Gets the next options expiry timestamp, this function should be called
      when there is sufficient guard to ensure valid period
      * @param timestamp is the expiry timestamp of the current option
-     * @param period is no. of days in between option sales. Available periods are: 
+     * @param period is no. of days in between option sales. Available periods are:
      * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
      */
     function getNextExpiry(uint256 timestamp, uint256 period)
