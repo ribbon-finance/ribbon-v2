@@ -57,9 +57,12 @@ export default {
     },
     kovan: {
       url: process.env.KOVAN_URI,
+      chainId: 42,
       accounts: {
         mnemonic: process.env.KOVAN_MNEMONIC,
       },
+      gas: 2100000,
+      gasPrice: 8000000000,
     },
     avax: {
       url: process.env.AVAX_URI,
@@ -95,7 +98,7 @@ export default {
     deployer: {
       default: 0,
       1: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
-      42: "0x8DD47c24aC72888BFb2b75c172bB55C127515884",
+      42: "0xb793898783802543D17FcCd78BE611241501649d", //"0x8DD47c24aC72888BFb2b75c172bB55C127515884"
       43114: "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
