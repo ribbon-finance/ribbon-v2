@@ -97,7 +97,7 @@ const main = async ({
       asset: AURORA_ADDRESS[chainId],
       underlying: AURORA_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(16),
-      cap: parseEther("1000"),
+      cap: parseEther("50000"),
     },
   ];
 
