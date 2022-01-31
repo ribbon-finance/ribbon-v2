@@ -44,7 +44,7 @@ const main = async ({
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      WSTETH_ADDRESS,
+      WSTETH_ADDRESS[chainId],
       LDO_ADDRESS,
       OTOKEN_FACTORY[chainId],
       GAMMA_CONTROLLER[chainId],
