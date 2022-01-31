@@ -2,7 +2,7 @@
  * Vault params
  */
 export const AVAX_STRIKE_STEP = 10;
-export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 1000
+export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 100
 export const WBTC_STRIKE_STEP = 1000; // WBTC strike prices move in increments of 1000
 export const AAVE_STRIKE_STEP = 10;
 export const NEAR_STRIKE_STEP = 5;
@@ -17,5 +17,5 @@ export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result 
 /**
  * Treasury Vault Params
  */
-export const PERP_STRIKE_STEP = 10;
+export const PERP_STRIKE_STEP = 1;
 export const PERP_STRIKE_MULTIPLIER = 150;

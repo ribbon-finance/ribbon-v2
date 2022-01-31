@@ -17,16 +17,16 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const chainId = network.config.chainId;
 
-  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI || chainId === CHAINID.AURORA_MAINNET || chainId === CHAINID.AURORA_TESTNET) {
     console.log(
-      `09 - Skipping deployment of Treasury Vault logic on ${network.name}`
+      `14 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );
     return;
   }
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`09 - Deploying Treasury Vault logic on ${network.name}`);
+  console.log(`14 - Deploying Treasury Vault logic on ${network.name}`);
 
   const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
     contract: "VaultLifecycleTreasury",

@@ -28,7 +28,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`10 - Deploying PERP Treasury Vault on ${network.name}`);
+  console.log(`14 - Deploying PERP Treasury Vault on ${network.name}`);
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
@@ -94,8 +94,8 @@ const main = async ({
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
       _auctionDuration: AUCTION_DURATION,
-      _whitelist: [keeper],
-      _period: 14,
+      _period: 30,
+      _minDeposit: parseEther("1"),
     },
     {
       isPut: false,
@@ -103,7 +103,7 @@ const main = async ({
       asset: PERP_ADDRESS[chainId],
       underlying: PERP_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseEther("1000000"),
+      cap: parseEther("2000000"),
     },
   ];
   const initData = RibbonTreasuryVault.interface.encodeFunctionData(
