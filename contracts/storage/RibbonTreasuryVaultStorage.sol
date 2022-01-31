@@ -74,6 +74,9 @@ abstract contract RibbonTreasuryVaultStorageV1 {
     /// @notice Maximum number of depositors
     uint256 public maxDepositors;
 
+    /// @notice Minimum amount to deposit
+    uint256 public minDeposit;
+
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
 }
