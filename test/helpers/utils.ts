@@ -144,7 +144,7 @@ export async function whitelistProduct(
   const [adminSigner] = await ethers.getSigners();
   const ownerAddress = useNew
     ? GAMMA_WHITELIST_OWNER[chainId]
-    : ORACLE_OWNER[chainId]
+    : ORACLE_OWNER[chainId];
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -162,9 +162,9 @@ export async function whitelistProduct(
     to: ownerAddress,
     value: parseEther("1"),
   });
-  
+
   await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
-  
+
   await whitelist
     .connect(ownerSigner)
     .whitelistProduct(underlying, strike, collateral, isPut);
@@ -173,16 +173,17 @@ export async function whitelistProduct(
 export async function setupOracle(
   chainlinkPricer: string,
   signer: SignerWithAddress,
-  useNew = false
+  useNewGammaOracle = false,
+  useNewGammaOwner = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [chainlinkPricer],
   });
 
-  const oracleOwner = useNew
+  const oracleOwner = useNewGammaOwner
     ? GAMMA_WHITELIST_OWNER[chainId]
-    : ORACLE_OWNER[chainId]
+    : ORACLE_OWNER[chainId];
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -197,7 +198,7 @@ export async function setupOracle(
     .go(chainlinkPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    useNew ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
+    useNewGammaOracle ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
     ORACLE_ABI,
     pricerSigner
   );
@@ -376,12 +377,17 @@ export async function bidForOToken(
     totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
     premium
   );
-  bid = assetDecimals > 18 ? bid.mul(BigNumber.from(10).pow(assetDecimals - 18)) : bid.div(BigNumber.from(10).pow(18 - assetDecimals));
+  bid =
+    assetDecimals > 18
+      ? bid.mul(BigNumber.from(10).pow(assetDecimals - 18))
+      : bid.div(BigNumber.from(10).pow(18 - assetDecimals));
 
   const queueStartElement =
     "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-  await assetContract.connect(userSigner).approve(gnosisAuction.address, bid.toString());
+  await assetContract
+    .connect(userSigner)
+    .approve(gnosisAuction.address, bid.toString());
 
   // BID OTOKENS HERE
   await gnosisAuction

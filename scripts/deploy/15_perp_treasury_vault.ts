@@ -14,7 +14,7 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   PERP_STRIKE_STEP,
-  PERP_STRIKE_MULTIPLIER
+  PERP_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 const main = async ({
@@ -59,12 +59,18 @@ const main = async ({
     args: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], //change this
   });
 
-  console.log(`RibbonTreasuryVaultPERP strikeSelection @ ${strikeSelection.address}`);
+  console.log(
+    `RibbonTreasuryVaultPERP strikeSelection @ ${strikeSelection.address}`
+  );
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], // change this
+      constructorArguments: [
+        pricer.address,
+        PERP_STRIKE_STEP,
+        PERP_STRIKE_MULTIPLIER,
+      ], // change this
     });
   } catch (error) {
     console.log(error);
@@ -73,7 +79,8 @@ const main = async ({
   const logicDeployment = await deployments.get("RibbonTreasuryVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycleTreasury");
 
-  const RibbonTreasuryVault = await ethers.getContractFactory("RibbonTreasuryVault",
+  const RibbonTreasuryVault = await ethers.getContractFactory(
+    "RibbonTreasuryVault",
     {
       libraries: {
         VaultLifecycleTreasury: lifecycle.address,
@@ -120,13 +127,9 @@ const main = async ({
   console.log(`RibbonTreasuryVaultPERP Proxy @ ${proxy.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: proxy.address,
-      constructorArguments: [
-        logicDeployment.address,
-        admin,
-        initData,
-      ],
+      constructorArguments: [logicDeployment.address, admin, initData],
     });
   } catch (error) {
     console.log(error);

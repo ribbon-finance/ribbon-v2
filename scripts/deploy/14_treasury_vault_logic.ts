@@ -17,7 +17,12 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const chainId = network.config.chainId;
 
-  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI || chainId === CHAINID.AURORA_MAINNET || chainId === CHAINID.AURORA_TESTNET) {
+  if (
+    chainId === CHAINID.AVAX_MAINNET ||
+    chainId === CHAINID.AVAX_FUJI ||
+    chainId === CHAINID.AURORA_MAINNET ||
+    chainId === CHAINID.AURORA_TESTNET
+  ) {
     console.log(
       `14 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );

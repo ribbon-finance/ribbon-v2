@@ -169,7 +169,11 @@ describe("RibbonThetaVault", () => {
     mintConfig: {
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET, CHAINID.AURORA_MAINNET],
+    availableChains: [
+      CHAINID.ETH_MAINNET,
+      CHAINID.AVAX_MAINNET,
+      CHAINID.AURORA_MAINNET,
+    ],
   });
 
   behavesLikeRibbonOptionsVault({
@@ -686,7 +690,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("initializes with correct values", async function () {
-        assert.equal((await vault.cap()).toString(), parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18));
+        assert.equal(
+          (await vault.cap()).toString(),
+          parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18)
+        );
         assert.equal(await vault.owner(), owner);
         assert.equal(await vault.keeper(), keeper);
         assert.equal(await vault.feeRecipient(), feeRecipient);
@@ -720,7 +727,10 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.premiumDiscount()).toString(),
           params.premiumDiscount.toString()
         );
-        assert.bnEqual(cap, parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18));
+        assert.bnEqual(
+          cap,
+          parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18)
+        );
         assert.equal(
           await vault.optionsPremiumPricer(),
           optionsPremiumPricer.address
@@ -1706,7 +1716,8 @@ function behavesLikeRibbonOptionsVault(params: {
           [CHAINID.AURORA_MAINNET]: 250000000000, // WETH
         };
 
-        const altStrikePrice = chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
+        const altStrikePrice =
+          chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
             ? WETH_STRIKE_PRICE[chainId]
@@ -1810,7 +1821,10 @@ function behavesLikeRibbonOptionsVault(params: {
           totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
           firstOptionPremium
         );
-        bid = decimals > 18 ? bid.mul(BigNumber.from(10).pow(decimals - 18)) : bid.div(BigNumber.from(10).pow(18 - decimals));
+        bid =
+          decimals > 18
+            ? bid.mul(BigNumber.from(10).pow(decimals - 18))
+            : bid.div(BigNumber.from(10).pow(18 - decimals));
 
         const queueStartElement =
           "0x0000000000000000000000000000000000000000000000000000000000000001";
@@ -2199,8 +2213,14 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         let decimals = isUsdcAuction ? 6 : tokenDecimals;
 
-        let bid = wmul(oTokenSellAmount.mul(BigNumber.from(10).pow(10)), oTokenPremium);
-        bid = decimals > 18 ? bid.mul(BigNumber.from(10).pow(decimals - 18)) : bid.div(BigNumber.from(10).pow(18 - decimals));
+        let bid = wmul(
+          oTokenSellAmount.mul(BigNumber.from(10).pow(10)),
+          oTokenPremium
+        );
+        bid =
+          decimals > 18
+            ? bid.mul(BigNumber.from(10).pow(decimals - 18))
+            : bid.div(BigNumber.from(10).pow(18 - decimals));
         assert.equal(initialAuctionOrder.buyAmount.toString(), bid.toString());
 
         // Hardcoded
@@ -3363,7 +3383,10 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.cap()).toString(), parseEther("10"));
         await expect(tx)
           .to.emit(vault, "CapSet")
-          .withArgs(parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18), parseEther("10"));
+          .withArgs(
+            parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18),
+            parseEther("10")
+          );
       });
 
       it("should revert when depositing over the cap", async function () {

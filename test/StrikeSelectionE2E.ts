@@ -56,7 +56,10 @@ describe("DeltaStrikeSelectionE2E", () => {
       OptionsPremiumPricerInStables_BYTECODE,
       signer
     );
-    const StrikeSelection = await getContractFactory("DeltaStrikeSelection", signer);
+    const StrikeSelection = await getContractFactory(
+      "DeltaStrikeSelection",
+      signer
+    );
 
     volOracle = await TestVolOracle.deploy(PERIOD, 7);
 
@@ -302,7 +305,10 @@ describe("PercentStrikeSelectionE2E", () => {
       OptionsPremiumPricerInStables_BYTECODE,
       signer
     );
-    const StrikeSelection = await getContractFactory("PercentStrikeSelection", signer);
+    const StrikeSelection = await getContractFactory(
+      "PercentStrikeSelection",
+      signer
+    );
 
     volOracle = await TestVolOracle.deploy(PERIOD, 7);
 
@@ -409,7 +415,9 @@ describe("PercentStrikeSelectionE2E", () => {
 
       let correctStrike = underlyingPrice.mul(multiplier).div(100);
 
-      correctStrike = correctStrike.add(100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8)));
+      correctStrike = correctStrike.add(
+        100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8))
+      );
 
       assert.equal(strikePrice.toString(), correctStrike.toString());
     });
@@ -453,4 +461,3 @@ describe("PercentStrikeSelectionE2E", () => {
     }
   };
 });
-

@@ -6,7 +6,7 @@ import {
   OptionsPremiumPricerInStables_BYTECODE,
   AAVE_ADDRESS,
   AAVE_ETH_POOL,
-  AAVE_PRICE_ORACLE
+  AAVE_PRICE_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
@@ -66,7 +66,9 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
   });
 
-  console.log(`RibbonThetaVaultAAVECall strikeSelection @ ${strikeSelection.address}`);
+  console.log(
+    `RibbonThetaVaultAAVECall strikeSelection @ ${strikeSelection.address}`
+  );
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -117,13 +119,9 @@ const main = async ({
   console.log(`RibbonThetaVaultAAVECall Proxy @ ${proxy.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: proxy.address,
-      constructorArguments: [
-        logicDeployment.address,
-        admin,
-        initData,
-      ],
+      constructorArguments: [logicDeployment.address, admin, initData],
     });
   } catch (error) {
     console.log(error);

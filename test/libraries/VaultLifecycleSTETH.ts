@@ -38,7 +38,11 @@ describe("VaultLifecycleSTETH", () => {
     lifecycle = lifecycle.connect(signer);
 
     stETH = await ethers.getContractAt("ISTETH", STETH_ADDRESS, signer);
-    wstETH = await ethers.getContractAt("IWSTETH", WSTETH_ADDRESS[chainId], signer);
+    wstETH = await ethers.getContractAt(
+      "IWSTETH",
+      WSTETH_ADDRESS[chainId],
+      signer
+    );
     // crv = await ethers.getContractAt("ICRV", STETH_ETH_CRV_POOL, signer);
   });
 

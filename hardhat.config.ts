@@ -62,7 +62,7 @@ export default {
         mnemonic: process.env.KOVAN_MNEMONIC,
       },
       gas: 2100000,
-      gasPrice: 8000000000
+      gasPrice: 8000000000,
     },
     avax: {
       url: process.env.AVAX_URI,
@@ -86,7 +86,7 @@ export default {
         mnemonic: process.env.AURORA_MNEMONIC,
       },
     },
-    'aurora-testnet': {
+    "aurora-testnet": {
       url: process.env.AURORA_TESTNET_URI,
       chainId: 1313161555,
       accounts: {
