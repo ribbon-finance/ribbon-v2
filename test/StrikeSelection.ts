@@ -246,7 +246,7 @@ describe("PercentStrikeSelection", () => {
     multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
-      BigNumber.from(100).mul(10**(await mockPriceOracle.decimals())),
+      BigNumber.from(100).mul(10 ** (await mockPriceOracle.decimals())),
       multiplier
     );
   });

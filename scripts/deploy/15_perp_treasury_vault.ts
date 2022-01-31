@@ -28,7 +28,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`14 - Deploying PERP Treasury Vault on ${network.name}`);
+  console.log(`15 - Deploying PERP Treasury Vault on ${network.name}`);
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
@@ -42,7 +42,7 @@ const main = async ({
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      PERP_ETH_POOL,
+      PERP_ETH_POOL[chainId],
       manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
@@ -102,6 +102,7 @@ const main = async ({
       _premiumDiscount: PREMIUM_DISCOUNT,
       _auctionDuration: AUCTION_DURATION,
       _period: 30,
+      _maxDepositors: 30,
       _minDeposit: parseEther("1"),
     },
     {
