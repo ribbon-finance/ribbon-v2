@@ -1,4 +1,4 @@
-import { ethers } from "hardhat";
+import { ethers, network } from "hardhat";
 import { Contract } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
@@ -9,6 +9,8 @@ import { expect } from "chai";
 import { STETH_ADDRESS, WSTETH_ADDRESS } from "../../constants/constants";
 
 moment.tz.setDefault("UTC");
+
+const chainId = network.config.chainId;
 
 // const provider = ethers.provider;
 // const gasPrice = parseUnits("1", "gwei");
@@ -36,7 +38,11 @@ describe("VaultLifecycleSTETH", () => {
     lifecycle = lifecycle.connect(signer);
 
     stETH = await ethers.getContractAt("ISTETH", STETH_ADDRESS, signer);
-    wstETH = await ethers.getContractAt("IWSTETH", WSTETH_ADDRESS, signer);
+    wstETH = await ethers.getContractAt(
+      "IWSTETH",
+      WSTETH_ADDRESS[chainId],
+      signer
+    );
     // crv = await ethers.getContractAt("ICRV", STETH_ETH_CRV_POOL, signer);
   });
 
