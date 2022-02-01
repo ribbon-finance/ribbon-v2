@@ -116,18 +116,13 @@ const main = async ({
   console.log(`RibbonThetaVaultAAVECall @ ${vault.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: vault.address,
-      constructorArguments: [
-        logicDeployment.address,
-        admin,
-        initData,
-      ],
+      constructorArguments: [logicDeployment.address, admin, initData],
     });
   } catch (error) {
     console.log(error);
   }
-
 };
 main.tags = ["RibbonThetaVaultAAVECall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
