@@ -62,8 +62,7 @@ contract PercentStrikeSelection is Ownable {
                 )
                     .decimals();
 
-        // ex: step = 1000
-        step = _step.mul(_assetOracleMultiplier);
+        step = _step;
 
         strikeMultiplier = _strikeMultiplier;
 
