@@ -103,7 +103,7 @@ const main = async ({
       _auctionDuration: AUCTION_DURATION,
       _period: 30,
       _maxDepositors: 30,
-      _minDeposit: parseEther("1"),
+      _minDeposit: parseEther("100"),
     },
     {
       isPut: false,
@@ -111,7 +111,7 @@ const main = async ({
       asset: PERP_ADDRESS[chainId],
       underlying: PERP_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseEther("2000000"),
+      cap: parseEther("200000"),
     },
   ];
   const initData = RibbonTreasuryVault.interface.encodeFunctionData(
