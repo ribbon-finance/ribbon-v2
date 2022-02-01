@@ -25,7 +25,8 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const { BigNumber } = ethers;
   const { deploy } = deployments;
-  const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
+  const { deployer, owner, keeper, admin, feeRecipient } =
+    await getNamedAccounts();
   console.log(`11 - Deploying WNEAR Call Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
@@ -61,13 +62,15 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, NEAR_STRIKE_STEP],
   });
 
-  console.log(`RibbonThetaVaultWNEARCall strikeSelection @ ${strikeSelection.address}`);
+  console.log(
+    `RibbonThetaVaultWNEARCall strikeSelection @ ${strikeSelection.address}`
+  );
 
   // Assumes these contracts are already deployed
   const lifecycle = await deployments.get("VaultLifecycle");
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-      libraries: { VaultLifecycle: lifecycle.address }
+    libraries: { VaultLifecycle: lifecycle.address },
   });
 
   const initArgs = [
@@ -77,8 +80,8 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: 'Ribbon WNEAR Theta Vault',
-      _tokenSymbol: 'rNEAR-THETA',
+      _tokenName: "Ribbon WNEAR Theta Vault",
+      _tokenSymbol: "rNEAR-THETA",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
