@@ -8,6 +8,7 @@ import {
   GAMMA_ORACLE,
   GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
+  GAMMA_WHITELIST_OWNER,
   ORACLE_DISPUTE_PERIOD,
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
@@ -137,16 +138,20 @@ export async function whitelistProduct(
   underlying: string,
   strike: string,
   collateral: string,
-  isPut: boolean
+  isPut: boolean,
+  useNew = false
 ) {
   const [adminSigner] = await ethers.getSigners();
+  const ownerAddress = useNew
+    ? GAMMA_WHITELIST_OWNER[chainId]
+    : ORACLE_OWNER[chainId];
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER[chainId]],
+    params: [ownerAddress],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
+  const ownerSigner = await provider.getSigner(ownerAddress);
 
   const whitelist = await ethers.getContractAt(
     "IGammaWhitelist",
@@ -154,7 +159,7 @@ export async function whitelistProduct(
   );
 
   await adminSigner.sendTransaction({
-    to: ORACLE_OWNER[chainId],
+    to: ownerAddress,
     value: parseEther("1"),
   });
 
@@ -168,15 +173,21 @@ export async function whitelistProduct(
 export async function setupOracle(
   chainlinkPricer: string,
   signer: SignerWithAddress,
-  useNew = false
+  useNewGammaOracle = false,
+  useNewGammaOwner = false
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [chainlinkPricer],
   });
+
+  const oracleOwner = useNewGammaOwner
+    ? GAMMA_WHITELIST_OWNER[chainId]
+    : ORACLE_OWNER[chainId];
+
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER[chainId]],
+    params: [oracleOwner],
   });
   const pricerSigner = await provider.getSigner(chainlinkPricer);
 
@@ -187,15 +198,15 @@ export async function setupOracle(
     .go(chainlinkPricer, { value: parseEther("0.5") });
 
   const oracle = new ethers.Contract(
-    useNew ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
+    useNewGammaOracle ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
     ORACLE_ABI,
     pricerSigner
   );
 
-  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
+  const oracleOwnerSigner = await provider.getSigner(oracleOwner);
 
   await signer.sendTransaction({
-    to: ORACLE_OWNER[chainId],
+    to: oracleOwner,
     value: parseEther("0.5"),
   });
 
@@ -258,6 +269,33 @@ export async function setOpynOracleExpiryPriceYearn(
 
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
   await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+}
+
+export async function addMinter(
+  contract: Contract,
+  contractOwner: string,
+  minter: string
+) {
+  const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
+
+  await hre.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [contractOwner],
+  });
+
+  const forceSendContract = await ethers.getContractFactory("ForceSend");
+  const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
+  await forceSend.deployed();
+  await forceSend.go(contractOwner, {
+    value: parseEther("0.5"),
+  });
+
+  await contract.connect(tokenOwnerSigner).addMinter(minter);
+
+  await hre.network.provider.request({
+    method: "hardhat_stopImpersonatingAccount",
+    params: [contractOwner],
+  });
 }
 
 export async function mintToken(

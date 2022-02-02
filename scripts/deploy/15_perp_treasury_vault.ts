@@ -1,21 +1,20 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
-  CHAINID,
+  PERP_ADDRESS,
+  PERP_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
+  PERP_ETH_POOL,
   OptionsPremiumPricerInStables_BYTECODE,
-  AAVE_ADDRESS,
-  AAVE_ETH_POOL,
-  AAVE_PRICE_ORACLE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
-  AAVE_STRIKE_STEP,
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
+  PERP_STRIKE_STEP,
+  PERP_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 const main = async ({
@@ -24,60 +23,70 @@ const main = async ({
   ethers,
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
-  const chainId = network.config.chainId;
-
-  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
-    console.log(
-      `06 - Skipping deployment AAVE Call Theta Vault on ${network.name}`
-    );
-    return;
-  }
-
   const { BigNumber } = ethers;
   const { parseEther } = ethers.utils;
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`06 - Deploying AAVE Call Theta Vault on ${network.name}`);
+  console.log(`15 - Deploying PERP Treasury Vault on ${network.name}`);
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
-  const underlyingOracle = AAVE_PRICE_ORACLE[chainId];
+  const chainId = network.config.chainId;
+  const underlyingOracle = PERP_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerAAVE", {
+  const pricer = await deploy("OptionsPremiumPricerPERP", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      AAVE_ETH_POOL,
+      PERP_ETH_POOL[chainId],
       manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
     ],
   });
 
-  console.log(`RibbonThetaVaultAAVECall pricer @ ${pricer.address}`);
+  console.log(`RibbonTreasuryVaultPERP pricer @ ${pricer.address}`);
 
-  const strikeSelection = await deploy("StrikeSelectionAAVE", {
-    contract: "DeltaStrikeSelection",
+  // Can't verify pricer because it's compiled with 0.7.3
+
+  const strikeSelection = await deploy("StrikeSelectionPERP", {
+    contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
+    args: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], //change this
   });
 
   console.log(
-    `RibbonThetaVaultAAVECall strikeSelection @ ${strikeSelection.address}`
+    `RibbonTreasuryVaultPERP strikeSelection @ ${strikeSelection.address}`
   );
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
+  try {
+    await run("verify:verify", {
+      address: strikeSelection.address,
+      constructorArguments: [
+        pricer.address,
+        PERP_STRIKE_STEP,
+        PERP_STRIKE_MULTIPLIER,
+      ], // change this
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
+  const logicDeployment = await deployments.get("RibbonTreasuryVaultLogic");
+  const lifecycle = await deployments.get("VaultLifecycleTreasury");
+
+  const RibbonTreasuryVault = await ethers.getContractFactory(
+    "RibbonTreasuryVault",
+    {
+      libraries: {
+        VaultLifecycleTreasury: lifecycle.address,
+      },
+    }
+  );
 
   const initArgs = [
     {
@@ -86,37 +95,37 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: "Ribbon AAVE Theta Vault",
-      _tokenSymbol: "rAAVE-THETA",
+      _tokenName: "Ribbon PERP Treasury Vault",
+      _tokenSymbol: "rPERP-TSRY",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
       _auctionDuration: AUCTION_DURATION,
-      _isUsdcAuction: false,
-      _swapPath: 0x0,
+      _period: 30,
+      _maxDepositors: 30,
+      _minDeposit: parseEther("100"),
     },
     {
       isPut: false,
       decimals: 18,
-      asset: AAVE_ADDRESS[chainId],
-      underlying: AAVE_ADDRESS[chainId],
+      asset: PERP_ADDRESS[chainId],
+      underlying: PERP_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseEther("15500"),
+      cap: parseEther("200000"),
     },
   ];
-
-  const initData = RibbonThetaVault.interface.encodeFunctionData(
+  const initData = RibbonTreasuryVault.interface.encodeFunctionData(
     "initialize",
     initArgs
   );
 
-  const proxy = await deploy("RibbonThetaVaultAAVECall", {
+  const proxy = await deploy("RibbonTreasuryVaultPERP", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultAAVECall Proxy @ ${proxy.address}`);
+  console.log(`RibbonTreasuryVaultPERP Proxy @ ${proxy.address}`);
 
   try {
     await run("verify:verify", {
@@ -127,7 +136,7 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonThetaVaultAAVECall"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.tags = ["RibbonTreasuryVaultPERP"];
+main.dependencies = ["ManualVolOracle", "RibbonTreasuryVaultLogic"];
 
 export default main;

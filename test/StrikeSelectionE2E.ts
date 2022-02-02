@@ -324,7 +324,7 @@ describe("PercentStrikeSelectionE2E", () => {
     multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
-      100,
+      100 * 10 ** 8,
       multiplier
     );
 
