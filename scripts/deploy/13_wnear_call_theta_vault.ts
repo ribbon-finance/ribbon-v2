@@ -25,9 +25,8 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const { BigNumber } = ethers;
   const { deploy } = deployments;
-  const { deployer, owner, keeper, admin, feeRecipient } =
-    await getNamedAccounts();
-  console.log(`11 - Deploying WNEAR Call Theta Vault on ${network.name}`);
+  const { deployer, owner, keeper, admin, feeRecipient } = await getNamedAccounts();
+  console.log(`13 - Deploying WNEAR Call Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
 

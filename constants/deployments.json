@@ -1,4 +1,19 @@
 {
+    "aurora": {
+        "ManualVolOracle": "0x56Bfbc431fbB619D4D48dfc20732c4c35BcD0450",
+        "OptionsPremiumPricerAURORA": "0xCf7439DD23431Eab5cd807DAdA68EE08F2C9C39a",
+        "OptionsPremiumPricerETH": "0x5aA4e4e34100158E8b7D5CfA482533C515b2540e",
+        "OptionsPremiumPricerWNEAR": "0x5B1C28ccF4A8d178cee8E102Dcd02Dc21C20092b",
+        "RibbonThetaVaultAURORACall": "0xC5DB388DB490f88A81be75c32d60F28579556145",
+        "RibbonThetaVaultETHCall": "0xC1886Bec8EBbB8Ac8c5bb44e3e529a65e9207205",
+        "RibbonThetaVaultLogic": "0x68e7668A1c3ef2B3087aF97f789645ee3fa4A83e",
+        "RibbonThetaVaultWNEARCall": "0x7796d6B1706855303655EB12F54FaE294c468a66",
+        "StrikeSelectionAURORA": "0x2Fc4A27B8C08c3acae958C49A03eD611ae1c3ed0",
+        "StrikeSelectionETH": "0x3B7952609165A0Bc51ebB8C4002c4C4E76aaf93F",
+        "StrikeSelectionNEAR": "0xd458eCA9ed9f383dDcA806E6cF726771Ca1b71E0",
+        "StrikeSelectionWNEAR": "0x236ea45509d83B8073A81868B8be5eCD8b80E945",
+        "VaultLifecycle": "0xEC7F7061Bbac55fB21d031b950eE51D4f679Ac25"
+    },
     "avax": {
         "ManualVolOracle": "0xFdA869C4A950bFD2e393dDD45D2062Dd4aEE0bB3",
         "OptionsPremiumPricerETH": "0xBd51039959a136d7bf7cdcE956AD42Fe03805b21",
@@ -28,17 +43,22 @@
         "VaultLifecycle": "0x853cC5f4780D81e4e5C3649C2d1ad968338517da"
     },
     "kovan": {
-        "ManualVolOracle": "0x3e79a62ece7BAe86B687bD1D90598F86f93D2af2",
+        "ManualVolOracle": "0xF4CB6946aAbbCEab6dFA6c1422c0dF8fa2D633cb",
         "OptionsPremiumPricerETH": "0x651aDc98dd621bA70B4e791adB9B4Ad8082713bC",
+        "OptionsPremiumPricerPERP": "0x9527be877Be86Cfb6531748740C0551105662911",
         "OptionsPremiumPricerWBTC": "0x1775e7Bdd034d2De74a3ef131044395373880dA1",
         "RibbonDeltaVaultETHCall": "0xc3C48b04C46a99C52b8446dA174d6b5dBC7c13a1",
         "RibbonDeltaVaultLogic": "0x4Fc68131041B63aAf05C1f3fB2A4578ac03C36b4",
         "RibbonThetaVaultETHCall": "0x9467726c3cFe3f9112Cd0fA3963223d5b8b3C4B1",
         "RibbonThetaVaultLogic": "0x2f7ABA5AF03B3fbC760722e46ee4376Aec2A0Bb0",
         "RibbonThetaVaultWBTCCall": "0x6e08c6659132dB4aF0352c409e4b3067C8E97ac2",
+        "RibbonTreasuryVaultLogic": "0xAdb17390640d00744a49f4fB006d6b8493b3A579",
+        "RibbonTreasuryVaultPERP": "0x1205dCCd60B85c327479891aa375662014AdCDC2",
         "StrikeSelectionETH": "0xa3Bd562C7315B6f1C5FDf573cBfd4Ab6C8af1D07",
+        "StrikeSelectionPERP": "0x449C85f1D86c1Af7750C1f1333d4456C7EFA88C0",
         "StrikeSelectionWBTC": "0x2Cd6e166Fb9DABC50d0b07DdE12e08dDC7a9D5DC",
-        "VaultLifecycle": "0x97710Cbae64DE9c3615E64893CD225f6139370cA"
+        "VaultLifecycle": "0x97710Cbae64DE9c3615E64893CD225f6139370cA",
+        "VaultLifecycleTreasury": "0x5Ed981E32b32548968DC8a722D8D4a559859cc45"
     },
     "mainnet": {
         "ManualVolOracle": "0x7c0BFaB993fBD54deaDf43AdFF960E9c9e116399",

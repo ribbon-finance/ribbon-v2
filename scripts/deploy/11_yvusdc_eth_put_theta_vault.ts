@@ -18,7 +18,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`10 - Deploying yvUSDC ETH Put Theta Vault on ${network.name}`);
+  console.log(`11 - Deploying yvUSDC ETH Put Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
 

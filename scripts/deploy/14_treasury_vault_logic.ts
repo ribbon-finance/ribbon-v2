@@ -8,9 +8,6 @@ import {
   MARGIN_POOL,
   GNOSIS_EASY_AUCTION,
   WETH_ADDRESS,
-  LDO_ADDRESS,
-  STETH_ETH_CRV_POOL,
-  WSTETH_ADDRESS,
 } from "../../constants/constants";
 
 const main = async ({
@@ -20,45 +17,44 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const chainId = network.config.chainId;
 
-  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
+  if (
+    chainId === CHAINID.AVAX_MAINNET ||
+    chainId === CHAINID.AVAX_FUJI ||
+    chainId === CHAINID.AURORA_MAINNET ||
+    chainId === CHAINID.AURORA_TESTNET
+  ) {
     console.log(
-      `07 - Skipping deployment of Theta Vault stETH logic on ${network.name} because no stEth on Avax`
+      `14 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );
     return;
   }
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`07 - Deploying Theta Vault stETH logic on ${network.name}`);
+  console.log(`14 - Deploying Treasury Vault logic on ${network.name}`);
 
-  const lifecycle = await deployments.get("VaultLifecycle");
-
-  const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
-    contract: "VaultLifecycleSTETH",
+  const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
+    contract: "VaultLifecycleTreasury",
     from: deployer,
   });
 
-  const vault = await deploy("RibbonThetaVaultSTETHLogic", {
-    contract: "RibbonThetaSTETHVault",
+  const vault = await deploy("RibbonTreasuryVaultLogic", {
+    contract: "RibbonTreasuryVault",
     from: deployer,
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      WSTETH_ADDRESS[chainId],
-      LDO_ADDRESS,
       OTOKEN_FACTORY[chainId],
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
-      STETH_ETH_CRV_POOL,
     ],
     libraries: {
-      VaultLifecycle: lifecycle.address,
-      VaultLifecycleSTETH: lifecycleSTETH.address,
+      VaultLifecycleTreasury: lifecycleTreasury.address,
     },
   });
 
-  console.log(`RibbonThetaVaultSTETHLogic @ ${vault.address}`);
+  console.log(`RibbonTreasuryVaultLogic @ ${vault.address}`);
 
   try {
     await run("verify:verify", {
@@ -66,19 +62,16 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        WSTETH_ADDRESS,
-        LDO_ADDRESS,
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
-        STETH_ETH_CRV_POOL,
       ],
     });
   } catch (error) {
     console.log(error);
   }
 };
-main.tags = ["RibbonThetaVaultSTETHLogic"];
+main.tags = ["RibbonTreasuryVaultLogic"];
 
 export default main;
