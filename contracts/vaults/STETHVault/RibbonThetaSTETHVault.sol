@@ -245,6 +245,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     *        0 if receiving steth directly
      */
     function withdrawInstantly(uint256 amount, uint256 minETHOut)
         external
@@ -269,17 +270,42 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
-        // Unwrap may incur curve pool slippage
-        uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
-                amount,
-                address(collateralToken),
-                STETH,
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
+        if (minETHOut == 0) {
+            // 3 different scenarios if receiving stETH directly
+            // Scenario 1. We hold enough stETH to satisfy withdrawal. Send it out directly
+            // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap then send it out directly
+            // Scenario 3. We hold enough ETH satisfy withdrawal. Send it out directly, if not revert
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+            uint256 stethBalance = IERC20(STETH).balanceOf(address(this));
+            if (stethBalance >= amount) {
+                IERC20(STETH).safeTransfer(msg.sender, amount);
+            } else if (
+                stethBalance.add(
+                    collateralToken.getStETHByWstETH(
+                        collateralToken.balanceOf(address(this))
+                    )
+                ) >= amount
+            ) {
+                collateralToken.unwrap(
+                    collateralToken.getWstETHByStETH(amount.sub(stethBalance))
+                );
+                IERC20(STETH).safeTransfer(msg.sender, amount);
+            } else {
+                VaultLifecycleSTETH.transferAsset(msg.sender, amount);
+            }
+        } else {
+            // Unwrap may incur curve pool slippage
+            uint256 amountETHOut =
+                VaultLifecycleSTETH.unwrapYieldToken(
+                    amount,
+                    address(collateralToken),
+                    STETH,
+                    STETH_ETH_CRV_POOL,
+                    minETHOut
+                );
+
+            VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        }
     }
 
     /**

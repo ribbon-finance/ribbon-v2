@@ -454,6 +454,7 @@ contract RibbonVault is
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
+     *        0 if receiving steth directly
      * @return amountETHOut the current withdrawal amount
      */
     function _completeWithdraw(uint256 minETHOut) internal returns (uint256) {
@@ -480,9 +481,34 @@ contract RibbonVault is
                 vaultParams.decimals
             );
 
-        // Unwrap may incur curve pool slippage
-        uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
+        if (minETHOut == 0) {
+            // 3 different scenarios if receiving stETH directly
+            // Scenario 1. We hold enough stETH to satisfy withdrawal. Send it out directly
+            // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap then send it out directly
+            // Scenario 3. We hold enough ETH satisfy withdrawal. Send it out directly, if not revert
+
+            uint256 stethBalance = IERC20(STETH).balanceOf(address(this));
+            if (stethBalance >= withdrawAmount) {
+                IERC20(STETH).safeTransfer(msg.sender, withdrawAmount);
+            } else if (
+                stethBalance.add(
+                    collateralToken.getStETHByWstETH(
+                        collateralToken.balanceOf(address(this))
+                    )
+                ) >= withdrawAmount
+            ) {
+                collateralToken.unwrap(
+                    collateralToken.getWstETHByStETH(
+                        withdrawAmount.sub(stethBalance)
+                    )
+                );
+                IERC20(STETH).safeTransfer(msg.sender, withdrawAmount);
+            } else {
+                VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
+            }
+        } else {
+            // Unwrap may incur curve pool slippage
+            withdrawAmount = VaultLifecycleSTETH.unwrapYieldToken(
                 withdrawAmount,
                 address(collateralToken),
                 STETH,
@@ -490,15 +516,16 @@ contract RibbonVault is
                 minETHOut
             );
 
-        emit Withdraw(msg.sender, amountETHOut, withdrawalShares);
+            require(withdrawAmount > 0, "!withdrawAmount");
+
+            VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
+        }
+
+        emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
         _burn(address(this), withdrawalShares);
 
-        require(amountETHOut > 0, "!amountETHOut");
-
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
-
-        return amountETHOut;
+        return withdrawAmount;
     }
 
     /**
