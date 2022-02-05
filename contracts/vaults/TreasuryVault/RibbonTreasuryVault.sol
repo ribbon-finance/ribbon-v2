@@ -217,6 +217,7 @@ contract RibbonTreasuryVault is
         performanceFee = _initParams._performanceFee;
         managementFee = _perRoundManagementFee(_initParams._managementFee);
         maxDepositors = _initParams._maxDepositors;
+        minDeposit = _initParams._minDeposit;
 
         vaultParams = _vaultParams;
         vaultState.round = 1;
@@ -401,6 +402,19 @@ contract RibbonTreasuryVault is
         maxDepositors = newMaxDepositors;
     }
 
+    /**
+     * @notice Set the minimum deposit amount
+     * @param newMinDeposit is the new minimum amount for deposit
+     */
+    function setMinDeposit(uint256 newMinDeposit)
+        external
+        onlyOwner
+        nonReentrant
+    {
+        require(newMinDeposit > 0, "!newMinDeposit");
+        minDeposit = newMinDeposit;
+    }
+
     /************************************************
      *  DEPOSIT & WITHDRAWALS
      ***********************************************/
@@ -427,19 +441,22 @@ contract RibbonTreasuryVault is
      * @param excludeDepositor is the address to exclude from the depositors list
      */
     function _removeDepositor(address excludeDepositor) internal {
-        uint256 DepositorListLength = depositorsArray.length;
+        address[] storage array = depositorsArray;
+        uint256 arrayLength = array.length;
+
         require(depositorsMap[excludeDepositor], "Depositor does not exist");
 
         depositorsMap[excludeDepositor] = false;
 
-        for (uint256 i = 0; i < DepositorListLength; i++) {
-            if (excludeDepositor == depositorsArray[i]) {
-                for (uint256 j = i; j < (DepositorListLength - 1); j++) {
-                    depositorsArray[j] = depositorsArray[j + 1];
-                }
+        for (uint256 i = 0; i < arrayLength - 1; i++) {
+            if (excludeDepositor == array[i]) {
+                (array[i], array[arrayLength - 1]) = (
+                    array[arrayLength - 1],
+                    array[i]
+                );
             }
         }
-        depositorsArray.pop();
+        array.pop();
     }
 
     /**
@@ -470,15 +487,20 @@ contract RibbonTreasuryVault is
         uint256 currentRound = vaultState.round;
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
+        Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
+        uint256 totalUserDeposit =
+            accountVaultBalance(msg.sender).add(depositReceipt.amount).add(
+                amount
+            );
+
         require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
         require(
             totalWithDepositedAmount >= vaultParams.minimumSupply,
             "Insufficient balance"
         );
+        require(totalUserDeposit >= minDeposit, "Minimum deposit not reached");
 
         emit Deposit(creditor, amount, currentRound);
-
-        Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
         uint256 unredeemedShares =
@@ -529,8 +551,9 @@ contract RibbonTreasuryVault is
         // This caches the `round` variable used in shareBalances
         uint256 currentRound = vaultState.round;
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
+        uint256 withdrawalRound = withdrawal.round;
 
-        bool withdrawalIsSameRound = withdrawal.round == currentRound;
+        bool withdrawalIsSameRound = withdrawalRound == currentRound;
 
         emit InitiateWithdraw(msg.sender, numShares, currentRound);
 
@@ -543,6 +566,24 @@ contract RibbonTreasuryVault is
             require(existingShares == 0, "Existing withdraw");
             withdrawalShares = numShares;
             withdrawals[msg.sender].round = uint16(currentRound);
+        }
+
+        // Ensure withdrawal does not reduce user deposit below the minimum amount
+        uint256 vaultDecimals = vaultParams.decimals;
+        uint256 userBalance = accountVaultBalance(msg.sender);
+
+        uint256 withdrawAmount =
+            ShareMath.sharesToAsset(
+                numShares,
+                currentRound != 1
+                    ? roundPricePerShare[currentRound - 1]
+                    : 10**vaultDecimals,
+                vaultDecimals
+            );
+
+        if (userBalance > withdrawAmount) {
+            uint256 totalDeposit = userBalance.sub(withdrawAmount);
+            require(totalDeposit >= minDeposit, "Minimum deposit not reached");
         }
 
         ShareMath.assertUint128(withdrawalShares);
@@ -668,6 +709,17 @@ contract RibbonTreasuryVault is
         uint256 receiptAmount = depositReceipt.amount;
         require(receiptAmount >= amount, "Exceed amount");
 
+        uint256 userBalance =
+            accountVaultBalance(msg.sender).add(receiptAmount);
+
+        if (userBalance > amount) {
+            uint256 totalUserDeposit = userBalance.sub(amount);
+            require(
+                totalUserDeposit >= minDeposit,
+                "Minimum deposit not reached"
+            );
+        }
+
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(receiptAmount.sub(amount));
         vaultState.totalPending = uint128(
@@ -792,7 +844,7 @@ contract RibbonTreasuryVault is
     }
 
     /**
-     * @notice Helper function to make either an ETH transfer or ERC20 transfer
+     * @notice Helper function to make an ERC20 transfer
      * @param recipient is the receiving address
      * @param amount is the transfer amount
      */
@@ -1036,7 +1088,7 @@ contract RibbonTreasuryVault is
      * @return the amount of `asset` custodied by the vault for the user
      */
     function accountVaultBalance(address account)
-        external
+        public
         view
         returns (uint256)
     {

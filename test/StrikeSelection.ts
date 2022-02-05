@@ -26,7 +26,10 @@ describe("DeltaStrikeSelection", () => {
       "MockVolatilityOracle",
       signer
     );
-    const StrikeSelection = await getContractFactory("DeltaStrikeSelection", signer);
+    const StrikeSelection = await getContractFactory(
+      "DeltaStrikeSelection",
+      signer
+    );
 
     mockOptionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
 
@@ -222,7 +225,10 @@ describe("PercentStrikeSelection", () => {
       "MockVolatilityOracle",
       signer
     );
-    const StrikeSelection = await getContractFactory("PercentStrikeSelection", signer);
+    const StrikeSelection = await getContractFactory(
+      "PercentStrikeSelection",
+      signer
+    );
 
     mockOptionsPremiumPricer = await MockOptionsPremiumPricer.deploy();
 
@@ -246,7 +252,7 @@ describe("PercentStrikeSelection", () => {
     multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
-      100,
+      BigNumber.from(100).mul(10 ** (await mockPriceOracle.decimals())),
       multiplier
     );
   });
@@ -256,15 +262,15 @@ describe("PercentStrikeSelection", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(50)
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(await mockPriceOracle.decimals()))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(50);
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(await mockPriceOracle.decimals()));
       assert.equal(
         (await strikeSelection.step()).toString(),
-        BigNumber.from(50)
+        BigNumber.from(BigNumber.from(50).mul(await mockPriceOracle.decimals()))
           .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
           .toString()
       );
@@ -341,7 +347,9 @@ describe("PercentStrikeSelection", () => {
 
       let correctStrike = underlyingPrice.mul(multiplier).div(100);
 
-      correctStrike = correctStrike.add(100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8)));
+      correctStrike = correctStrike.add(
+        100 * 10 ** 8 - (correctStrike.toNumber() % (100 * 10 ** 8))
+      );
 
       assert.equal(strikePrice.toString(), correctStrike.toString());
     });

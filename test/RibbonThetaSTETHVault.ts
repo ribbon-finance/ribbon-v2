@@ -69,7 +69,7 @@ describe("RibbonThetaSTETHVault", () => {
     assetContractName: "IWETH",
     collateralContractName: "IWSTETH",
     strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: WSTETH_ADDRESS,
+    collateralAsset: WSTETH_ADDRESS[chainId],
     intermediaryAsset: STETH_ADDRESS,
     depositAsset: WETH_ADDRESS[chainId],
     collateralPricer: WSTETH_PRICER,
@@ -361,7 +361,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const deployArgs = [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        WSTETH_ADDRESS,
+        WSTETH_ADDRESS[chainId],
         LDO_ADDRESS,
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
@@ -539,7 +539,7 @@ function behavesLikeRibbonOptionsVault(params: {
         testVault = await RibbonThetaVault.deploy(
           WETH_ADDRESS[chainId],
           USDC_ADDRESS[chainId],
-          WSTETH_ADDRESS,
+          WSTETH_ADDRESS[chainId],
           LDO_ADDRESS,
           OTOKEN_FACTORY[chainId],
           GAMMA_CONTROLLER[chainId],
