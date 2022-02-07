@@ -13,7 +13,23 @@ import { TEST_URI } from "./scripts/helpers/getDefaultEthersProvider";
 
 require("dotenv").config();
 
-process.env.TEST_MNEMONIC =
+const {
+  MAINNET_URI,
+  KOVAN_URI,
+  AVAX_URI,
+  FUJI_URI,
+  AURORA_URI,
+  AURORA_TESTNET_URI,
+  MAINNET_PK,
+  KOVAN_PK,
+  AVAX_PK,
+  FUJI_PK,
+  AURORA_PK,
+  AURORA_TESTNET_PK,
+  ETHERSCAN_API_KEY,
+} = process.env;
+
+const TEST_MNEMONIC =
   "test test test test test test test test test test test junk";
 
 // Defaults to CHAINID=1 so things will run with mainnet fork if not specified
@@ -21,7 +37,7 @@ const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
 export default {
   accounts: {
-    mnemonic: process.env.TEST_MNEMONIC,
+    mnemonic: TEST_MNEMONIC,
   },
   paths: {
     deploy: "scripts/deploy",
@@ -39,7 +55,7 @@ export default {
   networks: {
     hardhat: {
       accounts: {
-        mnemonic: process.env.TEST_MNEMONIC,
+        mnemonic: TEST_MNEMONIC,
       },
       chainId: CHAINID,
       forking: {
@@ -49,47 +65,35 @@ export default {
       },
     },
     mainnet: {
-      url: process.env.TEST_URI,
-      chainId: CHAINID,
-      accounts: {
-        mnemonic: process.env.MAINNET_MNEMONIC,
-      },
+      url: MAINNET_URI,
+      chainId: 1,
+      accounts: [MAINNET_PK],
     },
     kovan: {
-      url: process.env.KOVAN_URI,
+      url: KOVAN_URI,
       chainId: 42,
-      accounts: {
-        mnemonic: process.env.KOVAN_MNEMONIC,
-      },
+      accounts: [KOVAN_PK],
     },
     avax: {
-      url: process.env.AVAX_URI,
+      url: AVAX_URI,
       chainId: 43114,
-      accounts: {
-        mnemonic: process.env.AVAX_MNEMONIC,
-      },
+      accounts: [AVAX_PK],
     },
     fuji: {
-      url: process.env.FUJI_URI,
+      url: FUJI_URI,
       chainId: 43113,
-      accounts: {
-        mnemonic: process.env.FUJI_MNEMONIC,
-      },
+      accounts: [FUJI_PK],
     },
     aurora: {
-      url: process.env.AURORA_URI,
+      url: AURORA_URI,
       chainId: 1313161554,
       gasPrice: 0,
-      accounts: {
-        mnemonic: process.env.AURORA_MNEMONIC,
-      },
+      accounts: [AURORA_PK],
     },
     "aurora-testnet": {
-      url: process.env.AURORA_TESTNET_URI,
+      url: AURORA_TESTNET_URI,
       chainId: 1313161555,
-      accounts: {
-        mnemonic: process.env.AURORA_TESTNET_MNEMONIC,
-      },
+      accounts: [AURORA_TESTNET_PK],
     },
   },
   namedAccounts: {
@@ -143,7 +147,7 @@ export default {
     timeout: 500000,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: ETHERSCAN_API_KEY,
   },
 };
 
