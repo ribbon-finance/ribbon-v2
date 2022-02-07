@@ -2417,7 +2417,8 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
         assert.bnEqual(
           await vault.balanceOf(user),
-          expectedMintAmountAfterLoss);
+          expectedMintAmountAfterLoss
+        );
       });
     });
 

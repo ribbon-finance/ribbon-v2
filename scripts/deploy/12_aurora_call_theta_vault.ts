@@ -63,17 +63,19 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, AURORA_STRIKE_STEP],
   });
 
-  console.log(`RibbonThetaVaultAURORACall strikeSelection @ ${strikeSelection.address}`);
+  console.log(
+    `RibbonThetaVaultAURORACall strikeSelection @ ${strikeSelection.address}`
+  );
 
   // Assumes these contracts are already deployed
   const lifecycle = await deployments.get("VaultLifecycle");
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-      libraries: { VaultLifecycle: lifecycle.address }
+    libraries: { VaultLifecycle: lifecycle.address },
   });
 
-  const TOKEN_NAME = 'Ribbon AURORA Theta Vault';
-  const TOKEN_SYMBOL = 'rAURORA-THETA';
+  const TOKEN_NAME = "Ribbon AURORA Theta Vault";
+  const TOKEN_SYMBOL = "rAURORA-THETA";
 
   const initArgs = [
     {

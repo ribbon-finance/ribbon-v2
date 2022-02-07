@@ -12,11 +12,13 @@ describe("VaultLifecycleTreasury", () => {
   let lifecycle: Contract;
 
   before(async () => {
-    const VaultLifecycleTreasury = await ethers.getContractFactory("VaultLifecycleTreasury");
+    const VaultLifecycleTreasury = await ethers.getContractFactory(
+      "VaultLifecycleTreasury"
+    );
     await VaultLifecycleTreasury.deploy();
 
     const TestVaultLifecycleTreasury = await ethers.getContractFactory(
-      "TestVaultLifecycleTreasury",
+      "TestVaultLifecycleTreasury"
     );
     lifecycle = await TestVaultLifecycleTreasury.deploy();
   });
@@ -27,10 +29,7 @@ describe("VaultLifecycleTreasury", () => {
 
       const now = moment.unix(timestamp);
 
-      const startDate = moment(now)
-        .startOf("isoWeek")
-        .add(1, "week")
-        .hour(9); // needs to be 8am UTC
+      const startDate = moment(now).startOf("isoWeek").add(1, "week").hour(9); // needs to be 8am UTC
 
       await time.increaseTo(startDate.unix()); // May 31, 2021
     });
@@ -46,16 +45,14 @@ describe("VaultLifecycleTreasury", () => {
       let nextExpiryDate: moment.Moment;
 
       let correctExpiryDate = moment(currentTime)
-          .startOf("isoWeek")
-          .day(weekday)
-          .hour(8);
+        .startOf("isoWeek")
+        .day(weekday)
+        .hour(8);
 
       for (let i = 0; i < 4; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -75,17 +72,15 @@ describe("VaultLifecycleTreasury", () => {
       let nextExpiryDate: moment.Moment;
 
       let correctExpiryDate = moment(currentTime)
-          .startOf("isoWeek")
-          .add(1, "week")
-          .day(weekday)
-          .hour(8);
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day(weekday)
+        .hour(8);
 
       for (let i = 4; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -105,16 +100,14 @@ describe("VaultLifecycleTreasury", () => {
       let nextExpiryDate: moment.Moment;
 
       let correctExpiryDate = moment(currentTime)
-          .startOf("isoWeek")
-          .day(weekday)
-          .hour(8);
+        .startOf("isoWeek")
+        .day(weekday)
+        .hour(8);
 
       for (let i = 0; i < 4; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -134,22 +127,19 @@ describe("VaultLifecycleTreasury", () => {
       let nextExpiryDate: moment.Moment;
 
       let correctExpiryDate = moment(currentTime)
-          .startOf("isoWeek")
-          .add(2, "week")
-          .day(weekday)
-          .hour(8);
+        .startOf("isoWeek")
+        .add(2, "week")
+        .day(weekday)
+        .hour(8);
 
       inputTime = moment(currentTime).add(weekday - 1, "day");
 
-      nextExpiry = await lifecycle.getNextExpiry(
-        inputTime.unix(), period
-      );
+      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
       nextExpiryDate = moment.unix(nextExpiry);
 
       assert.equal(nextExpiryDate.weekday(), weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
-
     });
 
     it("Gets the same Friday expiry when period is set to 2 weeks, when the current day is after Friday", async () => {
@@ -163,17 +153,15 @@ describe("VaultLifecycleTreasury", () => {
       let nextExpiryDate: moment.Moment;
 
       let correctExpiryDate = moment(currentTime)
-          .startOf("isoWeek")
-          .add(1, "week")
-          .day(weekday)
-          .hour(8);
+        .startOf("isoWeek")
+        .add(1, "week")
+        .day(weekday)
+        .hour(8);
 
       for (let i = 5; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -200,9 +188,7 @@ describe("VaultLifecycleTreasury", () => {
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -213,8 +199,7 @@ describe("VaultLifecycleTreasury", () => {
 
     it("Gets the same next month Friday expiry, when the given timestamp is after the corresponding month's expiry", async () => {
       const { timestamp } = await provider.getBlock("latest");
-      const currentTime = moment.unix(timestamp)
-        .add(7, "day");
+      const currentTime = moment.unix(timestamp).add(7, "day");
 
       let weekday = 5;
       let period = 30;
@@ -230,9 +215,7 @@ describe("VaultLifecycleTreasury", () => {
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i) + 18, "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -263,9 +246,7 @@ describe("VaultLifecycleTreasury", () => {
           .date(6)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -296,9 +277,7 @@ describe("VaultLifecycleTreasury", () => {
           .date(5)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -330,9 +309,7 @@ describe("VaultLifecycleTreasury", () => {
           .date(10)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -358,14 +335,9 @@ describe("VaultLifecycleTreasury", () => {
         .hour(8)
         .seconds(0);
 
-      inputTime = moment(currentTime)
-        .month("march")
-        .year(2021)
-        .date(26);
+      inputTime = moment(currentTime).month("march").year(2021).date(26);
 
-      nextExpiry = await lifecycle.getNextExpiry(
-        inputTime.unix(), period
-      );
+      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
       nextExpiryDate = moment.unix(nextExpiry);
 
@@ -390,13 +362,9 @@ describe("VaultLifecycleTreasury", () => {
         .hour(8)
         .seconds(0);
 
-      inputTime = moment(currentTime)
-        .month("december")
-        .date(31);
+      inputTime = moment(currentTime).month("december").date(31);
 
-      nextExpiry = await lifecycle.getNextExpiry(
-        inputTime.unix(), period
-      );
+      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
       nextExpiryDate = moment.unix(nextExpiry);
 
@@ -427,9 +395,7 @@ describe("VaultLifecycleTreasury", () => {
           .date(22)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(
-          inputTime.unix(), period
-        );
+        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -455,14 +421,9 @@ describe("VaultLifecycleTreasury", () => {
         .hour(8)
         .seconds(0);
 
-      inputTime = moment(currentTime)
-        .month("dec")
-        .year(2020)
-        .date(25);
+      inputTime = moment(currentTime).month("dec").year(2020).date(25);
 
-      nextExpiry = await lifecycle.getNextExpiry(
-        inputTime.unix(), period
-      );
+      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
 
       nextExpiryDate = moment.unix(nextExpiry);
 

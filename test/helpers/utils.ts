@@ -377,12 +377,17 @@ export async function bidForOToken(
     totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
     premium
   );
-  bid = assetDecimals > 18 ? bid.mul(BigNumber.from(10).pow(assetDecimals - 18)) : bid.div(BigNumber.from(10).pow(18 - assetDecimals));
+  bid =
+    assetDecimals > 18
+      ? bid.mul(BigNumber.from(10).pow(assetDecimals - 18))
+      : bid.div(BigNumber.from(10).pow(18 - assetDecimals));
 
   const queueStartElement =
     "0x0000000000000000000000000000000000000000000000000000000000000001";
 
-  await assetContract.connect(userSigner).approve(gnosisAuction.address, bid.toString());
+  await assetContract
+    .connect(userSigner)
+    .approve(gnosisAuction.address, bid.toString());
 
   // BID OTOKENS HERE
   await gnosisAuction
