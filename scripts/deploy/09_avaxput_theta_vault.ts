@@ -1,10 +1,6 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
-  CHAINID,
-  WETH_ADDRESS,
-  USDC_ADDRESS,
-} from "../../constants/constants";
+import { CHAINID, WETH_ADDRESS, USDC_ADDRESS } from "../../constants/constants";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
@@ -37,11 +33,11 @@ const main = async ({
   const lifecycle = await deployments.get("VaultLifecycle");
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-      libraries: { VaultLifecycle: lifecycle.address }
+    libraries: { VaultLifecycle: lifecycle.address },
   });
 
-  const TOKEN_NAME = 'Ribbon USDC Theta Vault AVAX Put';
-  const TOKEN_SYMBOL = 'rUSDC-AVAX-P-THETA';
+  const TOKEN_NAME = "Ribbon USDC Theta Vault AVAX Put";
+  const TOKEN_SYMBOL = "rUSDC-AVAX-P-THETA";
 
   const initArgs = [
     {
@@ -83,7 +79,7 @@ const main = async ({
   console.log(`RibbonThetaVaultETHPut Proxy @ ${proxy.address}`);
 
   try {
-    await run('verify:verify', {
+    await run("verify:verify", {
       address: proxy.address,
       constructorArguments: [logicDeployment.address, admin, initData],
     });
