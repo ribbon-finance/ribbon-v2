@@ -528,11 +528,11 @@ library VaultLifecycleSTETH {
         uint256 wstethBalance = IWSTETH(wstEth).balanceOf(address(this));
         stethBalance = IWSTETH(wstEth).getStETHByWstETH(wstethBalance);
         if (stethBalance >= amount) {
-            uint256 wstethAmount = IWSTETH(wstEth).getWstETHByStETH(amount);
+            wstethBalance = IWSTETH(wstEth).getWstETHByStETH(amount);
             // Avoids reverting if unwrap amount is 0
-            if (wstethAmount > 0) {
+            if (wstethBalance > 0) {
                 // Unwraps wstETH and sends out the received stETH directly
-                IWSTETH(wstEth).unwrap(wstethAmount);
+                IWSTETH(wstEth).unwrap(wstethBalance);
                 // Accounts for rounding errors when unwrapping wstETH, this is safe because this function would've
                 // returned already if the stETH balance was greater than our withdrawal amount
                 return IERC20(steth).balanceOf(address(this)); // We return here if we have enough stETH + wstETH
