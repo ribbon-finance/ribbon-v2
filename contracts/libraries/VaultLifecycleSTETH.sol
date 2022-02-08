@@ -510,16 +510,15 @@ library VaultLifecycleSTETH {
         address steth,
         address wstEth,
         uint256 amount
-    ) internal returns (uint256) {
+    ) external returns (uint256) {
         // 3 different scenarios if receiving stETH directly
         // Scenario 1. We hold enough stETH to satisfy withdrawal. Send it out directly
         // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap then send it out directly
         // Scenario 3. We hold enough stETH + wstETH + ETH satisfy withdrawal. Unwrap/wrap then send it out directly
-        uint256 _amount = amount; // Save amount here to keep track of the total amount being withdrawn
         uint256 stethBalance = IERC20(steth).balanceOf(address(this));
         if (stethBalance >= amount) {
             // Can send out the stETH directly
-            return _amount; // We return here if we have enough stETH to satisfy the withdrawal
+            return amount; // We return here if we have enough stETH to satisfy the withdrawal
         } else {
             // If amount > stethBalance, send out the entire stethBalance and check wstETH and ETH
             amount = amount.sub(stethBalance);
@@ -530,17 +529,20 @@ library VaultLifecycleSTETH {
             // Unwraps wstETH and sends out the received stETH directly
             IWSTETH(wstEth).unwrap(IWSTETH(wstEth).getWstETHByStETH(amount));
             // Accounts for rounding errors when unwrapping wstETH
-            uint256 balance = IERC20(steth).balanceOf(address(this));
-            return balance > _amount ? _amount : balance; // We return here if we have enough stETH + wstETH
+            return IERC20(steth).balanceOf(address(this)); // We return here if we have enough stETH + wstETH
         } else if (stethBalance > 0) {
+            stethBalance = IERC20(steth).balanceOf(address(this));
             IWSTETH(wstEth).unwrap(wstethBalance);
             // Accounts for rounding errors when unwrapping wstETH
-            uint256 balance = IERC20(steth).balanceOf(address(this));
-            amount = amount.sub(balance > amount ? amount : balance);
+            amount = amount.sub(
+                IERC20(steth).balanceOf(address(this)).sub(stethBalance)
+            );
         }
-        // Wrap ETH to stETH if we don't have enough stETH + wstETH
-        ISTETH(steth).submit{value: amount}(address(this)); // Reverts if not enough ETH
-        return _amount;
+        if (address(this).balance >= amount) {
+            // Wrap ETH to stETH if we don't have enough stETH + wstETH
+            ISTETH(steth).submit{value: amount}(address(this));
+        }
+        return IERC20(steth).balanceOf(address(this)); // We return here if we have enough stETH + wstETH + ETH
     }
 
     /**
