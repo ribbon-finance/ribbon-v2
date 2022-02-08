@@ -15,6 +15,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaSTETHVaultStorage
 } from "../../storage/RibbonThetaSTETHVaultStorage.sol";
+import {ISTETH, IWSTETH} from "../../interfaces/ISTETH.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -268,29 +269,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             uint256(vaultState.totalPending).sub(amount)
         );
 
+        IERC20(STETH).safeTransfer(
+            msg.sender,
+            VaultLifecycleSTETH.getStEthForWithdrawal(
+                STETH,
+                address(collateralToken),
+                amount
+            )
+        );
+
         emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        // 3 different scenarios if receiving stETH directly
-        // Scenario 1. We hold enough stETH to satisfy withdrawal. Send it out directly
-        // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap then send it out directly
-        // Scenario 3. We hold enough ETH satisfy withdrawal. Send it out directly, if not revert
-
-        uint256 stethBalance = IERC20(STETH).balanceOf(address(this));
-        uint256 wstethBalance =
-            collateralToken.getStETHByWstETH(
-                collateralToken.balanceOf(address(this))
-            );
-        uint256 ethBalance = address(this).balance;
-        if (stethBalance >= amount) {
-            IERC20(STETH).safeTransfer(msg.sender, amount);
-        } else if (stethBalance.add(wstethBalance) >= amount) {
-            collateralToken.unwrap(
-                collateralToken.getWstETHByStETH(amount.sub(stethBalance))
-            );
-            IERC20(STETH).safeTransfer(msg.sender, amount);
-        } else {
-            VaultLifecycleSTETH.transferAsset(msg.sender, amount);
-        }
     }
 
     /**

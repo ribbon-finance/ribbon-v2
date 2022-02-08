@@ -481,45 +481,14 @@ contract RibbonVault is
                 vaultParams.decimals
             );
 
-        if (minETHOut == 0) {
-            // 3 different scenarios if receiving stETH directly
-            // Scenario 1. We hold enough stETH to satisfy withdrawal. Send it out directly
-            // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap then send it out directly
-            // Scenario 3. We hold enough ETH satisfy withdrawal. Send it out directly, if not revert
-
-            uint256 stethBalance = IERC20(STETH).balanceOf(address(this));
-            if (stethBalance >= withdrawAmount) {
-                IERC20(STETH).safeTransfer(msg.sender, withdrawAmount);
-            } else if (
-                stethBalance.add(
-                    collateralToken.getStETHByWstETH(
-                        collateralToken.balanceOf(address(this))
-                    )
-                ) >= withdrawAmount
-            ) {
-                collateralToken.unwrap(
-                    collateralToken.getWstETHByStETH(
-                        withdrawAmount.sub(stethBalance)
-                    )
-                );
-                IERC20(STETH).safeTransfer(msg.sender, withdrawAmount);
-            } else {
-                VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
-            }
-        } else {
-            // Unwrap may incur curve pool slippage
-            withdrawAmount = VaultLifecycleSTETH.unwrapYieldToken(
-                withdrawAmount,
-                address(collateralToken),
+        IERC20(STETH).safeTransfer(
+            msg.sender,
+            VaultLifecycleSTETH.getStEthForWithdrawal(
                 STETH,
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
-
-            require(withdrawAmount > 0, "!withdrawAmount");
-
-            VaultLifecycleSTETH.transferAsset(msg.sender, withdrawAmount);
-        }
+                address(collateralToken),
+                withdrawAmount
+            )
+        );
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
