@@ -62,7 +62,7 @@ const main = async ({
   const underlyingOracle = ETH_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerETH", {
+  const pricer = await deploy("OptionsPremiumPricerETHCall", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
@@ -80,7 +80,7 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionETH", {
+  const strikeSelection = await deploy("StrikeSelectionETHCall", {
     contract: "DeltaStrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[chainId]],

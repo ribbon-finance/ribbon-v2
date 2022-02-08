@@ -1,12 +1,22 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { USDC_ADDRESS, WETH_ADDRESS } from "../../constants/constants";
+import {
+  ETH_PRICE_ORACLE,
+  ETH_USDC_POOL,
+  USDC_ADDRESS,
+  USDC_PRICE_ORACLE,
+  WETH_ADDRESS,
+  OptionsPremiumPricerInStables_BYTECODE,
+} from "../../constants/constants";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
+  STRIKE_DELTA,
+  ETH_STRIKE_STEP,
 } from "../utils/constants";
+import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 
 const main = async ({
   network,
@@ -25,12 +35,54 @@ const main = async ({
   const TOKEN_NAME = "Ribbon yvUSDC Theta Vault ETH Put";
   const TOKEN_SYMBOL = "ryvUSDC-ETH-P-THETA";
 
-  const pricer = await deployments.get("OptionsPremiumPricerETH");
-  const strikeSelection = await deployments.get("StrikeSelectionETH");
-
   const logicDeployment = await deployments.get("RibbonThetaVaultYearnLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
   const lifecycleYearn = await deployments.get("VaultLifecycleYearn");
+
+  const manualVolOracle = await deployments.get("ManualVolOracle");
+  const underlyingOracle = ETH_PRICE_ORACLE[chainId];
+  const stablesOracle = USDC_PRICE_ORACLE[chainId];
+
+  const pricer = await deploy("OptionsPremiumPricerETHPut", {
+    from: deployer,
+    contract: {
+      abi: OptionsPremiumPricerInStables_ABI,
+      bytecode: OptionsPremiumPricerInStables_BYTECODE,
+    },
+    args: [
+      ETH_USDC_POOL[chainId],
+      manualVolOracle.address,
+      underlyingOracle,
+      stablesOracle,
+    ],
+  });
+
+  console.log(`RibbonThetaVaultETHPutYearn pricer @ ${pricer.address}`);
+
+  // Can't verify pricer because it's compiled with 0.7.3
+
+  const strikeSelection = await deploy("StrikeSelectionETHPut", {
+    contract: "DeltaStrikeSelection",
+    from: deployer,
+    args: [pricer.address, STRIKE_DELTA, ETH_STRIKE_STEP[chainId]],
+  });
+
+  console.log(
+    `RibbonThetaVaultETHPutYearn strikeSelection @ ${strikeSelection.address}`
+  );
+
+  try {
+    await run("verify:verify", {
+      address: strikeSelection.address,
+      constructorArguments: [
+        pricer.address,
+        STRIKE_DELTA,
+        ETH_STRIKE_STEP[chainId],
+      ],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   const RibbonThetaYearnVault = await ethers.getContractFactory(
     "RibbonThetaYearnVault",
@@ -88,6 +140,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultETHPutYearn"];
-main.dependencies = ["RibbonThetaVaultYearnLogic"];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultYearnLogic"];
 
 export default main;
