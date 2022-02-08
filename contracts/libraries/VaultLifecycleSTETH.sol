@@ -23,6 +23,8 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
+import "hardhat/console.sol";
+
 library VaultLifecycleSTETH {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -506,15 +508,15 @@ library VaultLifecycleSTETH {
      * @param amount is the amount to withdraw
      * @return amount of stETH to transfer to the user, this is to account for rounding errors when unwrapping wstETH
      */
-    function getStEthForWithdrawal(
+    function withdrawStEth(
         address steth,
         address wstEth,
         uint256 amount
     ) external returns (uint256) {
-        // 3 different scenarios if receiving stETH directly
+        // 3 different scenarios for withdrawing stETH directly
         // Scenario 1. We hold enough stETH to satisfy withdrawal. Send it out directly
-        // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap then send it out directly
-        // Scenario 3. We hold enough stETH + wstETH + ETH satisfy withdrawal. Unwrap/wrap then send it out directly
+        // Scenario 2. We hold enough stETH + wstETH to satisy withdrawal. Unwrap wstETH then send it
+        // Scenario 3. We hold enough stETH + wstETH + ETH satisfy withdrawal. Unwrap wstETH, wrap ETH then send it
         uint256 stethBalance = IERC20(steth).balanceOf(address(this));
         if (stethBalance >= amount) {
             // Can send out the stETH directly
@@ -526,10 +528,15 @@ library VaultLifecycleSTETH {
         uint256 wstethBalance = IWSTETH(wstEth).balanceOf(address(this));
         stethBalance = IWSTETH(wstEth).getStETHByWstETH(wstethBalance);
         if (stethBalance >= amount) {
-            // Unwraps wstETH and sends out the received stETH directly
-            IWSTETH(wstEth).unwrap(IWSTETH(wstEth).getWstETHByStETH(amount));
-            // Accounts for rounding errors when unwrapping wstETH
-            return IERC20(steth).balanceOf(address(this)); // We return here if we have enough stETH + wstETH
+            uint256 wstethAmount = IWSTETH(wstEth).getWstETHByStETH(amount);
+            // Avoids reverting if unwrap amount is 0
+            if (wstethAmount > 0) {
+                // Unwraps wstETH and sends out the received stETH directly
+                IWSTETH(wstEth).unwrap(wstethAmount);
+                // Accounts for rounding errors when unwrapping wstETH, this is safe because this function would've
+                // returned already if the stETH balance was greater than our withdrawal amount
+                return IERC20(steth).balanceOf(address(this)); // We return here if we have enough stETH + wstETH
+            }
         } else if (stethBalance > 0) {
             stethBalance = IERC20(steth).balanceOf(address(this));
             IWSTETH(wstEth).unwrap(wstethBalance);
@@ -538,10 +545,15 @@ library VaultLifecycleSTETH {
                 IERC20(steth).balanceOf(address(this)).sub(stethBalance)
             );
         }
-        if (address(this).balance >= amount) {
-            // Wrap ETH to stETH if we don't have enough stETH + wstETH
+        // Wrap ETH to stETH if we don't have enough stETH + wstETH
+        uint256 ethBalance = address(this).balance;
+        if (amount > 0 && ethBalance >= amount) {
             ISTETH(steth).submit{value: amount}(address(this));
+        } else if (ethBalance > 0) {
+            ISTETH(steth).submit{value: ethBalance}(address(this));
         }
+        // This is safe because if the stETH + wstETH balance was greater than our withdrawal amount, this function
+        // would've returned already
         return IERC20(steth).balanceOf(address(this)); // We return here if we have enough stETH + wstETH + ETH
     }
 
