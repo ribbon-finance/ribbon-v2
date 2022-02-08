@@ -15,7 +15,6 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaSTETHVaultStorage
 } from "../../storage/RibbonThetaSTETHVaultStorage.sol";
-import {ISTETH, IWSTETH} from "../../interfaces/ISTETH.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -245,13 +244,8 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
-     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
-     *        0 if receiving steth directly
      */
-    function withdrawInstantly(uint256 amount, uint256 minETHOut)
-        external
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 amount, uint256) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -271,7 +265,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
 
         IERC20(STETH).safeTransfer(
             msg.sender,
-            VaultLifecycleSTETH.getStEthForWithdrawal(
+            VaultLifecycleSTETH.withdrawStEth(
                 STETH,
                 address(collateralToken),
                 amount
