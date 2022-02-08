@@ -1,19 +1,15 @@
 import { ethers, network, getNamedAccounts } from "hardhat";
 import { assert } from "chai";
 import { describe, it } from "mocha";
-import { CHAINID, NULL_ADDR, AURORA_USDC_POOL } from "../constants/constants";
+import { BLOCK_NUMBER, CHAINID, NULL_ADDR, AURORA_USDC_POOL } from "../constants/constants";
 import RibbonThetaVaultLogic from "../deployments/aurora/RibbonThetaVaultLogic.json";
 import RibbonThetaVaultWNEARCall from "../deployments/aurora/RibbonThetaVaultWNEARCall.json";
 import RibbonThetaVaultAURORACall from "../deployments/aurora/RibbonThetaVaultAURORACall.json";
 import ManualVolOracle from "../deployments/aurora/ManualVolOracle.json";
 
-beforeEach(async () => {
-  if (network.config.chainId !== CHAINID.AURORA_MAINNET) {
-    return;
-  }
-});
-
 describe("Aurora - VaultSanityCheck", () => {
+  if (network.config.chainId !== CHAINID.AURORA_MAINNET) return;
+
   const vaultParams = {
     near: {
       nextOption: '0x5366316bB6cC27F33C88c27e03bD54757FC91E28',
@@ -30,15 +26,13 @@ describe("Aurora - VaultSanityCheck", () => {
   beforeEach(async () => {
     await network.provider.request({
       method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            chainId: CHAINID.AURORA_MAINNET,
-            blockNumber: 58901375,
-            jsonRpcUrl: process.env.AURORA_URI,
-          },
+      params: [{
+        forking: {
+          chainId: CHAINID.AURORA_MAINNET,
+          jsonRpcUrl: process.env.AURORA_URI,
+          blockNumber: BLOCK_NUMBER[CHAINID.AURORA_MAINNET],
         },
-      ],
+      }],
     });
 
     const { keeper } = await getNamedAccounts();
@@ -49,7 +43,6 @@ describe("Aurora - VaultSanityCheck", () => {
     });
 
     keeperSigner = await ethers.provider.getSigner(keeper);
-
   });
 
   it("NEAR #rollToNextOption changes current option", async () => {
@@ -61,11 +54,7 @@ describe("Aurora - VaultSanityCheck", () => {
     assert.equal(await Vault.currentOption(), NULL_ADDR);
     assert.equal(await Vault.nextOption(), vaultParams.near.nextOption);
 
-    // gasPrice = 0 on Aurora but hardhat is enforcing the baseFeePerGas at 1000000000
-    // I'm assuming Aurora is not supported by hardhat (doesn't know gas is 0 on Aurora)
-    await Vault.connect(keeperSigner).rollToNextOption({
-      gasPrice: 1000000000,
-    });
+    await Vault.connect(keeperSigner).rollToNextOption();
 
     assert.equal(await Vault.currentOption(), vaultParams.near.nextOption);
     assert.equal(await Vault.nextOption(), NULL_ADDR);
@@ -89,17 +78,14 @@ describe("Aurora - VaultSanityCheck", () => {
     await ManualVol.connect(keeperSigner).setAnnualizedVol(
       AURORA_USDC_POOL[CHAINID.AURORA_MAINNET],
       106480000,
-      { gasPrice: 1000000000 }
     );
 
-    await Vault.connect(keeperSigner).commitAndClose({ gasPrice: 1000000000 });
+    await Vault.connect(keeperSigner).commitAndClose();
 
     assert.equal(await Vault.currentOption(), NULL_ADDR);
     assert.equal(await Vault.nextOption(), vaultParams.aurora.nextOption);
 
-    await Vault.connect(keeperSigner).rollToNextOption({
-      gasPrice: 1000000000,
-    });
+    await Vault.connect(keeperSigner).rollToNextOption();
 
     assert.equal(await Vault.currentOption(), vaultParams.aurora.nextOption);
     assert.equal(await Vault.nextOption(), NULL_ADDR);

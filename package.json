@@ -17,6 +17,7 @@
     "hardhat": "^2.6.0",
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-deploy": "^0.8.11",
+    "hardhat-gas-reporter": "^1.0.7",
     "hardhat-log-remover": "^2.0.2",
     "husky": "^6.0.0",
     "lint-staged": "^11.0.0",

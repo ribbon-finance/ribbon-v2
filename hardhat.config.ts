@@ -6,6 +6,7 @@ import "hardhat-deploy";
 import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "solidity-coverage";
+import "hardhat-gas-reporter";
 import exportDeployments from "./scripts/tasks/exportDeployments";
 import verifyContracts from "./scripts/tasks/verifyContracts";
 import { BLOCK_NUMBER } from "./constants/constants";
@@ -145,6 +146,9 @@ export default {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
+  gasReporter: {
+    enabled: true,
+  }
 };
 
 task("export-deployments", "Exports deployments into JSON", exportDeployments);
