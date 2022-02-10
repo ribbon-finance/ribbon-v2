@@ -161,7 +161,6 @@ describe("VaultLifecycle", () => {
 
       const expectedFriday = currentTime
         .startOf("isoWeek")
-        .add(1, "week")
         .day("friday")
         .hour(8); // needs to be 8am UTC
 

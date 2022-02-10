@@ -148,7 +148,7 @@ export default {
   },
   gasReporter: {
     enabled: true,
-  }
+  },
 };
 
 task("export-deployments", "Exports deployments into JSON", exportDeployments);

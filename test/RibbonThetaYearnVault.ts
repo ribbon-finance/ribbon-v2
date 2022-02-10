@@ -7,6 +7,7 @@ import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
+  BLOCK_NUMBER,
   CHAINLINK_WETH_PRICER,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
@@ -15,11 +16,16 @@ import {
   USDC_OWNER_ADDRESS,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
-  YEARN_USDC_PRICER,
+  YEARN_USDC_PRICER_V0_4_3,
   YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricerInStables_BYTECODE,
   TestVolOracle_BYTECODE,
-  YVUSDC_V0_3_0,
+  YVUSDC_V0_4_3,
+  ETH_PRICE_ORACLE,
+  BTC_PRICE_ORACLE,
+  USDC_PRICE_ORACLE,
+  ETH_USDC_POOL,
+  WBTC_USDC_POOL,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -48,15 +54,6 @@ const gasPrice = parseUnits("1", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
 
-const PERIOD = 43200; // 12 hours
-
-const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
-const wbtcusdcPool = "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35";
-
-const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
-const wbtcPriceOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
-const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
-
 const chainId = network.config.chainId;
 
 describe("RibbonThetaYearnVault", () => {
@@ -68,9 +65,9 @@ describe("RibbonThetaYearnVault", () => {
     assetContractName: "IWETH",
     collateralContractName: "IYearnVault",
     strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: YVUSDC_V0_3_0,
+    collateralAsset: YVUSDC_V0_4_3,
     depositAsset: USDC_ADDRESS[chainId],
-    collateralPricer: YEARN_USDC_PRICER,
+    collateralPricer: YEARN_USDC_PRICER_V0_4_3,
     underlyingPricer: CHAINLINK_WETH_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
@@ -80,7 +77,7 @@ describe("RibbonThetaYearnVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("44896790310"),
+    expectedMintAmount: BigNumber.from("45042498577"),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -209,6 +206,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
+  let initialMarginPoolBal: BigNumber;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -257,10 +255,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber:
-                params.depositAsset === WETH_ADDRESS[chainId]
-                  ? 12474917
-                  : 12655142,
+              blockNumber: BLOCK_NUMBER[chainId],
             },
           },
         ],
@@ -291,19 +286,23 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner
       );
 
-      volOracle = await TestVolOracle.deploy(PERIOD, 7);
+      volOracle = await TestVolOracle.deploy(time.PERIOD, 7);
 
       await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
+        asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId]
       );
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool,
+        params.asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId],
         volOracle.address,
         params.asset === WETH_ADDRESS[chainId]
-          ? wethPriceOracleAddress
-          : wbtcPriceOracleAddress,
-        usdcPriceOracleAddress
+          ? ETH_PRICE_ORACLE[chainId]
+          : BTC_PRICE_ORACLE[chainId],
+        USDC_PRICE_ORACLE[chainId]
       );
 
       strikeSelection = await StrikeSelection.deploy(
@@ -459,6 +458,10 @@ function behavesLikeRibbonOptionsVault(params: {
       collateralContract = await getContractAt(
         params.collateralContractName,
         collateralAsset
+      );
+
+      initialMarginPoolBal = await collateralContract.balanceOf(
+        MARGIN_POOL[chainId]
       );
 
       decimalDiff = BigNumber.from(10).pow(
@@ -1820,11 +1823,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(res).to.not.emit(vault, "CloseShort");
 
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
+
         await expect(res)
           .to.emit(vault, "OpenShort")
           .withArgs(
             defaultOtokenAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -1939,6 +1946,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
+        const EXPECTED_ERROR = "31";
+
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -1947,11 +1956,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
+
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -1963,9 +1976,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith(EXPECTED_ERROR);
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
@@ -1986,7 +1997,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmountInAsset, keeper);
+          .withArgs(
+            firstOptionAddress,
+            depositAmountInAsset.sub(initialMarginPoolBal),
+            keeper
+          );
 
         let bidMultiplier = 1;
 
@@ -2099,19 +2114,26 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
+        const EXPECTED_ERROR = "31";
+
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
 
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
+        await time.increaseTo(
+          (await vault.nextOptionReadyAt()).toNumber() + 12341 + 1
+        );
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -2123,9 +2145,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(
-          "Controller: can not settle vault with un-expired otoken"
-        );
+        ).to.be.revertedWith(EXPECTED_ERROR);
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -2137,11 +2157,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
+
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -3127,7 +3151,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 170955);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 172788);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
@@ -3369,19 +3393,6 @@ function behavesLikeRibbonOptionsVault(params: {
     });
   });
 
-  const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
-    let topOfPeriod: number;
-
-    const rem = latestTimestamp % PERIOD;
-    if (rem < Math.floor(PERIOD / 2)) {
-      topOfPeriod = latestTimestamp - rem + PERIOD;
-    } else {
-      topOfPeriod = latestTimestamp + rem + PERIOD;
-    }
-    return topOfPeriod;
-  };
-
   const updateVol = async (asset: string) => {
     const values = [
       BigNumber.from("2000000000"),
@@ -3401,10 +3412,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
     for (let i = 0; i < values.length; i++) {
       await volOracle.setPrice(values[i]);
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
+      const topOfPeriod = (await time.getTopOfPeriod()) + time.PERIOD;
       await time.increaseTo(topOfPeriod);
       await volOracle.mockCommit(
-        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
+        asset === WETH_ADDRESS[chainId]
+          ? ETH_USDC_POOL[chainId]
+          : WBTC_USDC_POOL[chainId]
       );
     }
   };
