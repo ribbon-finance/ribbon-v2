@@ -1,11 +1,11 @@
-import { ethers, network } from "hardhat";
-import { Contract } from "ethers";
 import moment from "moment-timezone";
-import { assert } from "../helpers/assertions";
-import * as time from "../helpers/time";
-import { parseEther } from "ethers/lib/utils";
+import { ethers, network } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
+import { Contract } from "ethers";
 import { expect } from "chai";
+import { assert } from "../helpers/assertions";
+import { parseEther } from "ethers/lib/utils";
+import * as time from "../helpers/time";
 import { STETH_ADDRESS, WSTETH_ADDRESS } from "../../constants/constants";
 
 moment.tz.setDefault("UTC");
@@ -162,10 +162,7 @@ describe("VaultLifecycleSTETH", () => {
       );
 
       await expect(
-        lifecycle.unwrapYieldToken(
-          parseEther("1"),
-          parseEther("0.999") // 0.5% slippage
-        )
+        lifecycle.unwrapYieldToken(parseEther("1"), parseEther("0.9999"))
       ).to.be.revertedWith("Output ETH amount smaller than minETHOut");
     });
 

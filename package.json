@@ -40,7 +40,7 @@
     "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
     "test:avax": "CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
     "test:aurora": "CHAINID=1313161554 npx hardhat test test/RibbonThetaVault.ts",
-    "test:sanity": "npx hardhat test test/VaultSanityCheck.ts",
+    "test:sanity": "CHAINID=1313161554 npx hardhat test test/VaultSanityCheck.ts",
     "test:upgrade": "npx hardhat test test/upgrades/*.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
     "compile": "CHAINID=1 npx hardhat compile",

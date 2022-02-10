@@ -2,15 +2,15 @@ import { ethers, network } from "hardhat";
 import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
-import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
-  CHAINLINK_WBTC_PRICER_NEW,
-  CHAINLINK_WETH_PRICER_NEW,
+  CHAINLINK_WBTC_PRICER,
+  CHAINLINK_WETH_PRICER,
   CHAINID,
-  BLOCK_NUMBER_NEW,
+  BLOCK_NUMBER,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
@@ -26,14 +26,17 @@ import {
   WETH_ADDRESS,
   NEAR_ADDRESS,
   NEAR_OWNER_ADDRESS,
+  SAVAX_ADDRESS,
+  SAVAX_OWNER_ADDRESS,
   CHAINLINK_NEAR_PRICER,
   AURORA_ADDRESS,
   AURORA_OWNER_ADDRESS,
   CHAINLINK_AURORA_PRICER,
+  SAVAX_PRICER,
   GNOSIS_EASY_AUCTION,
   DEX_ROUTER,
   DEX_FACTORY,
-  TestVolOracle_BYTECODE,
+  ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../constants/constants";
 import {
@@ -59,13 +62,12 @@ moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 0;
 const DELAY_INCREMENT = 100;
-const gasPrice = parseUnits("1", "gwei");
+const gasPrice = parseUnits("30", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
-const PERIOD = 43200; // 12 hours
 const PUT_EXPECTED_MINT_AMOUNT = {
-  [CHAINID.ETH_MAINNET]: "2702702702",
-  [CHAINID.AVAX_MAINNET]: "105263157894",
+  [CHAINID.ETH_MAINNET]: "4761904761",
+  [CHAINID.AVAX_MAINNET]: "133333333333",
   [CHAINID.AURORA_MAINNET]: "4761904761",
 };
 
@@ -81,7 +83,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WBTC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WBTC_PRICER_NEW[chainId],
+    chainlinkPricer: CHAINLINK_WBTC_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: getDeltaStep("WBTC"),
@@ -100,9 +102,9 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 90000,
     },
     mintConfig: {
+      amount: parseEther("200"),
       contractOwnerAddress: WBTC_OWNER_ADDRESS[chainId],
     },
-    // Need to deploy ChainlinkPricer and update Oracle for WBTC on AVAX
     availableChains: [CHAINID.ETH_MAINNET],
   });
 
@@ -114,7 +116,7 @@ describe("RibbonThetaVault", () => {
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: WETH_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: getDeltaStep("WETH"),
@@ -148,7 +150,7 @@ describe("RibbonThetaVault", () => {
       chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: USDC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER_NEW[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
     deltaFirstOption: BigNumber.from("1000"),
     deltaSecondOption: BigNumber.from("1000"),
     deltaStep: getDeltaStep("WETH"),
@@ -167,6 +169,7 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 98000,
     },
     mintConfig: {
+      amount: BigNumber.from("10000000000000"),
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
     availableChains: [
@@ -203,6 +206,7 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 90000,
     },
     mintConfig: {
+      amount: parseUnits("200", 24),
       contractOwnerAddress: NEAR_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.AURORA_MAINNET],
@@ -235,9 +239,43 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 90000,
     },
     mintConfig: {
+      amount: parseEther("200"),
       contractOwnerAddress: AURORA_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.AURORA_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon SAVAX Theta Vault (Call)`,
+    tokenName: "Ribbon SAVAX Theta Vault",
+    tokenSymbol: "rSAVAX-THETA",
+    asset: SAVAX_ADDRESS[chainId],
+    assetContractName: "IWBTC",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SAVAX_ADDRESS[chainId],
+    chainlinkPricer: SAVAX_PRICER,
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: getDeltaStep("SAVAX"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    isUsdcAuction: false,
+    gasLimits: {
+      depositWorstCase: 109576,
+      depositBestCase: 93149,
+    },
+    mintConfig: {
+      amount: parseEther("20"),
+      contractOwnerAddress: SAVAX_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [CHAINID.AVAX_MAINNET],
   });
 });
 
@@ -309,6 +347,7 @@ function behavesLikeRibbonOptionsVault(params: {
     depositBestCase: number;
   };
   mintConfig?: {
+    amount: BigNumber;
     contractOwnerAddress: string;
   };
   availableChains: number[];
@@ -370,6 +409,8 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
+  let startMarginBalance: BigNumber;
+
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -384,11 +425,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(
-        params.chainlinkPricer,
-        ownerSigner,
-        true
-      );
+      const oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
       await setOpynOracleExpiryPrice(
         params.asset,
@@ -421,7 +458,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: BLOCK_NUMBER_NEW[chainId],
+              blockNumber: BLOCK_NUMBER[chainId],
             },
           },
         ],
@@ -437,18 +474,18 @@ function behavesLikeRibbonOptionsVault(params: {
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
-        TestVolOracle_ABI,
-        TestVolOracle_BYTECODE,
-        ownerSigner
+        ManualVolOracle_ABI,
+        ManualVolOracle_BYTECODE,
+        keeperSigner
       );
 
-      volOracle = await TestVolOracle.deploy(PERIOD, 7);
+      volOracle = await TestVolOracle.deploy(keeper);
 
-      await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId]
-          ? ETH_USDC_POOL[chainId]
-          : WBTC_USDC_POOL[chainId]
-      );
+      await volOracle.setAnnualizedVol(ETH_USDC_POOL[chainId], 106480000);
+      await volOracle.setAnnualizedVol(WBTC_USDC_POOL[chainId], 106480000);
+
+      const topOfPeriod = (await time.getTopOfPeriod()) + time.PERIOD;
+      await time.increaseTo(topOfPeriod);
 
       const OptionsPremiumPricer = await getContractFactory(
         OptionsPremiumPricerInStables_ABI,
@@ -537,9 +574,6 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
-      // Update volatility
-      await updateVol(params.asset);
-
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
@@ -557,6 +591,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
+        .add(1, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -594,7 +629,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
+        .add(2, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -628,21 +663,20 @@ function behavesLikeRibbonOptionsVault(params: {
         params.assetContractName,
         collateralAsset
       );
+
+      startMarginBalance = await assetContract.balanceOf(MARGIN_POOL[chainId]);
       usdcContract = await getContractAt("IERC20", USDC_ADDRESS[chainId]);
 
       // If mintable token, then mine the token
       if (params.mintConfig) {
         const addressToDeposit = [userSigner, ownerSigner, adminSigner];
-
         for (let i = 0; i < addressToDeposit.length; i++) {
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             vault.address,
-            params.collateralAsset === USDC_ADDRESS[chainId]
-              ? BigNumber.from("10000000000000")
-              : parseUnits("200", tokenDecimals > 18 ? tokenDecimals : 18)
+            params.mintConfig.amount
           );
           if (isUsdcAuction) {
             await mintToken(
@@ -1908,11 +1942,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-        let oracle = await setupOracle(
-          params.chainlinkPricer,
-          ownerSigner,
-          true
-        );
+        let oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
 
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -2089,7 +2119,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2099,10 +2129,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
-        const startMarginBalance = await assetContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
-
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -2232,14 +2258,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
-        // We have a newer version of Opyn deployed, error messages are different
-        const EXPECTED_ERROR = {
-          [CHAINID.ETH_MAINNET]: "C31",
-          // "Controller: can not settle vault with un-expired otoken",
-          [CHAINID.AVAX_MAINNET]: "C31",
-          [CHAINID.AVAX_FUJI]: "C31",
-          [CHAINID.AURORA_MAINNET]: "C31",
-        };
+        const EXPECTED_ERROR = "31";
 
         const firstOptionAddress = firstOption.address;
 
@@ -2261,7 +2280,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(EXPECTED_ERROR[chainId]);
+        ).to.be.revertedWith(EXPECTED_ERROR);
       });
 
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
@@ -2688,7 +2707,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -3043,7 +3062,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -3342,7 +3361,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 84571);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 100342);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
@@ -3543,7 +3562,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.chainlinkPricer, ownerSigner, true);
+        oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
       });
 
       if (isUsdcAuction) {
@@ -3633,48 +3652,6 @@ function behavesLikeRibbonOptionsVault(params: {
       }
     });
   });
-
-  const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
-    let topOfPeriod: number;
-
-    const rem = latestTimestamp % PERIOD;
-    if (rem < Math.floor(PERIOD / 2)) {
-      topOfPeriod = latestTimestamp - rem + PERIOD;
-    } else {
-      topOfPeriod = latestTimestamp + rem + PERIOD;
-    }
-    return topOfPeriod;
-  };
-
-  const updateVol = async (asset: string) => {
-    const values = [
-      BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2550000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2650000000"),
-    ];
-
-    for (let i = 0; i < values.length; i++) {
-      await volOracle.setPrice(values[i]);
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
-      await time.increaseTo(topOfPeriod);
-      await volOracle.mockCommit(
-        asset === WETH_ADDRESS[chainId]
-          ? ETH_USDC_POOL[chainId]
-          : WBTC_USDC_POOL[chainId]
-      );
-    }
-  };
 }
 
 async function depositIntoVault(

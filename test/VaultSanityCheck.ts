@@ -1,7 +1,7 @@
 import { ethers, network, getNamedAccounts } from "hardhat";
 import { assert } from "chai";
 import { describe, it } from "mocha";
-import { BLOCK_NUMBER, CHAINID, NULL_ADDR, AURORA_USDC_POOL } from "../constants/constants";
+import { CHAINID, NULL_ADDR, AURORA_USDC_POOL } from "../constants/constants";
 import RibbonThetaVaultLogic from "../deployments/aurora/RibbonThetaVaultLogic.json";
 import RibbonThetaVaultWNEARCall from "../deployments/aurora/RibbonThetaVaultWNEARCall.json";
 import RibbonThetaVaultAURORACall from "../deployments/aurora/RibbonThetaVaultAURORACall.json";
@@ -12,12 +12,12 @@ describe("Aurora - VaultSanityCheck", () => {
 
   const vaultParams = {
     near: {
-      nextOption: '0x5366316bB6cC27F33C88c27e03bD54757FC91E28',
-      annualizedVol: 106480000
+      nextOption: "0x5366316bB6cC27F33C88c27e03bD54757FC91E28",
+      annualizedVol: 106480000,
     },
     aurora: {
-      nextOption: '0xcCDe3B57996C7771529feC52562e335C85366381',
-      annualizedVol: 106480000
+      nextOption: "0xcCDe3B57996C7771529feC52562e335C85366381",
+      annualizedVol: 106480000,
     },
   };
 
@@ -26,13 +26,15 @@ describe("Aurora - VaultSanityCheck", () => {
   beforeEach(async () => {
     await network.provider.request({
       method: "hardhat_reset",
-      params: [{
-        forking: {
-          chainId: CHAINID.AURORA_MAINNET,
-          jsonRpcUrl: process.env.AURORA_URI,
-          blockNumber: BLOCK_NUMBER[CHAINID.AURORA_MAINNET],
+      params: [
+        {
+          forking: {
+            chainId: CHAINID.AURORA_MAINNET,
+            jsonRpcUrl: process.env.AURORA_URI,
+            blockNumber: 58888759,
+          },
         },
-      }],
+      ],
     });
 
     const { keeper } = await getNamedAccounts();
@@ -77,7 +79,7 @@ describe("Aurora - VaultSanityCheck", () => {
     // We need to set manual vol to deploy the Aurora call vault
     await ManualVol.connect(keeperSigner).setAnnualizedVol(
       AURORA_USDC_POOL[CHAINID.AURORA_MAINNET],
-      106480000,
+      vaultParams.aurora.annualizedVol
     );
 
     await Vault.connect(keeperSigner).commitAndClose();
