@@ -133,7 +133,8 @@ contract Swap is ISwap, Ownable {
             minBidSize: minBidSize,
             minPrice: minPrice,
             totalSize: totalSize,
-            availableSize: totalSize
+            availableSize: totalSize,
+            totalSales: 0
         });
 
         emit NewOffer(
@@ -369,6 +370,7 @@ contract Swap is ISwap, Ownable {
         );
 
         offer.availableSize -= uint128(buyAmount);
+        offer.totalSales += sellAmount;
 
         // Emit a Swap event
         emit Swap(

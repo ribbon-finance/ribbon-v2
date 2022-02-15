@@ -12,6 +12,7 @@ interface ISwap {
         uint128 minBidSize;
         uint128 totalSize;
         uint128 availableSize;
+        uint256 totalSales;
     }
 
     struct Bid {
