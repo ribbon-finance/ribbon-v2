@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Source: https://github.com/airswap/airswap-protocols/blob/main/source/swap/contracts/Swap.sol
 
-/* solhint-disable var-name-mixedcase */
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -9,12 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "../interfaces/ISwap.sol";
 import { IERC20Detailed } from "../interfaces/IERC20Detailed.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-/**
- * @title AirSwap: Atomic Token Swap
- * @notice https://www.airswap.io/
- */
 contract Swap is ISwap, Ownable {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
@@ -31,10 +26,10 @@ contract Swap is ISwap, Ownable {
       )
     );
 
-  bytes32 public constant ORDER_TYPEHASH =
+  bytes32 public constant BID_TYPEHASH =
     keccak256(
       abi.encodePacked(
-        "Order(",
+        "Bid(",
         "uint256 swapId,",
         "uint256 nonce,",
         "address signerWallet,",
@@ -50,14 +45,15 @@ contract Swap is ISwap, Ownable {
   uint256 public immutable DOMAIN_CHAIN_ID;
   bytes32 public immutable DOMAIN_SEPARATOR;
 
-  // Max. percentage with 2 decimals
   uint256 internal constant FEE_MULTIPLIER = 100;
   uint256 internal constant MAX_PERCENTAGE = 100 * FEE_MULTIPLIER;
-  
-  address public keeper;
+  uint256 internal constant MAX_ERROR_COUNT = 7;
+
   uint256 public offersCounter = 0;
 
-  uint256 internal constant MAX_ERROR_COUNT = 6;
+  mapping(uint256 => Offer) public swapOffers;
+
+  mapping(address => uint256) public referralFees;
 
   /**
    * @notice Double mapping of signers to nonce groups to nonce states
@@ -66,16 +62,12 @@ contract Swap is ISwap, Ownable {
    */
   mapping(address => mapping(uint256 => uint256)) internal _nonceGroups;
 
-  mapping(address => address) public override authorized;
 
-  mapping(uint256 => Offer) public swapOffers;
+  /************************************************
+   *  CONSTRUCTOR
+   ***********************************************/
 
-  mapping(address => uint256) public referralFees;
-
-  constructor(
-    address _keeper
-  ) {
-
+  constructor() {
     uint256 currentChainId = getChainId();
     DOMAIN_CHAIN_ID = currentChainId;
     DOMAIN_SEPARATOR = keccak256(
@@ -87,27 +79,11 @@ contract Swap is ISwap, Ownable {
         this
       )
     );
-
-    require(_keeper != address(0), "!_keeper");
-    keeper = _keeper;
   }
 
-  /**
-   * @dev Throws if called by any account other than the keeper.
-   */
-  modifier onlyKeeper() {
-      require(msg.sender == keeper, "!keeper");
-      _;
-  }
-
-  /**
-   * @notice Sets the new keeper
-   * @param newKeeper is the address of the new keeper
-   */
-  function setNewKeeper(address newKeeper) external onlyOwner {
-      require(newKeeper != address(0), "!newKeeper");
-      keeper = newKeeper;
-  }
+  /************************************************
+   *  SETTER
+   ***********************************************/
 
   /**
    * @notice Sets the referral fee for a specific referrer
@@ -116,11 +92,14 @@ contract Swap is ISwap, Ownable {
    */
   function setFee(address referrer, uint256 fee) external onlyOwner {
       require(referrer != address(0), "!referrer");
-      require(fee >= 0, "Fee less than 0");
-      require(fee < MAX_PERCENTAGE, "Fee more than 100%");
+      require(fee < MAX_PERCENTAGE, "Fee exceeds maximum");
       
       referralFees[referrer] = fee;
   }
+
+  /************************************************
+   *  OFFER CREATION AND SETTLEMENT
+   ***********************************************/
 
   /**
    * @notice Create a new offer available for swap
@@ -130,18 +109,18 @@ contract Swap is ISwap, Ownable {
    * @param minBidSize minimum size allowed in terms of biddingToken
    * @param totalSize amount of offeredToken offered by seller
    */
-  function createNewOffering(
+  function createOffer(
     address offeredToken,
     address biddingToken,
-    uint256 minPrice,
-    uint256 minBidSize,
-    uint256 totalSize
-  ) external returns (uint256 swapId) {
+    uint128 minPrice,
+    uint128 minBidSize,
+    uint128 totalSize
+  ) external override returns (uint256 swapId) {
     require(offeredToken != address(0), "!offeredToken");
     require(biddingToken != address(0), "!biddingToken");
     require(minPrice > 0, "!minPrice");
     require(minBidSize > 0, "!minBidSize");
-    require(totalSize > 0, "!size");
+    require(totalSize > 0, "!totalSize");
 
     offersCounter += 1;
 
@@ -151,13 +130,14 @@ contract Swap is ISwap, Ownable {
       seller: msg.sender,
       offeredToken: offeredToken,
       biddingToken: biddingToken,
+      isOpen: true,
       minBidSize: minBidSize,
       minPrice: minPrice,
       totalSize: totalSize,
       availableSize: totalSize
     });
 
-    emit NewSwapOffer(
+    emit NewOffer(
       swapId, 
       msg.sender, 
       offeredToken, 
@@ -169,216 +149,46 @@ contract Swap is ISwap, Ownable {
   }
 
   /**
-   * @notice Atomic ERC20 Swap
-   * @param offer offer information
-   * @param swapId unique identifier of the offering
-   * @param nonce uint256 Unique and should be sequential
-   * @param signerWallet address Wallet of the signer
-   * @param sellAmount token offered by signer
-   * @param buyAmount token requested by the signer
-   * @param v uint8 "v" value of the ECDSA signature
-   * @param r bytes32 "r" value of the ECDSA signature
-   * @param s bytes32 "s" value of the ECDSA signature
-   */
-  function swap(
-    Offer storage offer,
-    uint256 swapId,
-    uint256 nonce,
-    address signerWallet,
-    uint256 sellAmount,
-    uint256 buyAmount,
-    address referrer,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) internal {
-    // Ensure the order is valid
-    _checkValidOrder(
-      swapId,
-      nonce,
-      signerWallet,
-      sellAmount,
-      buyAmount,
-      referrer,
-      v,
-      r,
-      s
-    );
-
-    // Transfer token from sender to signer
-    IERC20(offer.offeredToken).safeTransferFrom(
-      offer.seller,
-      signerWallet,
-      buyAmount
-    );
-
-    // Transfer to referrer if any
-    uint256 feeAmount;
-    uint256 feePercent = referralFees[referrer];
-    if (feePercent > 0) {
-      feeAmount = sellAmount.mul(feePercent).div(FEE_MULTIPLIER);
-
-      IERC20(offer.biddingToken).safeTransferFrom(
-        signerWallet, 
-        referrer, 
-        feeAmount
-      );
-    }
-
-    // Transfer token from signer to recipient
-    IERC20(offer.biddingToken).safeTransferFrom(
-      signerWallet, 
-      offer.seller, 
-      sellAmount.sub(feeAmount)
-    );
-
-    // Emit a Swap event
-    emit Swap(
-      nonce,
-      block.timestamp,
-      signerWallet,
-      offer.biddingToken,
-      sellAmount,
-      offer.seller,
-      offer.offeredToken,
-      buyAmount
-    );
-  }
-
-  /**
    * @notice Settles the swap offering by iterating through the bids
-   * @param swapId unique identifier of the offering
+   * @param swapId unique identifier of the swap offer
    * @param bids bids for swaps
    */
-  function settle(
+  function settleOffer(
     uint256 swapId,
     Bid[] calldata bids
-  ) external onlyKeeper {
+  ) external override {
     Offer storage offer = swapOffers[swapId];
 
-    uint256 offeredTokenDecimals = IERC20Detailed(offer.offeredToken).decimals();
+    require(offer.seller != address(0), "Offer does not exist");  
+    require(msg.sender == offer.seller, "Only seller can settle");
+    require(offer.isOpen, "Offer already closed");
 
     for (uint256 i = 0; i < bids.length; i++) {
-      // Check min. size
-      require(bids[i].buyAmount > offer.minBidSize, "Min. bid size not met");
-
-      uint256 bidPrice = bids[i].sellAmount.mul(offeredTokenDecimals)
-                            .div(bids[i].buyAmount);
-
-      // Check min. bid
-      require(bidPrice >= offer.minPrice, "Min. price not met");
+      // // Partial fill
+      // bids[i].buyAmount = bids[i].buyAmount <= offer.availableSize
+      //   ? bids[i].buyAmount
+      //   : offer.availableSize;
       
-      // Check if there is still remaining size, prevent swap with 0 allocation
-      require(offer.availableSize > 0, "Bid exceeds available size");
-
-      // Partial fill
-      uint256 buyAmount = bids[i].buyAmount <= offer.availableSize
-        ? bids[i].buyAmount
-        : offer.availableSize;
-      
-      // Swap has in-built check for order validity
-      swap (
-        offer,
-        swapId,
-        bids[i].nonce,
-        bids[i].signerWallet,
-        bids[i].sellAmount,
-        buyAmount,
-        bids[i].referrer,
-        bids[i].v,
-        bids[i].r,
-        bids[i].s
-      );
+      _swap(offer, bids[i]);
 
       // Update offer
-      offer.availableSize -= bids[i].buyAmount;
+      offer.availableSize -= uint128(bids[i].buyAmount);
     }
   }
 
   /**
-   * @notice Swap Atomic ERC20 Swap (Low Gas Usage)
-   * @param offer offer information
-   * @param swapId unique identifier of the offering
-   * @param nonce uint256 Unique and should be sequential
-   * @param signerWallet address Wallet of the signer
-   * @param sellAmount token offered by signer
-   * @param buyAmount token requested by the signer
-   * @param v uint8 "v" value of the ECDSA signature
-   * @param r bytes32 "r" value of the ECDSA signature
-   * @param s bytes32 "s" value of the ECDSA signature
+   * @notice Close offer
+   * @param swapId swapId unique identifier of the swap offer
    */
-  function light(
-    Offer storage offer,
-    uint256 swapId,
-    uint256 nonce,
-    address signerWallet,
-    uint256 sellAmount,
-    uint256 buyAmount,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) internal {
-    require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
+  function closeOffer(uint256 swapId) external override {
+    Offer storage offer = swapOffers[swapId];
+    require(offer.seller != address(0), "Offer does not exist");  
+    require(msg.sender == offer.seller, "Only seller can close offer");
+    require(offer.isOpen, "Offer already closed");
 
-    // Recover the signatory from the hash and signature
-    address signatory = ecrecover(
-      keccak256(
-        abi.encodePacked(
-          "\x19\x01",
-          DOMAIN_SEPARATOR,
-          keccak256(
-            abi.encode(
-              ORDER_TYPEHASH,
-              swapId,
-              nonce,
-              signerWallet,
-              sellAmount,
-              buyAmount
-            )
-          )
-        )
-      ),
-      v,
-      r,
-      s
-    );
+    offer.isOpen = false;
 
-    // Ensure the signatory is not null
-    require(signatory != address(0), "SIGNATURE_INVALID");
-
-    // Ensure the nonce is not yet used and if not mark it used
-    require(_markNonceAsUsed(signatory, nonce), "NONCE_ALREADY_USED");
-
-    // Ensure the signatory is authorized by the signer wallet
-    if (signerWallet != signatory) {
-      require(authorized[signerWallet] == signatory, "UNAUTHORIZED");
-    }
-
-    // Transfer token from sender to signer
-    IERC20(offer.offeredToken).safeTransferFrom(
-      offer.seller,
-      signerWallet,
-      buyAmount
-    );
-
-    // Transfer token from signer to recipient
-    IERC20(offer.biddingToken).safeTransferFrom(
-      signerWallet, 
-      offer.seller, 
-      sellAmount
-    );
-
-    // Emit a Swap event
-    emit Swap(
-      nonce,
-      block.timestamp,
-      signerWallet,
-      offer.biddingToken,
-      sellAmount,
-      offer.seller,
-      offer.offeredToken,
-      buyAmount
-    );
+    emit CloseOffer(swapId);
   }
 
   /**
@@ -388,7 +198,7 @@ contract Swap is ISwap, Ownable {
    * @dev Out of gas may occur in arrays of length > 400
    * @param nonces uint256[] List of nonces to cancel
    */
-  function cancel(uint256[] calldata nonces) external override {
+  function cancelNonce(uint256[] calldata nonces) external override {
     for (uint256 i = 0; i < nonces.length; i++) {
       uint256 nonce = nonces[i];
       if (_markNonceAsUsed(msg.sender, nonce)) {
@@ -397,92 +207,79 @@ contract Swap is ISwap, Ownable {
     }
   }
 
+  /************************************************
+   *  PUBLIC VIEW FUNCTIONS
+   ***********************************************/
+
   /**
-   * @notice Validates Swap Order for any potential errors
-   * @param swapId unique identifier of the offering
-   * @param nonce uint256 Unique and should be sequential
-   * @param signerWallet address Wallet of the signer
-   * @param sellAmount token offered by signer
-   * @param buyAmount token requested by the signer
-   * @param v uint8 "v" value of the ECDSA signature
-   * @param r bytes32 "r" value of the ECDSA signature
-   * @param s bytes32 "s" value of the ECDSA signature
+   * @notice Validates Swap bid for any potential errors
+   * @param bid Bid struct containing bid details
    * @return tuple of error count and bytes32[] memory array of error messages
    */
   function check(
-    uint256 swapId,
-    uint256 nonce,
-    address signerWallet,
-    uint256 sellAmount,
-    uint256 buyAmount,
-    address referrer,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
+    Bid calldata bid
   ) public view returns (uint256, bytes32[] memory) {
-    Offer memory offer = swapOffers[swapId];
-    require(offer.offeredToken != address(0), "Offer does not exist");
+    Offer memory offer = swapOffers[bid.swapId];
+    require(offer.seller != address(0), "Offer does not exist");
 
     bytes32[] memory errors = new bytes32[](MAX_ERROR_COUNT);
-    Bid memory order;
+
     uint256 errCount;
-    order.swapId = swapId;
-    order.nonce = nonce;
-    order.signerWallet = signerWallet;
-    order.sellAmount = sellAmount;
-    order.buyAmount = buyAmount;
-    order.referrer = referrer;
-    order.v = v;
-    order.r = r;
-    order.s = s;
 
-    bytes32 hashed = _getOrderHash(
-      order.swapId,
-      order.nonce,
-      order.signerWallet,
-      order.sellAmount,
-      order.buyAmount,
-      order.referrer
-    );
-
-    address signatory = _getSignatory(hashed, order.v, order.r, order.s);
+    // Check signature
+    address signatory = _getSignatory(bid);
 
     if (signatory == address(0)) {
       errors[errCount] = "SIGNATURE_INVALID";
       errCount++;
     }
 
-    if (
-      order.signerWallet != signatory &&
-      authorized[order.signerWallet] != signatory
-    ) {
-      errors[errCount] = "UNAUTHORIZED";
+    if (signatory != bid.signerWallet) {
+      errors[errCount] = "SIGNATURE_MISMATCHED";
       errCount++;
-    } else {
-      if (nonceUsed(signatory, order.nonce)) {
-        errors[errCount] = "NONCE_ALREADY_USED";
-        errCount++;
-      }
     }
 
-    uint256 signerBalance = IERC20(offer.biddingToken).balanceOf(
-      order.signerWallet
-    );
+    // Check nonce
+    if (nonceUsed(signatory, bid.nonce)) {
+      errors[errCount] = "NONCE_ALREADY_USED";
+      errCount++;
+    }
 
+    // Check bid size
+    if (bid.buyAmount < offer.minBidSize) {
+      errors[errCount] = "BID_TOO_SMALL";
+      errCount++;
+    }
+
+    // Check bid price
+    uint256 offeredTokenDecimals = IERC20Detailed(offer.offeredToken).decimals();
+    uint256 bidPrice = bid.sellAmount
+      .mul(uint256(10)**offeredTokenDecimals)
+      .div(bid.buyAmount);
+    if (bidPrice < offer.minPrice) {
+      errors[errCount] = "PRICE_TOO_LOW";
+      errCount++;
+    }
+
+    // Check signer allowance
     uint256 signerAllowance = IERC20(offer.biddingToken).allowance(
-      order.signerWallet,
+      bid.signerWallet,
       address(this)
     );
-
-    if (signerAllowance < order.sellAmount) {
+    if (signerAllowance < bid.sellAmount) {
       errors[errCount] = "SIGNER_ALLOWANCE_LOW";
       errCount++;
     }
 
-    if (signerBalance < order.sellAmount) {
+    // Check signer balance
+    uint256 signerBalance = IERC20(offer.biddingToken).balanceOf(
+      bid.signerWallet
+    );
+    if (signerBalance < bid.sellAmount) {
       errors[errCount] = "SIGNER_BALANCE_LOW";
       errCount++;
     }
+
     return (errCount, errors);
   }
 
@@ -513,6 +310,145 @@ contract Swap is ISwap, Ownable {
     }
   }
 
+
+  /************************************************
+   *  INTERNAL FUNCTIONS
+   ***********************************************/
+
+  /**
+   * @notice Swap Atomic ERC20 Swap (Low Gas Usage)
+   * @param offer Offer struct containing offer details
+   * @param bid Bid struct containing bid details
+   */
+  function _swap(
+    Offer storage offer,
+    Bid memory bid
+  ) internal {
+    require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
+
+    // Recover the signatory from the hash and signature
+    address signatory = _getSignatory(bid);
+
+    // Ensure the signatory is not null
+    require(signatory != address(0), "SIGNATURE_INVALID");
+
+    // Ensure signature is from the signer
+    require(signatory == bid.signerWallet, "SIGNATURE_MISMATCHED");
+
+    // Ensure the nonce is not yet used and if not mark it used
+    require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
+
+    // Ensure there is still remaining size to prevent swap with 0 allocation
+    require(offer.availableSize > 0, "ZERO_AVAILABLE_SIZE");  
+
+    // Ensure min. bid size is met
+    require(bid.buyAmount >= offer.minBidSize, "BID_TOO_SMALL");
+
+    // Ensure min. price is met
+    uint256 offeredTokenDecimals = IERC20Detailed(offer.offeredToken).decimals();
+    uint256 bidPrice = bid.sellAmount
+      .mul(uint256(10)**offeredTokenDecimals)
+      .div(bid.buyAmount);
+    require(bidPrice >= offer.minPrice, "PRICE_TOO_LOW");
+
+    // Transfer token from sender to signer
+    IERC20(offer.offeredToken).safeTransferFrom(
+      offer.seller,
+      bid.signerWallet,
+      bid.buyAmount
+    );
+
+    // Transfer to referrer if any
+    uint256 feeAmount;
+    uint256 feePercent = referralFees[bid.referrer];
+    if (feePercent > 0) {
+      feeAmount = bid.sellAmount.mul(feePercent).div(FEE_MULTIPLIER);
+
+      IERC20(offer.biddingToken).safeTransferFrom(
+        bid.signerWallet, 
+        bid.referrer, 
+        feeAmount
+      );
+    }
+
+    // Transfer token from signer to recipient
+    IERC20(offer.biddingToken).safeTransferFrom(
+      bid.signerWallet, 
+      offer.seller, 
+      bid.sellAmount.sub(feeAmount)
+    );
+
+    // Emit a Swap event
+    emit Swap(
+      bid.swapId,
+      bid.nonce,
+      block.timestamp,
+      bid.signerWallet,
+      offer.biddingToken,
+      bid.sellAmount,
+      offer.seller,
+      offer.offeredToken,
+      bid.buyAmount,
+      bid.referrer,
+      feeAmount
+    );
+  }
+
+  // /**
+  //  * @notice Atomic ERC20 Swap
+  //  * @param offer Offer struct containing offer details
+  //  * @param bid Bid struct containing bid details
+  //  */
+  // function _swap(
+  //   Offer storage offer,
+  //   Bid memory bid
+  // ) internal {
+  //   // Ensure the bid is valid
+  //   _checkValidBid(offer, bid);
+
+  //   // Transfer token from sender to signer
+  //   IERC20(offer.offeredToken).safeTransferFrom(
+  //     offer.seller,
+  //     bid.signerWallet,
+  //     bid.buyAmount
+  //   );
+
+  //   // Transfer to referrer if any
+  //   uint256 feeAmount;
+  //   uint256 feePercent = referralFees[bid.referrer];
+  //   if (feePercent > 0) {
+  //     feeAmount = bid.sellAmount.mul(feePercent).div(FEE_MULTIPLIER);
+
+  //     IERC20(offer.biddingToken).safeTransferFrom(
+  //       bid.signerWallet, 
+  //       bid.referrer, 
+  //       feeAmount
+  //     );
+  //   }
+
+  //   // Transfer token from signer to recipient
+  //   IERC20(offer.biddingToken).safeTransferFrom(
+  //     bid.signerWallet, 
+  //     offer.seller, 
+  //     bid.sellAmount.sub(feeAmount)
+  //   );
+
+  //   // Emit a Swap event
+  //   emit Swap(
+  //     bid.swapId,
+  //     bid.nonce,
+  //     block.timestamp,
+  //     bid.signerWallet,
+  //     offer.biddingToken,
+  //     bid.sellAmount,
+  //     offer.seller,
+  //     offer.offeredToken,
+  //     bid.buyAmount,
+  //     bid.referrer,
+  //     feeAmount
+  //   );
+  // }
+
   /**
    * @notice Marks a nonce as used for the given signer
    * @param signer address Address of the signer for which to mark the nonce as used
@@ -537,106 +473,92 @@ contract Swap is ISwap, Ownable {
     return true;
   }
 
-  /**
-   * @notice Checks Order Nonce, Signature
-   * @param swapId unique identifier of the offering
-   * @param nonce uint256 Unique and should be sequential
-   * @param signerWallet address Wallet of the signer
-   * @param sellAmount token offered by signer
-   * @param buyAmount token requested by the signer
-   * @param referrer referrer address
-   * @param v uint8 "v" value of the ECDSA signature
-   * @param r bytes32 "r" value of the ECDSA signature
-   * @param s bytes32 "s" value of the ECDSA signature
-   */
-  function _checkValidOrder(
-    uint256 swapId,
-    uint256 nonce,
-    address signerWallet,
-    uint256 sellAmount,
-    uint256 buyAmount,
-    address referrer,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
-  ) internal {
-    require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
+  // /**
+  //  * @notice Checks bid Nonce, Signature
+  //  * @param offer Offer struct containing offer details
+  //  * @param bid Bid struct containing bid details
+  //  */
+  // function _checkValidBid(
+  //   Offer storage offer,
+  //   Bid memory bid
+  // ) internal {
+  //   // Ensure chain ID is correct
+  //   require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
 
-    bytes32 hashed = _getOrderHash(
-      swapId,
-      nonce,
-      signerWallet,
-      sellAmount,
-      buyAmount,
-      referrer
-    );
+  //   // Ensure signature is valid
+  //   bytes32 hashed = _getBidHash(bid);
+  //   address signatory = _getSignatory(hashed, bid.v, bid.r, bid.s);
+  //   require(signatory != address(0), "SIGNATURE_INVALID");
+  //   require(signatory == bid.signerWallet, "SIGNATURE_MISMATCHED");
 
-    // Recover the signatory from the hash and signature
-    address signatory = _getSignatory(hashed, v, r, s);
+  //   // Ensure the nonce is not yet used and if not mark it used
+  //   require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
 
-    // Ensure the signatory is not null
-    require(signatory != address(0), "SIGNATURE_INVALID");
+  //   // Ensure there is still remaining size to prevent swap with 0 allocation
+  //   require(offer.availableSize > 0, "ZERO_AVAILABLE_SIZE");  
 
-    // Ensure the nonce is not yet used and if not mark it used
-    require(_markNonceAsUsed(signatory, nonce), "NONCE_ALREADY_USED");
+  //   // Ensure min. bid size is met
+  //   require(bid.buyAmount >= offer.minBidSize, "BID_TOO_SMALL");
 
-    // Ensure the signatory is authorized by the signer wallet
-    if (signerWallet != signatory) {
-      require(authorized[signerWallet] == signatory, "UNAUTHORIZED");
-    }
-  }
+  //   // Ensure min. price is met
+  //   uint256 offeredTokenDecimals = IERC20Detailed(offer.offeredToken).decimals();
+  //   uint256 bidPrice = bid.sellAmount
+  //     .mul(uint256(10)**offeredTokenDecimals)
+  //     .div(bid.buyAmount);
+  //   require(bidPrice >= offer.minPrice, "PRICE_TOO_LOW");
+  // }
 
-  /**
-   * @notice Hash order parameters
-   * @param swapId unique identifier of the offering
-   * @param nonce uint256 Unique and should be sequential
-   * @param signerWallet address Wallet of the signer
-   * @param sellAmount token offered by signer
-   * @param buyAmount token requested by the signer
-   * @param referrer referrer address
-   * @return bytes32
-   */
-  function _getOrderHash(
-    uint256 swapId,
-    uint256 nonce,
-    address signerWallet,
-    uint256 sellAmount,
-    uint256 buyAmount,
-    address referrer
-  ) internal pure returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(
-          ORDER_TYPEHASH,
-          swapId,
-          nonce,
-          signerWallet,
-          sellAmount,
-          buyAmount,
-          referrer
-        )
-      );
-  }
+//   /**
+//    * @notice Hash bid parameters
+//    * @param bid Bid struct containing bid details
+//    * @return bytes32
+//    */
+//   function _getBidHash(
+//     Bid memory bid
+//   ) internal pure returns (bytes32) {
+//     return
+//       keccak256(
+//         abi.encode(
+//           BID_TYPEHASH,
+//           bid.swapId,
+//           bid.nonce,
+//           bid.signerWallet,
+//           bid.sellAmount,
+//           bid.buyAmount,
+//           bid.referrer
+//         )
+//       );
+//   }
 
   /**
    * @notice Recover the signatory from a signature
-   * @param hash bytes32
-   * @param v uint8
-   * @param r bytes32
-   * @param s bytes32
+   * @param bid Bid struct containing bid details
    */
   function _getSignatory(
-    bytes32 hash,
-    uint8 v,
-    bytes32 r,
-    bytes32 s
+    Bid memory bid
   ) internal view returns (address) {
     return
       ecrecover(
-        keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, hash)),
-        v,
-        r,
-        s
+        keccak256(
+          abi.encodePacked(
+            "\x19\x01",
+            DOMAIN_SEPARATOR,
+            keccak256(
+              abi.encode(
+                BID_TYPEHASH,
+                bid.swapId,
+                bid.nonce,
+                bid.signerWallet,
+                bid.sellAmount,
+                bid.buyAmount,
+                bid.referrer
+              )
+            )
+          )
+        ),
+        bid.v,
+        bid.r,
+        bid.s
       );
   }
 }
