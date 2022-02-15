@@ -111,8 +111,8 @@ contract Swap is ISwap, Ownable {
     function createOffer(
         address offeredToken,
         address biddingToken,
-        uint128 minPrice,
-        uint128 minBidSize,
+        uint96 minPrice,
+        uint96 minBidSize,
         uint128 totalSize
     ) external override returns (uint256 swapId) {
         require(offeredToken != address(0), "!offeredToken");
