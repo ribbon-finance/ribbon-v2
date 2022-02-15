@@ -83,6 +83,7 @@ Error: VM Exception while processing transaction: reverted with reason string '!
 ```
 Error: VM Exception while processing transaction: reverted with reason string 'C29'
 ```
+- Pricer might have the wrong asset, verify the pricer matches the asset on etherscan
 - Call setExpiryPriceInOracle on the Chainlink Pricer
 - Timestamp should be the following Friday 8am UTC in unix time.
 - roundId should be from the Chainlink aggregator and greater than the current roundId.
