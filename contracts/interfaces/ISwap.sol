@@ -4,14 +4,19 @@ pragma solidity ^0.8.0;
 
 interface ISwap {
     struct Offer {
+        // 32 byte slot 1
         address seller;
-        address offeredToken;
-        address biddingToken;
         bool isOpen;
-        uint128 minPrice;
-        uint128 minBidSize;
+        // 32 byte slot 2
+        address offeredToken;
+        uint96 minPrice;
+        // 32 byte slot 3
+        address biddingToken;
+        uint96 minBidSize; 
+        // 32 byte slot 4
         uint128 totalSize;
         uint128 availableSize;
+        // 32 byte slot 5
         uint256 totalSales;
     }
 
@@ -57,8 +62,8 @@ interface ISwap {
     function createOffer(
         address offeredToken,
         address biddingToken,
-        uint128 minPrice,
-        uint128 minBidSize,
+        uint96 minPrice,
+        uint96 minBidSize,
         uint128 totalSize
     ) external returns (uint256 swapId);
 
