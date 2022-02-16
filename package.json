@@ -17,6 +17,7 @@
     "hardhat": "^2.6.0",
     "hardhat-contract-sizer": "^2.0.3",
     "hardhat-deploy": "^0.8.11",
+    "hardhat-gas-reporter": "^1.0.7",
     "hardhat-log-remover": "^2.0.2",
     "husky": "^6.0.0",
     "lint-staged": "^11.0.0",
@@ -35,10 +36,11 @@
     "underscore": "^1.9.0"
   },
   "scripts": {
-    "test": "yarn test:eth && yarn test:avax && yarn test:aurora",
+    "test": "yarn test:eth && yarn test:avax && yarn test:aurora && yarn test:sanity",
     "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
     "test:avax": "CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
     "test:aurora": "CHAINID=1313161554 npx hardhat test test/RibbonThetaVault.ts",
+    "test:sanity": "CHAINID=1313161554 npx hardhat test test/VaultSanityCheck.ts",
     "test:upgrade": "npx hardhat test test/upgrades/*.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
     "compile": "CHAINID=1 npx hardhat compile",
