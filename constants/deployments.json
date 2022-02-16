@@ -35,6 +35,7 @@
         "RibbonDeltaVaultETHCall": "0x60103daCd6BB4019Ee69eC17c419b9Fbf934E056",
         "RibbonDeltaVaultLogic": "0xadb6BbA485390b5581d9bB178158fda23a417e57",
         "RibbonThetaVaultETHCall": "0x4C075bD4423B74e86C5F50C7d866438B6eF20408",
+        "RibbonThetaVaultETHPut": "0x9b92AfCbc0EBcD0187cdf19Ead068e1092437a2d",
         "RibbonThetaVaultLogic": "0x942caF8E5554E4B4d7D4cbEFeE72552caA9c1721",
         "RibbonThetaVaultWBTCCall": "0x815C3CA3F72906b4BACE0dA2A54F540EB8CEd965",
         "StrikeSelectionETH": "0xE19d1bB9fea8337E7e28Aa23f17954fdE0707081",
