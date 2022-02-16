@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 interface ISwap {
     struct Offer {
-        // 32 byte slot 1
+        // slot 1
         address seller;
         bool isOpen;
         // 32 byte slot 2
@@ -12,7 +12,7 @@ interface ISwap {
         uint96 minPrice;
         // 32 byte slot 3
         address biddingToken;
-        uint96 minBidSize; 
+        uint96 minBidSize;
         // 32 byte slot 4
         uint128 totalSize;
         uint128 availableSize;
