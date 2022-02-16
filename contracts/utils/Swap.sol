@@ -45,8 +45,7 @@ contract Swap is ISwap, Ownable {
     uint256 public immutable DOMAIN_CHAIN_ID;
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    uint256 internal constant FEE_MULTIPLIER = 100;
-    uint256 internal constant MAX_PERCENTAGE = 100 * FEE_MULTIPLIER;
+    uint256 internal constant MAX_PERCENTAGE = 10000;
     uint256 internal constant MAX_ERROR_COUNT = 7;
 
     uint256 public offersCounter = 0;
@@ -353,7 +352,7 @@ contract Swap is ISwap, Ownable {
         uint256 feeAmount;
         uint256 feePercent = referralFees[bid.referrer];
         if (feePercent > 0) {
-            feeAmount = sellAmount.mul(feePercent).div(FEE_MULTIPLIER);
+            feeAmount = sellAmount.mul(feePercent).div(MAX_PERCENTAGE);
 
             IERC20(offer.biddingToken).safeTransferFrom(
                 bid.signerWallet,
