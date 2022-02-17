@@ -25,15 +25,9 @@ describe("Swap", () => {
 
   let wethContract: Contract;
   let usdcContract: Contract;
+  let domain: Object;
 
   // SETUP GET SIGNATURE METHOD
-  const domain = {
-    name: "RIBBON SWAP",
-    version: "1",
-    chainId,
-    verifyingContract: swap.address,
-  };
-
   const types = {
     Bid: [
       { name: "swapId", type: "uint256" },
@@ -45,7 +39,7 @@ describe("Swap", () => {
     ]
   };
 
-  const getSignature = async (order: Object, signer: SignerWithAddress) => {
+  const getSignature = async (domain: Object, order: Object, signer: SignerWithAddress) => {
     /* eslint no-underscore-dangle: 0 */
     const signedMsg = await signer._signTypedData(
       domain,
@@ -97,6 +91,14 @@ describe("Swap", () => {
     );
 
     swap = await Swap.connect(ownerSigner).deploy();
+
+    // SETUP DOMAIN
+    domain = {
+      name: "RIBBON SWAP",
+      version: "1",
+      chainId,
+      verifyingContract: swap.address,
+    };
 
     // MINT USDC FOR USER & OWNER AND GIVE ALLOWANCE TO SWAP CONTRACT
     usdcAddress = USDC_ADDRESS[chainId];
@@ -318,7 +320,7 @@ describe("Swap", () => {
           referrer
         };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       const bids = [
         [
@@ -354,7 +356,7 @@ describe("Swap", () => {
           referrer
         };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
       const bids = [
         [
           swapId,
@@ -403,7 +405,7 @@ describe("Swap", () => {
           referrer
         };
 
-        const signature = await getSignature(order, userSigner);
+        const signature = await getSignature(domain, order, userSigner);
 
         bids.push(
           [
@@ -441,7 +443,7 @@ describe("Swap", () => {
           referrer
         };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       const bids = [
         [
@@ -477,7 +479,7 @@ describe("Swap", () => {
           referrer
         };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       const bids = [
         [
@@ -518,7 +520,7 @@ describe("Swap", () => {
           referrer
         };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       const bids = [
         [
@@ -598,7 +600,7 @@ describe("Swap", () => {
           referrer
         };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       const bids = [
         [
@@ -679,7 +681,7 @@ describe("Swap", () => {
           referrer
         };
 
-        const signature = await getSignature(order, userSigner);
+        const signature = await getSignature(domain, order, userSigner);
 
         bids.push(
           [
@@ -785,7 +787,7 @@ describe("Swap", () => {
         referrer
       };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       await expect(swap.check(
         [
@@ -836,7 +838,7 @@ describe("Swap", () => {
         referrer
       };
 
-      const signature = await getSignature(order, userSigner);
+      const signature = await getSignature(domain, order, userSigner);
 
       const error = await swap.check(
         [
