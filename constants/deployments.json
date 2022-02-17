@@ -65,6 +65,7 @@
         "ManualVolOracle": "0x7c0BFaB993fBD54deaDf43AdFF960E9c9e116399",
         "OptionsPremiumPricerAAVE": "0x0A1B6393527DDB5CbB5E38081C9A4Af08F0975dB",
         "OptionsPremiumPricerETH": "0xec58c11aA55836c896B80A9D8032e39EeB525CbC",
+        "OptionsPremiumPricerPERP": "0x8BBE98240A2e4Aae3c9b4Aa9639740eB17125b68",
         "OptionsPremiumPricerWBTC": "0xD8BB660A8FCAEAdb7A7AeF73e57a3A989065DACC",
         "RibbonDeltaVaultETHCall": "0x3Fb118d109Dfc7646d37fb2Af36b5eA2E5bA0850",
         "RibbonDeltaVaultLogic": "0xF103486d9a098673fad8a5D86e8cfd6BF2FE6F8B",
@@ -76,11 +77,15 @@
         "RibbonThetaVaultSTETHLogic": "0x8a0eFf819D7e197eE79Ff3fef520fe56a2c36cA5",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
         "RibbonThetaVaultYearnLogic": "0x34f394C902284D7722109F264923b38Fe8471C39",
+        "RibbonTreasuryVaultLogic": "0x4237Dd9CB12C9fd93E96F39B45e00EE695F07b6E",
+        "RibbonTreasuryVaultPERP": "0xe44eDF7aD1D434Afe3397687DD0A914674F2E405",
         "StrikeSelectionAAVE": "0xc2b10e716987cCD35d642506Fd546315C0753563",
         "StrikeSelectionETH": "0x39d3799b8ABEfC3d05db5BA3b3B2770146475000",
+        "StrikeSelectionPERP": "0x70C7b820138d048acbC07A4137a5F15cF0b591BC",
         "StrikeSelectionWBTC": "0x5E68b6F5C82FC5F3711541CA4A12E01B967Fc641",
         "VaultLifecycle": "0xe64524Ba73b9E74956f59F137821039254994f36",
         "VaultLifecycleSTETH": "0x5CbB58FBd5E53A8db156C1261403b14dc618F3db",
-        "VaultLifecycleYearn": "0x07e18F15845E919c09Df350dcd8AD4030F587809"
+        "VaultLifecycleYearn": "0x07e18F15845E919c09Df350dcd8AD4030F587809",
+        "VaultLifecycleTreasury": "0xb8a80d9520D23fBfe6F822510E320CbB45Ff590D"
     }
 }
