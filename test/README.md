@@ -78,6 +78,8 @@ Error: VM Exception while processing transaction: reverted with reason string '!
 ```
 - Pricer could be wrong price and you need to change the price.  e.g. Off by a few zeros.
 - Call setAnnualizedVol in ManualVolOracle
+- Block number must be 1 day from current time.
+  `uint256 t = expiryTimestamp.sub(block.timestamp).div(1 days);`
 
 ### C29
 ```
@@ -89,3 +91,10 @@ Error: VM Exception while processing transaction: reverted with reason string 'C
 - roundId should be from the Chainlink aggregator and greater than the current roundId.
 - E.g. Pass 1639123200 for timestamp and 18446744073709551763 for roundId
 - https://snowtrace.io/tx/0x5b92b884524443e0e7c9b26772d3e3c638d3748f207072fc06a60cbb039c91ca
+
+### !st
+```
+     Error: VM Exception while processing transaction: reverted with reason string '!st'
+```
+- If Put vault, the strike is being stepped down past zero (the steps are bigger than the target delta).
+- Try reducing the step to increase it's precision (uses more gas) or adjust the target delta.

@@ -3,6 +3,7 @@ import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
 import CHAINLINK_PRICER_ABI from "../../constants/abis/ChainLinkPricer.json";
+import SAVAX_PRICER_ABI from "../../constants/abis/SAvaxPricer.json";
 import {
   CHAINID,
   GAMMA_ORACLE,
@@ -15,6 +16,7 @@ import {
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
   YEARN_PRICER_OWNER,
+  SAVAX_PRICER,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -151,7 +153,7 @@ export async function whitelistProduct(
 
   await adminSigner.sendTransaction({
     to: ownerAddress,
-    value: parseEther("3"),
+    value: parseEther("5"),
   });
 
   await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
@@ -203,13 +205,13 @@ export async function setupOracle(
 
   const pricer = new ethers.Contract(
     chainlinkPricer,
-    CHAINLINK_PRICER_ABI,
+    getPricerABI(chainlinkPricer),
     oracleOwnerSigner
   );
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setAssetPricer(await pricer.asset(), chainlinkPricer);
+    .setAssetPricer(await getPricerAsset(pricer), chainlinkPricer);
 
   return oracle;
 }
@@ -530,10 +532,28 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("1");
     case "WETH":
       if (chainId === CHAINID.AVAX_MAINNET) {
-        return BigNumber.from("5");
+        return BigNumber.from("3");
       }
       return BigNumber.from("100");
     default:
       throw new Error(`Delta Step not found for asset: ${asset}`);
+  }
+};
+
+export const getPricerABI = (pricer: string) => {
+  switch (pricer) {
+    case SAVAX_PRICER:
+      return SAVAX_PRICER_ABI;
+    default:
+      return CHAINLINK_PRICER_ABI;
+  }
+};
+
+export const getPricerAsset = async (pricer: Contract) => {
+  switch (pricer.address) {
+    case SAVAX_PRICER:
+      return await pricer.sAVAX();
+    default:
+      return await pricer.asset();
   }
 };
