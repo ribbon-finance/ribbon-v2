@@ -7,6 +7,7 @@ import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
+  BLOCK_NUMBER,
   CHAINLINK_WETH_PRICER_STETH,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
@@ -79,12 +80,12 @@ describe("RibbonThetaSTETHVault", () => {
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("96511604"),
+    expectedMintAmount: BigNumber.from("94494724"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("1"),
-    crvETHAmountAfterSlippage: BigNumber.from("998258752506440113"),
+    crvETHAmountAfterSlippage: BigNumber.from("998830033598582475"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -219,6 +220,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
+  let initialMarginPoolBal: BigNumber;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -233,11 +235,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(
-        params.underlyingPricer,
-        ownerSigner,
-        true
-      );
+      const oracle = await setupOracle(params.underlyingPricer, ownerSigner);
 
       await setOpynOracleExpiryPriceYearn(
         params.asset,
@@ -271,7 +269,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: process.env.TEST_URI,
-              blockNumber: 13056027,
+              blockNumber: BLOCK_NUMBER[chainId],
             },
           },
         ],
@@ -474,6 +472,10 @@ function behavesLikeRibbonOptionsVault(params: {
         collateralAsset
       );
 
+      initialMarginPoolBal = await collateralContract.balanceOf(
+        MARGIN_POOL[chainId]
+      );
+
       intermediaryAssetContract = await getContractAt(
         "IERC20",
         intermediaryAsset
@@ -490,7 +492,7 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       );
 
-      await setAssetPricer(collateralAsset, params.collateralPricer, true);
+      await setAssetPricer(collateralAsset, params.collateralPricer);
 
       collateralPricerSigner = await getAssetPricer(
         params.collateralPricer,
@@ -1180,7 +1182,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(
           await intermediaryAssetContract.balanceOf(user),
-          startBalance.sub(depositAmount.mul(2)).add(2)
+          startBalance.sub(depositAmount.mul(2)).add(1)
         );
         assert.isTrue((await vault.totalSupply()).isZero());
         assert.isTrue((await vault.balanceOf(user)).isZero());
@@ -1496,7 +1498,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.depositAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner, true);
+        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
       });
 
       it("reverts when not called with keeper", async function () {
@@ -1514,11 +1516,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(res).to.not.emit(vault, "CloseShort");
 
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
         await expect(res)
           .to.emit(vault, "OpenShort")
           .withArgs(
             defaultOtokenAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -1640,12 +1645,15 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -1678,7 +1686,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(firstOptionAddress, depositAmountInAsset, keeper);
+          .withArgs(
+            firstOptionAddress,
+            depositAmountInAsset.sub(initialMarginPoolBal),
+            keeper
+          );
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
@@ -1757,11 +1769,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
+
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -1785,11 +1801,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
+        const finalMarginPoolBal = await collateralContract.balanceOf(
+          MARGIN_POOL[chainId]
+        );
+
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             firstOptionAddress,
-            await collateralContract.balanceOf(MARGIN_POOL[chainId]),
+            finalMarginPoolBal.sub(initialMarginPoolBal),
             keeper
           );
 
@@ -2097,7 +2117,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner, true);
+        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2478,7 +2498,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner, true);
+        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -2806,7 +2826,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 277018);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 277150);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
@@ -2865,7 +2885,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("should send LDO rewards to feeRecipient", async function () {
-        const LDO_HOLDER = "0xba4a6c7f357dff95c89f465ca15943d56fc2720e";
+        const LDO_HOLDER = "0x3e40d73eb977dc6a537af587d48316fee66e9c8c";
         await hre.network.provider.request({
           method: "hardhat_impersonateAccount",
           params: [LDO_HOLDER],

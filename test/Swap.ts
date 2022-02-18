@@ -7,7 +7,7 @@ import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import * as time from "./helpers/time";
 import { mintToken } from "./helpers/utils";
-import { BLOCK_NUMBER_NEW, USDC_ADDRESS, USDC_OWNER_ADDRESS, WETH_ADDRESS } from "../constants/constants";
+import { BLOCK_NUMBER, USDC_ADDRESS, USDC_OWNER_ADDRESS, WETH_ADDRESS } from "../constants/constants";
 const { getContractAt, getContractFactory } = ethers;
 const chainId = network.config.chainId;
 
@@ -67,7 +67,7 @@ describe("Swap", () => {
         {
           forking: {
             jsonRpcUrl: TEST_URI[chainId],
-            blockNumber: BLOCK_NUMBER_NEW[chainId],
+            blockNumber: BLOCK_NUMBER[chainId],
           },
         },
       ],
