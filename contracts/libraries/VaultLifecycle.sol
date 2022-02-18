@@ -624,7 +624,7 @@ library VaultLifecycle {
         IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
 
         address otokenFromFactory =
-            factory.getOtoken(
+            factory.getWhitelistedOtoken(
                 underlying,
                 closeParams.USDC,
                 collateralAsset,
@@ -638,7 +638,7 @@ library VaultLifecycle {
         }
 
         address otoken =
-            factory.createOtoken(
+            factory.createWhitelistedOtoken(
                 underlying,
                 closeParams.USDC,
                 collateralAsset,

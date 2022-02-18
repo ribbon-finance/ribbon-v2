@@ -378,6 +378,72 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
+     * @notice Closes the existing short position for the vault, must be called before commit()
+     * @dev TEMPORARY MIGRATION FUNCTION, only callable by the keeper
+     */
+    function closeShort() external onlyKeeper {
+        address oldOption = optionState.currentOption;
+        uint256 lockedAmount = vaultState.lockedAmount;
+
+        if (oldOption != address(0)) {
+            vaultState.lastLockedAmount = uint104(lockedAmount);
+        }
+        vaultState.lockedAmount = 0;
+
+        if (oldOption != address(0)) {
+            uint256 withdrawAmount =
+                VaultLifecycle.settleShort(GAMMA_CONTROLLER); // TODO: Change to OLD_GAMMA_CONTROLLER
+            emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        }
+    }
+
+    /**
+     * @notice Sets the next option the vault will be shorting, must be called after closeShort()
+     * @dev TEMPORARY MIGRATION FUNCTION, only callable by the keeper
+     */
+    function commit() external onlyKeeper {
+        VaultLifecycle.CloseParams memory closeParams =
+            VaultLifecycle.CloseParams({
+                OTOKEN_FACTORY: OTOKEN_FACTORY,
+                USDC: USDC,
+                currentOption: optionState.currentOption,
+                delay: DELAY,
+                lastStrikeOverrideRound: lastStrikeOverrideRound,
+                overriddenStrikePrice: overriddenStrikePrice
+            });
+
+        (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        ) =
+            VaultLifecycle.commitAndClose(
+                strikeSelection,
+                optionsPremiumPricer,
+                premiumDiscount,
+                closeParams,
+                vaultParams,
+                vaultState
+            );
+
+        emit NewOptionStrikeSelected(strikePrice, delta);
+
+        ShareMath.assertUint104(premium);
+        currentOtokenPremium = uint104(premium);
+        optionState.nextOption = otokenAddress;
+
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
+
+        optionState.currentOption = address(0);
+    }
+
+    /**
      * @notice Closes the existing short position for the vault.
      */
     function _closeShort(address oldOption) private {
