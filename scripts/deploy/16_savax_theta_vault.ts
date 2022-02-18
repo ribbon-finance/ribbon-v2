@@ -4,7 +4,7 @@ import {
   CHAINID,
   SAVAX_ADDRESS,
   SAVAX_USDC_POOL,
-  ETH_USDC_POOL,
+  ETH_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
@@ -38,6 +38,27 @@ const main = async ({
   }
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
+
+  const sAvaxOracle = await deploy("SAvaxOracle", {
+    contract: "SAvaxOracle",
+    from: deployer,
+    args: [
+      SAVAX_ADDRESS[chainId],
+      ETH_PRICE_ORACLE[chainId], // Really WAVAX, not ETH
+    ],
+  });
+
+  console.log(`SAvaxOracle @ ${sAvaxOracle.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: sAvaxOracle.address,
+      constructorArguments: [SAVAX_ADDRESS[chainId], ETH_PRICE_ORACLE[chainId]],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const pricer = await deploy("OptionsPremiumPricerSAVAX", {
@@ -47,9 +68,9 @@ const main = async ({
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      SAVAX_USDC_POOL[chainId], // No sAVAX USDC swap pool
+      SAVAX_USDC_POOL[chainId],
       manualVolOracle.address,
-      ETH_USDC_POOL[chainId], // No price oracle for sAVAX and we manually set the vol
+      sAvaxOracle.address,
       stablesOracle,
     ],
   });
