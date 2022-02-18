@@ -126,13 +126,15 @@ contract Swap is ISwap, Ownable {
 
         swapOffers[swapId] = Offer({
             seller: msg.sender,
+            isOpen: true,
             offeredToken: offeredToken,
             biddingToken: biddingToken,
-            isOpen: true,
+            offeredTokenDecimals: IERC20Detailed(offeredToken).decimals(),
             minBidSize: minBidSize,
             minPrice: minPrice,
             totalSize: totalSize,
             availableSize: totalSize,
+            highestPrice: 0,
             totalSales: 0
         });
 
@@ -251,12 +253,9 @@ contract Swap is ISwap, Ownable {
         }
 
         // Check bid price
-        uint256 offeredTokenDecimals =
-            IERC20Detailed(offer.offeredToken).decimals();
-        uint256 bidPrice =
-            bid.sellAmount.mul(uint256(10)**offeredTokenDecimals).div(
-                bid.buyAmount
-            );
+        uint256 bidPrice = uint256(bid.sellAmount)
+            .mul(uint256(10)**offer.offeredTokenDecimals)
+            .div(bid.buyAmount);
         if (bidPrice < offer.minPrice) {
             errors[errCount] = "PRICE_TOO_LOW";
             errCount++;
@@ -318,28 +317,23 @@ contract Swap is ISwap, Ownable {
         require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
         require(offer.availableSize > 0, "ZERO_AVAILABLE_SIZE");
         require(bid.buyAmount >= offer.minBidSize, "BID_TOO_SMALL");
+        require(bid.buyAmount <= offer.totalSize, "BID_EXCEED_TOTAL");
 
         // Ensure min. price is met
-        uint256 offeredTokenDecimals =
-            IERC20Detailed(offer.offeredToken).decimals();
-        uint256 bidPrice =
-            bid.sellAmount.mul(uint256(10)**offeredTokenDecimals).div(
-                bid.buyAmount
-            );
+        uint256 bidPrice = uint256(bid.sellAmount)
+            .mul(uint256(10)**offer.offeredTokenDecimals)
+            .div(bid.buyAmount);
         require(bidPrice >= offer.minPrice, "PRICE_TOO_LOW");
 
         // Check for partial fill
-        uint256 buyAmount =
-            bid.buyAmount <= offer.availableSize
-                ? bid.buyAmount
-                : offer.availableSize;
-
-        uint256 sellAmount =
-            bid.buyAmount <= offer.availableSize
-                ? bid.sellAmount
-                : buyAmount.mul(bidPrice).div(
-                    uint256(10)**offeredTokenDecimals
-                );
+        uint256 buyAmount = bid.buyAmount;
+        uint256 sellAmount = bid.sellAmount;
+        if (bid.buyAmount > offer.availableSize) {
+            buyAmount = offer.availableSize;
+            sellAmount = buyAmount
+                .mul(bidPrice)
+                .div(uint256(10)**offer.offeredTokenDecimals);
+        }
 
         // Transfer token from sender to signer
         IERC20(offer.offeredToken).safeTransferFrom(
@@ -350,15 +344,18 @@ contract Swap is ISwap, Ownable {
 
         // Transfer to referrer if any
         uint256 feeAmount;
-        uint256 feePercent = referralFees[bid.referrer];
-        if (feePercent > 0) {
-            feeAmount = sellAmount.mul(feePercent).div(MAX_PERCENTAGE);
+        if (bid.referrer != address(0)) {
+            uint256 feePercent = referralFees[bid.referrer];
 
-            IERC20(offer.biddingToken).safeTransferFrom(
-                bid.signerWallet,
-                bid.referrer,
-                feeAmount
-            );
+            if (feePercent > 0) {
+                feeAmount = sellAmount.mul(feePercent).div(MAX_PERCENTAGE);
+
+                IERC20(offer.biddingToken).safeTransferFrom(
+                    bid.signerWallet,
+                    bid.referrer,
+                    feeAmount
+                );
+            }
         }
 
         // Transfer token from signer to recipient
@@ -369,7 +366,11 @@ contract Swap is ISwap, Ownable {
         );
 
         offer.availableSize -= uint128(buyAmount);
-        offer.totalSales += sellAmount;
+        offer.totalSales += uint128(sellAmount);
+        
+        if (bidPrice > offer.highestPrice) {
+            offer.highestPrice = uint128(bidPrice);
+        }
 
         // Emit a Swap event
         emit Swap(
