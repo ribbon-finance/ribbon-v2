@@ -1,9 +1,10 @@
 /**
  * Vault params
  */
-export const AVAX_STRIKE_STEP = 10;
 export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 100
 export const WBTC_STRIKE_STEP = 1000; // WBTC strike prices move in increments of 1000
+export const AVAX_STRIKE_STEP = 10;
+export const SAVAX_STRIKE_STEP = 10;
 export const AAVE_STRIKE_STEP = 10;
 export const NEAR_STRIKE_STEP = 5;
 export const AURORA_STRIKE_STEP = 5;
