@@ -253,9 +253,10 @@ contract Swap is ISwap, Ownable {
         }
 
         // Check bid price
-        uint256 bidPrice = uint256(bid.sellAmount)
-            .mul(uint256(10)**offer.offeredTokenDecimals)
-            .div(bid.buyAmount);
+        uint256 bidPrice =
+            uint256(bid.sellAmount)
+                .mul(uint256(10)**offer.offeredTokenDecimals)
+                .div(bid.buyAmount);
         if (bidPrice < offer.minPrice) {
             errors[errCount] = "PRICE_TOO_LOW";
             errCount++;
@@ -320,9 +321,10 @@ contract Swap is ISwap, Ownable {
         require(bid.buyAmount <= offer.totalSize, "BID_EXCEED_TOTAL");
 
         // Ensure min. price is met
-        uint256 bidPrice = uint256(bid.sellAmount)
-            .mul(uint256(10)**offer.offeredTokenDecimals)
-            .div(bid.buyAmount);
+        uint256 bidPrice =
+            uint256(bid.sellAmount)
+                .mul(uint256(10)**offer.offeredTokenDecimals)
+                .div(bid.buyAmount);
         require(bidPrice >= offer.minPrice, "PRICE_TOO_LOW");
 
         // Check for partial fill
@@ -330,9 +332,9 @@ contract Swap is ISwap, Ownable {
         uint256 sellAmount = bid.sellAmount;
         if (bid.buyAmount > offer.availableSize) {
             buyAmount = offer.availableSize;
-            sellAmount = buyAmount
-                .mul(bidPrice)
-                .div(uint256(10)**offer.offeredTokenDecimals);
+            sellAmount = buyAmount.mul(bidPrice).div(
+                uint256(10)**offer.offeredTokenDecimals
+            );
         }
 
         // Transfer token from sender to signer
@@ -367,7 +369,7 @@ contract Swap is ISwap, Ownable {
 
         offer.availableSize -= uint128(buyAmount);
         offer.totalSales += uint128(sellAmount);
-        
+
         if (bidPrice > offer.highestPrice) {
             offer.highestPrice = uint128(bidPrice);
         }
