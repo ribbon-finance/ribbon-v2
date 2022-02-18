@@ -46,7 +46,25 @@ interface IOtokenFactory {
         bool _isPut
     ) external view returns (address);
 
+    function getWhitelistedOtoken(
+        address _underlyingAsset,
+        address _strikeAsset,
+        address _collateralAsset,
+        uint256 _strikePrice,
+        uint256 _expiry,
+        bool _isPut
+    ) external view returns (address);
+
     function createOtoken(
+        address _underlyingAsset,
+        address _strikeAsset,
+        address _collateralAsset,
+        uint256 _strikePrice,
+        uint256 _expiry,
+        bool _isPut
+    ) external returns (address);
+
+    function createWhitelistedOtoken(
         address _underlyingAsset,
         address _strikeAsset,
         address _collateralAsset,
@@ -61,7 +79,8 @@ interface IOtokenFactory {
         address _collateralAsset,
         uint256 _strikePrice,
         uint256 _expiry,
-        bool _isPut
+        bool _isPut,
+        bool _isWhitelisted
     ) external view returns (address);
 
     event OtokenCreated(
@@ -72,7 +91,8 @@ interface IOtokenFactory {
         address indexed collateral,
         uint256 strikePrice,
         uint256 expiry,
-        bool isPut
+        bool isPut,
+        bool whitelisted
     );
 }
 
