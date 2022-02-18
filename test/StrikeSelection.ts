@@ -262,12 +262,16 @@ describe("PercentStrikeSelection", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(await mockPriceOracle.decimals()))
+        strikeSelection
+          .connect(signer2)
+          .setStep(BigNumber.from(50).mul(await mockPriceOracle.decimals()))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(await mockPriceOracle.decimals()));
+      await strikeSelection
+        .connect(signer)
+        .setStep(BigNumber.from(50).mul(await mockPriceOracle.decimals()));
       assert.equal(
         (await strikeSelection.step()).toString(),
         BigNumber.from(BigNumber.from(50).mul(await mockPriceOracle.decimals()))
