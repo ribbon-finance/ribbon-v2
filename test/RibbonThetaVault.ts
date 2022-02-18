@@ -67,7 +67,7 @@ const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
 const PUT_EXPECTED_MINT_AMOUNT = {
   [CHAINID.ETH_MAINNET]: "4761904761",
-  [CHAINID.AVAX_MAINNET]: "133333333333",
+  [CHAINID.AVAX_MAINNET]: "114942528735",
   [CHAINID.AURORA_MAINNET]: "4761904761",
 };
 
@@ -411,7 +411,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let secondOptionExpiry: number;
   let startMarginBalance: BigNumber;
 
-
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
     let firstOption: Option;
@@ -591,7 +590,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "weeks")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -629,7 +628,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(2, "weeks")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)

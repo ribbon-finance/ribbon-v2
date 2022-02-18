@@ -11,9 +11,10 @@ export enum CHAINID {
   AURORA_TESTNET = 1313161555, // eslint-disable-line no-unused-vars
 }
 
+// Must be 1 day from current time
 export const BLOCK_NUMBER = {
   [CHAINID.ETH_MAINNET]: 14087600,
-  [CHAINID.AVAX_MAINNET]: 10788489,
+  [CHAINID.AVAX_MAINNET]: 10975000,
   [CHAINID.AVAX_FUJI]: 2823963,
   [CHAINID.AURORA_MAINNET]: 58735796,
 };
@@ -186,7 +187,8 @@ export const YEARN_REGISTRY_ADDRESS =
  */
 export const WSTETH_PRICER = "0x4661951D252993AFa69b36bcc7Ba7da4a48813bF";
 
-export const SAVAX_PRICER = "0x7522440f382b29B3845E75f151d4e0C54437b22b";
+export const SAVAX_PRICER = "0x0A59f35F00A482bB04d95428e1ec051cBac216C9";
+
 /**
  * Gamma Protocol
  */
