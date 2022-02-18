@@ -380,8 +380,9 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Closes the existing short position for the vault, must be called before commit()
      * @dev TEMPORARY MIGRATION FUNCTION, only callable by the keeper
+     * @param oldGammaController Address of the old GAMMA_CONTROLLER
      */
-    function closeShort() external onlyKeeper {
+    function closeShort(address oldGammaController) external onlyKeeper {
         address oldOption = optionState.currentOption;
         uint256 lockedAmount = vaultState.lockedAmount;
 
@@ -392,7 +393,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER); // TODO: Change to OLD_GAMMA_CONTROLLER
+                VaultLifecycle.settleShort(oldGammaController);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
