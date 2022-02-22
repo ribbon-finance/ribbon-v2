@@ -173,7 +173,7 @@ describe("RibbonThetaSTETHVault upgrade", () => {
     });
   });
 
-  describe("Upgrade checks", () => {
+  describe("Vault upgrade", () => {
     time.revertToSnapshotAfterEach();
 
     it("has the correct return values for all public variables", async () => {
