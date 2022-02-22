@@ -224,7 +224,7 @@ New: ${JSON.stringify(newVariables, null, 4)}`
 
       const vaultBalance = await vault.shares(TEST_USER);
       const initialWithdrawal = vaultBalance.div(2);
-      const finalWIthdrawal = vaultBalance.sub(initialWithdrawal);
+      const finalWithdrawal = vaultBalance.sub(initialWithdrawal);
 
       await vault.connect(userSigner).initiateWithdraw(initialWithdrawal);
       await setOpynOracleExpiryPriceYearn(
@@ -246,7 +246,7 @@ New: ${JSON.stringify(newVariables, null, 4)}`
       assert.bnGte(balance1.sub(balance0), initialWithdrawal);
       assert.bnGte(totalBalance0.sub(totalBalance1), balance1.sub(balance0));
 
-      await vault.connect(userSigner).initiateWithdraw(finalWIthdrawal);
+      await vault.connect(userSigner).initiateWithdraw(finalWithdrawal);
       await setOpynOracleExpiryPriceYearn(
         WETH_ADDRESS[CHAINID],
         oracle,
@@ -261,9 +261,82 @@ New: ${JSON.stringify(newVariables, null, 4)}`
 
       const balance2 = await steth.balanceOf(TEST_USER);
       const totalBalance2 = await vault.totalBalance();
-      assert.bnGte(balance2.sub(balance1), finalWIthdrawal);
+      assert.bnGte(balance2.sub(balance1), finalWithdrawal);
       assert.bnGte(totalBalance1.sub(totalBalance2), balance2.sub(balance1));
       assert.equal((await vault.shares(TEST_USER)).toString(), "0");
+    });
+  });
+
+  describe("#withdrawInstantly", () => {
+    time.revertToSnapshotAfterEach();
+
+    beforeEach(async function () {
+      await vaultProxy.upgradeTo(newImplementation);
+    });
+
+    it("Withdraws stETH after depositing ETH", async () => {
+      const depositAmount = parseEther("10");
+      const withdrawAmount = depositAmount.div(2);
+      await vault.connect(ownerSigner).depositETH({ value: depositAmount });
+
+      const balance0 = await steth.balanceOf(ownerSigner.address);
+      const totalBalance0 = await vault.totalBalance();
+      await vault.connect(ownerSigner).withdrawInstantly(withdrawAmount, 0);
+
+      const balance1 = await steth.balanceOf(ownerSigner.address);
+      const totalBalance1 = await vault.totalBalance();
+      assert.bnGte(balance1.sub(balance0).add(3), withdrawAmount);
+      assert.bnGte(
+        totalBalance0.sub(totalBalance1).add(3),
+        balance1.sub(balance0)
+      );
+
+      await vault.connect(ownerSigner).withdrawInstantly(withdrawAmount, 0);
+
+      const balance2 = await steth.balanceOf(ownerSigner.address);
+      const totalBalance2 = await vault.totalBalance();
+      assert.bnGte(balance2.sub(balance1).add(3), withdrawAmount);
+      assert.bnGte(
+        totalBalance1.sub(totalBalance2).add(3),
+        balance2.sub(balance1)
+      );
+    });
+
+    it("Withdraws stETH after depositing stETH", async () => {
+      const depositAmount = parseEther("10");
+      let stethBalance = await steth.balanceOf(ownerSigner.address);
+      await steth.connect(ownerSigner).submit(ownerSigner.address, {
+        value: depositAmount,
+      });
+      stethBalance = (await steth.balanceOf(ownerSigner.address)).sub(
+        stethBalance
+      );
+      const withdrawAmount = stethBalance.div(2);
+      await steth.connect(ownerSigner).approve(vault.address, stethBalance);
+
+      await vault.connect(ownerSigner).depositYieldToken(stethBalance);
+
+      const balance0 = await steth.balanceOf(ownerSigner.address);
+      const totalBalance0 = await vault.totalBalance();
+      await vault.connect(ownerSigner).withdrawInstantly(withdrawAmount, 0);
+
+      const balance1 = await steth.balanceOf(ownerSigner.address);
+      const totalBalance1 = await vault.totalBalance();
+      assert.bnGte(balance1.sub(balance0).add(3), withdrawAmount);
+      assert.bnGte(
+        totalBalance0.sub(totalBalance1).add(3),
+        balance1.sub(balance0)
+      );
+
+      await vault.connect(ownerSigner).withdrawInstantly(withdrawAmount, 0);
+
+      const balance2 = await steth.balanceOf(ownerSigner.address);
+      const totalBalance2 = await vault.totalBalance();
+      assert.bnGte(balance2.sub(balance1).add(3), withdrawAmount);
+      assert.bnGte(
+        totalBalance1.sub(totalBalance2).add(3),
+        balance2.sub(balance1)
+      );
     });
   });
 

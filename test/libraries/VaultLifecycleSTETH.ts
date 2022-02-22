@@ -315,11 +315,9 @@ describe("VaultLifecycleSTETH", () => {
         to: lifecycle.address,
         value: thirdWithdrawAmount,
       });
-      await stETH
-        .connect(signer)
-        .submit(signer.address, {
-          value: withdrawAmount.sub(thirdWithdrawAmount),
-        });
+      await stETH.connect(signer).submit(signer.address, {
+        value: withdrawAmount.sub(thirdWithdrawAmount),
+      });
       await stETH.connect(signer).approve(wstETH.address, thirdWithdrawAmount);
       await wstETH.connect(signer).wrap(thirdWithdrawAmount);
       await stETH
@@ -329,10 +327,40 @@ describe("VaultLifecycleSTETH", () => {
         .connect(signer)
         .transfer(lifecycle.address, await wstETH.balanceOf(signer.address));
 
-      await lifecycle.withdrawStEth(withdrawAmount);
+      await lifecycle.withdrawStEth(withdrawAmount.sub(1));
       let output = await lifecycle.output();
-      assert.bnGte(output.add(3), withdrawAmount);
-      assert.bnLte(output, withdrawAmount.add(3));
+      assert.bnGte(output.add(3), withdrawAmount.sub(1));
+      assert.bnLte(output, withdrawAmount.sub(1).add(3));
+    });
+
+    it("partially withdraws stETH + wstETH + ETH", async () => {
+      const withdrawAmount = parseEther("1");
+      const thirdWithdrawAmount = withdrawAmount.div(3);
+      await signer.sendTransaction({
+        to: lifecycle.address,
+        value: thirdWithdrawAmount,
+      });
+      await stETH.connect(signer).submit(signer.address, {
+        value: withdrawAmount.sub(thirdWithdrawAmount),
+      });
+      await stETH.connect(signer).approve(wstETH.address, thirdWithdrawAmount);
+      await wstETH.connect(signer).wrap(thirdWithdrawAmount);
+      await stETH
+        .connect(signer)
+        .transfer(lifecycle.address, await stETH.balanceOf(signer.address));
+      await wstETH
+        .connect(signer)
+        .transfer(lifecycle.address, await wstETH.balanceOf(signer.address));
+
+      await lifecycle.withdrawStEth(withdrawAmount.div(2));
+      let output = await lifecycle.output();
+      assert.bnGte(output.add(3), withdrawAmount.div(2));
+      assert.bnLte(output, withdrawAmount.div(2).add(3));
+
+      await lifecycle.withdrawStEth(withdrawAmount.div(2));
+      output = await lifecycle.output();
+      assert.bnGte(output.add(3), withdrawAmount.div(2));
+      assert.bnLte(output, withdrawAmount.div(2).add(3));
     });
   });
 });
