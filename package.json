@@ -36,11 +36,12 @@
     "underscore": "^1.9.0"
   },
   "scripts": {
-    "test": "yarn test:eth && yarn test:avax && yarn test:aurora && yarn test:sanity",
+    "test": "yarn test:eth && yarn test:avax && yarn test:aurora && yarn test:sanity && yarn test:oracles",
     "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
     "test:avax": "CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
     "test:aurora": "CHAINID=1313161554 npx hardhat test test/RibbonThetaVault.ts",
     "test:sanity": "CHAINID=1313161554 npx hardhat test test/VaultSanityCheck.ts",
+    "test:oracles": "npx hardhat test test/oracles/*.ts",
     "test:upgrade": "npx hardhat test test/upgrades/*.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
     "compile": "CHAINID=1 npx hardhat compile",
@@ -79,6 +80,7 @@
   "license": "MIT",
   "dependencies": {
     "@airswap/utils": "^0.4.4",
+    "@chainlink/contracts": "^0.4.0",
     "@openzeppelin/contracts": "4.3.1",
     "@openzeppelin/contracts-upgradeable": "4.3.1",
     "@ribbon-finance/rvol": "^1.4.0",
