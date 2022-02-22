@@ -1,4 +1,3 @@
-import { assert } from "chai";
 import { ethers, network } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import {
@@ -14,6 +13,7 @@ import {
   CHAINLINK_WETH_PRICER_STETH,
   WSTETH_PRICER,
   YEARN_PRICER_OWNER,
+  STETH_ADDRESS,
 } from "../../constants/constants";
 import {
   objectEquals,
@@ -23,6 +23,7 @@ import {
   setupOracle,
   getAssetPricer,
 } from "../helpers/utils";
+import { assert } from "../helpers/assertions";
 import deployments from "../../constants/deployments.json";
 import { BigNumberish, Contract } from "ethers";
 import * as time from "../helpers/time";
@@ -44,6 +45,7 @@ describe("RibbonThetaSTETHVault upgrade", () => {
   let newImplementation: string;
   let vaultProxy: Contract;
   let vault: Contract;
+  let steth: Contract;
   let keeper: string;
   let ownerSigner: SignerWithAddress;
   let variables: Record<string, unknown> = {};
@@ -151,6 +153,8 @@ describe("RibbonThetaSTETHVault upgrade", () => {
     );
     newImplementation = newImplementationContract.address;
 
+    steth = await ethers.getContractAt("ISTETH", STETH_ADDRESS);
+
     keeper = await vault.keeper();
 
     await ownerSigner.sendTransaction({
@@ -208,11 +212,6 @@ New: ${JSON.stringify(newVariables, null, 4)}`
       const userSigner = await ethers.provider.getSigner(TEST_USER);
       const keeperSigner = await ethers.provider.getSigner(keeper);
 
-      const vaultBalance = await vault.shares(TEST_USER);
-      const initialWithdrawal = vaultBalance.div(2);
-
-      await vault.connect(userSigner).initiateWithdraw(initialWithdrawal);
-
       const collateralPricerSigner = await getAssetPricer(
         WSTETH_PRICER,
         ownerSigner
@@ -223,6 +222,11 @@ New: ${JSON.stringify(newVariables, null, 4)}`
         ownerSigner
       );
 
+      const vaultBalance = await vault.shares(TEST_USER);
+      const initialWithdrawal = vaultBalance.div(2);
+      const finalWIthdrawal = vaultBalance.sub(initialWithdrawal);
+
+      await vault.connect(userSigner).initiateWithdraw(initialWithdrawal);
       await setOpynOracleExpiryPriceYearn(
         WETH_ADDRESS[CHAINID],
         oracle,
@@ -230,14 +234,36 @@ New: ${JSON.stringify(newVariables, null, 4)}`
         collateralPricerSigner,
         await getCurrentOptionExpiry()
       );
-
       await vault.connect(keeperSigner).commitAndClose();
-
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
       await vault.connect(keeperSigner).rollToNextOption();
-
+      const balance0 = await steth.balanceOf(TEST_USER);
+      const totalBalance0 = await vault.totalBalance();
       await vault.connect(userSigner).completeWithdraw(0);
+
+      const balance1 = await steth.balanceOf(TEST_USER);
+      const totalBalance1 = await vault.totalBalance();
+      assert.bnGte(balance1.sub(balance0), initialWithdrawal);
+      assert.bnGte(totalBalance0.sub(totalBalance1), balance1.sub(balance0));
+
+      await vault.connect(userSigner).initiateWithdraw(finalWIthdrawal);
+      await setOpynOracleExpiryPriceYearn(
+        WETH_ADDRESS[CHAINID],
+        oracle,
+        await getCurrentOptionStrike(),
+        collateralPricerSigner,
+        await getCurrentOptionExpiry()
+      );
+      await vault.connect(keeperSigner).commitAndClose();
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+      await vault.connect(keeperSigner).rollToNextOption();
+      await vault.connect(userSigner).completeWithdraw(0);
+
+      const balance2 = await steth.balanceOf(TEST_USER);
+      const totalBalance2 = await vault.totalBalance();
+      assert.bnGte(balance2.sub(balance1), finalWIthdrawal);
+      assert.bnGte(totalBalance1.sub(totalBalance2), balance2.sub(balance1));
+      assert.equal((await vault.shares(TEST_USER)).toString(), "0");
     });
   });
 
