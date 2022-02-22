@@ -14,6 +14,7 @@ import {
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
+import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 /**
@@ -265,11 +266,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setStrikePrice(uint128 strikePrice) external onlyOwner {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
@@ -279,14 +276,18 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets a new path for swaps
      * @param newSwapPath is the new path
      */
-    function setSwapPath(bytes calldata newSwapPath)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setSwapPath(bytes calldata newSwapPath) external onlyOwner {
         require(isUsdcAuction, "!isUsdcAuction");
         require(_checkPath(newSwapPath), "Invalid swapPath");
         swapPath = newSwapPath;
+    }
+
+    /**
+     * @notice Sets the new liquidityGauge contract for this vault
+     * @param newLiquidityGauge is the address of the new liquidityGauge contract
+     */
+    function setLiquidityGauge(address newLiquidityGauge) external onlyOwner {
+        liquidityGauge = newLiquidityGauge;
     }
 
     /************************************************
@@ -327,6 +328,23 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
+    }
+
+    /**
+     * @notice Stakes a users vault shares
+     * @param numShares is the number of shares to stake
+     */
+    function stake(uint256 numShares) external nonReentrant {
+        address _liquidityGauge = liquidityGauge;
+        require(_liquidityGauge != address(0)); // Removed revert msgs due to contract size limit
+        require(numShares > 0);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        if (heldByAccount < numShares) {
+            _redeem(numShares.sub(heldByAccount), false);
+        }
+        _transfer(msg.sender, address(this), numShares);
+        _approve(address(this), _liquidityGauge, numShares);
+        ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
     }
 
     /**
