@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
-import "hardhat/console.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IPriceOracle} from "../interfaces/IPriceOracle.sol";
@@ -26,7 +25,7 @@ contract SAvaxOracle is IPriceOracle {
         view
         returns (uint256)
     {
-        // Passing 1e18 to getPooledAvaxByShares() gives us the sAVAX price per AVAX
+        // Passing 1e18 to getPooledAvaxByShares() gives us the number of AVAX per sAVAX.
         uint256 sAvaxPerAvax = sAVAX.getPooledAvaxByShares(1e18);
         return sAvaxPerAvax.mul(underlyingPrice).div(1e18);
     }
@@ -47,6 +46,6 @@ contract SAvaxOracle is IPriceOracle {
     }
 
     function decimals() external view override returns (uint256) {
-        return sAVAX.decimals();
+        return WAVAXOracle.decimals();
     }
 }
