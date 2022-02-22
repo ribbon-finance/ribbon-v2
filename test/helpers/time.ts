@@ -82,3 +82,17 @@ export function revertToSnapshotAfterEach(
     await revertToSnapShot(snapshotId);
   });
 }
+
+export const PERIOD = 43200; // 12 hours
+export const getTopOfPeriod = async () => {
+  const latestTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
+  let topOfPeriod: number;
+
+  const rem = latestTimestamp % PERIOD;
+  if (rem < Math.floor(PERIOD / 2)) {
+    topOfPeriod = latestTimestamp - rem + PERIOD;
+  } else {
+    topOfPeriod = latestTimestamp + rem + PERIOD;
+  }
+  return topOfPeriod;
+};

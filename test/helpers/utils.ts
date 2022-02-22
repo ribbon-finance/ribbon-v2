@@ -3,10 +3,10 @@ import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
 import CHAINLINK_PRICER_ABI from "../../constants/abis/ChainLinkPricer.json";
+import SAVAX_PRICER_ABI from "../../constants/abis/SAvaxPricer.json";
 import {
   CHAINID,
   GAMMA_ORACLE,
-  GAMMA_ORACLE_NEW,
   GAMMA_WHITELIST,
   GAMMA_WHITELIST_OWNER,
   ORACLE_DISPUTE_PERIOD,
@@ -14,6 +14,9 @@ import {
   ORACLE_OWNER,
   USDC_ADDRESS,
   WBTC_ADDRESS,
+  SAVAX_ADDRESS,
+  YEARN_PRICER_OWNER,
+  SAVAX_PRICER,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -114,11 +117,7 @@ export async function getAssetPricer(
   return await pricerContract.connect(ownerSigner);
 }
 
-export async function setAssetPricer(
-  asset: string,
-  pricer: string,
-  isSTETH = false
-) {
+export async function setAssetPricer(asset: string, pricer: string) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER[chainId]],
@@ -126,10 +125,7 @@ export async function setAssetPricer(
 
   const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
-  const oracle = await ethers.getContractAt(
-    "IOracle",
-    isSTETH ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId]
-  );
+  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE[chainId]);
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
 }
@@ -138,13 +134,10 @@ export async function whitelistProduct(
   underlying: string,
   strike: string,
   collateral: string,
-  isPut: boolean,
-  useNew = false
+  isPut: boolean
 ) {
   const [adminSigner] = await ethers.getSigners();
-  const ownerAddress = useNew
-    ? GAMMA_WHITELIST_OWNER[chainId]
-    : ORACLE_OWNER[chainId];
+  const ownerAddress = GAMMA_WHITELIST_OWNER[chainId];
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -160,7 +153,7 @@ export async function whitelistProduct(
 
   await adminSigner.sendTransaction({
     to: ownerAddress,
-    value: parseEther("1"),
+    value: parseEther("5"),
   });
 
   await whitelist.connect(ownerSigner).whitelistCollateral(collateral);
@@ -172,18 +165,14 @@ export async function whitelistProduct(
 
 export async function setupOracle(
   chainlinkPricer: string,
-  signer: SignerWithAddress,
-  useNewGammaOracle = false,
-  useNewGammaOwner = false
+  signer: SignerWithAddress
 ) {
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [chainlinkPricer],
   });
 
-  const oracleOwner = useNewGammaOwner
-    ? GAMMA_WHITELIST_OWNER[chainId]
-    : ORACLE_OWNER[chainId];
+  const oracleOwner = ORACLE_OWNER[chainId];
 
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -195,10 +184,10 @@ export async function setupOracle(
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend
     .connect(signer)
-    .go(chainlinkPricer, { value: parseEther("0.5") });
+    .go(chainlinkPricer, { value: parseEther("1") });
 
   const oracle = new ethers.Contract(
-    useNewGammaOracle ? GAMMA_ORACLE_NEW[chainId] : GAMMA_ORACLE[chainId],
+    GAMMA_ORACLE[chainId],
     ORACLE_ABI,
     pricerSigner
   );
@@ -207,7 +196,7 @@ export async function setupOracle(
 
   await signer.sendTransaction({
     to: oracleOwner,
-    value: parseEther("0.5"),
+    value: parseEther("1"),
   });
 
   await oracle
@@ -216,13 +205,13 @@ export async function setupOracle(
 
   const pricer = new ethers.Contract(
     chainlinkPricer,
-    CHAINLINK_PRICER_ABI,
+    getPricerABI(chainlinkPricer),
     oracleOwnerSigner
   );
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setAssetPricer(await pricer.asset(), chainlinkPricer);
+    .setAssetPricer(await getPricerAsset(pricer), chainlinkPricer);
 
   return oracle;
 }
@@ -259,9 +248,10 @@ export async function setOpynOracleExpiryPriceYearn(
   await res.wait();
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER[chainId]],
+    params: [YEARN_PRICER_OWNER],
   });
-  const oracleOwnerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
+
+  const oracleOwnerSigner = await provider.getSigner(YEARN_PRICER_OWNER);
   const res2 = await collateralPricer
     .connect(oracleOwnerSigner)
     .setExpiryPriceInOracle(expiry);
@@ -287,7 +277,7 @@ export async function addMinter(
   const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
   await forceSend.deployed();
   await forceSend.go(contractOwner, {
-    value: parseEther("0.5"),
+    value: parseEther("1"),
   });
 
   await contract.connect(tokenOwnerSigner).addMinter(minter);
@@ -316,7 +306,7 @@ export async function mintToken(
   const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
   await forceSend.deployed();
   await forceSend.go(contractOwner, {
-    value: parseEther("0.5"),
+    value: parseEther("1"),
   });
 
   if (isBridgeToken(chainId, contract.address)) {
@@ -327,6 +317,7 @@ export async function mintToken(
       .mint(recipient, amount, recipient, 0, txid);
   } else if (
     contract.address === USDC_ADDRESS[chainId] ||
+    contract.address === SAVAX_ADDRESS[chainId] ||
     chainId === CHAINID.AURORA_MAINNET
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
@@ -533,6 +524,7 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("1000");
     case "AAVE":
       return BigNumber.from("10");
+    case "SAVAX":
     case "NEAR":
     case "AURORA":
       return BigNumber.from("5");
@@ -540,10 +532,28 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("1");
     case "WETH":
       if (chainId === CHAINID.AVAX_MAINNET) {
-        return BigNumber.from("5");
+        return BigNumber.from("3");
       }
       return BigNumber.from("100");
     default:
       throw new Error(`Delta Step not found for asset: ${asset}`);
+  }
+};
+
+export const getPricerABI = (pricer: string) => {
+  switch (pricer) {
+    case SAVAX_PRICER:
+      return SAVAX_PRICER_ABI;
+    default:
+      return CHAINLINK_PRICER_ABI;
+  }
+};
+
+export const getPricerAsset = async (pricer: Contract) => {
+  switch (pricer.address) {
+    case SAVAX_PRICER:
+      return await pricer.sAVAX();
+    default:
+      return await pricer.asset();
   }
 };

@@ -1,9 +1,10 @@
-import { ethers } from "hardhat";
-import { Contract } from "ethers";
 import moment from "moment-timezone";
+import { ethers, network } from "hardhat";
+import { Contract } from "ethers";
 import { assert } from "../helpers/assertions";
 import * as time from "../helpers/time";
-
+import { TEST_URI } from "../../scripts/helpers/getDefaultEthersProvider";
+import { CHAINID } from "../../constants/constants";
 moment.tz.setDefault("UTC");
 
 const provider = ethers.provider;
@@ -12,6 +13,17 @@ describe("VaultLifecycleTreasury", () => {
   let lifecycle: Contract;
 
   before(async () => {
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: TEST_URI[CHAINID.ETH_MAINNET],
+            blockNumber: 13505726,
+          },
+        },
+      ],
+    });
     const VaultLifecycleTreasury = await ethers.getContractFactory(
       "VaultLifecycleTreasury"
     );
