@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: MIT
 // Source: https://github.com/airswap/airswap-protocols/blob/main/source/swap/contracts/Swap.sol
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/ISwap.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract Swap is ISwap, Ownable {
-    using SafeMath for uint256;
+contract Swap is ISwap, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -89,7 +87,7 @@ contract Swap is ISwap, Ownable {
      * @param fee is the fee in percent in 2 decimals
      */
     function setFee(address referrer, uint256 fee) external onlyOwner {
-        require(referrer != address(0), "!referrer");
+        require(referrer != address(0), "Referrer cannot be the zero address");
         require(fee < MAX_PERCENTAGE, "Fee exceeds maximum");
 
         referralFees[referrer] = fee;
@@ -114,29 +112,32 @@ contract Swap is ISwap, Ownable {
         uint96 minBidSize,
         uint128 totalSize
     ) external override returns (uint256 swapId) {
-        require(offeredToken != address(0), "!offeredToken");
-        require(biddingToken != address(0), "!biddingToken");
-        require(minPrice > 0, "!minPrice");
-        require(minBidSize > 0, "!minBidSize");
-        require(totalSize > 0, "!totalSize");
+        require(
+            offeredToken != address(0),
+            "OfferedToken cannot be the zero address"
+        );
+        require(
+            biddingToken != address(0),
+            "BiddingToken cannot be the zero address"
+        );
+        require(minPrice > 0, "MinPrice must be larger than zero");
+        require(minBidSize > 0, "MinBidSize must be larger than zero");
+        require(totalSize > 0, "TotalSize must be larger than zero");
 
         offersCounter += 1;
 
         swapId = offersCounter;
 
-        swapOffers[swapId] = Offer({
-            seller: msg.sender,
-            isOpen: true,
-            offeredToken: offeredToken,
-            biddingToken: biddingToken,
-            offeredTokenDecimals: IERC20Detailed(offeredToken).decimals(),
-            minBidSize: minBidSize,
-            minPrice: minPrice,
-            totalSize: totalSize,
-            availableSize: totalSize,
-            highestPrice: 0,
-            totalSales: 0
-        });
+        swapOffers[swapId].seller = msg.sender;
+        swapOffers[swapId].isOpen = true;
+        swapOffers[swapId].offeredToken = offeredToken;
+        swapOffers[swapId].biddingToken = biddingToken;
+        swapOffers[swapId].offeredTokenDecimals = IERC20Detailed(offeredToken)
+            .decimals();
+        swapOffers[swapId].minBidSize = minBidSize;
+        swapOffers[swapId].minPrice = minPrice;
+        swapOffers[swapId].totalSize = totalSize;
+        swapOffers[swapId].availableSize = totalSize;
 
         emit NewOffer(
             swapId,
@@ -157,6 +158,7 @@ contract Swap is ISwap, Ownable {
     function settleOffer(uint256 swapId, Bid[] calldata bids)
         external
         override
+        nonReentrant
     {
         Offer storage offer = swapOffers[swapId];
 
@@ -254,9 +256,8 @@ contract Swap is ISwap, Ownable {
 
         // Check bid price
         uint256 bidPrice =
-            uint256(bid.sellAmount)
-                .mul(uint256(10)**offer.offeredTokenDecimals)
-                .div(bid.buyAmount);
+            (uint256(bid.sellAmount) *
+                uint256(10)**offer.offeredTokenDecimals) / bid.buyAmount;
         if (bidPrice < offer.minPrice) {
             errors[errCount] = "PRICE_TOO_LOW";
             errCount++;
@@ -322,9 +323,8 @@ contract Swap is ISwap, Ownable {
 
         // Ensure min. price is met
         uint256 bidPrice =
-            uint256(bid.sellAmount)
-                .mul(uint256(10)**offer.offeredTokenDecimals)
-                .div(bid.buyAmount);
+            (uint256(bid.sellAmount) *
+                uint256(10)**offer.offeredTokenDecimals) / bid.buyAmount;
         require(bidPrice >= offer.minPrice, "PRICE_TOO_LOW");
 
         // Check for partial fill
@@ -332,9 +332,16 @@ contract Swap is ISwap, Ownable {
         uint256 sellAmount = bid.sellAmount;
         if (bid.buyAmount > offer.availableSize) {
             buyAmount = offer.availableSize;
-            sellAmount = buyAmount.mul(bidPrice).div(
-                uint256(10)**offer.offeredTokenDecimals
-            );
+            sellAmount =
+                (buyAmount * bidPrice) /
+                (uint256(10)**offer.offeredTokenDecimals);
+        }
+
+        offer.availableSize -= uint128(buyAmount);
+        offer.totalSales += uint128(sellAmount);
+
+        if (bidPrice > offer.highestPrice) {
+            offer.highestPrice = uint128(bidPrice);
         }
 
         // Transfer token from sender to signer
@@ -350,7 +357,7 @@ contract Swap is ISwap, Ownable {
             uint256 feePercent = referralFees[bid.referrer];
 
             if (feePercent > 0) {
-                feeAmount = sellAmount.mul(feePercent).div(MAX_PERCENTAGE);
+                feeAmount = (sellAmount * feePercent) / MAX_PERCENTAGE;
 
                 IERC20(offer.biddingToken).safeTransferFrom(
                     bid.signerWallet,
@@ -364,15 +371,8 @@ contract Swap is ISwap, Ownable {
         IERC20(offer.biddingToken).safeTransferFrom(
             bid.signerWallet,
             offer.seller,
-            sellAmount.sub(feeAmount)
+            sellAmount - feeAmount
         );
-
-        offer.availableSize -= uint128(buyAmount);
-        offer.totalSales += uint128(sellAmount);
-
-        if (bidPrice > offer.highestPrice) {
-            offer.highestPrice = uint128(bidPrice);
-        }
 
         // Emit a Swap event
         emit Swap(
