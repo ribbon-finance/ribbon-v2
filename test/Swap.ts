@@ -175,11 +175,11 @@ describe("Swap", () => {
       await expect(swap.connect(keeperSigner).createOffer(
         constants.AddressZero,
         usdcAddress,
-        parseEther("0.0010"),
-        parseEther("0.01"),
+        parseUnits("3", 6),
+        parseUnits("0.01", 8),
         parseEther("1"),
 
-      )).to.be.revertedWith("!offeredToken");
+      )).to.be.revertedWith("oToken cannot be the zero address");
     });
 
     it("reverts when biddingToken is zero address", async function () {
@@ -187,9 +187,9 @@ describe("Swap", () => {
         wethAddress,
         constants.AddressZero,
         parseUnits("3", 6),
-        parseEther("0.01"),
+        parseUnits("0.01", 8),
         parseEther("1"),
-      )).to.be.revertedWith("!biddingToken");
+      )).to.be.revertedWith("BiddingToken cannot be the zero address");
     });
 
     it("reverts when min price is zero", async function () {
@@ -197,9 +197,9 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         0,
-        parseEther("0.01"),
+        parseUnits("0.01", 8),
         parseEther("1"),
-      )).to.be.revertedWith("!minPrice");
+      )).to.be.revertedWith("MinPrice must be larger than zero");
     });
 
     it("reverts when min bid size is zero", async function () {
@@ -209,7 +209,7 @@ describe("Swap", () => {
         parseUnits("3", 6),
         0,
         parseUnits("1", 6)
-      )).to.be.revertedWith("!minBidSize");
+      )).to.be.revertedWith("MinBidSize must be larger than zero");
     });
 
     it("reverts when total size is zero", async function () {
@@ -217,9 +217,9 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
+        parseUnits("0.01", 8),
         0
-      )).to.be.revertedWith("!totalSize");
+      )).to.be.revertedWith("TotalSize must be larger than zero");
     });
 
     it("create offering with the correct parameters", async function () {
@@ -229,7 +229,7 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
+        parseUnits("0.01", 8),
         parseEther("1"),
       )).to.emit(swap, "NewOffer")
       .withArgs(
@@ -238,16 +238,30 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
+        parseUnits("0.01", 8),
         parseEther("1"),
       );
+    });
+
+    it("fits gas budget [ @skip-on-coverage ]", async function () {
+      const tx = await swap.connect(keeperSigner).createOffer(
+        wethAddress,
+        usdcAddress,
+        parseUnits("3", 6),
+        parseUnits("0.01", 8),
+        parseEther("1"),
+      );
+
+      const receipt = await tx.wait();
+      // console.log(receipt.gasUsed.toNumber())
+      assert.isAtMost(receipt.gasUsed.toNumber(), 126346);
     });
   });
 
   describe("#settleOffer", () => {
     const minPrice = parseUnits("3", 6);
-    const minBidSize = parseEther("0.01");
-    const totalSize = parseEther("1");
+    const minBidSize = parseUnits("0.01", 8);
+    const totalSize = parseUnits("1", 8);
     let swapId: number;
 
     time.revertToSnapshotAfterEach(async function () {
@@ -263,26 +277,117 @@ describe("Swap", () => {
     });
 
     it("reverts when offer does not exist", async function () {
-      await expect(swap.closeOffer(2)).to.be.revertedWith("Offer does not exist");
+      const nonce = 1;
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize.div(2);
+      const referrer = constants.AddressZero;
+
+      const order = {
+          swapId,
+          nonce,
+          signerWallet: user,
+          sellAmount,
+          buyAmount,
+          referrer
+        };
+
+      const signature = await getSignature(domain, order, userSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          keeper,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ]
+      ];
+
+      await expect(swap.settleOffer(2, bids))
+        .to.be.revertedWith("Offer does not exist");
     });
 
     it("reverts when not seller call", async function () {
-      await expect(swap.closeOffer(
-        swapId
-      )).to.be.revertedWith("Only seller can close offer");
+      const nonce = 1;
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize.div(2);
+      const referrer = constants.AddressZero;
+
+      const order = {
+          swapId,
+          nonce,
+          signerWallet: user,
+          sellAmount,
+          buyAmount,
+          referrer
+        };
+
+      const signature = await getSignature(domain, order, userSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          keeper,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ]
+      ];
+
+      await expect(swap.settleOffer(
+        swapId, bids
+      )).to.be.revertedWith("Only seller can settle");
     });
 
     it("reverts when offer is already closed", async function () {
+      const nonce = 1;
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize.div(2);
+      const referrer = constants.AddressZero;
+
+      const order = {
+          swapId,
+          nonce,
+          signerWallet: user,
+          sellAmount,
+          buyAmount,
+          referrer
+        };
+
+      const signature = await getSignature(domain, order, userSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          keeper,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ]
+      ];
+
       await swap.connect(keeperSigner).closeOffer(swapId);
 
-      await expect(swap.connect(keeperSigner).closeOffer(
-        swapId
-      )).to.be.revertedWith("Offer already closed");
+      await expect(swap.connect(keeperSigner).settleOffer(
+        swapId, bids
+      )).to.be.revertedWith("Offer does not exist");
     });
 
     it("reverts when bid signature is invalid", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize.div(2);
       const referrer = constants.AddressZero;
 
@@ -307,7 +412,7 @@ describe("Swap", () => {
 
     it("reverts when bid signature is mismatched", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize.div(2);
       const referrer = constants.AddressZero;
 
@@ -343,7 +448,7 @@ describe("Swap", () => {
 
     it("reverts when nonce already used", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.div(2).mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.div(2).mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize.div(2);
       const referrer = constants.AddressZero;
 
@@ -391,7 +496,7 @@ describe("Swap", () => {
       let nonce = 1;
       let bids = [];
 
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize;
       const referrer = constants.AddressZero;
 
@@ -425,12 +530,12 @@ describe("Swap", () => {
       }
       await expect(swap.connect(keeperSigner).settleOffer(
         swapId, bids
-      )).to.be.revertedWith("ZERO_AVAILABLE_SIZE");
+      )).to.be.revertedWith("BID_EXCEED_AVAILABLE_SIZE");
     });
 
     it("reverts when bid size is below minimum", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = minBidSize.sub(1);
       const referrer = constants.AddressZero;
 
@@ -466,7 +571,7 @@ describe("Swap", () => {
 
     it("reverts when price is below minimum", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice.sub(1)).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice.sub(10)).div(parseUnits("1", 8));
       const buyAmount = totalSize;
       const referrer = constants.AddressZero;
 
@@ -502,7 +607,7 @@ describe("Swap", () => {
 
     it("swaps the correct amount", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize;
       const referrer = constants.AddressZero;
 
@@ -544,7 +649,6 @@ describe("Swap", () => {
         nonce,
         user,
         sellAmount,
-        keeper,
         buyAmount,
         referrer,
         0
@@ -578,7 +682,7 @@ describe("Swap", () => {
 
     it("gives the correct amount to the referrer", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize;
       const referrer = feeRecipient;
       const fee = 1000;
@@ -626,7 +730,6 @@ describe("Swap", () => {
         nonce,
         user,
         sellAmount,
-        keeper,
         buyAmount,
         referrer,
         feeAmount
@@ -664,11 +767,51 @@ describe("Swap", () => {
       );
     });
 
-    it("fits gas budget [ @skip-on-coverage ]", async function () {
+    it("fits gas budget (single) [ @skip-on-coverage ]", async function () {
+      const nonce = 1;
+
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize;
+      const referrer = constants.AddressZero;
+
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer
+      };
+
+      const signature = await getSignature(domain, order, userSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ],
+      ];
+
+      const tx = await swap.connect(keeperSigner).settleOffer(
+        swapId, bids
+      );
+      const receipt = await tx.wait();
+      // console.log(receipt.gasUsed.toNumber())
+      assert.isAtMost(receipt.gasUsed.toNumber(), 191128);
+    });
+
+    it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
       let nonce = 1;
       let bids = [];
-      const sellAmount = totalSize.mul(minPrice).div(parseEther("1"));
-      const buyAmount = totalSize.div(9);
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize.div(10);
       const referrer = constants.AddressZero;
 
       for (let i = 0; i < 10; i++) {
@@ -704,7 +847,7 @@ describe("Swap", () => {
       );
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 474105);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 441038);
     });
   });
 
@@ -722,8 +865,8 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
-        parseEther("1"),
+        parseUnits("0.01", 8),
+        parseUnits("1", 8),
       );
 
       await expect(swap.closeOffer(
@@ -738,15 +881,15 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
-        parseEther("1"),
+        parseUnits("0.01", 8),
+        parseUnits("1", 8),
       );
 
       await swap.connect(keeperSigner).closeOffer(swapId);
 
       await expect(swap.connect(keeperSigner).closeOffer(
         swapId
-      )).to.be.revertedWith("Offer already closed");
+      )).to.be.revertedWith("Offer does not exist");
     });
 
     it("closes swap offering correctly", async function () {
@@ -756,8 +899,8 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
-        parseEther("1"),
+        parseUnits("0.01", 8),
+        parseUnits("1", 8),
       );
 
       await expect(swap.connect(keeperSigner).closeOffer(
@@ -766,6 +909,26 @@ describe("Swap", () => {
         swapId
       );
      });
+
+    it("fits gas budget [ @skip-on-coverage ]", async function () {
+      const swapId = (await swap.offersCounter()).add(1);
+
+      await swap.connect(keeperSigner).createOffer(
+        wethAddress,
+        usdcAddress,
+        parseUnits("3", 6),
+        parseUnits("0.01", 8),
+        parseUnits("1", 8),
+      );
+
+      const tx = await swap.connect(keeperSigner).closeOffer(
+        swapId
+      );
+
+      const receipt = await tx.wait();
+      // console.log(receipt.gasUsed.toNumber())
+      assert.isAtMost(receipt.gasUsed.toNumber(), 36115);
+    });
   });
 
   describe("#check", () => {
@@ -775,7 +938,7 @@ describe("Swap", () => {
       const swapId = 1;
       const nonce = 1;
       const sellAmount = parseUnits("1", 6);
-      const buyAmount = parseEther("1");
+      const buyAmount = parseUnits("1", 8);
       const referrer = constants.AddressZero;
 
       const order = {
@@ -811,8 +974,8 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
-        parseEther("1"),
+        parseUnits("0.01", 8),
+        parseUnits("1", 8),
       )).to.emit(swap, "NewOffer")
       .withArgs(
         swapId,
@@ -820,13 +983,13 @@ describe("Swap", () => {
         wethAddress,
         usdcAddress,
         parseUnits("3", 6),
-        parseEther("0.01"),
-        parseEther("1"),
+        parseUnits("0.01", 8),
+        parseUnits("1", 8),
       );
 
       const nonce = 1;
       const sellAmount = parseUnits("100", 6);
-      const buyAmount = parseEther("0.01");
+      const buyAmount = parseUnits("0.01", 8);
       const referrer = constants.AddressZero;
 
       const order = {
@@ -855,7 +1018,7 @@ describe("Swap", () => {
       );
 
       // error[1].map((value) => {
-      //     console.log(parseBytes32String(value))
+      //     console.log(ethers.utils.parseBytes32String(value))
       //   }
       // )
       assert.bnEqual(error[0], BigNumber.from(0));
