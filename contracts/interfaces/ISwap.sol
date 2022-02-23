@@ -1,36 +1,52 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 interface ISwap {
     struct Offer {
-        // 32 byte slot 1
+        // 32 byte slot 1, partial fill
+        // Seller wallet address
         address seller;
-        bool isOpen;
-        uint88 offeredTokenDecimals;
         // 32 byte slot 2
-        address offeredToken;
+        // Addess of oToken
+        address oToken;
+        // Price per oToken denominated in biddingToken
         uint96 minPrice;
         // 32 byte slot 3
+        // ERC20 Token to bid for oToken
         address biddingToken;
+        // Minimum oToken amount acceptable for a single bid
         uint96 minBidSize;
         // 32 byte slot 4
+        // Total available oToken amount
         uint128 totalSize;
+        // Remaining available oToken amount
+        // This figure is updated after each successfull swap
         uint128 availableSize;
         // 32 byte slot 5
-        uint128 highestPrice;
-        uint128 totalSales;
+        // Amount of biddingToken received
+        // This figure is updated after each successfull swap
+        uint256 totalSales;
     }
 
     struct Bid {
+        // ID assigned to offers
         uint256 swapId;
+        // Number only used once for each wallet
         uint256 nonce;
+        // Signer wallet address
         address signerWallet;
+        // Amount of biddingToken offered by signer
         uint256 sellAmount;
+        // Amount of oToken requested by signer
         uint256 buyAmount;
+        // Referrer wallet address
         address referrer;
+        // Signature recovery id
         uint8 v;
+        // r portion of the ECSDA signature
         bytes32 r;
+        // s portion of the ECSDA signature
         bytes32 s;
     }
 
@@ -39,8 +55,7 @@ interface ISwap {
         uint256 nonce,
         address indexed signerWallet,
         uint256 signerAmount,
-        address indexed senderWallet,
-        uint256 senderAmount,
+        uint256 sellerAmount,
         address referrer,
         uint256 feeAmount
     );

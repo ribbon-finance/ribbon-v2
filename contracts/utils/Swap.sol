@@ -352,7 +352,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         require(bidPrice >= minPrice, "PRICE_TOO_LOW");
 
         offer.availableSize -= uint128(bid.buyAmount);
-        offer.totalSales += uint128(bid.sellAmount);
+        offer.totalSales += bid.sellAmount;
 
         // Transfer token from sender to signer
         IERC20(oToken).safeTransferFrom(
