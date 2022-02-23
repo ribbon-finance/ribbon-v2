@@ -45,6 +45,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
     uint256 internal constant MAX_PERCENTAGE = 10000;
     uint256 internal constant MAX_ERROR_COUNT = 7;
+    uint256 internal constant OTOKEN_DECIMALS = 18;
 
     uint256 public offersCounter = 0;
 
@@ -99,22 +100,22 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
     /**
      * @notice Create a new offer available for swap
-     * @param offeredToken token offered by seller
+     * @param oToken token offered by seller
      * @param biddingToken token asked by seller
-     * @param minPrice minimum price of offeredToken in terms of biddingToken
-     * @param minBidSize minimum size allowed in terms of biddingToken
-     * @param totalSize amount of offeredToken offered by seller
+     * @param minPrice minimum price of oToken denominated in biddingToken
+     * @param minBidSize minimum amount of oToken requested in a single bid
+     * @param totalSize amount of oToken offered by seller
      */
     function createOffer(
-        address offeredToken,
+        address oToken,
         address biddingToken,
         uint96 minPrice,
         uint96 minBidSize,
         uint128 totalSize
     ) external override returns (uint256 swapId) {
         require(
-            offeredToken != address(0),
-            "OfferedToken cannot be the zero address"
+            oToken != address(0),
+            "oToken cannot be the zero address"
         );
         require(
             biddingToken != address(0),
@@ -129,11 +130,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         swapId = offersCounter;
 
         swapOffers[swapId].seller = msg.sender;
-        swapOffers[swapId].isOpen = true;
-        swapOffers[swapId].offeredToken = offeredToken;
+        swapOffers[swapId].oToken = oToken;
         swapOffers[swapId].biddingToken = biddingToken;
-        swapOffers[swapId].offeredTokenDecimals = IERC20Detailed(offeredToken)
-            .decimals();
         swapOffers[swapId].minBidSize = minBidSize;
         swapOffers[swapId].minPrice = minPrice;
         swapOffers[swapId].totalSize = totalSize;
@@ -142,7 +140,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         emit NewOffer(
             swapId,
             msg.sender,
-            offeredToken,
+            oToken,
             biddingToken,
             minPrice,
             minBidSize,
@@ -164,15 +162,14 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
         require(offer.seller != address(0), "Offer does not exist");
         require(msg.sender == offer.seller, "Only seller can settle");
-        require(offer.isOpen, "Offer already closed");
+        require(offer.availableSize > 0, "Offer fully settled");
 
+        address seller = offer.seller;
         for (uint256 i = 0; i < bids.length; i++) {
-            _swap(offer, bids[i]);
+            _swap(seller, offer, bids[i]);
         }
 
         if (offer.availableSize == 0) {
-            offer.isOpen = false;
-
             emit SettleOffer(swapId);
         }
     }
@@ -185,9 +182,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         Offer storage offer = swapOffers[swapId];
         require(offer.seller != address(0), "Offer does not exist");
         require(msg.sender == offer.seller, "Only seller can close offer");
-        require(offer.isOpen, "Offer already closed");
 
-        offer.isOpen = false;
+        delete swapOffers[swapId];
 
         emit CloseOffer(swapId);
     }
@@ -257,7 +253,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         // Check bid price
         uint256 bidPrice =
             (uint256(bid.sellAmount) *
-                uint256(10)**offer.offeredTokenDecimals) / bid.buyAmount;
+                uint256(10)**OTOKEN_DECIMALS) / bid.buyAmount;
         if (bidPrice < offer.minPrice) {
             errors[errCount] = "PRICE_TOO_LOW";
             errCount++;
@@ -310,56 +306,43 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
      * @param offer Offer struct containing offer details
      * @param bid Bid struct containing bid details
      */
-    function _swap(Offer storage offer, Bid calldata bid) internal {
+    function _swap(address seller, Offer storage offer, Bid calldata bid) internal {
         require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
-
+        
         address signatory = _getSignatory(bid);
         require(signatory != address(0), "SIGNATURE_INVALID");
         require(signatory == bid.signerWallet, "SIGNATURE_MISMATCHED");
         require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
-        require(offer.availableSize > 0, "ZERO_AVAILABLE_SIZE");
+        require(bid.buyAmount <= offer.availableSize, "BID_EXCEEDS_AVAILABLE_SIZE");
         require(bid.buyAmount >= offer.minBidSize, "BID_TOO_SMALL");
         require(bid.buyAmount <= offer.totalSize, "BID_EXCEED_TOTAL");
 
         // Ensure min. price is met
         uint256 bidPrice =
             (uint256(bid.sellAmount) *
-                uint256(10)**offer.offeredTokenDecimals) / bid.buyAmount;
+                uint256(10)**OTOKEN_DECIMALS) / bid.buyAmount;
         require(bidPrice >= offer.minPrice, "PRICE_TOO_LOW");
 
-        // Check for partial fill
-        uint256 buyAmount = bid.buyAmount;
-        uint256 sellAmount = bid.sellAmount;
-        if (bid.buyAmount > offer.availableSize) {
-            buyAmount = offer.availableSize;
-            sellAmount =
-                (buyAmount * bidPrice) /
-                (uint256(10)**offer.offeredTokenDecimals);
-        }
-
-        offer.availableSize -= uint128(buyAmount);
-        offer.totalSales += uint128(sellAmount);
-
-        if (bidPrice > offer.highestPrice) {
-            offer.highestPrice = uint128(bidPrice);
-        }
+        offer.availableSize -= uint128(bid.buyAmount);
+        offer.totalSales += uint128(bid.sellAmount);
 
         // Transfer token from sender to signer
-        IERC20(offer.offeredToken).safeTransferFrom(
-            offer.seller,
+        IERC20(offer.oToken).safeTransferFrom(
+            seller,
             bid.signerWallet,
-            buyAmount
+            bid.buyAmount
         );
 
         // Transfer to referrer if any
+        address biddingToken = offer.biddingToken;
         uint256 feeAmount;
         if (bid.referrer != address(0)) {
             uint256 feePercent = referralFees[bid.referrer];
 
             if (feePercent > 0) {
-                feeAmount = (sellAmount * feePercent) / MAX_PERCENTAGE;
+                feeAmount = (bid.sellAmount * feePercent) / MAX_PERCENTAGE;
 
-                IERC20(offer.biddingToken).safeTransferFrom(
+                IERC20(biddingToken).safeTransferFrom(
                     bid.signerWallet,
                     bid.referrer,
                     feeAmount
@@ -368,10 +351,10 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         }
 
         // Transfer token from signer to recipient
-        IERC20(offer.biddingToken).safeTransferFrom(
+        IERC20(biddingToken).safeTransferFrom(
             bid.signerWallet,
-            offer.seller,
-            sellAmount - feeAmount
+            seller,
+            bid.sellAmount - feeAmount
         );
 
         // Emit a Swap event
@@ -379,9 +362,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             bid.swapId,
             bid.nonce,
             bid.signerWallet,
-            sellAmount,
-            offer.seller,
-            buyAmount,
+            bid.sellAmount,
+            bid.buyAmount,
             bid.referrer,
             feeAmount
         );
