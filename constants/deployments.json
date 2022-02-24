@@ -81,14 +81,14 @@
         "RibbonThetaVaultETHPutYearn": "0xCc323557c71C0D1D20a1861Dc69c06C5f3cC9624",
         "RibbonThetaVaultLogic": "0x96E53069ab54eFCdFEf488317B74Fb59ad1d528F",
         "RibbonThetaVaultSTETHCall": "0x53773E034d9784153471813dacAFF53dBBB78E8c",
-        "RibbonThetaVaultSTETHLogic": "0x8a0eFf819D7e197eE79Ff3fef520fe56a2c36cA5",
+        "RibbonThetaVaultSTETHLogic": "0xc5c897e875CCD15ba1BF96fCdcD8c874c80c2A1b",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
-        "RibbonThetaVaultYearnLogic": "0x34f394C902284D7722109F264923b38Fe8471C39",
+        "RibbonThetaVaultYearnLogic": "0x09C507f279a814f1d4124a38ffB521e31d1B2840",
         "StrikeSelectionAAVE": "0xc2b10e716987cCD35d642506Fd546315C0753563",
         "StrikeSelectionETH": "0x39d3799b8ABEfC3d05db5BA3b3B2770146475000",
         "StrikeSelectionWBTC": "0x5E68b6F5C82FC5F3711541CA4A12E01B967Fc641",
         "VaultLifecycle": "0x883391710EF00F129Ed34d0118249ABfb5c73531",
-        "VaultLifecycleSTETH": "0x5CbB58FBd5E53A8db156C1261403b14dc618F3db",
-        "VaultLifecycleYearn": "0x07e18F15845E919c09Df350dcd8AD4030F587809"
+        "VaultLifecycleSTETH": "0xbe12A3f511b5c0fd25c6cE8688E186955C4F3D02",
+        "VaultLifecycleYearn": "0x15c2d7ec22E758eFE3069378a4d34d3FC3263610"
     }
 }
