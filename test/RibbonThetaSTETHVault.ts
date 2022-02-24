@@ -85,7 +85,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("1"),
-    crvETHAmountAfterSlippage: BigNumber.from("998830033598582475"),
+    stETHAmountAfterRounding: BigNumber.from("999662639328811003"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -131,7 +131,7 @@ type Option = {
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {BigNumber} params.crvSlippage - Slippage for steth -> eth swap
- * @param {BigNumber} params.crvETHAmountAfterSlippage - ETH returns after crv exchange
+ * @param {BigNumber} params.stETHAmountAfterRounding - stETH returns after unwrapping wstETH
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -159,7 +159,7 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   crvSlippage: BigNumber;
-  crvETHAmountAfterSlippage: BigNumber;
+  stETHAmountAfterRounding: BigNumber;
   isPut: boolean;
   gasLimits: {
     depositWorstCase: number;
@@ -193,7 +193,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
   let crvSlippage = params.crvSlippage;
-  let crvETHAmountAfterSlippage = params.crvETHAmountAfterSlippage;
+  let stETHAmountAfterRounding = params.stETHAmountAfterRounding;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
@@ -2439,29 +2439,18 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.depositETH({ value: depositAmount });
 
-        let startBalance: BigNumber;
-        let withdrawAmount: BigNumber;
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          startBalance = await provider.getBalance(user);
-        } else {
-          startBalance = await assetContract.balanceOf(user);
-        }
+        const startBalance: BigNumber =
+          await intermediaryAssetContract.balanceOf(user);
 
         const tx = await vault.withdrawInstantly(depositAmount, minETHOut, {
           gasPrice,
         });
-        const receipt = await tx.wait();
 
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          const endBalance = await provider.getBalance(user);
-          withdrawAmount = endBalance
-            .sub(startBalance)
-            .add(receipt.gasUsed.mul(gasPrice));
-        } else {
-          const endBalance = await assetContract.balanceOf(user);
-          withdrawAmount = endBalance.sub(startBalance);
-        }
-        assert.bnEqual(withdrawAmount, depositAmount);
+        const endBalance = await intermediaryAssetContract.balanceOf(user);
+        const withdrawAmount = endBalance.sub(startBalance);
+        // Account for rounding when minting stETH
+        assert.bnGte(withdrawAmount.add(3), depositAmount);
+        assert.bnLte(withdrawAmount, depositAmount.add(3));
 
         await expect(tx)
           .to.emit(vault, "InstantWithdraw")
@@ -2765,30 +2754,24 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const lastQueuedWithdrawAmount = await vault.lastQueuedWithdrawAmount();
 
-        let beforeBalance: BigNumber;
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          beforeBalance = await provider.getBalance(user);
-        } else {
-          beforeBalance = await assetContract.balanceOf(user);
-        }
+        const beforeBalance: BigNumber =
+          await intermediaryAssetContract.balanceOf(user);
 
         const { queuedWithdrawShares: startQueuedShares } =
           await vault.vaultState();
 
         const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
-        const receipt = await tx.wait();
-        const gasFee = receipt.gasUsed.mul(gasPrice);
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
-          .withArgs(user, crvETHAmountAfterSlippage.toString(), depositAmount);
+          .withArgs(user, stETHAmountAfterRounding.toString(), depositAmount);
 
         if (depositAsset !== WETH_ADDRESS[chainId]) {
           const collateralERC20 = await getContractAt("IERC20", depositAsset);
 
           await expect(tx)
             .to.emit(collateralERC20, "Transfer")
-            .withArgs(vault.address, user, crvETHAmountAfterSlippage);
+            .withArgs(vault.address, user, stETHAmountAfterRounding);
         }
 
         const { shares, round } = await vault.withdrawals(user);
@@ -2801,23 +2784,18 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(endQueuedShares, BigNumber.from(0));
         assert.bnEqual(
           await vault.lastQueuedWithdrawAmount(),
-          lastQueuedWithdrawAmount.sub(crvETHAmountAfterSlippage)
+          lastQueuedWithdrawAmount.sub(stETHAmountAfterRounding)
         );
         assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
 
-        let actualWithdrawAmount: BigNumber;
-
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          const afterBalance = await provider.getBalance(user);
-          actualWithdrawAmount = afterBalance.sub(beforeBalance).add(gasFee);
-        } else {
-          const afterBalance = await assetContract.balanceOf(user);
-          actualWithdrawAmount = afterBalance.sub(beforeBalance);
-        }
+        const afterBalance = await intermediaryAssetContract.balanceOf(user);
+        const actualWithdrawAmount: BigNumber = afterBalance.sub(beforeBalance);
 
         // Should be less because the pps is down
         assert.bnLt(actualWithdrawAmount, depositAmount);
-        assert.bnEqual(actualWithdrawAmount, crvETHAmountAfterSlippage);
+        // Account for rounding when minting stETH
+        assert.bnGte(actualWithdrawAmount.add(3), stETHAmountAfterRounding);
+        assert.bnLte(actualWithdrawAmount, stETHAmountAfterRounding.add(3));
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
