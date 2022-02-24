@@ -66,9 +66,20 @@ const main = async ({
     args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
   });
 
+  try {
+    await run("verify:verify", {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
   console.log(
     `RibbonThetaVaultAAVECall strikeSelection @ ${strikeSelection.address}`
   );
+
+  return;
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -128,6 +139,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultAAVECall"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.dependencies = [];
 
 export default main;

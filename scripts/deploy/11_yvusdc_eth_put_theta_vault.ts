@@ -70,6 +70,7 @@ const main = async ({
   console.log(
     `RibbonThetaVaultETHPutYearn strikeSelection @ ${strikeSelection.address}`
   );
+  return;
 
   try {
     await run("verify:verify", {
@@ -140,6 +141,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultETHPutYearn"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultYearnLogic"];
+main.dependencies = [];
 
 export default main;

@@ -71,6 +71,7 @@ const main = async ({
   } catch (error) {
     console.log(error);
   }
+  return;
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -129,6 +130,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultWBTCCall"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.dependencies = [];
 
 export default main;
