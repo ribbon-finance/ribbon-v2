@@ -222,6 +222,16 @@ describe("Swap", () => {
       )).to.be.revertedWith("TotalSize must be larger than zero");
     });
 
+    it("reverts when min bid size is larger than total size", async function () {
+      await expect(swap.connect(keeperSigner).createOffer(
+        wethAddress,
+        usdcAddress,
+        parseUnits("3", 6),
+        parseUnits("1.01", 8),
+        parseUnits("1", 8)
+      )).to.be.revertedWith("MinBidSize exceeds total size");
+    });
+
     it("create offering with the correct parameters", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
@@ -276,7 +286,7 @@ describe("Swap", () => {
       );
     });
 
-    it("reverts when offer does not exist", async function () {
+    it("reverts when Only seller can settle or offer doesn't exist", async function () {
       const nonce = 1;
       const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize.div(2);
@@ -308,7 +318,7 @@ describe("Swap", () => {
       ];
 
       await expect(swap.settleOffer(2, bids))
-        .to.be.revertedWith("Offer does not exist");
+        .to.be.revertedWith("Only seller can settle or offer doesn't exist");
     });
 
     it("reverts when not seller call", async function () {
@@ -382,7 +392,7 @@ describe("Swap", () => {
 
       await expect(swap.connect(keeperSigner).settleOffer(
         swapId, bids
-      )).to.be.revertedWith("Offer does not exist");
+      )).to.be.revertedWith("Only seller can settle or offer doesn't exist");
     });
 
     it("reverts when bid signature is invalid", async function () {
@@ -854,8 +864,8 @@ describe("Swap", () => {
   describe("#closeOffer", () => {
     time.revertToSnapshotAfterTest();
 
-    it("reverts when offer does not exist", async function () {
-      await expect(swap.closeOffer(1)).to.be.revertedWith("Offer does not exist");
+    it("reverts when offer doesn't exist", async function () {
+      await expect(swap.closeOffer(1)).to.be.revertedWith("Only seller can close or offer doesn't exist");
     });
 
     it("reverts when not seller call", async function () {
@@ -871,7 +881,7 @@ describe("Swap", () => {
 
       await expect(swap.closeOffer(
         swapId
-      )).to.be.revertedWith("Only seller can close offer");
+      )).to.be.revertedWith("Only seller can close or offer doesn't exist");
     });
 
     it("reverts when offer is already closed", async function () {
@@ -889,7 +899,7 @@ describe("Swap", () => {
 
       await expect(swap.connect(keeperSigner).closeOffer(
         swapId
-      )).to.be.revertedWith("Offer does not exist");
+      )).to.be.revertedWith("Only seller can close or offer doesn't exist");
     });
 
     it("closes swap offering correctly", async function () {
@@ -1022,6 +1032,70 @@ describe("Swap", () => {
       //   }
       // )
       assert.bnEqual(error[0], BigNumber.from(0));
+    });
+  });
+
+  describe("#averagePriceForOffer", () => {
+    const minPrice = parseUnits("3", 6);
+    const minBidSize = parseUnits("0.01", 8);
+    const totalSize = parseUnits("1", 8);
+    let swapId: number;
+
+    time.revertToSnapshotAfterEach(async function () {
+      swapId = (await swap.offersCounter()).add(1);
+
+      await swap.connect(keeperSigner).createOffer(
+        wethAddress,
+        usdcAddress,
+        minPrice,
+        minBidSize,
+        totalSize
+      );
+    });
+
+
+    it("reverts when offering does not exist", async function () {
+      await expect(swap.averagePriceForOffer(2)).to.be.revertedWith("Offer does not exist");
+    });
+
+    it("returns the correct average", async function () {
+      const nonce = 1;
+
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize;
+      const referrer = constants.AddressZero;
+
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer
+      };
+
+      const signature = await getSignature(domain, order, userSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ],
+      ];
+
+      await swap.connect(keeperSigner).settleOffer(
+        swapId, bids
+      );
+
+      const average = await swap.averagePriceForOffer(1);
+      assert.bnEqual(average, sellAmount.mul(10 ** 8).div(buyAmount));
     });
   });
 });
