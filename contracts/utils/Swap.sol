@@ -272,7 +272,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
         // Check bid price
         uint256 bidPrice =
-            (uint256(bid.sellAmount) * uint256(10)**OTOKEN_DECIMALS) /
+            (bid.sellAmount * 10**OTOKEN_DECIMALS) /
                 bid.buyAmount;
         if (bidPrice < offer.minPrice) {
             errors[errCount] = "PRICE_TOO_LOW";
@@ -372,7 +372,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
         // Ensure min. price is met
         uint256 bidPrice =
-            (bid.sellAmount * uint256(10)**OTOKEN_DECIMALS) / bid.buyAmount;
+            (bid.sellAmount * 10**OTOKEN_DECIMALS) / bid.buyAmount;
         require(bidPrice >= details.minPrice, "PRICE_TOO_LOW");
 
         // don't have to do a uint128 check because we already check
