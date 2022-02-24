@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Source: https://github.com/airswap/airswap-protocols/blob/main/source/swap/contracts/Swap.sol
 
-pragma solidity ^0.8.4;
+pragma solidity =0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -118,9 +118,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             biddingToken != address(0),
             "BiddingToken cannot be the zero address"
         );
+        require(totalSize > 0, "TotalSize must be larger than zero");
         require(minPrice > 0, "MinPrice must be larger than zero");
         require(minBidSize > 0, "MinBidSize must be larger than zero");
-        require(totalSize > 0, "TotalSize must be larger than zero");
+        require(minBidSize <= totalSize, "MinBidSize exceeds total size");
+        
 
         offersCounter += 1;
 
@@ -158,8 +160,10 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         Offer storage offer = swapOffers[swapId];
 
         address seller = offer.seller;
-        require(seller != address(0), "Offer does not exist");
-        require(seller == msg.sender, "Only seller can settle");
+        require(
+            seller == msg.sender,
+            "Only seller can settle or offer doesn't exist"
+        );
         require(offer.availableSize > 0, "Offer fully settled");
 
         uint256 minBidSize = offer.minBidSize;
@@ -186,12 +190,13 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
     /**
      * @notice Close offer
-     * @param swapId swapId unique identifier of the swap offer
+     * @param swapId unique identifier of the swap offer
      */
     function closeOffer(uint256 swapId) external override {
-        address seller = swapOffers[swapId].seller;
-        require(seller != address(0), "Offer does not exist");
-        require(seller == msg.sender, "Only seller can close offer");
+        require(
+            swapOffers[swapId].seller == msg.sender,
+            "Only seller can close or offer doesn't exist"
+        );
 
         delete swapOffers[swapId];
 
@@ -226,6 +231,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     function check(Bid calldata bid)
         public
         view
+        override
         returns (uint256, bytes32[] memory)
     {
         Offer memory offer = swapOffers[bid.swapId];
@@ -293,6 +299,24 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         }
 
         return (errCount, errors);
+    }
+
+    /**
+     * @notice Returns the average settlement price for a swap offer
+     * @param swapId unique identifier of the swap offer
+     */
+    function averagePriceForOffer(uint256 swapId)
+        public
+        view
+        override
+        returns (uint256)
+    {
+        Offer memory offer = swapOffers[swapId];
+        require(offer.seller != address(0), "Offer does not exist");
+
+        return
+            (offer.totalSales * (10**8)) /
+            (offer.totalSize - offer.availableSize);
     }
 
     /**

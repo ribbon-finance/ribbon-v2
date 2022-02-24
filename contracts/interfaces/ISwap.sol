@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.4;
+pragma solidity =0.8.4;
 
 interface ISwap {
     struct Offer {
@@ -89,6 +89,16 @@ interface ISwap {
     function closeOffer(uint256 swapId) external;
 
     function cancelNonce(uint256[] calldata nonces) external;
+
+    function check(Bid calldata bid)
+        external
+        view
+        returns (uint256, bytes32[] memory);
+
+    function averagePriceForOffer(uint256 swapId)
+        external
+        view
+        returns (uint256);
 
     function nonceUsed(address, uint256) external view returns (bool);
 }
