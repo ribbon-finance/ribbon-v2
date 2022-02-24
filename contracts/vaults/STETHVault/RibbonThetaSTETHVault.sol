@@ -244,12 +244,8 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
-     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      */
-    function withdrawInstantly(uint256 amount, uint256 minETHOut)
-        external
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 amount, uint256) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -267,19 +263,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             uint256(vaultState.totalPending).sub(amount)
         );
 
-        emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        // Unwrap may incur curve pool slippage
-        uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
-                amount,
-                address(collateralToken),
+        IERC20(STETH).safeTransfer(
+            msg.sender,
+            VaultLifecycleSTETH.withdrawStEth(
                 STETH,
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
+                address(collateralToken),
+                amount
+            )
+        );
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        emit InstantWithdraw(msg.sender, amount, currentRound);
     }
 
     /**
