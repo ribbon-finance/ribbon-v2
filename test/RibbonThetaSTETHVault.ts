@@ -3070,6 +3070,35 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#setLiquidityGauge", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not owner", async function () {
+        await expect(
+          vault.connect(userSigner).setLiquidityGauge(constants.AddressZero)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("should set the new liquidityGauge", async function () {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
+          ownerSigner
+        );
+        const liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+        assert.equal(await vault.liquidityGauge(), liquidityGauge.address);
+      });
+
+      it("should remove liquidityGauge", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(constants.AddressZero);
+        assert.equal(await vault.liquidityGauge(), constants.AddressZero);
+      });
+    });
+
     describe("#shares", () => {
       time.revertToSnapshotAfterEach();
 
