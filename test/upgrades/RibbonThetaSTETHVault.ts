@@ -60,8 +60,6 @@ describe("RibbonThetaSTETHVault upgrade", () => {
     "managementFee",
     "optionsPremiumPricer",
     "strikeSelection",
-    "optionsPremiumPricer",
-    "strikeSelection",
     "premiumDiscount",
     "currentOtokenPremium",
     "lastStrikeOverrideRound",
