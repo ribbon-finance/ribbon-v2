@@ -12,6 +12,7 @@ import {Vault} from "../../libraries/Vault.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
+import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaYearnVaultStorage
@@ -229,14 +230,18 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setStrikePrice(uint128 strikePrice) external onlyOwner {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
+    }
+
+    /**
+     * @notice Sets the new liquidityGauge contract for this vault
+     * @param newLiquidityGauge is the address of the new liquidityGauge contract
+     */
+    function setLiquidityGauge(address newLiquidityGauge) external onlyOwner {
+        liquidityGauge = newLiquidityGauge;
     }
 
     /************************************************
@@ -290,6 +295,23 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
+    }
+
+    /**
+     * @notice Stakes a users vault shares
+     * @param numShares is the number of shares to stake
+     */
+    function stake(uint256 numShares) external nonReentrant {
+        address _liquidityGauge = liquidityGauge;
+        require(_liquidityGauge != address(0)); // Removed revert msgs due to contract size limit
+        require(numShares > 0);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        if (heldByAccount < numShares) {
+            _redeem(numShares.sub(heldByAccount), false);
+        }
+        _transfer(msg.sender, address(this), numShares);
+        _approve(address(this), _liquidityGauge, numShares);
+        ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
     }
 
     /**
