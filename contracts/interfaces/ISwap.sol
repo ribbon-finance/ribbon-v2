@@ -72,7 +72,7 @@ interface ISwap {
 
     event CloseOffer(uint256 swapId);
 
-    event SettleOffer(uint256 swapId, uint256 soldOtokens);
+    event SettleOffer(uint256 swapId);
 
     event Cancel(uint256 indexed nonce, address indexed signerWallet);
 

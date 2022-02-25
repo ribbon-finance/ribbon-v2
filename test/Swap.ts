@@ -814,7 +814,7 @@ describe("Swap", () => {
       );
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 175000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 174100);
     });
 
     it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
@@ -857,7 +857,7 @@ describe("Swap", () => {
       );
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 421000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 420000);
     });
   });
 
