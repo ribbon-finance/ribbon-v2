@@ -44,7 +44,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     uint256 internal constant MAX_PERCENTAGE = 10000;
-    uint256 internal constant MAX_ERROR_COUNT = 8;
+    uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
     uint256 public offersCounter = 0;
@@ -118,7 +118,6 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             biddingToken != address(0),
             "BiddingToken cannot be the zero address"
         );
-        require(totalSize > 0, "TotalSize must be larger than zero");
         require(minPrice > 0, "MinPrice must be larger than zero");
         require(minBidSize > 0, "MinBidSize must be larger than zero");
         require(minBidSize <= totalSize, "MinBidSize exceeds total size");
@@ -161,11 +160,12 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         Offer storage offer = swapOffers[swapId];
 
         address seller = offer.seller;
+        uint256 availableSizeBefore = offer.availableSize;
         require(
             seller == msg.sender,
             "Only seller can settle or offer doesn't exist"
         );
-        require(offer.availableSize > 0, "Offer fully settled");
+        require(availableSizeBefore > 0, "Offer fully settled");
 
         uint256 totalSales;
         OfferDetails memory offerDetails;
@@ -180,12 +180,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             totalSales += bids[i].sellAmount;
         }
 
-        if (offer.availableSize == 0) {
-            // Deduct the initial 1 wei offset
-            totalSales -= 1;
-            offer.totalSales = totalSales;
-            emit SettleOffer(swapId);
-        }
+        uint256 availableSizeAfter = offer.availableSize;
+        // Deduct the initial 1 wei offset if offer is fully settled
+        offer.totalSales += totalSales - (availableSizeAfter == 0 ? 1 : 0);
+
+        emit SettleOffer(swapId, availableSizeBefore - availableSizeAfter);
     }
 
     /**
@@ -272,8 +271,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
         // Check bid price
         uint256 bidPrice =
-            (bid.sellAmount * 10**OTOKEN_DECIMALS) /
-                bid.buyAmount;
+            (bid.sellAmount * 10**OTOKEN_DECIMALS) / bid.buyAmount;
         if (bidPrice < offer.minPrice) {
             errors[errCount] = "PRICE_TOO_LOW";
             errCount++;
@@ -298,6 +296,21 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             errCount++;
         }
 
+        // Check seller allowance
+        uint256 sellerAllowance =
+            IERC20(offer.oToken).allowance(offer.seller, address(this));
+        if (sellerAllowance < bid.buyAmount) {
+            errors[errCount] = "SELLER_ALLOWANCE_LOW";
+            errCount++;
+        }
+
+        // Check seller balance
+        uint256 sellerBalance = IERC20(offer.oToken).balanceOf(offer.seller);
+        if (sellerBalance < bid.buyAmount) {
+            errors[errCount] = "SELLER_BALANCE_LOW";
+            errCount++;
+        }
+
         return (errCount, errors);
     }
 
@@ -314,8 +327,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         Offer memory offer = swapOffers[swapId];
         require(offer.seller != address(0), "Offer does not exist");
 
+        // Deduct the initial 1 wei offset if offer is not fully settled
+        uint256 adjustment = offer.availableSize != 0 ? 1 : 0;
+
         return
-            (offer.totalSales * (10**8)) /
+            ((offer.totalSales - adjustment) * (10**8)) /
             (offer.totalSize - offer.availableSize);
     }
 
