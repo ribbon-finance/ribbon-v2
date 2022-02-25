@@ -219,7 +219,7 @@ describe("Swap", () => {
         parseUnits("3", 6),
         parseUnits("0.01", 8),
         0
-      )).to.be.revertedWith("TotalSize must be larger than zero");
+      )).to.be.revertedWith("MinBidSize exceeds total size");
     });
 
     it("reverts when min bid size is larger than total size", async function () {
@@ -264,7 +264,7 @@ describe("Swap", () => {
 
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 126346);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 142242);
     });
   });
 
@@ -814,7 +814,7 @@ describe("Swap", () => {
       );
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 182000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 175000);
     });
 
     it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
@@ -857,7 +857,7 @@ describe("Swap", () => {
       );
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 441038);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 421000);
     });
   });
 
@@ -937,7 +937,7 @@ describe("Swap", () => {
 
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 36115);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 40000);
     });
   });
 
@@ -1027,10 +1027,6 @@ describe("Swap", () => {
         ]
       );
 
-      // error[1].map((value) => {
-      //     console.log(ethers.utils.parseBytes32String(value))
-      //   }
-      // )
       assert.bnEqual(error[0], BigNumber.from(0));
     });
   });
@@ -1058,11 +1054,51 @@ describe("Swap", () => {
       await expect(swap.averagePriceForOffer(2)).to.be.revertedWith("Offer does not exist");
     });
 
-    it("returns the correct average", async function () {
+    it("returns the correct average after full settlement", async function () {
       const nonce = 1;
 
       const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize;
+      const referrer = constants.AddressZero;
+
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer
+      };
+
+      const signature = await getSignature(domain, order, userSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ],
+      ];
+
+      await swap.connect(keeperSigner).settleOffer(
+        swapId, bids
+      );
+
+      const average = await swap.averagePriceForOffer(1);
+      assert.bnEqual(average, sellAmount.mul(10 ** 8).div(buyAmount));
+    });
+
+    it("returns the correct average after partial settlement", async function () {
+      const nonce = 1;
+
+      const sellAmount = totalSize.div(2).mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize.div(2);
       const referrer = constants.AddressZero;
 
       const order = {
