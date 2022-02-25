@@ -11,6 +11,7 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
+import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaSTETHVaultStorage
@@ -227,14 +228,18 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-        nonReentrant
-    {
+    function setStrikePrice(uint128 strikePrice) external onlyOwner {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
+    }
+
+    /**
+     * @notice Sets the new liquidityGauge contract for this vault
+     * @param newLiquidityGauge is the address of the new liquidityGauge contract
+     */
+    function setLiquidityGauge(address newLiquidityGauge) external onlyOwner {
+        liquidityGauge = newLiquidityGauge;
     }
 
     /************************************************
@@ -244,12 +249,8 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     /**
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw in `asset`
-     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      */
-    function withdrawInstantly(uint256 amount, uint256 minETHOut)
-        external
-        nonReentrant
-    {
+    function withdrawInstantly(uint256 amount, uint256) external nonReentrant {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
@@ -267,19 +268,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             uint256(vaultState.totalPending).sub(amount)
         );
 
-        emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        // Unwrap may incur curve pool slippage
-        uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
-                amount,
-                address(collateralToken),
+        IERC20(STETH).safeTransfer(
+            msg.sender,
+            VaultLifecycleSTETH.withdrawStEth(
                 STETH,
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
+                address(collateralToken),
+                amount
+            )
+        );
 
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
+        emit InstantWithdraw(msg.sender, amount, currentRound);
     }
 
     /**
@@ -291,6 +289,23 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
+    }
+
+    /**
+     * @notice Stakes a users vault shares
+     * @param numShares is the number of shares to stake
+     */
+    function stake(uint256 numShares) external nonReentrant {
+        address _liquidityGauge = liquidityGauge;
+        require(_liquidityGauge != address(0)); // Removed revert msgs due to contract size limit
+        require(numShares > 0);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        if (heldByAccount < numShares) {
+            _redeem(numShares.sub(heldByAccount), false);
+        }
+        _transfer(msg.sender, address(this), numShares);
+        _approve(address(this), _liquidityGauge, numShares);
+        ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
     }
 
     /**

@@ -25,13 +25,19 @@ abstract contract RibbonThetaYearnVaultStorageV2 {
     uint256 public lastQueuedWithdrawAmount;
 }
 
+abstract contract RibbonThetaYearnVaultStorageV3 {
+    // LiquidityGauge contract for the vault
+    address public liquidityGauge;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonThetaVaultStorage is RibbonThetaVaultStorageV1, RibbonThetaVaultStorageV2
 abstract contract RibbonThetaYearnVaultStorage is
     RibbonThetaYearnVaultStorageV1,
-    RibbonThetaYearnVaultStorageV2
+    RibbonThetaYearnVaultStorageV2,
+    RibbonThetaYearnVaultStorageV3
 {
 
 }
