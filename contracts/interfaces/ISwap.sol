@@ -63,7 +63,7 @@ interface ISwap {
     event NewOffer(
         uint256 swapId,
         address seller,
-        address offeredToken,
+        address oToken,
         address biddingToken,
         uint256 minPrice,
         uint256 minBidSize,
@@ -72,12 +72,12 @@ interface ISwap {
 
     event CloseOffer(uint256 swapId);
 
-    event SettleOffer(uint256 swapId);
+    event SettleOffer(uint256 swapId, uint256 soldOtokens);
 
     event Cancel(uint256 indexed nonce, address indexed signerWallet);
 
     function createOffer(
-        address offeredToken,
+        address oToken,
         address biddingToken,
         uint96 minPrice,
         uint96 minBidSize,
