@@ -49,4 +49,12 @@ describe("SAvaxOracle", () => {
       parseInt(wAvaxPrice.toString())
     );
   });
+
+  it("checks staked avax has correct decimals", async () => {
+    assert.equal(
+      (await sAvaxOracle.decimals()).toString(),
+      (await wAvaxOracle.decimals()).toString()
+    );
+  });
+
 });
