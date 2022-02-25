@@ -49,13 +49,6 @@
         "capitalized-comments": "off",
         "class-methods-use-this": "error",
         "comma-dangle": "off",
-        "comma-spacing": [
-            "error",
-            {
-                "after": true,
-                "before": false
-            }
-        ],
         "comma-style": [
             "error",
             "last"

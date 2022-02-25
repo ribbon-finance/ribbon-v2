@@ -269,7 +269,7 @@ describe("RibbonThetaVault", () => {
     isUsdcAuction: false,
     gasLimits: {
       depositWorstCase: 109576,
-      depositBestCase: 93149,
+      depositBestCase: 93171,
     },
     mintConfig: {
       amount: parseEther("20"),
@@ -3369,6 +3369,201 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#stake", () => {
+      let liquidityGauge: Contract;
+
+      time.revertToSnapshotAfterEach(async () => {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
+          ownerSigner
+        );
+        liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
+      });
+
+      it("reverts when liquidityGauge is not set", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+        await rollToNextOption();
+        await expect(vault.stake(depositAmount)).to.be.reverted;
+      });
+
+      it("reverts when 0 passed", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+        await rollToNextOption();
+        await expect(vault.stake(0)).to.be.reverted;
+      });
+
+      it("reverts when staking more than available", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await expect(
+          vault.connect(userSigner).stake(depositAmount.add(1))
+        ).to.be.revertedWith("Exceeds available");
+      });
+
+      it("reverts when staking more than available after redeeming", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        await vault.connect(userSigner).maxRedeem();
+
+        await expect(
+          vault.connect(userSigner).stake(depositAmount.add(1))
+        ).to.be.revertedWith("Exceeds available");
+      });
+
+      it("stakes shares", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        const userOldBalance = await vault.balanceOf(user);
+
+        await rollToNextOption();
+
+        const stakeAmount = BigNumber.from(1);
+        const tx1 = await vault.connect(userSigner).stake(stakeAmount);
+
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, stakeAmount, 1);
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          stakeAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(stakeAmount));
+
+        const tx2 = await vault
+          .connect(userSigner)
+          .stake(depositAmount.sub(stakeAmount));
+
+        await expect(tx2)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, depositAmount.sub(stakeAmount), 1);
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          depositAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+      });
+
+      it("stakes shares after redeeming", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        const userOldBalance = await vault.balanceOf(user);
+
+        await rollToNextOption();
+
+        const stakeAmount = depositAmount.div(2);
+        const redeemAmount = depositAmount.div(3);
+
+        await vault.connect(userSigner).redeem(redeemAmount);
+        const tx1 = await vault.connect(userSigner).stake(stakeAmount);
+
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, stakeAmount.sub(redeemAmount), 1);
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          stakeAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(stakeAmount));
+
+        await vault.connect(userSigner).maxRedeem();
+        await vault.connect(userSigner).stake(depositAmount.sub(stakeAmount));
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          depositAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+      });
+    });
+
     describe("#setStrikePrice", () => {
       time.revertToSnapshotAfterEach();
 
@@ -3422,6 +3617,35 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.deposit(depositAmount)).to.be.revertedWith(
           "Exceed cap"
         );
+      });
+    });
+
+    describe("#setLiquidityGauge", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not owner", async function () {
+        await expect(
+          vault.connect(userSigner).setLiquidityGauge(constants.AddressZero)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("should set the new liquidityGauge", async function () {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
+          ownerSigner
+        );
+        const liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+        assert.equal(await vault.liquidityGauge(), liquidityGauge.address);
+      });
+
+      it("should remove liquidityGauge", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(constants.AddressZero);
+        assert.equal(await vault.liquidityGauge(), constants.AddressZero);
       });
     });
 

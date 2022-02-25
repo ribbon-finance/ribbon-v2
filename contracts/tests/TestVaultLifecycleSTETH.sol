@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {IWSTETH} from "../interfaces/ISTETH.sol";
+import {ISTETH, IWSTETH} from "../interfaces/ISTETH.sol";
 import {VaultLifecycleSTETH} from "../libraries/VaultLifecycleSTETH.sol";
 
 contract TestVaultLifecycleSTETH {
@@ -22,6 +22,14 @@ contract TestVaultLifecycleSTETH {
                 minETHOut
             );
         output = amountETHOut;
+    }
+
+    function withdrawStEth(uint256 amount) external {
+        address steth = IWSTETH(wstETH).stETH();
+        uint256 amountETHOut =
+            VaultLifecycleSTETH.withdrawStEth(steth, wstETH, amount);
+        output = amountETHOut;
+        ISTETH(steth).transfer(msg.sender, amountETHOut);
     }
 
     // Enables test to send ETH for testing

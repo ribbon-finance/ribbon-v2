@@ -79,7 +79,7 @@ describe("DeltaStrikeSelectionE2E", () => {
     );
 
     wethPriceOracle = await ethers.getContractAt(
-      "IPriceOracle",
+      "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol:IPriceOracle",
       await optionsPremiumPricer.priceOracle()
     );
   });
@@ -329,7 +329,7 @@ describe("PercentStrikeSelectionE2E", () => {
     );
 
     wethPriceOracle = await ethers.getContractAt(
-      "IPriceOracle",
+      "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol:IPriceOracle",
       await optionsPremiumPricer.priceOracle()
     );
   });

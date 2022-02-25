@@ -85,7 +85,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("1"),
-    crvETHAmountAfterSlippage: BigNumber.from("998830033598582475"),
+    stETHAmountAfterRounding: BigNumber.from("999662639328811003"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -131,7 +131,7 @@ type Option = {
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {BigNumber} params.crvSlippage - Slippage for steth -> eth swap
- * @param {BigNumber} params.crvETHAmountAfterSlippage - ETH returns after crv exchange
+ * @param {BigNumber} params.stETHAmountAfterRounding - stETH returns after unwrapping wstETH
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
 function behavesLikeRibbonOptionsVault(params: {
@@ -159,7 +159,7 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   crvSlippage: BigNumber;
-  crvETHAmountAfterSlippage: BigNumber;
+  stETHAmountAfterRounding: BigNumber;
   isPut: boolean;
   gasLimits: {
     depositWorstCase: number;
@@ -193,7 +193,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
   let crvSlippage = params.crvSlippage;
-  let crvETHAmountAfterSlippage = params.crvETHAmountAfterSlippage;
+  let stETHAmountAfterRounding = params.stETHAmountAfterRounding;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
@@ -2439,29 +2439,18 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.depositETH({ value: depositAmount });
 
-        let startBalance: BigNumber;
-        let withdrawAmount: BigNumber;
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          startBalance = await provider.getBalance(user);
-        } else {
-          startBalance = await assetContract.balanceOf(user);
-        }
+        const startBalance: BigNumber =
+          await intermediaryAssetContract.balanceOf(user);
 
         const tx = await vault.withdrawInstantly(depositAmount, minETHOut, {
           gasPrice,
         });
-        const receipt = await tx.wait();
 
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          const endBalance = await provider.getBalance(user);
-          withdrawAmount = endBalance
-            .sub(startBalance)
-            .add(receipt.gasUsed.mul(gasPrice));
-        } else {
-          const endBalance = await assetContract.balanceOf(user);
-          withdrawAmount = endBalance.sub(startBalance);
-        }
-        assert.bnEqual(withdrawAmount, depositAmount);
+        const endBalance = await intermediaryAssetContract.balanceOf(user);
+        const withdrawAmount = endBalance.sub(startBalance);
+        // Account for rounding when minting stETH
+        assert.bnGte(withdrawAmount.add(3), depositAmount);
+        assert.bnLte(withdrawAmount, depositAmount.add(3));
 
         await expect(tx)
           .to.emit(vault, "InstantWithdraw")
@@ -2765,30 +2754,24 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const lastQueuedWithdrawAmount = await vault.lastQueuedWithdrawAmount();
 
-        let beforeBalance: BigNumber;
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          beforeBalance = await provider.getBalance(user);
-        } else {
-          beforeBalance = await assetContract.balanceOf(user);
-        }
+        const beforeBalance: BigNumber =
+          await intermediaryAssetContract.balanceOf(user);
 
         const { queuedWithdrawShares: startQueuedShares } =
           await vault.vaultState();
 
         const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
-        const receipt = await tx.wait();
-        const gasFee = receipt.gasUsed.mul(gasPrice);
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
-          .withArgs(user, crvETHAmountAfterSlippage.toString(), depositAmount);
+          .withArgs(user, stETHAmountAfterRounding.toString(), depositAmount);
 
         if (depositAsset !== WETH_ADDRESS[chainId]) {
           const collateralERC20 = await getContractAt("IERC20", depositAsset);
 
           await expect(tx)
             .to.emit(collateralERC20, "Transfer")
-            .withArgs(vault.address, user, crvETHAmountAfterSlippage);
+            .withArgs(vault.address, user, stETHAmountAfterRounding);
         }
 
         const { shares, round } = await vault.withdrawals(user);
@@ -2801,23 +2784,18 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(endQueuedShares, BigNumber.from(0));
         assert.bnEqual(
           await vault.lastQueuedWithdrawAmount(),
-          lastQueuedWithdrawAmount.sub(crvETHAmountAfterSlippage)
+          lastQueuedWithdrawAmount.sub(stETHAmountAfterRounding)
         );
         assert.bnEqual(startQueuedShares.sub(endQueuedShares), depositAmount);
 
-        let actualWithdrawAmount: BigNumber;
-
-        if (depositAsset === WETH_ADDRESS[chainId]) {
-          const afterBalance = await provider.getBalance(user);
-          actualWithdrawAmount = afterBalance.sub(beforeBalance).add(gasFee);
-        } else {
-          const afterBalance = await assetContract.balanceOf(user);
-          actualWithdrawAmount = afterBalance.sub(beforeBalance);
-        }
+        const afterBalance = await intermediaryAssetContract.balanceOf(user);
+        const actualWithdrawAmount: BigNumber = afterBalance.sub(beforeBalance);
 
         // Should be less because the pps is down
         assert.bnLt(actualWithdrawAmount, depositAmount);
-        assert.bnEqual(actualWithdrawAmount, crvETHAmountAfterSlippage);
+        // Account for rounding when minting stETH
+        assert.bnGte(actualWithdrawAmount.add(3), stETHAmountAfterRounding);
+        assert.bnLte(actualWithdrawAmount, stETHAmountAfterRounding.add(3));
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2832,6 +2810,183 @@ function behavesLikeRibbonOptionsVault(params: {
         //   "completeWithdraw",
         //   receipt.gasUsed.toNumber()
         // );
+      });
+    });
+
+    describe("#stake", () => {
+      let liquidityGauge: Contract;
+
+      time.revertToSnapshotAfterEach(async () => {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
+          ownerSigner
+        );
+        liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
+      });
+
+      it("reverts when liquidityGauge is not set", async function () {
+        await vault.depositETH({ value: depositAmount });
+        await rollToNextOption();
+        await expect(vault.stake(depositAmount)).to.be.reverted;
+      });
+
+      it("reverts when 0 passed", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+        await vault.depositETH({ value: depositAmount });
+        await rollToNextOption();
+        await expect(vault.stake(0)).to.be.reverted;
+      });
+
+      it("reverts when staking more than available", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await vault.connect(userSigner).depositETH({ value: depositAmount });
+
+        await rollToNextOption();
+
+        await expect(
+          vault.connect(userSigner).stake(depositAmount.add(1))
+        ).to.be.revertedWith("Exceeds available");
+      });
+
+      it("reverts when staking more than available after redeeming", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await vault.connect(userSigner).depositETH({ value: depositAmount });
+
+        await rollToNextOption();
+
+        await vault.connect(userSigner).maxRedeem();
+
+        await expect(
+          vault.connect(userSigner).stake(depositAmount.add(1))
+        ).to.be.revertedWith("Exceeds available");
+      });
+
+      it("stakes shares", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await vault.connect(userSigner).depositETH({ value: depositAmount });
+
+        const userOldBalance = await vault.balanceOf(user);
+
+        await rollToNextOption();
+
+        const stakeAmount = BigNumber.from(1);
+        const tx1 = await vault.connect(userSigner).stake(stakeAmount);
+
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, stakeAmount, 1);
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          stakeAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(stakeAmount));
+
+        const tx2 = await vault
+          .connect(userSigner)
+          .stake(depositAmount.sub(stakeAmount));
+
+        await expect(tx2)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, depositAmount.sub(stakeAmount), 1);
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          depositAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
+      });
+
+      it("stakes shares after redeeming", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+
+        await vault.connect(userSigner).depositETH({ value: depositAmount });
+
+        const userOldBalance = await vault.balanceOf(user);
+
+        await rollToNextOption();
+
+        const stakeAmount = depositAmount.div(2);
+        const redeemAmount = depositAmount.div(3);
+
+        await vault.connect(userSigner).redeem(redeemAmount);
+        const tx1 = await vault.connect(userSigner).stake(stakeAmount);
+
+        await expect(tx1)
+          .to.emit(vault, "Redeem")
+          .withArgs(user, stakeAmount.sub(redeemAmount), 1);
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), stakeAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          stakeAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round1,
+          amount: amount1,
+          unredeemedShares: unredeemedShares1,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round1, 1);
+        assert.bnEqual(amount1, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares1, depositAmount.sub(stakeAmount));
+
+        await vault.connect(userSigner).maxRedeem();
+        await vault.connect(userSigner).stake(depositAmount.sub(stakeAmount));
+
+        assert.bnEqual(await liquidityGauge.balanceOf(user), depositAmount);
+        assert.bnEqual(
+          await vault.balanceOf(liquidityGauge.address),
+          depositAmount
+        );
+        assert.bnEqual(await vault.balanceOf(user), userOldBalance);
+
+        const {
+          round: round2,
+          amount: amount2,
+          unredeemedShares: unredeemedShares2,
+        } = await vault.depositReceipts(user);
+
+        assert.equal(round2, 1);
+        assert.bnEqual(amount2, BigNumber.from(0));
+        assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
     });
 
@@ -2912,6 +3067,35 @@ function behavesLikeRibbonOptionsVault(params: {
           (await ldo.balanceOf(feeRecipient)).toString(),
           ldoDepositAmount.toString()
         );
+      });
+    });
+
+    describe("#setLiquidityGauge", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("should revert if not owner", async function () {
+        await expect(
+          vault.connect(userSigner).setLiquidityGauge(constants.AddressZero)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("should set the new liquidityGauge", async function () {
+        const MockLiquidityGauge = await getContractFactory(
+          "MockLiquidityGauge",
+          ownerSigner
+        );
+        const liquidityGauge = await MockLiquidityGauge.deploy(vault.address);
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(liquidityGauge.address);
+        assert.equal(await vault.liquidityGauge(), liquidityGauge.address);
+      });
+
+      it("should remove liquidityGauge", async function () {
+        await vault
+          .connect(ownerSigner)
+          .setLiquidityGauge(constants.AddressZero);
+        assert.equal(await vault.liquidityGauge(), constants.AddressZero);
       });
     });
 
