@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-interface ISAVAX {
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+interface ISAVAX is IERC20 {
     function getSharesByPooledAvax(uint256 avaxAmount)
         external
         view
@@ -12,5 +14,5 @@ interface ISAVAX {
         view
         returns (uint256);
 
-    function decimals() external view returns (uint256 _decimals);
+    function submit() external payable returns (uint256);
 }
