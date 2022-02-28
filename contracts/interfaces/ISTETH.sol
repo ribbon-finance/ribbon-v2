@@ -84,4 +84,8 @@ interface ISTETH {
     ) external returns (bool);
 
     function decimals() external view returns (uint256);
+
+    function getTotalShares() external view returns (uint256);
+
+    function getTotalPooledEther() external view returns (uint256);
 }

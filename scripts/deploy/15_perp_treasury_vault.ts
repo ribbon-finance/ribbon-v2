@@ -1,6 +1,7 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
+  CHAINID,
   PERP_ADDRESS,
   PERP_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
@@ -30,8 +31,14 @@ const main = async ({
     await getNamedAccounts();
   console.log(`15 - Deploying PERP Treasury Vault on ${network.name}`);
 
-  const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
+  if (chainId !== CHAINID.ETH_MAINNET) {
+    console.log(`Error: chainId ${chainId} not supported`);
+    return;
+  }
+
+
+  const manualVolOracle = await deployments.get("ManualVolOracle");
   const underlyingOracle = PERP_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
