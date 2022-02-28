@@ -38,20 +38,22 @@ const main = async ({
     from: deployer,
   });
 
+  const args = [
+    WETH_ADDRESS[chainId],
+    USDC_ADDRESS[chainId],
+    WSTETH_ADDRESS[chainId],
+    LDO_ADDRESS,
+    OTOKEN_FACTORY[chainId],
+    GAMMA_CONTROLLER[chainId],
+    MARGIN_POOL[chainId],
+    GNOSIS_EASY_AUCTION[chainId],
+    STETH_ETH_CRV_POOL,
+  ];
+
   const vault = await deploy("RibbonThetaVaultSTETHLogic", {
     contract: "RibbonThetaSTETHVault",
     from: deployer,
-    args: [
-      WETH_ADDRESS[chainId],
-      USDC_ADDRESS[chainId],
-      WSTETH_ADDRESS[chainId],
-      LDO_ADDRESS,
-      OTOKEN_FACTORY[chainId],
-      GAMMA_CONTROLLER[chainId],
-      MARGIN_POOL[chainId],
-      GNOSIS_EASY_AUCTION[chainId],
-      STETH_ETH_CRV_POOL,
-    ],
+    args,
     libraries: {
       VaultLifecycle: lifecycle.address,
       VaultLifecycleSTETH: lifecycleSTETH.address,
@@ -63,17 +65,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: vault.address,
-      constructorArguments: [
-        WETH_ADDRESS[chainId],
-        USDC_ADDRESS[chainId],
-        WSTETH_ADDRESS,
-        LDO_ADDRESS,
-        OTOKEN_FACTORY[chainId],
-        GAMMA_CONTROLLER[chainId],
-        MARGIN_POOL[chainId],
-        GNOSIS_EASY_AUCTION[chainId],
-        STETH_ETH_CRV_POOL,
-      ],
+      constructorArguments: args,
     });
   } catch (error) {
     console.log(error);
