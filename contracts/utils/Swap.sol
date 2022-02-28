@@ -182,7 +182,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         bool fullySettled = offer.availableSize == 0;
 
         // Deduct the initial 1 wei offset if offer is fully settled
-        offer.totalSales += totalSales - (offer.availableSize == 0 ? 1 : 0);
+        offer.totalSales += totalSales - (fullySettled ? 1 : 0);
 
         if (fullySettled) {
             emit SettleOffer(swapId);
@@ -326,15 +326,17 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         override
         returns (uint256)
     {
-        Offer memory offer = swapOffers[swapId];
+        Offer storage offer = swapOffers[swapId];
         require(offer.seller != address(0), "Offer does not exist");
 
+        uint256 availableSize = offer.availableSize;
+
         // Deduct the initial 1 wei offset if offer is not fully settled
-        uint256 adjustment = offer.availableSize != 0 ? 1 : 0;
+        uint256 adjustment = availableSize != 0 ? 1 : 0;
 
         return
             ((offer.totalSales - adjustment) * (10**8)) /
-            (offer.totalSize - offer.availableSize);
+            (offer.totalSize - availableSize);
     }
 
     /**
