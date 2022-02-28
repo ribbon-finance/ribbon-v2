@@ -306,7 +306,7 @@ export async function mintToken(
   const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
   await forceSend.deployed();
   await forceSend.go(contractOwner, {
-    value: parseEther("1"),
+    value: parseEther("10"),
   });
 
   if (isBridgeToken(chainId, contract.address)) {
