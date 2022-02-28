@@ -453,10 +453,9 @@ contract RibbonVault is
 
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
-     * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      * @return amountETHOut the current withdrawal amount
      */
-    function _completeWithdraw(uint256 minETHOut) internal returns (uint256) {
+    function _completeWithdraw(uint256) internal returns (uint256) {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -480,25 +479,20 @@ contract RibbonVault is
                 vaultParams.decimals
             );
 
-        // Unwrap may incur curve pool slippage
-        uint256 amountETHOut =
-            VaultLifecycleSTETH.unwrapYieldToken(
-                withdrawAmount,
-                address(collateralToken),
+        IERC20(STETH).safeTransfer(
+            msg.sender,
+            VaultLifecycleSTETH.withdrawStEth(
                 STETH,
-                STETH_ETH_CRV_POOL,
-                minETHOut
-            );
+                address(collateralToken),
+                withdrawAmount
+            )
+        );
 
-        emit Withdraw(msg.sender, amountETHOut, withdrawalShares);
+        emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
         _burn(address(this), withdrawalShares);
 
-        require(amountETHOut > 0, "!amountETHOut");
-
-        VaultLifecycleSTETH.transferAsset(msg.sender, amountETHOut);
-
-        return amountETHOut;
+        return withdrawAmount;
     }
 
     /**

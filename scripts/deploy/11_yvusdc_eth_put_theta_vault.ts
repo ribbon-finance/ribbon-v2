@@ -1,6 +1,6 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { USDC_ADDRESS, WETH_ADDRESS } from "../../constants/constants";
+import { CHAINID, USDC_ADDRESS, WETH_ADDRESS } from "../../constants/constants";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
@@ -21,6 +21,11 @@ const main = async ({
   console.log(`11 - Deploying yvUSDC ETH Put Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
+
+  if (chainId !== CHAINID.ETH_MAINNET) {
+    console.log(`Error: chainId ${chainId} not supported`);
+    return;
+  }
 
   const TOKEN_NAME = "Ribbon yvUSDC Theta Vault ETH Put";
   const TOKEN_SYMBOL = "ryvUSDC-ETH-P-THETA";

@@ -32,6 +32,11 @@ abstract contract RibbonThetaVaultStorageV3 {
     bytes public swapPath;
 }
 
+abstract contract RibbonThetaVaultStorageV4 {
+    // LiquidityGauge contract for the vault
+    address public liquidityGauge;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
@@ -39,7 +44,8 @@ abstract contract RibbonThetaVaultStorageV3 {
 abstract contract RibbonThetaVaultStorage is
     RibbonThetaVaultStorageV1,
     RibbonThetaVaultStorageV2,
-    RibbonThetaVaultStorageV3
+    RibbonThetaVaultStorageV3,
+    RibbonThetaVaultStorageV4
 {
 
 }
