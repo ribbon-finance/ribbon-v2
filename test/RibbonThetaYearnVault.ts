@@ -1601,7 +1601,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToSecondOption(firstOption.strikePrice);
 
         const controller = await ethers.getContractAt(
-          "IController",
+          "contracts/interfaces/GammaInterface.sol:IController",
           GAMMA_CONTROLLER[chainId]
         );
 
