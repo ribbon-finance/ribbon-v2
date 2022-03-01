@@ -3,10 +3,18 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
@@ -216,9 +224,8 @@ contract RibbonVault is
         );
         vaultParams = _vaultParams;
 
-        uint256 assetBalance = IERC20(vaultParams.asset).balanceOf(
-            address(this)
-        );
+        uint256 assetBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
         ShareMath.assertUint104(assetBalance);
         vaultState.lastLockedAmount = uint104(assetBalance);
 
@@ -267,9 +274,8 @@ contract RibbonVault is
         );
 
         // We are dividing annualized management fee by num weeks in a year
-        uint256 tmpManagementFee = newManagementFee
-            .mul(Vault.FEE_MULTIPLIER)
-            .div(WEEKS_PER_YEAR);
+        uint256 tmpManagementFee =
+            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
@@ -378,11 +384,12 @@ contract RibbonVault is
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
-            currentRound,
-            roundPricePerShare[depositReceipt.round],
-            vaultParams.decimals
-        );
+        uint256 unredeemedShares =
+            depositReceipt.getSharesFromReceipt(
+                currentRound,
+                roundPricePerShare[depositReceipt.round],
+                vaultParams.decimals
+            );
 
         uint256 depositAmount = amount;
 
@@ -444,9 +451,8 @@ contract RibbonVault is
         ShareMath.assertUint128(withdrawalShares);
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
-        uint256 newQueuedWithdrawShares = uint256(
-            vaultState.queuedWithdrawShares
-        ).add(numShares);
+        uint256 newQueuedWithdrawShares =
+            uint256(vaultState.queuedWithdrawShares).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
@@ -474,11 +480,12 @@ contract RibbonVault is
             uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
         );
 
-        uint256 withdrawAmount = ShareMath.sharesToAsset(
-            withdrawalShares,
-            roundPricePerShare[withdrawalRound],
-            vaultParams.decimals
-        );
+        uint256 withdrawAmount =
+            ShareMath.sharesToAsset(
+                withdrawalShares,
+                roundPricePerShare[withdrawalRound],
+                vaultParams.decimals
+            );
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
@@ -512,19 +519,19 @@ contract RibbonVault is
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 numShares, bool isMax) internal {
-        Vault.DepositReceipt memory depositReceipt = depositReceipts[
-            msg.sender
-        ];
+        Vault.DepositReceipt memory depositReceipt =
+            depositReceipts[msg.sender];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
         uint256 currentRound = vaultState.round;
 
-        uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
-            currentRound,
-            roundPricePerShare[depositReceipt.round],
-            vaultParams.decimals
-        );
+        uint256 unredeemedShares =
+            depositReceipt.getSharesFromReceipt(
+                currentRound,
+                roundPricePerShare[depositReceipt.round],
+                vaultParams.decimals
+            );
 
         numShares = isMax ? unredeemedShares : numShares;
         if (numShares == 0) {
@@ -674,12 +681,13 @@ contract RibbonVault is
         returns (uint256)
     {
         uint256 _decimals = vaultParams.decimals;
-        uint256 assetPerShare = ShareMath.pricePerShare(
-            totalSupply(),
-            totalBalance(),
-            vaultState.totalPending,
-            _decimals
-        );
+        uint256 assetPerShare =
+            ShareMath.pricePerShare(
+                totalSupply(),
+                totalBalance(),
+                vaultState.totalPending,
+                _decimals
+            );
         return
             ShareMath.sharesToAsset(shares(account), assetPerShare, _decimals);
     }
@@ -711,11 +719,12 @@ contract RibbonVault is
             return (balanceOf(account), 0);
         }
 
-        uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
-            vaultState.round,
-            roundPricePerShare[depositReceipt.round],
-            vaultParams.decimals
-        );
+        uint256 unredeemedShares =
+            depositReceipt.getSharesFromReceipt(
+                vaultState.round,
+                roundPricePerShare[depositReceipt.round],
+                vaultParams.decimals
+            );
 
         return (balanceOf(account), unredeemedShares);
     }
