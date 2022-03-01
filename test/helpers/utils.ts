@@ -1,4 +1,4 @@
-import hre, { ethers, artifacts } from "hardhat";
+import { ethers, network, artifacts } from "hardhat";
 import { increaseTo } from "./time";
 import WBTC_ABI from "../../constants/abis/WBTC.json";
 import ORACLE_ABI from "../../constants/abis/OpynOracle.json";
@@ -24,7 +24,7 @@ import { wmul } from "../helpers/math";
 
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
-const chainId = hre.network.config.chainId;
+const chainId = network.config.chainId;
 
 export async function deployProxy(
   logicContractName: string,
@@ -75,7 +75,7 @@ export async function mintAndApprove(
   spender: string,
   amount: BigNumber
 ) {
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: ["0xca06411bd7a7296d7dbdd0050dfc846e95febeb7"],
   });
@@ -101,7 +101,7 @@ export async function getAssetPricer(
   pricer: string,
   signer: SignerWithAddress
 ) {
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [pricer],
   });
@@ -118,7 +118,7 @@ export async function getAssetPricer(
 }
 
 export async function setAssetPricer(asset: string, pricer: string) {
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ORACLE_OWNER[chainId]],
   });
@@ -139,7 +139,7 @@ export async function whitelistProduct(
   const [adminSigner] = await ethers.getSigners();
   const ownerAddress = GAMMA_WHITELIST_OWNER[chainId];
 
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [ownerAddress],
   });
@@ -167,14 +167,14 @@ export async function setupOracle(
   chainlinkPricer: string,
   signer: SignerWithAddress
 ) {
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [chainlinkPricer],
   });
 
   const oracleOwner = ORACLE_OWNER[chainId];
 
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [oracleOwner],
   });
@@ -246,7 +246,7 @@ export async function setOpynOracleExpiryPriceYearn(
     underlyingSettlePrice
   );
   await res.wait();
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [YEARN_PRICER_OWNER],
   });
@@ -268,7 +268,7 @@ export async function addMinter(
 ) {
   const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
 
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [contractOwner],
   });
@@ -282,7 +282,7 @@ export async function addMinter(
 
   await contract.connect(tokenOwnerSigner).addMinter(minter);
 
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_stopImpersonatingAccount",
     params: [contractOwner],
   });
@@ -297,7 +297,7 @@ export async function mintToken(
 ) {
   const tokenOwnerSigner = await ethers.provider.getSigner(contractOwner);
 
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [contractOwner],
   });
@@ -328,7 +328,7 @@ export async function mintToken(
   const recipientSigner = await ethers.provider.getSigner(recipient);
   await contract.connect(recipientSigner).approve(spender, amount);
 
-  await hre.network.provider.request({
+  await network.provider.request({
     method: "hardhat_stopImpersonatingAccount",
     params: [contractOwner],
   });
