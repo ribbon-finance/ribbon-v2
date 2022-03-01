@@ -31,14 +31,15 @@ library Power2Base {
         address _weth,
         address _quoteCurrency
     ) internal view returns (uint256) {
-        uint256 ethQuoteCurrencyPrice = _getScaledTwap(
-            _oracle,
-            _ethQuoteCurrencyPool,
-            _weth,
-            _quoteCurrency,
-            _period,
-            false
-        );
+        uint256 ethQuoteCurrencyPrice =
+            _getScaledTwap(
+                _oracle,
+                _ethQuoteCurrencyPool,
+                _weth,
+                _quoteCurrency,
+                _period,
+                false
+            );
         return ethQuoteCurrencyPrice.mul(ethQuoteCurrencyPrice).div(ONE);
     }
 
@@ -58,14 +59,15 @@ library Power2Base {
         address _weth,
         address _quoteCurrency
     ) internal view returns (uint256) {
-        uint256 ethQuoteCurrencyPrice = _getTwap(
-            _oracle,
-            _ethQuoteCurrencyPool,
-            _weth,
-            _quoteCurrency,
-            _period,
-            false
-        );
+        uint256 ethQuoteCurrencyPrice =
+            _getTwap(
+                _oracle,
+                _ethQuoteCurrencyPool,
+                _weth,
+                _quoteCurrency,
+                _period,
+                false
+            );
         return ethQuoteCurrencyPrice.mul(ethQuoteCurrencyPrice).div(ONE);
     }
 
@@ -91,22 +93,24 @@ library Power2Base {
         address _wSqueeth,
         uint256 _normalizationFactor
     ) internal view returns (uint256) {
-        uint256 ethQuoteCurrencyPrice = _getScaledTwap(
-            _oracle,
-            _ethQuoteCurrencyPool,
-            _weth,
-            _quoteCurrency,
-            _period,
-            false
-        );
-        uint256 wsqueethEthPrice = _getTwap(
-            _oracle,
-            _wSqueethEthPool,
-            _wSqueeth,
-            _weth,
-            _period,
-            false
-        );
+        uint256 ethQuoteCurrencyPrice =
+            _getScaledTwap(
+                _oracle,
+                _ethQuoteCurrencyPool,
+                _weth,
+                _quoteCurrency,
+                _period,
+                false
+            );
+        uint256 wsqueethEthPrice =
+            _getTwap(
+                _oracle,
+                _wSqueethEthPool,
+                _wSqueeth,
+                _weth,
+                _period,
+                false
+            );
 
         return
             wsqueethEthPrice.mul(ethQuoteCurrencyPrice).div(
@@ -131,14 +135,15 @@ library Power2Base {
         address _wSqueeth,
         address _weth
     ) internal view returns (uint256) {
-        uint256 wSqueethPrice = _getTwap(
-            _oracle,
-            _wSqueethEthPool,
-            _wSqueeth,
-            _weth,
-            TWAP_PERIOD,
-            false
-        );
+        uint256 wSqueethPrice =
+            _getTwap(
+                _oracle,
+                _wSqueethEthPool,
+                _wSqueeth,
+                _weth,
+                TWAP_PERIOD,
+                false
+            );
         return _debtAmount.mul(wSqueethPrice).div(ONE);
     }
 
@@ -160,14 +165,8 @@ library Power2Base {
         uint32 _period,
         bool _checkPeriod
     ) internal view returns (uint256) {
-        uint256 twap = _getTwap(
-            _oracle,
-            _pool,
-            _base,
-            _quote,
-            _period,
-            _checkPeriod
-        );
+        uint256 twap =
+            _getTwap(_oracle, _pool, _base, _quote, _period, _checkPeriod);
         return twap.div(INDEX_SCALE);
     }
 
