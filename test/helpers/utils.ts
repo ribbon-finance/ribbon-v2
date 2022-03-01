@@ -125,7 +125,10 @@ export async function setAssetPricer(asset: string, pricer: string) {
 
   const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
 
-  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE[chainId]);
+  const oracle = await ethers.getContractAt(
+    "contracts/interfaces/GammaInterface.sol:IOracle",
+    GAMMA_ORACLE[chainId]
+  );
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
 }
