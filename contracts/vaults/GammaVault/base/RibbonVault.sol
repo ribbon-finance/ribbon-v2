@@ -117,6 +117,8 @@ contract RibbonVault is
     // https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
     address public immutable UNISWAP_FACTORY;
 
+    bytes public constant SWAP_PATH = "";
+
     /************************************************
      *  EVENTS
      ***********************************************/
