@@ -99,13 +99,13 @@ contract DeltaStrikeSelection is Ownable {
      * @return newStrikePrice is the strike price of the option (ex: for BTC might be 45000 * 10 ** 8)
      * @return newDelta is the delta of the option given its parameters
      */
-    function getStrikePriceWithVol(uint256 expiryTimestamp, bool isPut, uint annualizedVol)
-        external
-        view
-        returns (uint256 newStrikePrice, uint256 newDelta)
-    {
-
-        return _getStrikePrice(expiryTimestamp, isPut, annualizedVol.mul(10**10));
+    function getStrikePriceWithVol(
+        uint256 expiryTimestamp,
+        bool isPut,
+        uint256 annualizedVol
+    ) external view returns (uint256 newStrikePrice, uint256 newDelta) {
+        return
+            _getStrikePrice(expiryTimestamp, isPut, annualizedVol.mul(10**10));
     }
 
     /**
@@ -117,11 +117,11 @@ contract DeltaStrikeSelection is Ownable {
      * @return newDelta is the delta of the option given its parameters
      */
 
-    function _getStrikePrice(uint256 expiryTimestamp, bool isPut, uint annualizedVol)
-        internal
-        view
-        returns (uint256 newStrikePrice, uint256 newDelta)
-    {
+    function _getStrikePrice(
+        uint256 expiryTimestamp,
+        bool isPut,
+        uint256 annualizedVol
+    ) internal view returns (uint256 newStrikePrice, uint256 newDelta) {
         require(
             expiryTimestamp > block.timestamp,
             "Expiry must be in the future!"
