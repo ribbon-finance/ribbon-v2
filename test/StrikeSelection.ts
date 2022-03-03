@@ -295,7 +295,6 @@ describe("DeltaStrikeSelection", () => {
         expiryTimestamp,
         isPut
       );
-      console.log(strikePrice1.toString(), strikePrice2.toString());
       assert.equal(strikePrice1.toString(), strikePrice2.toString());
       assert.equal(delta1.toString(), delta2.toString());
     });
