@@ -59,10 +59,11 @@ const main = async ({
   const chainId = network.config.chainId;
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
+  const manualVolOraclePUT = await deployments.get("ManualVolOraclePUT");
   const underlyingOracle = ETH_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerETH", {
+  const pricer = await deploy("OptionsPremiumPricerETHCall", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
@@ -76,18 +77,47 @@ const main = async ({
     ],
   });
 
+  console.log([
+    ETH_USDC_POOL[chainId],
+    manualVolOracle.address,
+    underlyingOracle,
+    stablesOracle,
+  ])
+
   console.log(`RibbonThetaVaultETHCall pricer @ ${pricer.address}`);
+
+  const pricerPUT = await deploy("OptionsPremiumPricerETHPut", {
+    from: deployer,
+    contract: {
+      abi: OptionsPremiumPricerInStables_ABI,
+      bytecode: OptionsPremiumPricerInStables_BYTECODE,
+    },
+    args: [
+      ETH_USDC_POOL[chainId],
+      manualVolOraclePUT.address,
+      underlyingOracle,
+      stablesOracle,
+    ],
+  });
+
+  console.log([
+    ETH_USDC_POOL[chainId],
+    manualVolOraclePUT.address,
+    underlyingOracle,
+    stablesOracle,
+  ])
+  console.log(`RibbonThetaVaultETHCall pricerPUT @ ${pricerPUT.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionETH", {
+  const strikeSelection = await deploy("StrikeSelectionETHCall", {
     contract: "DeltaStrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[chainId]],
   });
 
   console.log(
-    `RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`
+    `RibbonThetaVaultETHCall strikeSelectionCall @ ${strikeSelection.address}`
   );
 
   try {
@@ -103,61 +133,84 @@ const main = async ({
     console.log(error);
   }
 
-  const lifecycle = await deployments.get("VaultLifecycle");
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
-
-  const initArgs = [
-    {
-      _owner: owner,
-      _keeper: keeper,
-      _feeRecipient: feeRecipient,
-      _managementFee: MANAGEMENT_FEE,
-      _performanceFee: PERFORMANCE_FEE,
-      _tokenName: TOKEN_NAME[chainId],
-      _tokenSymbol: TOKEN_SYMBOL[chainId],
-      _optionsPremiumPricer: pricer.address,
-      _strikeSelection: strikeSelection.address,
-      _premiumDiscount: PREMIUM_DISCOUNT,
-      _auctionDuration: AUCTION_DURATION,
-      _isUsdcAuction: false,
-      _swapPath: 0x0,
-    },
-    {
-      isPut: false,
-      decimals: 18,
-      asset: WETH_ADDRESS[chainId],
-      underlying: WETH_ADDRESS[chainId],
-      minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseEther("1000"),
-    },
-  ];
-
-  const initData = RibbonThetaVault.interface.encodeFunctionData(
-    "initialize",
-    initArgs
-  );
-
-  const proxy = await deploy("RibbonThetaVaultETHCall", {
-    contract: "AdminUpgradeabilityProxy",
+  const strikeSelectionPUT = await deploy("StrikeSelectionETHPut", {
+    contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [logicDeployment.address, admin, initData],
+    args: [pricerPUT.address, STRIKE_DELTA, STRIKE_STEP[chainId]],
   });
 
-  console.log(`RibbonThetaVaultETHCall Proxy @ ${proxy.address}`);
+  console.log(
+    `RibbonThetaVaultETHCall strikeSelectionPut @ ${strikeSelection.address}`
+  );
 
   try {
     await run("verify:verify", {
-      address: proxy.address,
-      constructorArguments: [logicDeployment.address, admin, initData],
+      address: strikeSelectionPUT.address,
+      constructorArguments: [
+        pricer.address,
+        STRIKE_DELTA,
+        STRIKE_STEP[chainId],
+      ],
     });
   } catch (error) {
     console.log(error);
   }
+
+  // const lifecycle = await deployments.get("VaultLifecycle");
+  // const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  // const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
+  //   libraries: {
+  //     VaultLifecycle: lifecycle.address,
+  //   },
+  // });
+
+  // const initArgs = [
+  //   {
+  //     _owner: owner,
+  //     _keeper: keeper,
+  //     _feeRecipient: feeRecipient,
+  //     _managementFee: MANAGEMENT_FEE,
+  //     _performanceFee: PERFORMANCE_FEE,
+  //     _tokenName: TOKEN_NAME[chainId],
+  //     _tokenSymbol: TOKEN_SYMBOL[chainId],
+  //     _optionsPremiumPricer: pricer.address,
+  //     _strikeSelection: strikeSelection.address,
+  //     _premiumDiscount: PREMIUM_DISCOUNT,
+  //     _auctionDuration: AUCTION_DURATION,
+  //     _isUsdcAuction: false,
+  //     _swapPath: 0x0,
+  //   },
+  //   {
+  //     isPut: false,
+  //     decimals: 18,
+  //     asset: WETH_ADDRESS[chainId],
+  //     underlying: WETH_ADDRESS[chainId],
+  //     minimumSupply: BigNumber.from(10).pow(10),
+  //     cap: parseEther("1000"),
+  //   },
+  // ];
+
+  // const initData = RibbonThetaVault.interface.encodeFunctionData(
+  //   "initialize",
+  //   initArgs
+  // );
+
+  // const proxy = await deploy("RibbonThetaVaultETHCall", {
+  //   contract: "AdminUpgradeabilityProxy",
+  //   from: deployer,
+  //   args: [logicDeployment.address, admin, initData],
+  // });
+
+  // console.log(`RibbonThetaVaultETHCall Proxy @ ${proxy.address}`);
+
+  // try {
+  //   await run("verify:verify", {
+  //     address: proxy.address,
+  //     constructorArguments: [logicDeployment.address, admin, initData],
+  //   });
+  // } catch (error) {
+  //   console.log(error);
+  // }
 };
 main.tags = ["RibbonThetaVaultETHCall"];
 main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
