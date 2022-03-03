@@ -3,6 +3,7 @@ pragma solidity =0.8.4;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {VaultLib} from "../libraries/PowerTokenVaultLib.sol";
 
 interface IController {
     function ethQuoteCurrencyPool() external view returns (address);
@@ -17,7 +18,10 @@ interface IController {
 
     function quoteCurrency() external view returns (address);
 
-    // function vaults(uint256 _vaultId) external view returns (VaultLib.Vault memory);
+    function vaults(uint256 _vaultId)
+        external
+        view
+        returns (VaultLib.Vault memory);
 
     function shortPowerPerp() external view returns (address);
 

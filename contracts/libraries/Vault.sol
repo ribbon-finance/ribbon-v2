@@ -45,6 +45,15 @@ library Vault {
         uint32 nextOptionReadyAt;
     }
 
+    struct GammaState {
+        // Put option currently held by the vault
+        address putOption;
+        // Call option currently held by the vault
+        address callOption;
+        // The timestamp when the `nextOption` can be used by the vault
+        uint32 nextOptionReadyAt;
+    }
+
     struct VaultState {
         // 32 byte slot 1
         //  Current round number. `round` represents the number of `period`s elapsed.
