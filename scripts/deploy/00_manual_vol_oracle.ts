@@ -12,7 +12,7 @@ const main = async ({
 
   const { deployer, keeper } = await getNamedAccounts();
 
-  const oracle = await deploy("ManualVolOraclePut", {
+  const oracle = await deploy("ManualVolOracle", {
     from: deployer,
     contract: {
       abi: ManualVolOracle_ABI,
