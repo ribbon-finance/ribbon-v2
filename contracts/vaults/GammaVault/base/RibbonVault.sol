@@ -3,18 +3,10 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {
-    ReentrancyGuardUpgradeable
-} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {
-    OwnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {
-    ERC20Upgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
@@ -52,7 +44,7 @@ contract RibbonVault is
     Vault.VaultState public vaultState;
 
     /// @notice Vault's state of the options sold and the timelocked option
-    Vault.OptionState public optionState;
+    Vault.GammaState public gammaState;
 
     /// @notice Fee recipient for the performance and management fees
     address public feeRecipient;
@@ -95,29 +87,24 @@ contract RibbonVault is
     // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
 
-    // GAMMA_CONTROLLER is the top-level contract in Gamma protocol
-    // which allows users to perform multiple actions on their vaults
-    // and positions https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/Controller.sol
-    address public immutable GAMMA_CONTROLLER;
+    // SQUEETH_CONTROLLER is the controller contract for interacting with Squeeth
+    // https://github.com/opynfinance/squeeth-monorepo/blob/main/packages/hardhat/contracts/core/Controller.sol
+    address public immutable SQUEETH_CONTROLLER;
 
-    // MARGIN_POOL is Gamma protocol's collateral pool.
-    // Needed to approve collateral.safeTransferFrom for minting otokens.
-    // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/MarginPool.sol
-    address public immutable MARGIN_POOL;
+    // oSQTH token
+    // https://github.com/opynfinance/squeeth-monorepo/blob/main/packages/hardhat/contracts/core/WPowerPerp.sol
+    address public immutable SQUEETH;
 
-    // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids
-    // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
-    address public immutable GNOSIS_EASY_AUCTION;
-
-    // UNISWAP_ROUTER is the contract address of UniswapV3 Router which handles swaps
+    // UNISWAP_ROUTER is the contract address of Uniswap V3 Router which handles swaps
     // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
     address public immutable UNISWAP_ROUTER;
 
-    // UNISWAP_FACTORY is the contract address of UniswapV3 Factory which stores pool information
+    // UNISWAP_FACTORY is the contract address of Uniswap V3 Factory which stores pool information
     // https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
     address public immutable UNISWAP_FACTORY;
 
-    bytes public constant SWAP_PATH = "";
+    // WETH-oSQTH Uniswap V3 Pool
+    address public immutable UNISWAP_WETH_SQUEETH;
 
     /************************************************
      *  EVENTS
@@ -156,36 +143,35 @@ contract RibbonVault is
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _gammaController is the contract address for opyn actions
-     * @param _marginPool is the contract address for providing collateral to opyn
-     * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _squeethController is the contract address for squeeth actions
+     * @param _squeeth is the contract address for oSQTH
      * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
      * @param _uniswapFactory is the contract address for UniswapV3 factory
      */
     constructor(
         address _weth,
         address _usdc,
-        address _gammaController,
-        address _marginPool,
-        address _gnosisEasyAuction,
+        address _squeethController,
+        address _squeeth,
         address _uniswapRouter,
-        address _uniswapFactory
+        address _uniswapFactory,
+        address _wethSqueeth
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
-        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
-        require(_gammaController != address(0), "!_gammaController");
-        require(_marginPool != address(0), "!_marginPool");
+        require(_squeethController != address(0), "!_squeethController");
+        require(_squeeth != address(0), "!_squeeth");
         require(_uniswapRouter != address(0), "!_uniswapRouter");
         require(_uniswapFactory != address(0), "!_uniswapFactory");
+        require(_wethSqueeth != address(0), "!_wethSqueeth");
 
         WETH = _weth;
         USDC = _usdc;
-        GAMMA_CONTROLLER = _gammaController;
-        MARGIN_POOL = _marginPool;
-        GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
+        SQUEETH_CONTROLLER = _squeethController;
+        SQUEETH = _squeeth;
         UNISWAP_ROUTER = _uniswapRouter;
         UNISWAP_FACTORY = _uniswapFactory;
+        UNISWAP_WETH_SQUEETH = _wethSqueeth;
     }
 
     /**
@@ -226,8 +212,9 @@ contract RibbonVault is
         );
         vaultParams = _vaultParams;
 
-        uint256 assetBalance =
-            IERC20(vaultParams.asset).balanceOf(address(this));
+        uint256 assetBalance = IERC20(vaultParams.asset).balanceOf(
+            address(this)
+        );
         ShareMath.assertUint104(assetBalance);
         vaultState.lastLockedAmount = uint104(assetBalance);
 
@@ -276,8 +263,9 @@ contract RibbonVault is
         );
 
         // We are dividing annualized management fee by num weeks in a year
-        uint256 tmpManagementFee =
-            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
+        uint256 tmpManagementFee = newManagementFee
+            .mul(Vault.FEE_MULTIPLIER)
+            .div(WEEKS_PER_YEAR);
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
@@ -386,12 +374,11 @@ contract RibbonVault is
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
         // If we have an unprocessed pending deposit from the previous rounds, we have to process it.
-        uint256 unredeemedShares =
-            depositReceipt.getSharesFromReceipt(
-                currentRound,
-                roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals
-            );
+        uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
+            currentRound,
+            roundPricePerShare[depositReceipt.round],
+            vaultParams.decimals
+        );
 
         uint256 depositAmount = amount;
 
@@ -453,8 +440,9 @@ contract RibbonVault is
         ShareMath.assertUint128(withdrawalShares);
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
-        uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(numShares);
+        uint256 newQueuedWithdrawShares = uint256(
+            vaultState.queuedWithdrawShares
+        ).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
@@ -482,12 +470,11 @@ contract RibbonVault is
             uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
         );
 
-        uint256 withdrawAmount =
-            ShareMath.sharesToAsset(
-                withdrawalShares,
-                roundPricePerShare[withdrawalRound],
-                vaultParams.decimals
-            );
+        uint256 withdrawAmount = ShareMath.sharesToAsset(
+            withdrawalShares,
+            roundPricePerShare[withdrawalRound],
+            vaultParams.decimals
+        );
 
         emit Withdraw(msg.sender, withdrawAmount, withdrawalShares);
 
@@ -521,19 +508,19 @@ contract RibbonVault is
      * @param isMax is flag for when callers do a max redemption
      */
     function _redeem(uint256 numShares, bool isMax) internal {
-        Vault.DepositReceipt memory depositReceipt =
-            depositReceipts[msg.sender];
+        Vault.DepositReceipt memory depositReceipt = depositReceipts[
+            msg.sender
+        ];
 
         // This handles the null case when depositReceipt.round = 0
         // Because we start with round = 1 at `initialize`
         uint256 currentRound = vaultState.round;
 
-        uint256 unredeemedShares =
-            depositReceipt.getSharesFromReceipt(
-                currentRound,
-                roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals
-            );
+        uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
+            currentRound,
+            roundPricePerShare[depositReceipt.round],
+            vaultParams.decimals
+        );
 
         numShares = isMax ? unredeemedShares : numShares;
         if (numShares == 0) {
@@ -595,61 +582,53 @@ contract RibbonVault is
             uint256 queuedWithdrawAmount
         )
     {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
-
-        newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
-
-        address recipient = feeRecipient;
-        uint256 mintShares;
-        uint256 performanceFeeInAsset;
-        uint256 totalVaultFee;
-        {
-            uint256 newPricePerShare;
-            (
-                lockedBalance,
-                queuedWithdrawAmount,
-                newPricePerShare,
-                mintShares,
-                performanceFeeInAsset,
-                totalVaultFee
-            ) = VaultLifecycle.rollover(
-                vaultState,
-                VaultLifecycle.RolloverParams(
-                    vaultParams.decimals,
-                    IERC20(vaultParams.asset).balanceOf(address(this)),
-                    totalSupply(),
-                    lastQueuedWithdrawAmount,
-                    performanceFee,
-                    managementFee
-                )
-            );
-
-            optionState.currentOption = newOption;
-            optionState.nextOption = address(0);
-
-            // Finalize the pricePerShare at the end of the round
-            uint256 currentRound = vaultState.round;
-            roundPricePerShare[currentRound] = newPricePerShare;
-
-            emit CollectVaultFees(
-                performanceFeeInAsset,
-                totalVaultFee,
-                currentRound,
-                recipient
-            );
-
-            vaultState.totalPending = 0;
-            vaultState.round = uint16(currentRound + 1);
-        }
-
-        _mint(address(this), mintShares);
-
-        if (totalVaultFee > 0) {
-            transferAsset(payable(recipient), totalVaultFee);
-        }
-
-        return (newOption, lockedBalance, queuedWithdrawAmount);
+        // TODO: Replace with GammaState
+        // require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
+        // newOption = optionState.nextOption;
+        // require(newOption != address(0), "!nextOption");
+        // address recipient = feeRecipient;
+        // uint256 mintShares;
+        // uint256 performanceFeeInAsset;
+        // uint256 totalVaultFee;
+        // {
+        //     uint256 newPricePerShare;
+        //     (
+        //         lockedBalance,
+        //         queuedWithdrawAmount,
+        //         newPricePerShare,
+        //         mintShares,
+        //         performanceFeeInAsset,
+        //         totalVaultFee
+        //     ) = VaultLifecycle.rollover(
+        //         vaultState,
+        //         VaultLifecycle.RolloverParams(
+        //             vaultParams.decimals,
+        //             IERC20(vaultParams.asset).balanceOf(address(this)),
+        //             totalSupply(),
+        //             lastQueuedWithdrawAmount,
+        //             performanceFee,
+        //             managementFee
+        //         )
+        //     );
+        //     optionState.currentOption = newOption;
+        //     optionState.nextOption = address(0);
+        //     // Finalize the pricePerShare at the end of the round
+        //     uint256 currentRound = vaultState.round;
+        //     roundPricePerShare[currentRound] = newPricePerShare;
+        //     emit CollectVaultFees(
+        //         performanceFeeInAsset,
+        //         totalVaultFee,
+        //         currentRound,
+        //         recipient
+        //     );
+        //     vaultState.totalPending = 0;
+        //     vaultState.round = uint16(currentRound + 1);
+        // }
+        // _mint(address(this), mintShares);
+        // if (totalVaultFee > 0) {
+        //     transferAsset(payable(recipient), totalVaultFee);
+        // }
+        // return (newOption, lockedBalance, queuedWithdrawAmount);
     }
 
     /**
@@ -683,13 +662,12 @@ contract RibbonVault is
         returns (uint256)
     {
         uint256 _decimals = vaultParams.decimals;
-        uint256 assetPerShare =
-            ShareMath.pricePerShare(
-                totalSupply(),
-                totalBalance(),
-                vaultState.totalPending,
-                _decimals
-            );
+        uint256 assetPerShare = ShareMath.pricePerShare(
+            totalSupply(),
+            totalBalance(),
+            vaultState.totalPending,
+            _decimals
+        );
         return
             ShareMath.sharesToAsset(shares(account), assetPerShare, _decimals);
     }
@@ -721,12 +699,11 @@ contract RibbonVault is
             return (balanceOf(account), 0);
         }
 
-        uint256 unredeemedShares =
-            depositReceipt.getSharesFromReceipt(
-                vaultState.round,
-                roundPricePerShare[depositReceipt.round],
-                vaultParams.decimals
-            );
+        uint256 unredeemedShares = depositReceipt.getSharesFromReceipt(
+            vaultState.round,
+            roundPricePerShare[depositReceipt.round],
+            vaultParams.decimals
+        );
 
         return (balanceOf(account), unredeemedShares);
     }
@@ -766,17 +743,18 @@ contract RibbonVault is
         return vaultParams.cap;
     }
 
-    function nextOptionReadyAt() external view returns (uint256) {
-        return optionState.nextOptionReadyAt;
-    }
+    // TODO: Replace with GammaState
+    // function nextOptionReadyAt() external view returns (uint256) {
+    //     return optionState.nextOptionReadyAt;
+    // }
 
-    function currentOption() external view returns (address) {
-        return optionState.currentOption;
-    }
+    // function currentOption() external view returns (address) {
+    //     return optionState.currentOption;
+    // }
 
-    function nextOption() external view returns (address) {
-        return optionState.nextOption;
-    }
+    // function nextOption() external view returns (address) {
+    //     return optionState.nextOption;
+    // }
 
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
