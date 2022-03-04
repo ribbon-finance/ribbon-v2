@@ -9,8 +9,8 @@ import {DSMath} from "../vendor/DSMath.sol";
 contract SAvaxOracle is IPriceOracle {
     using SafeMath for uint256;
 
-    AggregatorV3Interface public WAVAXOracle;
-    ISAVAX public sAVAX;
+    AggregatorV3Interface public immutable WAVAXOracle;
+    ISAVAX public immutable sAVAX;
 
     constructor(address _sAVAX, address _WAVAXOracle) {
         require(_sAVAX != address(0), "!sAVAX");
