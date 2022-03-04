@@ -205,4 +205,49 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
     }
+
+    function closeShort(uint256 usdcMinAmountOut, uint256 sqthMinAmountOut)
+        external
+        nonReentrant
+    {
+        // TODO: Update vault state post-rollover
+        VaultLifecycle.swap(
+            USDC,
+            usdcMinAmountOut,
+            UNISWAP_ROUTER,
+            usdcSwapPath
+        );
+        uint256 _vaultId = vaultId;
+        IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
+        uint256 targetSQTHAmount = VaultLifecycleGamma.getTargetSqueethAmount(
+            SQUEETH_CONTROLLER,
+            _vaultId,
+            address(this).balance
+        );
+        IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
+            value: address(this).balance
+        }(_vaultId, targetSQTHAmount, 0);
+        VaultLifecycle.swap(
+            SQUEETH,
+            sqthMinAmountOut,
+            UNISWAP_ROUTER,
+            sqthSwapPath
+        );
+        IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
+        IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
+            value: address(this).balance
+        }(_vaultId, 0, 0);
+        // TODO: Calculate shares to mint based on deposits
+
+        (
+            ,
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount
+        ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
+
+        ShareMath.assertUint104(lockedBalance);
+        vaultState.lockedAmount = uint104(lockedBalance);
+    }
 }
