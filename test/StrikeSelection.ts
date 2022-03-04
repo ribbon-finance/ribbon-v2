@@ -4,6 +4,7 @@ import { Contract } from "ethers";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
+import { parseUnits } from "ethers/lib/utils";
 
 const { getContractFactory } = ethers;
 
@@ -42,7 +43,7 @@ describe("DeltaStrikeSelection", () => {
     );
     await mockOptionsPremiumPricer.setPool(mockPriceOracle.address);
     await mockPriceOracle.setDecimals(8);
-    await mockVolatilityOracle.setAnnualizedVol(1);
+    await mockVolatilityOracle.setAnnualizedVol(parseUnits("1", 8));
 
     await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
       BigNumber.from(2500).mul(
@@ -201,6 +202,101 @@ describe("DeltaStrikeSelection", () => {
         BigNumber.from(10000).sub(delta).toString(),
         targetDelta.toString()
       );
+    });
+  });
+
+  describe("getStrikePriceWithVol", () => {
+    time.revertToSnapshotAfterEach();
+
+    let underlyingPrice: BigNumber;
+    let deltaAtUnderlying = BigNumber.from(5000);
+
+    beforeEach(async () => {
+      underlyingPrice = await mockOptionsPremiumPricer.getUnderlyingPrice();
+
+      let delta = 10000;
+      for (let i = -1000; i < 1100; i += 100) {
+        await mockOptionsPremiumPricer.setOptionDelta(
+          underlyingPrice.add(
+            BigNumber.from(i).mul(
+              BigNumber.from(10).pow(await mockPriceOracle.decimals())
+            )
+          ),
+          delta
+        );
+        delta -= 500;
+      }
+    });
+
+    it("gets the correct strike price given delta for calls", async function () {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = false;
+      const targetDelta = await strikeSelection.delta();
+      const vol = parseUnits("1.05", 8);
+      const [strikePrice, delta] = await strikeSelection.getStrikePriceWithVol(
+        expiryTimestamp,
+        isPut,
+        vol
+      );
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .add(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(500)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
+          )
+          .toString()
+      );
+      assert.equal(delta.toString(), targetDelta.toString());
+    });
+
+    it("gets the correct strike price given delta for puts", async function () {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = true;
+      const targetDelta = await strikeSelection.delta();
+      const vol = parseUnits("1", 8);
+      const [strikePrice, delta] = await strikeSelection.getStrikePriceWithVol(
+        expiryTimestamp,
+        isPut,
+        vol
+      );
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .sub(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(500)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(await mockPriceOracle.decimals()))
+          )
+          .toString()
+      );
+      assert.equal(
+        BigNumber.from(10000).sub(delta).toString(),
+        targetDelta.toString()
+      );
+    });
+
+    it("returns equivalent strike and delta with equivalent vol", async () => {
+      const expiryTimestamp = (await time.now()).add(100);
+      const isPut = true;
+      const vol = parseUnits("1", 8);
+      const [strikePrice1, delta1] =
+        await strikeSelection.getStrikePriceWithVol(
+          expiryTimestamp,
+          isPut,
+          vol
+        );
+      const [strikePrice2, delta2] = await strikeSelection.getStrikePrice(
+        expiryTimestamp,
+        isPut
+      );
+      assert.equal(strikePrice1.toString(), strikePrice2.toString());
+      assert.equal(delta1.toString(), delta2.toString());
     });
   });
 });

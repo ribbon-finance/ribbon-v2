@@ -36,7 +36,7 @@
     "underscore": "^1.9.0"
   },
   "scripts": {
-    "test": "yarn test:eth && yarn test:avax && yarn test:aurora && yarn test:oracles",
+    "test": "yarn test:eth && yarn test:avax && yarn test:aurora && yarn test:oracles && yarn test:utils",
     "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
     "test:avax": "CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
     "test:aurora": "CHAINID=1313161554 npx hardhat test test/RibbonThetaVault.ts",
@@ -44,6 +44,7 @@
     "test:oracles": "npx hardhat test test/oracles/*.ts",
     "test:upgrade": "npx hardhat test test/upgrades/*.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
+    "test:utils": "npx hardhat test test/utils/*.ts",
     "compile": "CHAINID=1 npx hardhat compile",
     "deploy": "npx hardhat deploy",
     "etherscan-verify": "npx hardhat etherscan-verify",

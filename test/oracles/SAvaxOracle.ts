@@ -8,7 +8,7 @@ import {
   ETH_PRICE_ORACLE,
 } from "../../constants/constants";
 
-describe("SAvaxOracle", () => {
+describe("SVAXOracle", () => {
   let wAvaxOracle: Contract;
   let sAvaxOracle: Contract;
 
@@ -38,7 +38,7 @@ describe("SAvaxOracle", () => {
 
   it("gets staked avax price", async () => {
     const sAvaxPrice = await sAvaxOracle.latestAnswer();
-    assert.equal(sAvaxPrice.toString(), "9285547809");
+    assert.equal(sAvaxPrice.toString(), "8147274116");
   });
 
   it("checks staked avax trades at a premium above wrapped avax", async () => {
