@@ -337,11 +337,6 @@ function behavesLikeRibbonOptionsVault(params: {
   managementFee: BigNumber;
   performanceFee: BigNumber;
   isPut: boolean;
-  isUsdcAuction: boolean;
-  swapPath?: {
-    tokens: string[];
-    fees: number[];
-  };
   gasLimits: {
     depositWorstCase: number;
     depositBestCase: number;
@@ -384,10 +379,6 @@ function behavesLikeRibbonOptionsVault(params: {
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
-  let isUsdcAuction = params.isUsdcAuction;
-  let swapPath = isUsdcAuction
-    ? encodePath(params.swapPath.tokens, params.swapPath.fees)
-    : "0x";
 
   // Contracts
   let strikeSelection: Contract;
@@ -1180,127 +1171,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setSwapPath", () => {
-      time.revertToSnapshotAfterTest();
-
-      if (isUsdcAuction) {
-        it("reverts when path is too short", async function () {
-          await expect(
-            vault.connect(ownerSigner).setSwapPath("0x")
-          ).to.be.revertedWith("Path too short");
-        });
-
-        it("reverts when path is too long", async function () {
-          await expect(
-            vault
-              .connect(ownerSigner)
-              .setSwapPath(
-                encodePath(
-                  [
-                    USDC_ADDRESS[chainId],
-                    WETH_ADDRESS[chainId],
-                    USDC_ADDRESS[chainId],
-                    WETH_ADDRESS[chainId],
-                    asset,
-                  ],
-                  [10000, 10000, 10000, 10000]
-                )
-              )
-          ).to.be.revertedWith("Path too long");
-        });
-
-        it("reverts when pool does not exist", async function () {
-          let ref: string;
-
-          dexFactory = await getContractAt(
-            "IUniswapV3Factory", // Supports Uniswap V3 only
-            DEX_FACTORY[chainId]
-          );
-
-          let pool = await dexFactory.getPool(asset, asset, 10000);
-          if (pool === constants.AddressZero) {
-            ref = "Pool does not exist";
-          }
-          await expect(
-            vault
-              .connect(ownerSigner)
-              .setSwapPath(encodePath([asset, asset], [10000]))
-          ).to.be.revertedWith(ref);
-        });
-
-        it("reverts when tokenIn is not USDC", async function () {
-          await expect(
-            vault
-              .connect(ownerSigner)
-              .setSwapPath(encodePath([WETH_ADDRESS[chainId], asset], [10000]))
-          ).to.be.revertedWith("Invalid swapPath");
-        });
-
-        it("reverts when tokenOut is not underlying", async function () {
-          await expect(
-            vault
-              .connect(ownerSigner)
-              .setSwapPath(
-                encodePath(
-                  [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId]],
-                  [10000]
-                )
-              )
-          ).to.be.revertedWith("Invalid swapPath");
-        });
-
-        it("reverts when not owner call", async function () {
-          await expect(
-            vault.setSwapPath(
-              encodePath([USDC_ADDRESS[chainId], asset], [10000])
-            )
-          ).to.be.revertedWith("caller is not the owner");
-        });
-
-        it("changes the swap path", async function () {
-          await vault
-            .connect(ownerSigner)
-            .setSwapPath(
-              encodePath(
-                [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset],
-                [10000, 10000]
-              )
-            );
-          assert.equal(
-            (await vault.swapPath()).toString(),
-            encodePath(
-              [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset],
-              [10000, 10000]
-            )
-          );
-        });
-
-        it("fits gas budget [ @skip-on-coverage ]", async function () {
-          // To check if making checkPath public would heavily increase gas
-          let tx = await vault
-            .connect(ownerSigner)
-            .setSwapPath(
-              encodePath(
-                [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId], asset],
-                [10000, 10000]
-              )
-            );
-
-          const receipt = await tx.wait();
-          // ~58692 if checkPath is made into internal function
-          assert.isAtMost(receipt.gasUsed.toNumber(), 65000);
-        });
-      } else {
-        it("reverts when isUsdcAuction is false", async function () {
-          await expect(
-            vault
-              .connect(ownerSigner)
-              .setSwapPath(encodePath([USDC_ADDRESS[chainId], asset], [10000]))
-          ).to.be.revertedWith("!isUsdcAuction");
-        });
-      }
-    });
-
     // Only apply to when assets is WETH
     if (params.collateralAsset === WETH_ADDRESS[chainId]) {
       describe("#depositETH", () => {
@@ -1829,15 +1699,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increase(auctionDuration);
 
-        // auction settled without any bids
-        // so we return 100% of the tokens
-        if (isUsdcAuction) {
-          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
-        } else {
-          await gnosisAuction
-            .connect(userSigner)
-            .settleAuction(await vault.optionAuctionID());
-        }
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await vault.optionAuctionID());
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1913,14 +1777,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increase(auctionDuration);
 
-        // we initiate a complete burn of the otokens
-        if (isUsdcAuction) {
-          await vault.connect(keeperSigner).settleAuctionAndSwap(1);
-        } else {
-          await gnosisAuction
-            .connect(userSigner)
-            .settleAuction(await vault.optionAuctionID());
-        }
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await vault.optionAuctionID());
 
         assert.bnLte(
           await otoken.balanceOf(vault.address),
@@ -1992,17 +1851,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let assetBalanceBeforeSettle;
         let minAmountOut: BigNumber;
-
-        if (isUsdcAuction) {
-          // Calculate the minimum out from the DEX swap
-          let idealOut = wdiv(
-            BigNumber.from(auctionDetails[2]).mul(10 ** (18 - 6)), // USDC adjusted to 18 decimals
-            (await oracle.getPrice(asset)).mul(10 ** (18 - 8)) // Oracle adjusted to 18 decimals
-          );
-
-          let slippage = 10000; //10% slippage
-          minAmountOut = idealOut.mul(100000 - slippage).div(100000);
-        }
 
         assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 
