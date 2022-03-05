@@ -906,6 +906,8 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#setPremiumDiscount", () => {
+      time.revertToSnapshotAfterTest();
+
       it("reverts when not keeper calling", async () => {
         await expect(vault.setPremiumDiscount(100)).to.be.revertedWith(
           "!keeper"
