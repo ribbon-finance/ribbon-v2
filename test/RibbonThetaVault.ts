@@ -1048,6 +1048,34 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#setPremiumDiscount", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts when not keeper calling", async () => {
+        await expect(vault.setPremiumDiscount(100)).to.be.revertedWith(
+          "!keeper"
+        );
+      });
+
+      it("sets the premium discount", async () => {
+        await vault.connect(keeperSigner).setPremiumDiscount(800);
+        assert.equal((await vault.premiumDiscount()).toString(), 800);
+      });
+
+      it("cannot set the premium discount more than 100%", async () => {
+        await vault.connect(keeperSigner).setPremiumDiscount(1000);
+        await expect(
+          vault.connect(keeperSigner).setPremiumDiscount(1001)
+        ).to.be.revertedWith("Invalid discount");
+      });
+
+      it("cannot set the premium discount to 0", async () => {
+        await expect(
+          vault.connect(keeperSigner).setPremiumDiscount(0)
+        ).to.be.revertedWith("Invalid discount");
+      });
+    });
+
     describe("#auctionDuration", () => {
       it("returns the auction duration", async function () {
         assert.equal(
