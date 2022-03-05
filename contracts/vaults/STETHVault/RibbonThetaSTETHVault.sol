@@ -183,14 +183,18 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Sets the new discount on premiums for options we are selling
      * @param newPremiumDiscount is the premium discount
      */
-    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
+    function setPremiumDiscount(uint256 newPremiumDiscount)
+        external
+        onlyKeeper
+    {
         require(
             newPremiumDiscount > 0 &&
-                newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+                newPremiumDiscount <= 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "Invalid discount"
         );
 
         emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
+
         premiumDiscount = newPremiumDiscount;
     }
 
