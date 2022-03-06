@@ -37,7 +37,6 @@ const main = async ({
     return;
   }
 
-
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const underlyingOracle = PERP_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];

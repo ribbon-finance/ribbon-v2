@@ -7,16 +7,21 @@ import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import * as time from "./helpers/time";
 import { mintToken } from "./helpers/utils";
-import { BLOCK_NUMBER, USDC_ADDRESS, USDC_OWNER_ADDRESS, WETH_ADDRESS } from "../constants/constants";
+import {
+  BLOCK_NUMBER,
+  USDC_ADDRESS,
+  USDC_OWNER_ADDRESS,
+  WETH_ADDRESS,
+} from "../constants/constants";
 const { getContractAt, getContractFactory } = ethers;
 const chainId = network.config.chainId;
 
 describe("Swap", () => {
   let initSnapshotId: string;
   let userSigner: SignerWithAddress,
-      ownerSigner: SignerWithAddress,
-      keeperSigner: SignerWithAddress,
-      feeRecipientSigner: SignerWithAddress;
+    ownerSigner: SignerWithAddress,
+    keeperSigner: SignerWithAddress,
+    feeRecipientSigner: SignerWithAddress;
 
   let owner: string, keeper: string, user: string, feeRecipient: string;
   let swap: Contract;
@@ -35,17 +40,17 @@ describe("Swap", () => {
       { name: "signerWallet", type: "address" },
       { name: "sellAmount", type: "uint256" },
       { name: "buyAmount", type: "uint256" },
-      { name: "referrer", type: "address" }
-    ]
+      { name: "referrer", type: "address" },
+    ],
   };
 
-  const getSignature = async (domain: Object, order: Object, signer: SignerWithAddress) => {
+  const getSignature = async (
+    domain: Object,
+    order: Object,
+    signer: SignerWithAddress
+  ) => {
     /* eslint no-underscore-dangle: 0 */
-    const signedMsg = await signer._signTypedData(
-      domain,
-      types,
-      order
-    );
+    const signedMsg = await signer._signTypedData(domain, types, order);
 
     const signature = signedMsg.substring(2);
     const v = parseInt(signature.substring(128, 130), 16);
@@ -55,7 +60,7 @@ describe("Swap", () => {
     return {
       v,
       r,
-      s
+      s,
     };
   };
 
@@ -85,10 +90,7 @@ describe("Swap", () => {
     feeRecipient = feeRecipientSigner.address;
 
     // DEPLOY SWAP CONTRACT
-    const Swap = await getContractFactory(
-      "Swap",
-      ownerSigner
-    );
+    const Swap = await getContractFactory("Swap", ownerSigner);
 
     swap = await Swap.connect(ownerSigner).deploy();
 
@@ -113,7 +115,8 @@ describe("Swap", () => {
       parseUnits("10000000", 6) // amount
     );
 
-    await usdcContract.connect(userSigner)
+    await usdcContract
+      .connect(userSigner)
       .approve(swap.address, parseUnits("10000000", 6));
 
     await mintToken(
@@ -124,9 +127,9 @@ describe("Swap", () => {
       parseUnits("10000000", 6) // amount
     );
 
-    await usdcContract.connect(ownerSigner)
+    await usdcContract
+      .connect(ownerSigner)
       .approve(swap.address, parseUnits("10000000", 6));
-
 
     // MINT WETH FOR KEEPER AND GIVE ALLOWANCE TO SWAP CONTRACT
     wethAddress = WETH_ADDRESS[chainId];
@@ -139,7 +142,6 @@ describe("Swap", () => {
     await wethContract
       .connect(keeperSigner)
       .approve(swap.address, parseEther("100"));
-
   });
 
   after(async () => {
@@ -150,9 +152,9 @@ describe("Swap", () => {
     time.revertToSnapshotAfterTest();
 
     it("reverts when not owner call", async function () {
-      await expect(swap.connect(keeperSigner).setFee(keeper, "10")).to.be.revertedWith(
-        "caller is not the owner"
-      );
+      await expect(
+        swap.connect(keeperSigner).setFee(keeper, "10")
+      ).to.be.revertedWith("caller is not the owner");
     });
 
     it("reverts when fee more than 100%", async function () {
@@ -172,95 +174,125 @@ describe("Swap", () => {
     time.revertToSnapshotAfterTest();
 
     it("reverts when offeredToken is zero address", async function () {
-      await expect(swap.connect(keeperSigner).createOffer(
-        constants.AddressZero,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseEther("1"),
-
-      )).to.be.revertedWith("oToken cannot be the zero address");
+      await expect(
+        swap
+          .connect(keeperSigner)
+          .createOffer(
+            constants.AddressZero,
+            usdcAddress,
+            parseUnits("3", 6),
+            parseUnits("0.01", 8),
+            parseEther("1")
+          )
+      ).to.be.revertedWith("oToken cannot be the zero address");
     });
 
     it("reverts when biddingToken is zero address", async function () {
-      await expect(swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        constants.AddressZero,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseEther("1"),
-      )).to.be.revertedWith("BiddingToken cannot be the zero address");
+      await expect(
+        swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            constants.AddressZero,
+            parseUnits("3", 6),
+            parseUnits("0.01", 8),
+            parseEther("1")
+          )
+      ).to.be.revertedWith("BiddingToken cannot be the zero address");
     });
 
     it("reverts when min price is zero", async function () {
-      await expect(swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        0,
-        parseUnits("0.01", 8),
-        parseEther("1"),
-      )).to.be.revertedWith("MinPrice must be larger than zero");
+      await expect(
+        swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            usdcAddress,
+            0,
+            parseUnits("0.01", 8),
+            parseEther("1")
+          )
+      ).to.be.revertedWith("MinPrice must be larger than zero");
     });
 
     it("reverts when min bid size is zero", async function () {
-      await expect(swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        0,
-        parseUnits("1", 6)
-      )).to.be.revertedWith("MinBidSize must be larger than zero");
+      await expect(
+        swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            usdcAddress,
+            parseUnits("3", 6),
+            0,
+            parseUnits("1", 6)
+          )
+      ).to.be.revertedWith("MinBidSize must be larger than zero");
     });
 
     it("reverts when total size is zero", async function () {
-      await expect(swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        0
-      )).to.be.revertedWith("MinBidSize exceeds total size");
+      await expect(
+        swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            usdcAddress,
+            parseUnits("3", 6),
+            parseUnits("0.01", 8),
+            0
+          )
+      ).to.be.revertedWith("MinBidSize exceeds total size");
     });
 
     it("reverts when min bid size is larger than total size", async function () {
-      await expect(swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("1.01", 8),
-        parseUnits("1", 8)
-      )).to.be.revertedWith("MinBidSize exceeds total size");
+      await expect(
+        swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            usdcAddress,
+            parseUnits("3", 6),
+            parseUnits("1.01", 8),
+            parseUnits("1", 8)
+          )
+      ).to.be.revertedWith("MinBidSize exceeds total size");
     });
 
     it("create offering with the correct parameters", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
-      await expect(await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseEther("1"),
-      )).to.emit(swap, "NewOffer")
-      .withArgs(
-        swapId,
-        keeper,
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseEther("1"),
-      );
+      await expect(
+        await swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            usdcAddress,
+            parseUnits("3", 6),
+            parseUnits("0.01", 8),
+            parseEther("1")
+          )
+      )
+        .to.emit(swap, "NewOffer")
+        .withArgs(
+          swapId,
+          keeper,
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseEther("1")
+        );
     });
 
     it("fits gas budget [ @skip-on-coverage ]", async function () {
-      const tx = await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseEther("1"),
-      );
+      const tx = await swap
+        .connect(keeperSigner)
+        .createOffer(
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseEther("1")
+        );
 
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
@@ -277,13 +309,9 @@ describe("Swap", () => {
     time.revertToSnapshotAfterEach(async function () {
       swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        minPrice,
-        minBidSize,
-        totalSize
-      );
+      await swap
+        .connect(keeperSigner)
+        .createOffer(wethAddress, usdcAddress, minPrice, minBidSize, totalSize);
     });
 
     it("reverts when Only seller can settle or offer doesn't exist", async function () {
@@ -293,13 +321,13 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -314,11 +342,12 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.settleOffer(2, bids))
-        .to.be.revertedWith("Only seller can settle or offer doesn't exist");
+      await expect(swap.settleOffer(2, bids)).to.be.revertedWith(
+        "Only seller can settle or offer doesn't exist"
+      );
     });
 
     it("reverts when not seller call", async function () {
@@ -328,13 +357,13 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -349,12 +378,12 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("Only seller can settle");
+      await expect(swap.settleOffer(swapId, bids)).to.be.revertedWith(
+        "Only seller can settle"
+      );
     });
 
     it("reverts when offer is already closed", async function () {
@@ -364,13 +393,13 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -385,14 +414,14 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
       await swap.connect(keeperSigner).closeOffer(swapId);
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("Only seller can settle or offer doesn't exist");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("Only seller can settle or offer doesn't exist");
     });
 
     it("reverts when bid signature is invalid", async function () {
@@ -411,13 +440,13 @@ describe("Swap", () => {
           referrer,
           "0",
           constants.HashZero,
-          constants.HashZero
-        ]
+          constants.HashZero,
+        ],
       ];
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("SIGNATURE_INVALID");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("SIGNATURE_INVALID");
     });
 
     it("reverts when bid signature is mismatched", async function () {
@@ -427,13 +456,13 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -448,12 +477,12 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("SIGNATURE_MISMATCHED");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("SIGNATURE_MISMATCHED");
     });
 
     it("reverts when nonce already used", async function () {
@@ -463,13 +492,13 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
       const bids = [
@@ -494,12 +523,12 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("NONCE_ALREADY_USED");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("NONCE_ALREADY_USED");
     });
 
     it("reverts when available size is zero", async function () {
@@ -517,30 +546,28 @@ describe("Swap", () => {
           signerWallet: userSigner.address,
           sellAmount,
           buyAmount,
-          referrer
+          referrer,
         };
 
         const signature = await getSignature(domain, order, userSigner);
 
-        bids.push(
-          [
-            swapId,
-            nonce,
-            userSigner.address,
-            sellAmount,
-            buyAmount,
-            referrer,
-            signature.v,
-            signature.r,
-            signature.s,
-          ],
-        );
+        bids.push([
+          swapId,
+          nonce,
+          userSigner.address,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ]);
 
         nonce += 1;
       }
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("BID_EXCEED_AVAILABLE_SIZE");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("BID_EXCEED_AVAILABLE_SIZE");
     });
 
     it("reverts when bid size is below minimum", async function () {
@@ -550,13 +577,13 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -571,28 +598,30 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("BID_TOO_SMALL");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("BID_TOO_SMALL");
     });
 
     it("reverts when price is below minimum", async function () {
       const nonce = 1;
-      const sellAmount = totalSize.mul(minPrice.sub(10)).div(parseUnits("1", 8));
+      const sellAmount = totalSize
+        .mul(minPrice.sub(10))
+        .div(parseUnits("1", 8));
       const buyAmount = totalSize;
       const referrer = constants.AddressZero;
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -607,12 +636,12 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.be.revertedWith("PRICE_TOO_LOW");
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("PRICE_TOO_LOW");
     });
 
     it("swaps the correct amount", async function () {
@@ -627,13 +656,13 @@ describe("Swap", () => {
       const keeperStartWethBalance = await wethContract.balanceOf(keeper);
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -648,21 +677,12 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.emit(swap, "Swap")
-      .withArgs(
-        swapId,
-        nonce,
-        user,
-        sellAmount,
-        buyAmount,
-        referrer,
-        0
-      );
+      await expect(swap.connect(keeperSigner).settleOffer(swapId, bids))
+        .to.emit(swap, "Swap")
+        .withArgs(swapId, nonce, user, sellAmount, buyAmount, referrer, 0);
 
       const userEndUsdcBalance = await usdcContract.balanceOf(user);
       const userEndWethBalance = await wethContract.balanceOf(user);
@@ -674,20 +694,14 @@ describe("Swap", () => {
         keeperStartWethBalance.sub(keeperEndWethBalance)
       );
 
-      assert.bnEqual(
-        buyAmount,
-        userEndWethBalance.sub(userStartWethBalance)
-      );
+      assert.bnEqual(buyAmount, userEndWethBalance.sub(userStartWethBalance));
 
       assert.bnEqual(
         sellAmount,
         keeperEndUsdcBalance.sub(keeperStartUsdcBalance)
       );
 
-      assert.bnEqual(
-        sellAmount,
-        userStartUsdcBalance.sub(userEndUsdcBalance)
-      );
+      assert.bnEqual(sellAmount, userStartUsdcBalance.sub(userEndUsdcBalance));
     });
 
     it("gives the correct amount to the referrer", async function () {
@@ -706,13 +720,13 @@ describe("Swap", () => {
       const referrerStartUsdcBalance = await usdcContract.balanceOf(referrer);
 
       const order = {
-          swapId,
-          nonce,
-          signerWallet: user,
-          sellAmount,
-          buyAmount,
-          referrer
-        };
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
       const signature = await getSignature(domain, order, userSigner);
 
@@ -727,23 +741,22 @@ describe("Swap", () => {
           signature.v,
           signature.r,
           signature.s,
-        ]
+        ],
       ];
 
       const feeAmount = sellAmount.mul(fee).div(10000);
 
-      await expect(swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      )).to.emit(swap, "Swap")
-      .withArgs(
-        swapId,
-        nonce,
-        user,
-        sellAmount,
-        buyAmount,
-        referrer,
-        feeAmount
-      );
+      await expect(swap.connect(keeperSigner).settleOffer(swapId, bids))
+        .to.emit(swap, "Swap")
+        .withArgs(
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          feeAmount
+        );
 
       const userEndUsdcBalance = await usdcContract.balanceOf(user);
       const userEndWethBalance = await wethContract.balanceOf(user);
@@ -756,20 +769,14 @@ describe("Swap", () => {
         keeperStartWethBalance.sub(keeperEndWethBalance)
       );
 
-      assert.bnEqual(
-        buyAmount,
-        userEndWethBalance.sub(userStartWethBalance)
-      );
+      assert.bnEqual(buyAmount, userEndWethBalance.sub(userStartWethBalance));
 
       assert.bnEqual(
         sellAmount.sub(feeAmount),
         keeperEndUsdcBalance.sub(keeperStartUsdcBalance)
       );
 
-      assert.bnEqual(
-        sellAmount,
-        userStartUsdcBalance.sub(userEndUsdcBalance)
-      );
+      assert.bnEqual(sellAmount, userStartUsdcBalance.sub(userEndUsdcBalance));
 
       assert.bnEqual(
         feeAmount,
@@ -790,7 +797,7 @@ describe("Swap", () => {
         signerWallet: user,
         sellAmount,
         buyAmount,
-        referrer
+        referrer,
       };
 
       const signature = await getSignature(domain, order, userSigner);
@@ -809,9 +816,7 @@ describe("Swap", () => {
         ],
       ];
 
-      const tx = await swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      );
+      const tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
       assert.isAtMost(receipt.gasUsed.toNumber(), 174100);
@@ -831,30 +836,26 @@ describe("Swap", () => {
           signerWallet: user,
           sellAmount,
           buyAmount,
-          referrer
+          referrer,
         };
 
         const signature = await getSignature(domain, order, userSigner);
 
-        bids.push(
-          [
-            swapId,
-            nonce,
-            user,
-            sellAmount,
-            buyAmount,
-            referrer,
-            signature.v,
-            signature.r,
-            signature.s,
-          ],
-        );
+        bids.push([
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ]);
 
         nonce += 1;
       }
-      let tx = await swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      );
+      let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
       assert.isAtMost(receipt.gasUsed.toNumber(), 420000);
@@ -865,75 +866,81 @@ describe("Swap", () => {
     time.revertToSnapshotAfterTest();
 
     it("reverts when offer doesn't exist", async function () {
-      await expect(swap.closeOffer(1)).to.be.revertedWith("Only seller can close or offer doesn't exist");
+      await expect(swap.closeOffer(1)).to.be.revertedWith(
+        "Only seller can close or offer doesn't exist"
+      );
     });
 
     it("reverts when not seller call", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseUnits("1", 8),
-      );
+      await swap
+        .connect(keeperSigner)
+        .createOffer(
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseUnits("1", 8)
+        );
 
-      await expect(swap.closeOffer(
-        swapId
-      )).to.be.revertedWith("Only seller can close or offer doesn't exist");
+      await expect(swap.closeOffer(swapId)).to.be.revertedWith(
+        "Only seller can close or offer doesn't exist"
+      );
     });
 
     it("reverts when offer is already closed", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseUnits("1", 8),
-      );
+      await swap
+        .connect(keeperSigner)
+        .createOffer(
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseUnits("1", 8)
+        );
 
       await swap.connect(keeperSigner).closeOffer(swapId);
 
-      await expect(swap.connect(keeperSigner).closeOffer(
-        swapId
-      )).to.be.revertedWith("Only seller can close or offer doesn't exist");
+      await expect(
+        swap.connect(keeperSigner).closeOffer(swapId)
+      ).to.be.revertedWith("Only seller can close or offer doesn't exist");
     });
 
     it("closes swap offering correctly", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseUnits("1", 8),
-      );
+      await swap
+        .connect(keeperSigner)
+        .createOffer(
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseUnits("1", 8)
+        );
 
-      await expect(swap.connect(keeperSigner).closeOffer(
-        swapId
-      )).to.emit(swap, "CloseOffer").withArgs(
-        swapId
-      );
-     });
+      await expect(swap.connect(keeperSigner).closeOffer(swapId))
+        .to.emit(swap, "CloseOffer")
+        .withArgs(swapId);
+    });
 
     it("fits gas budget [ @skip-on-coverage ]", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseUnits("1", 8),
-      );
+      await swap
+        .connect(keeperSigner)
+        .createOffer(
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseUnits("1", 8)
+        );
 
-      const tx = await swap.connect(keeperSigner).closeOffer(
-        swapId
-      );
+      const tx = await swap.connect(keeperSigner).closeOffer(swapId);
 
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
@@ -957,13 +964,13 @@ describe("Swap", () => {
         signerWallet: user,
         sellAmount,
         buyAmount,
-        referrer
+        referrer,
       };
 
       const signature = await getSignature(domain, order, userSigner);
 
-      await expect(swap.check(
-        [
+      await expect(
+        swap.check([
           swapId,
           nonce,
           user,
@@ -972,30 +979,35 @@ describe("Swap", () => {
           referrer,
           signature.v,
           signature.r,
-          signature.s
-        ]
-      )).to.be.revertedWith("Offer does not exist");
+          signature.s,
+        ])
+      ).to.be.revertedWith("Offer does not exist");
     });
 
     it("returns 0 error when order is valid", async function () {
       const swapId = (await swap.offersCounter()).add(1);
 
-      await expect(await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseUnits("1", 8),
-      )).to.emit(swap, "NewOffer")
-      .withArgs(
-        swapId,
-        keeper,
-        wethAddress,
-        usdcAddress,
-        parseUnits("3", 6),
-        parseUnits("0.01", 8),
-        parseUnits("1", 8),
-      );
+      await expect(
+        await swap
+          .connect(keeperSigner)
+          .createOffer(
+            wethAddress,
+            usdcAddress,
+            parseUnits("3", 6),
+            parseUnits("0.01", 8),
+            parseUnits("1", 8)
+          )
+      )
+        .to.emit(swap, "NewOffer")
+        .withArgs(
+          swapId,
+          keeper,
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseUnits("1", 8)
+        );
 
       const nonce = 1;
       const sellAmount = parseUnits("100", 6);
@@ -1008,24 +1020,22 @@ describe("Swap", () => {
         signerWallet: user,
         sellAmount,
         buyAmount,
-        referrer
+        referrer,
       };
 
       const signature = await getSignature(domain, order, userSigner);
 
-      const error = await swap.check(
-        [
-          swapId,
-          nonce,
-          user,
-          sellAmount,
-          buyAmount,
-          referrer,
-          signature.v,
-          signature.r,
-          signature.s
-        ]
-      );
+      const error = await swap.check([
+        swapId,
+        nonce,
+        user,
+        sellAmount,
+        buyAmount,
+        referrer,
+        signature.v,
+        signature.r,
+        signature.s,
+      ]);
 
       assert.bnEqual(error[0], BigNumber.from(0));
     });
@@ -1040,18 +1050,15 @@ describe("Swap", () => {
     time.revertToSnapshotAfterEach(async function () {
       swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(keeperSigner).createOffer(
-        wethAddress,
-        usdcAddress,
-        minPrice,
-        minBidSize,
-        totalSize
-      );
+      await swap
+        .connect(keeperSigner)
+        .createOffer(wethAddress, usdcAddress, minPrice, minBidSize, totalSize);
     });
 
-
     it("reverts when offering does not exist", async function () {
-      await expect(swap.averagePriceForOffer(2)).to.be.revertedWith("Offer does not exist");
+      await expect(swap.averagePriceForOffer(2)).to.be.revertedWith(
+        "Offer does not exist"
+      );
     });
 
     it("returns the correct average after full settlement", async function () {
@@ -1067,7 +1074,7 @@ describe("Swap", () => {
         signerWallet: user,
         sellAmount,
         buyAmount,
-        referrer
+        referrer,
       };
 
       const signature = await getSignature(domain, order, userSigner);
@@ -1086,9 +1093,7 @@ describe("Swap", () => {
         ],
       ];
 
-      await swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      );
+      await swap.connect(keeperSigner).settleOffer(swapId, bids);
 
       const average = await swap.averagePriceForOffer(1);
       assert.bnEqual(average, sellAmount.mul(10 ** 8).div(buyAmount));
@@ -1107,7 +1112,7 @@ describe("Swap", () => {
         signerWallet: user,
         sellAmount,
         buyAmount,
-        referrer
+        referrer,
       };
 
       const signature = await getSignature(domain, order, userSigner);
@@ -1126,9 +1131,7 @@ describe("Swap", () => {
         ],
       ];
 
-      await swap.connect(keeperSigner).settleOffer(
-        swapId, bids
-      );
+      await swap.connect(keeperSigner).settleOffer(swapId, bids);
 
       const average = await swap.averagePriceForOffer(1);
       assert.bnEqual(average, sellAmount.mul(10 ** 8).div(buyAmount));
