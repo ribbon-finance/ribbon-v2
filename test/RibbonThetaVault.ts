@@ -34,8 +34,6 @@ import {
   CHAINLINK_AURORA_PRICER,
   SAVAX_PRICER,
   GNOSIS_EASY_AUCTION,
-  DEX_ROUTER,
-  DEX_FACTORY,
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../constants/constants";
@@ -48,10 +46,9 @@ import {
   bidForOToken,
   decodeOrder,
   lockedBalanceForRollover,
-  encodePath,
   getDeltaStep,
 } from "./helpers/utils";
-import { wmul, wdiv } from "./helpers/math";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
@@ -375,13 +372,11 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let gnosisAuction: Contract;
-  let dexFactory: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
   let assetContract: Contract;
-  let usdcContract: Contract;
 
   // Variables
   let defaultOtokenAddress: string;
@@ -641,7 +636,6 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       startMarginBalance = await assetContract.balanceOf(MARGIN_POOL[chainId]);
-      usdcContract = await getContractAt("IERC20", USDC_ADDRESS[chainId]);
 
       // If mintable token, then mine the token
       if (params.mintConfig) {
@@ -684,9 +678,7 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY[chainId],
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId],
-          DEX_ROUTER[chainId],
-          DEX_FACTORY[chainId]
+          GNOSIS_EASY_AUCTION[chainId]
         );
       });
 
@@ -1785,8 +1777,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-        let oracle = await setupOracle(params.chainlinkPricer, ownerSigner);
-
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
@@ -1807,7 +1797,6 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         let assetBalanceBeforeSettle;
-        let minAmountOut: BigNumber;
 
         assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 

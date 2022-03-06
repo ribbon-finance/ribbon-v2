@@ -56,5 +56,4 @@ describe("SVAXOracle", () => {
       (await wAvaxOracle.decimals()).toString()
     );
   });
-
 });
