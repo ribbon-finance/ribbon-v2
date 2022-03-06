@@ -260,7 +260,7 @@ describe("RibbonThetaVault", () => {
     isPut: false,
     gasLimits: {
       depositWorstCase: 109576,
-      depositBestCase: 93171,
+      depositBestCase: 93200,
     },
     mintConfig: {
       amount: parseEther("20"),
