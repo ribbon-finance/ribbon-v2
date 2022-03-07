@@ -114,9 +114,9 @@
    {
      "inputs": [
        {
-         "internalType": "address",
-         "name": "pool",
-         "type": "address"
+         "internalType": "bytes32",
+         "name": "optionId",
+         "type": "bytes32"
        }
      ],
      "name": "annualizedVol",
@@ -128,6 +128,74 @@
        }
      ],
      "stateMutability": "view",
+     "type": "function"
+   },
+   {
+     "inputs": [
+       {
+         "internalType": "uint256",
+         "name": "delta",
+         "type": "uint256"
+       },
+       {
+         "internalType": "address",
+         "name": "underlying",
+         "type": "address"
+       },
+       {
+         "internalType": "address",
+         "name": "collateralAsset",
+         "type": "address"
+       },
+       {
+         "internalType": "bool",
+         "name": "isPut",
+         "type": "bool"
+       }
+     ],
+     "name": "annualizedVol",
+     "outputs": [
+       {
+         "internalType": "uint256",
+         "name": "annualStdev",
+         "type": "uint256"
+       }
+     ],
+     "stateMutability": "view",
+     "type": "function"
+   },
+   {
+     "inputs": [
+       {
+         "internalType": "uint256",
+         "name": "delta",
+         "type": "uint256"
+       },
+       {
+         "internalType": "address",
+         "name": "underlying",
+         "type": "address"
+       },
+       {
+         "internalType": "address",
+         "name": "collateralAsset",
+         "type": "address"
+       },
+       {
+         "internalType": "bool",
+         "name": "isPut",
+         "type": "bool"
+       }
+     ],
+     "name": "getOptionId",
+     "outputs": [
+       {
+         "internalType": "bytes32",
+         "name": "",
+         "type": "bytes32"
+       }
+     ],
+     "stateMutability": "pure",
      "type": "function"
    },
    {
@@ -273,13 +341,13 @@
    {
      "inputs": [
        {
-         "internalType": "address[]",
-         "name": "_pools",
-         "type": "address[]"
+         "internalType": "bytes32[]",
+         "name": "optionIds",
+         "type": "bytes32[]"
        },
        {
          "internalType": "uint256[]",
-         "name": "_newAnnualizedVols",
+         "name": "newAnnualizedVols",
          "type": "uint256[]"
        }
      ],
@@ -291,9 +359,9 @@
    {
      "inputs": [
        {
-         "internalType": "address",
+         "internalType": "bytes32",
          "name": "",
-         "type": "address"
+         "type": "bytes32"
        }
      ],
      "name": "vol",
