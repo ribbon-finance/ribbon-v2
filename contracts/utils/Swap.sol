@@ -92,6 +92,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         require(fee < MAX_PERCENTAGE, "Fee exceeds maximum");
 
         referralFees[referrer] = fee;
+
+        emit SetFee(referrer, fee);
     }
 
     /************************************************
@@ -175,6 +177,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         offerDetails.minBidSize = offer.minBidSize;
 
         for (uint256 i = 0; i < bids.length; i++) {
+            require(swapId == bids[i].swapId, "Offer and bid swapId mismatched");
+
             _swap(offerDetails, offer, bids[i]);
             totalSales += bids[i].sellAmount;
         }
@@ -358,14 +362,6 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
-
-    struct OfferDetails {
-        address seller;
-        address oToken;
-        address biddingToken;
-        uint256 minPrice;
-        uint256 minBidSize;
-    }
 
     /**
      * @notice Swap Atomic ERC20 Swap
