@@ -2,7 +2,7 @@
 pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import {IController} from "../interfaces/PowerTokenInterface.sol";
+import {IController, IOracle} from "../interfaces/PowerTokenInterface.sol";
 import {VaultLib} from "./PowerTokenVaultLib.sol";
 
 library VaultLifecycleGamma {
@@ -15,5 +15,14 @@ library VaultLifecycleGamma {
     ) internal view returns (uint256) {
         VaultLib.Vault memory vault = IController(controller).vaults(vaultId);
         return uint256(vault.shortAmount).mul(amount);
+    }
+
+    function getSqueethPrice(
+        address oracle,
+        address squeethPool,
+        address powerPerp,
+        address weth
+    ) internal view returns (uint256) {
+        return IOracle(oracle).getTwap(squeethPool, powerPerp, weth, 0, true);
     }
 }

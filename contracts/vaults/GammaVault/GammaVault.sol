@@ -210,7 +210,6 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         external
         nonReentrant
     {
-        // TODO: Update vault state post-rollover
         VaultLifecycle.swap(
             USDC,
             usdcMinAmountOut,
