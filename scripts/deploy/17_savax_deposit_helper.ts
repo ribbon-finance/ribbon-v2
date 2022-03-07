@@ -19,17 +19,15 @@ const main = async ({
     return;
   }
 
-  const vault = chainId === CHAINID.AVAX_MAINNET
-    ? RibbonThetaVaultSAVAXCall_Avax
-    : RibbonThetaVaultSAVAXCall_Fuji;
+  const vault =
+    chainId === CHAINID.AVAX_MAINNET
+      ? RibbonThetaVaultSAVAXCall_Avax
+      : RibbonThetaVaultSAVAXCall_Fuji;
 
   const sAVAXDepositHelper = await deployments.deploy("SAVAXDepositHelper", {
     contract: "SAVAXDepositHelper",
     from: deployer,
-    args: [
-      SAVAX_ADDRESS[chainId],
-      vault.address,
-    ],
+    args: [SAVAX_ADDRESS[chainId], vault.address],
   });
 
   console.log(`sAVAXDepositHelper @ ${sAVAXDepositHelper.address}`);
@@ -37,10 +35,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: sAVAXDepositHelper.address,
-      constructorArguments: [
-        SAVAX_ADDRESS[chainId],
-        vault.address,
-      ],
+      constructorArguments: [SAVAX_ADDRESS[chainId], vault.address],
     });
   } catch (error) {
     console.log(error);
