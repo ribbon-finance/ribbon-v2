@@ -462,27 +462,6 @@ async function sharesToAsset(
     .div(BigNumber.from(10).pow(decimals.toString()));
 }
 
-export function encodePath(tokenAddresses, fees) {
-  // Encode path for Uniswap swap path
-  const FEE_SIZE = 3;
-
-  if (tokenAddresses.length !== fees.length + 1) {
-    throw new Error("path/fee lengths do not match");
-  }
-
-  let encoded = "0x";
-  for (let i = 0; i < fees.length; i++) {
-    // 20 byte encoding of the address
-    encoded += tokenAddresses[i].slice(2);
-    // 3 byte encoding of the fee
-    encoded += fees[i].toString(16).padStart(2 * FEE_SIZE, "0");
-  }
-  // encode the final token
-  encoded += tokenAddresses[tokenAddresses.length - 1].slice(2);
-
-  return encoded.toLowerCase();
-}
-
 /* eslint @typescript-eslint/no-explicit-any: "off" */
 export const objectEquals = (a: any, b: any) => {
   if (a === b) return true;
