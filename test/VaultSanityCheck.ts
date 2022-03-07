@@ -34,7 +34,7 @@ const vaultParams = {
   savax: {
     nextOption: "0x82793eBEE4c86ca2C0aFce7032862091445e2e8c",
     annualizedVol: 106480000,
-  }
+  },
 };
 
 describe("Aurora - VaultSanityCheck", () => {
@@ -134,9 +134,18 @@ describe("AVAX - VaultSanityCheck", () => {
 
     const { keeper, owner, deployer } = await getNamedAccounts();
 
-    await network.provider.request({ method: "hardhat_impersonateAccount", params: [keeper] });
-    await network.provider.request({ method: "hardhat_impersonateAccount", params: [owner] });
-    await network.provider.request({ method: "hardhat_impersonateAccount", params: [deployer] });
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [keeper],
+    });
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [owner],
+    });
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [deployer],
+    });
 
     keeperSigner = await ethers.provider.getSigner(keeper);
   });
@@ -156,7 +165,8 @@ describe("AVAX - VaultSanityCheck", () => {
     assert.equal(await Vault.nextOption(), vaultParams.avax.nextOption);
 
     await increaseTo(
-      (await ethers.provider.getBlock("latest")).timestamp + ORACLE_DISPUTE_PERIOD
+      (await ethers.provider.getBlock("latest")).timestamp +
+        ORACLE_DISPUTE_PERIOD
     );
 
     await Vault.connect(keeperSigner).rollToNextOption();
@@ -180,7 +190,8 @@ describe("AVAX - VaultSanityCheck", () => {
     assert.equal(await Vault.nextOption(), vaultParams.savax.nextOption);
 
     await increaseTo(
-      (await ethers.provider.getBlock("latest")).timestamp + ORACLE_DISPUTE_PERIOD
+      (await ethers.provider.getBlock("latest")).timestamp +
+        ORACLE_DISPUTE_PERIOD
     );
 
     await Vault.connect(keeperSigner).rollToNextOption();
