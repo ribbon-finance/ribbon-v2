@@ -84,7 +84,7 @@ contract DeltaStrikeSelection is Ownable {
     {
         // asset's annualized volatility
         uint256 annualizedVol =
-            volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
+            volatilityOracle.annualizedVol(optionsPremiumPricer.optionId()).mul(
                 10**10
             );
         return _getStrikePrice(expiryTimestamp, isPut, annualizedVol);

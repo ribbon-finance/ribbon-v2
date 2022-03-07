@@ -2,9 +2,9 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_pool",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "_optionId",
+        "type": "bytes32"
       },
       {
         "internalType": "address",
@@ -156,12 +156,12 @@
   },
   {
     "inputs": [],
-    "name": "pool",
+    "name": "optionId",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "bytes32",
         "name": "",
-        "type": "address"
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -198,7 +198,7 @@
     "name": "volatilityOracle",
     "outputs": [
       {
-        "internalType": "contract IVolatilityOracle",
+        "internalType": "contract IManualVolatilityOracle",
         "name": "",
         "type": "address"
       }
