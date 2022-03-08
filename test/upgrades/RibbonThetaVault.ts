@@ -28,29 +28,6 @@ const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 describe("RibbonThetaVault upgrade", () => {
   let vaultAddressOfImplementationInRepo: string;
 
-  const deployNewVault = async () => {
-    const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
-    const vaultLifecycleLib = await VaultLifecycle.deploy();
-
-    const RibbonThetaVault = await ethers.getContractFactory(
-      "RibbonThetaVault",
-      {
-        libraries: {
-          VaultLifecycle: vaultLifecycleLib.address,
-        },
-      }
-    );
-    const newImplementationContract = await RibbonThetaVault.deploy(
-      WETH_ADDRESS[CHAINID],
-      USDC_ADDRESS[CHAINID],
-      OTOKEN_FACTORY[CHAINID],
-      GAMMA_CONTROLLER[CHAINID],
-      MARGIN_POOL[CHAINID],
-      GNOSIS_EASY_AUCTION[CHAINID]
-    );
-    return newImplementationContract.address;
-  };
-
   before(async function () {
     // We need to checkpoint the contract on mainnet to a past block before the upgrade happens
     // This means the `implementation` is pointing to an old contract
@@ -78,8 +55,6 @@ describe("RibbonThetaVault upgrade", () => {
       method: "hardhat_impersonateAccount",
       params: [UPGRADE_ADMIN],
     });
-
-    vaultAddressOfImplementationInRepo = await deployNewVault();
   });
 
   /**
@@ -117,9 +92,29 @@ describe("RibbonThetaVault upgrade", () => {
   );
 });
 
+const deployNewVault = async () => {
+  const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+  const vaultLifecycleLib = await VaultLifecycle.deploy();
+
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
+    libraries: {
+      VaultLifecycle: vaultLifecycleLib.address,
+    },
+  });
+  const newImplementationContract = await RibbonThetaVault.deploy(
+    WETH_ADDRESS[CHAINID],
+    USDC_ADDRESS[CHAINID],
+    OTOKEN_FACTORY[CHAINID],
+    GAMMA_CONTROLLER[CHAINID],
+    MARGIN_POOL[CHAINID],
+    GNOSIS_EASY_AUCTION[CHAINID]
+  );
+  return newImplementationContract.address;
+};
+
 function checkIfStorageNotCorrupted(
   vaultProxyAddress: string,
-  newImplementation: string
+  newImplementation?: string
 ) {
   const getVaultStorage = async (storageIndex: BigNumberish) => {
     return await ethers.provider.getStorageAt(vaultProxyAddress, storageIndex);
@@ -147,7 +142,9 @@ function checkIfStorageNotCorrupted(
 
   let variables: Record<string, unknown> = {};
 
-  describe(`Vault ${vaultProxyAddress}, newImplementation ${newImplementation}`, () => {
+  describe(`Vault ${vaultProxyAddress}${
+    newImplementation ? `, newImplementation ${newImplementation}` : ""
+  }`, () => {
     let vaultProxy: Contract;
     let vault: Contract;
 
@@ -164,6 +161,8 @@ function checkIfStorageNotCorrupted(
       vault = await ethers.getContractAt("RibbonThetaVault", vaultProxyAddress);
 
       variables = await getVariablesFromContract(vault);
+
+      newImplementation = await deployNewVault();
     });
 
     it("has the correct return values for all public variables", async () => {
