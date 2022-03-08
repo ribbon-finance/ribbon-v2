@@ -67,6 +67,7 @@ describe("RibbonThetaSTETHVault upgrade", () => {
     "auctionDuration",
     "optionAuctionID",
     "lastQueuedWithdrawAmount",
+    "liquidityGauge",
   ];
 
   before(async function () {
