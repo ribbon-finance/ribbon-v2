@@ -23,10 +23,12 @@ const main = async ({
 
   const lifecycle = await deployments.get("VaultLifecycle");
 
-  const lifecycleYearn = await deploy("VaultLifecycleYearn", {
-    contract: "VaultLifecycleYearn",
-    from: deployer,
-  });
+  const lifecycleYearn = await deployments.get("VaultLifecycleYearn");
+
+  // const lifecycleYearn = await deploy("VaultLifecycleYearn", {
+  //   contract: "VaultLifecycleYearn",
+  //   from: deployer,
+  // });
 
   const args = [
     WETH_ADDRESS[chainId],
@@ -50,9 +52,17 @@ const main = async ({
   console.log(`RibbonThetaYearnVaultLogic @ ${vault.address}`);
 
   try {
+    // await run("verify:verify", {
+    //   address: lifecycleYearn.address,
+    // });
+
     await run("verify:verify", {
       address: vault.address,
       constructorArguments: args,
+      libraries: {
+        VaultLifecycle: lifecycle.address,
+        VaultLifecycleYearn: lifecycleYearn.address,
+      },
     });
   } catch (error) {
     console.log(error);
