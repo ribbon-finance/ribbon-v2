@@ -177,7 +177,10 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         offerDetails.minBidSize = offer.minBidSize;
 
         for (uint256 i = 0; i < bids.length; i++) {
-            require(swapId == bids[i].swapId, "Offer and bid swapId mismatched");
+            require(
+                swapId == bids[i].swapId,
+                "Offer and bid swapId mismatched"
+            );
 
             _swap(offerDetails, offer, bids[i]);
             totalSales += bids[i].sellAmount;
