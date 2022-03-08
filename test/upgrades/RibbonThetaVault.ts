@@ -7,8 +7,6 @@ import {
   OTOKEN_FACTORY,
   USDC_ADDRESS,
   WETH_ADDRESS,
-  DEX_ROUTER,
-  DEX_FACTORY,
 } from "../../constants/constants";
 import { objectEquals, parseLog, serializeMap } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
@@ -22,12 +20,36 @@ const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14253986;
+const NEW_IMPLEMENTATION = "0x2A0B88f5E1fba2909843A46877a9369d8aE8b5B5";
+const FORK_BLOCK = 14343852;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
 describe("RibbonThetaVault upgrade", () => {
-  let vaults: string[] = [];
+  let vaultAddressOfImplementationInRepo: string;
+
+  const deployNewVault = async () => {
+    const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+    const vaultLifecycleLib = await VaultLifecycle.deploy();
+
+    const RibbonThetaVault = await ethers.getContractFactory(
+      "RibbonThetaVault",
+      {
+        libraries: {
+          VaultLifecycle: vaultLifecycleLib.address,
+        },
+      }
+    );
+    const newImplementationContract = await RibbonThetaVault.deploy(
+      WETH_ADDRESS[CHAINID],
+      USDC_ADDRESS[CHAINID],
+      OTOKEN_FACTORY[CHAINID],
+      GAMMA_CONTROLLER[CHAINID],
+      MARGIN_POOL[CHAINID],
+      GNOSIS_EASY_AUCTION[CHAINID]
+    );
+    return newImplementationContract.address;
+  };
 
   before(async function () {
     // We need to checkpoint the contract on mainnet to a past block before the upgrade happens
@@ -57,22 +79,50 @@ describe("RibbonThetaVault upgrade", () => {
       params: [UPGRADE_ADMIN],
     });
 
-    const deploymentNames = [
-      "RibbonThetaVaultETHCall",
-      "RibbonThetaVaultWBTCCall",
-      "RibbonThetaVaultAAVECall",
-    ];
-    deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
+    vaultAddressOfImplementationInRepo = await deployNewVault();
   });
 
-  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultETHCall);
-  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultWBTCCall);
-  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultAAVECall);
+  /**
+   * We test 2 different addresses:
+   * 1) A fixed address from a deployed contract on Ethereum mainnet (this is to validate upgrades)
+   * 2) A dynamic address generated from the compiled contracts on the repo
+   */
+
+  // FIXED ADDRESS
+  checkIfStorageNotCorrupted(
+    deployments.mainnet.RibbonThetaVaultETHCall,
+    NEW_IMPLEMENTATION
+  );
+  checkIfStorageNotCorrupted(
+    deployments.mainnet.RibbonThetaVaultWBTCCall,
+    NEW_IMPLEMENTATION
+  );
+  checkIfStorageNotCorrupted(
+    deployments.mainnet.RibbonThetaVaultAAVECall,
+    NEW_IMPLEMENTATION
+  );
+
+  // DYNAMIC ADDRESSES
+  checkIfStorageNotCorrupted(
+    deployments.mainnet.RibbonThetaVaultETHCall,
+    vaultAddressOfImplementationInRepo
+  );
+  checkIfStorageNotCorrupted(
+    deployments.mainnet.RibbonThetaVaultWBTCCall,
+    vaultAddressOfImplementationInRepo
+  );
+  checkIfStorageNotCorrupted(
+    deployments.mainnet.RibbonThetaVaultAAVECall,
+    vaultAddressOfImplementationInRepo
+  );
 });
 
-function checkIfStorageNotCorrupted(vaultAddress: string) {
+function checkIfStorageNotCorrupted(
+  vaultProxyAddress: string,
+  newImplementation: string
+) {
   const getVaultStorage = async (storageIndex: BigNumberish) => {
-    return await ethers.provider.getStorageAt(vaultAddress, storageIndex);
+    return await ethers.provider.getStorageAt(vaultProxyAddress, storageIndex);
   };
 
   const variableNames = [
@@ -92,14 +142,12 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "auctionDuration",
     "optionAuctionID",
     "lastQueuedWithdrawAmount",
-    "isUsdcAuction",
-    "swapPath",
+    "liquidityGauge",
   ];
 
   let variables: Record<string, unknown> = {};
 
-  describe(`Vault ${vaultAddress}`, () => {
-    let newImplementation: string;
+  describe(`Vault ${vaultProxyAddress}, newImplementation ${newImplementation}`, () => {
     let vaultProxy: Contract;
     let vault: Contract;
 
@@ -110,35 +158,12 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
 
       vaultProxy = await ethers.getContractAt(
         "AdminUpgradeabilityProxy",
-        vaultAddress,
+        vaultProxyAddress,
         adminSigner
       );
-      vault = await ethers.getContractAt("RibbonThetaVault", vaultAddress);
+      vault = await ethers.getContractAt("RibbonThetaVault", vaultProxyAddress);
 
       variables = await getVariablesFromContract(vault);
-
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
-      const vaultLifecycleLib = await VaultLifecycle.deploy();
-
-      const RibbonThetaVault = await ethers.getContractFactory(
-        "RibbonThetaVault",
-        {
-          libraries: {
-            VaultLifecycle: vaultLifecycleLib.address,
-          },
-        }
-      );
-      const newImplementationContract = await RibbonThetaVault.deploy(
-        WETH_ADDRESS[CHAINID],
-        USDC_ADDRESS[CHAINID],
-        OTOKEN_FACTORY[CHAINID],
-        GAMMA_CONTROLLER[CHAINID],
-        MARGIN_POOL[CHAINID],
-        GNOSIS_EASY_AUCTION[CHAINID],
-        DEX_ROUTER[CHAINID],
-        DEX_FACTORY[CHAINID]
-      );
-      newImplementation = newImplementationContract.address;
     });
 
     it("has the correct return values for all public variables", async () => {
