@@ -43,7 +43,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     uint256 public immutable DOMAIN_CHAIN_ID;
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    uint256 internal constant MAX_PERCENTAGE = 10000;
+    uint256 internal constant MAX_PERCENTAGE = 1000;
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
