@@ -64,8 +64,16 @@ const main = async ({
 
   try {
     await run("verify:verify", {
+      address: lifecycleSTETH.address,
+    });
+
+    await run("verify:verify", {
       address: vault.address,
       constructorArguments: args,
+      libraries: {
+        VaultLifecycle: lifecycle.address,
+        VaultLifecycleSTETH: lifecycleSTETH.address,
+      },
     });
   } catch (error) {
     console.log(error);
