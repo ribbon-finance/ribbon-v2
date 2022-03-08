@@ -23,7 +23,7 @@
         "RibbonDeltaVaultLogic": "0x551C441D05E81E5A43CFD5afa7e9589039D67625",
         "RibbonThetaVaultETHCall": "0x98d03125c62DaE2328D9d3cb32b7B969e6a87787",
         "RibbonThetaVaultETHPut": "0x9DD6be071b4292cc88B8190aB718329adEA3E3a3",
-        "RibbonThetaVaultLogic": "0x87e94618B305c5305B4502807C86B6C28Ad5b592",
+        "RibbonThetaVaultLogic": "0xa0Db6c4C2906dE0158802BA8d98798d04f52B79A",
         "RibbonThetaVaultSAVAXCall": "0x6BF686d99A4cE17798C45d09C21181fAc29A9fb3",
         "RibbonThetaVaultWBTCCall": "0xB7EC3BecB9EA9946f4C055F6De73e7638Ce4f480",
         "SAVAXDepositHelper": "0x084a82fe209f014b3cb6D5986B2C65B584168303",
@@ -31,7 +31,7 @@
         "StrikeSelectionETH": "0x05351bd699860cE7c7282eb4Ac3c92f188E3DBED",
         "StrikeSelectionSAVAX": "0xEe29308Cd6d0c6d46868197973D2B672cD386d8B",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
-        "VaultLifecycle": "0xe0854DDD162ffE4E2fF1DB6E62b544521cB9223e"
+        "VaultLifecycle": "0x5eE5db4480Db3B4cf08d871b737f0ce5785caA53"
     },
     "fuji": {
         "ManualVolOracle": "0x8c58dDE5156DE3b3Fb93664DccBc1BeB1d5Ac923",
