@@ -86,6 +86,7 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "auctionDuration",
     "optionAuctionID",
     "lastQueuedWithdrawAmount",
+    "liquidityGauge",
   ];
 
   let variables: Record<string, unknown> = {};
