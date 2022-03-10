@@ -47,6 +47,11 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
+"@chainlink/contracts@^0.2.2":
+  version "0.2.3"
+  resolved "https://registry.yarnpkg.com/@chainlink/contracts/-/contracts-0.2.3.tgz#f4ef1750caef1682c537a99559b5b95629436303"
+  integrity sha512-hf4b8OEfEqfjC9addvXCrE2SEybNwN1r971vxFYhL/l/yDTTMAk0jmGZYtfUPDOB/qY7FfrOXuxlEVQ+ojZgZw==
+
 "@chainlink/contracts@^0.4.0":
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/@chainlink/contracts/-/contracts-0.4.0.tgz#4bcfd486d02cdc73047f27904119d0f8cb7291f4"
@@ -971,11 +976,12 @@
     path-browserify "^1.0.0"
     url "^0.11.0"
 
-"@ribbon-finance/rvol@^1.4.0":
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/@ribbon-finance/rvol/-/rvol-1.4.0.tgz#ebca46a929d33f3638966af0249cdf1d77568bac"
-  integrity sha512-SR29JllBHWpu56DAGBtW2yTotrjUKjdGSavWlCCuP3/YrMduRtMJD55mpmlgUsRM8TAygV9aw06yP0XzjsldZQ==
+"@ribbon-finance/rvol@^1.4.2":
+  version "1.4.2"
+  resolved "https://registry.yarnpkg.com/@ribbon-finance/rvol/-/rvol-1.4.2.tgz#b408df3819ea0fd270cc9ab69884b78d9104cb1a"
+  integrity sha512-m7wwS7OrprQFnBzN7KBc4GoixV+7/yy0s6m2xbeqHnKcsABXHTJjgeAM2wHiWmTsGZvjmtVs3DJE1CRafGWTNA==
   dependencies:
+    "@chainlink/contracts" "^0.2.2"
     "@uniswap/v3-core" "^1.0.0"
     "@uniswap/v3-periphery" "^1.0.1"
     axios "^0.21.1"

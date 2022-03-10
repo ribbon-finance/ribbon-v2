@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
-import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -19,13 +19,12 @@ import {
   YEARN_USDC_PRICER_V0_4_3,
   YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricerInStables_BYTECODE,
-  TestVolOracle_BYTECODE,
   YVUSDC_V0_4_3,
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  ETH_USDC_POOL,
-  WBTC_USDC_POOL,
+  ManualVolOracle_BYTECODE,
+  CHAINID,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -50,7 +49,7 @@ moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 0;
 const DELAY_INCREMENT = 100;
-const gasPrice = parseUnits("1", "gwei");
+const gasPrice = parseUnits("30", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
 
@@ -77,7 +76,7 @@ describe("RibbonThetaYearnVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from("45042498577"),
+    expectedMintAmount: BigNumber.from("47187379462"),
     auctionDuration: 21600,
     tokenDecimals: 6,
     isPut: true,
@@ -207,6 +206,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
   let initialMarginPoolBal: BigNumber;
+  let optionId: string;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -271,10 +271,24 @@ function behavesLikeRibbonOptionsVault(params: {
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
-        TestVolOracle_ABI,
-        TestVolOracle_BYTECODE,
-        ownerSigner
+        ManualVolOracle_ABI,
+        ManualVolOracle_BYTECODE,
+        keeperSigner
       );
+
+      volOracle = await TestVolOracle.deploy(keeper);
+
+      optionId = await volOracle.getOptionId(
+        params.deltaStep,
+        asset,
+        collateralAsset,
+        isPut
+      );
+
+      await volOracle.setAnnualizedVol([optionId], [106480000]);
+
+      const topOfPeriod = (await time.getTopOfPeriod()) + time.PERIOD;
+      await time.increaseTo(topOfPeriod);
 
       const OptionsPremiumPricer = await getContractFactory(
         OptionsPremiumPricerInStables_ABI,
@@ -286,18 +300,8 @@ function behavesLikeRibbonOptionsVault(params: {
         ownerSigner
       );
 
-      volOracle = await TestVolOracle.deploy(time.PERIOD, 7);
-
-      await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId]
-          ? ETH_USDC_POOL[chainId]
-          : WBTC_USDC_POOL[chainId]
-      );
-
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset === WETH_ADDRESS[chainId]
-          ? ETH_USDC_POOL[chainId]
-          : WBTC_USDC_POOL[chainId],
+        optionId,
         volOracle.address,
         params.asset === WETH_ADDRESS[chainId]
           ? ETH_PRICE_ORACLE[chainId]
@@ -371,9 +375,6 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
-      // Update volatility
-      await updateVol(params.asset);
-
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
@@ -391,6 +392,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -420,7 +422,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -3644,35 +3646,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
   });
-
-  const updateVol = async (asset: string) => {
-    const values = [
-      BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2550000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2650000000"),
-    ];
-
-    for (let i = 0; i < values.length; i++) {
-      await volOracle.setPrice(values[i]);
-      const topOfPeriod = (await time.getTopOfPeriod()) + time.PERIOD;
-      await time.increaseTo(topOfPeriod);
-      await volOracle.mockCommit(
-        asset === WETH_ADDRESS[chainId]
-          ? ETH_USDC_POOL[chainId]
-          : WBTC_USDC_POOL[chainId]
-      );
-    }
-  };
 }
 
 async function depositIntoVault(
