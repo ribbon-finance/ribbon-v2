@@ -14,8 +14,6 @@ import {
   ETH_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  ETH_USDC_POOL,
-  WBTC_USDC_POOL,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
   OTOKEN_FACTORY,
@@ -386,6 +384,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
   let startMarginBalance: BigNumber;
+  let optionId: string;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -456,8 +455,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
       volOracle = await TestVolOracle.deploy(keeper);
 
-      await volOracle.setAnnualizedVol(ETH_USDC_POOL[chainId], 106480000);
-      await volOracle.setAnnualizedVol(WBTC_USDC_POOL[chainId], 106480000);
+      optionId = await volOracle.getOptionId(
+        params.deltaStep,
+        asset,
+        collateralAsset,
+        isPut
+      );
+
+      await volOracle.setAnnualizedVol([optionId], [106480000]);
 
       const topOfPeriod = (await time.getTopOfPeriod()) + time.PERIOD;
       await time.increaseTo(topOfPeriod);
@@ -474,9 +479,7 @@ function behavesLikeRibbonOptionsVault(params: {
       );
 
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset === WETH_ADDRESS[chainId]
-          ? ETH_USDC_POOL[chainId]
-          : WBTC_USDC_POOL[chainId],
+        optionId,
         volOracle.address,
         params.asset === WETH_ADDRESS[chainId]
           ? ETH_PRICE_ORACLE[chainId]
