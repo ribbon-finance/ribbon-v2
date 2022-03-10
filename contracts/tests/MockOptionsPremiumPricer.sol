@@ -7,7 +7,7 @@ contract MockOptionsPremiumPricer {
     uint256 private _optionUSDCPrice;
     address private _priceOracle;
     address private _volatilityOracle;
-    address private _pool;
+    bytes32 private _optionId;
     mapping(uint256 => uint256) private _deltas;
 
     function getPremium(
@@ -35,8 +35,8 @@ contract MockOptionsPremiumPricer {
         return _deltas[strikePrice];
     }
 
-    function pool() external view returns (address) {
-        return _pool;
+    function optionId() external view returns (bytes32) {
+        return _optionId;
     }
 
     function getUnderlyingPrice() external view returns (uint256) {
@@ -67,8 +67,8 @@ contract MockOptionsPremiumPricer {
         _priceOracle = oracle;
     }
 
-    function setPool(address p) external {
-        _pool = p;
+    function setOptionId(bytes32 newOptionId) external {
+        _optionId = newOptionId;
     }
 
     function setVolatilityOracle(address oracle) external {
