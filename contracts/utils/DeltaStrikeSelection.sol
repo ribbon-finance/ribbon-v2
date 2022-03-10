@@ -7,8 +7,8 @@ import {
 } from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import {
-    IVolatilityOracle
-} from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
+    IManualVolatilityOracle
+} from "@ribbon-finance/rvol/contracts/interfaces/IManualVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {Vault} from "../libraries/Vault.sol";
 
@@ -20,7 +20,7 @@ contract DeltaStrikeSelection is Ownable {
      */
     IOptionsPremiumPricer public immutable optionsPremiumPricer;
 
-    IVolatilityOracle public immutable volatilityOracle;
+    IManualVolatilityOracle public immutable volatilityOracle;
 
     // delta for options strike price selection. 1 is 10000 (10**4)
     uint256 public delta;
@@ -51,7 +51,7 @@ contract DeltaStrikeSelection is Ownable {
         require(_delta <= DELTA_MULTIPLIER, "newDelta cannot be more than 1");
         require(_step > 0, "!_step");
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
-        volatilityOracle = IVolatilityOracle(
+        volatilityOracle = IManualVolatilityOracle(
             IOptionsPremiumPricer(_optionsPremiumPricer).volatilityOracle()
         );
         // ex: delta = 7500 (.75)
@@ -84,7 +84,7 @@ contract DeltaStrikeSelection is Ownable {
     {
         // asset's annualized volatility
         uint256 annualizedVol =
-            volatilityOracle.annualizedVol(optionsPremiumPricer.pool()).mul(
+            volatilityOracle.annualizedVol(optionsPremiumPricer.optionId()).mul(
                 10**10
             );
         return _getStrikePrice(expiryTimestamp, isPut, annualizedVol);

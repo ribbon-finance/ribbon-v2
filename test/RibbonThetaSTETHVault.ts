@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
-import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
@@ -21,7 +21,8 @@ import {
   GNOSIS_EASY_AUCTION,
   WSTETH_PRICER,
   OptionsPremiumPricerInStables_BYTECODE,
-  TestVolOracle_BYTECODE,
+  ManualVolOracle_BYTECODE,
+  CHAINID,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -46,14 +47,9 @@ moment.tz.setDefault("UTC");
 
 const OPTION_DELAY = 0;
 const DELAY_INCREMENT = 100;
-const gasPrice = parseUnits("1", "gwei");
+const gasPrice = parseUnits("30", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
-
-const PERIOD = 43200; // 12 hours
-
-const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
-const wbtcusdcPool = "0x99ac8ca7087fa4a2a1fb6357269965a2014abc35";
 
 const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
 const wbtcPriceOracleAddress = "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c";
@@ -85,7 +81,7 @@ describe("RibbonThetaSTETHVault", () => {
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("1"),
-    stETHAmountAfterRounding: BigNumber.from("999662639328811003"),
+    stETHAmountAfterRounding: BigNumber.from("999685122545818005"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -221,6 +217,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
   let initialMarginPoolBal: BigNumber;
+  let optionId: string;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -285,29 +282,38 @@ function behavesLikeRibbonOptionsVault(params: {
       feeRecipient = feeRecipientSigner.address;
 
       const TestVolOracle = await getContractFactory(
-        TestVolOracle_ABI,
-        TestVolOracle_BYTECODE,
-        ownerSigner
+        ManualVolOracle_ABI,
+        ManualVolOracle_BYTECODE,
+        keeperSigner
       );
+
+      volOracle = await TestVolOracle.deploy(keeper);
+
+      optionId = await volOracle.getOptionId(
+        params.deltaStep,
+        asset,
+        collateralAsset,
+        isPut
+      );
+
+      await volOracle.setAnnualizedVol([optionId], [106480000]);
+
+      const topOfPeriod = (await time.getTopOfPeriod()) + time.PERIOD;
+      await time.increaseTo(topOfPeriod);
 
       const OptionsPremiumPricer = await getContractFactory(
         OptionsPremiumPricerInStables_ABI,
         OptionsPremiumPricerInStables_BYTECODE,
         ownerSigner
       );
+
       const StrikeSelection = await getContractFactory(
         "DeltaStrikeSelection",
         ownerSigner
       );
 
-      volOracle = await TestVolOracle.deploy(PERIOD, 7);
-
-      await volOracle.initPool(
-        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
-      );
-
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-        params.asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool,
+        optionId,
         volOracle.address,
         params.asset === WETH_ADDRESS[chainId]
           ? wethPriceOracleAddress
@@ -383,9 +389,6 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
-      // Update volatility
-      await updateVol(params.asset);
-
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
@@ -403,6 +406,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -432,7 +436,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(1, "week")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -2794,8 +2798,8 @@ function behavesLikeRibbonOptionsVault(params: {
         // Should be less because the pps is down
         assert.bnLt(actualWithdrawAmount, depositAmount);
         // Account for rounding when minting stETH
-        assert.bnGte(actualWithdrawAmount.add(3), stETHAmountAfterRounding);
-        assert.bnLte(actualWithdrawAmount, stETHAmountAfterRounding.add(3));
+        assert.bnGte(actualWithdrawAmount.add(5), stETHAmountAfterRounding);
+        assert.bnLte(actualWithdrawAmount, stETHAmountAfterRounding.add(5));
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -3279,46 +3283,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
   });
-
-  const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
-    let topOfPeriod: number;
-
-    const rem = latestTimestamp % PERIOD;
-    if (rem < Math.floor(PERIOD / 2)) {
-      topOfPeriod = latestTimestamp - rem + PERIOD;
-    } else {
-      topOfPeriod = latestTimestamp + rem + PERIOD;
-    }
-    return topOfPeriod;
-  };
-
-  const updateVol = async (asset: string) => {
-    const values = [
-      BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2550000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2650000000"),
-    ];
-
-    for (let i = 0; i < values.length; i++) {
-      await volOracle.setPrice(values[i]);
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
-      await time.increaseTo(topOfPeriod);
-      await volOracle.mockCommit(
-        asset === WETH_ADDRESS[chainId] ? ethusdcPool : wbtcusdcPool
-      );
-    }
-  };
 }
 
 async function depositIntoVault(
