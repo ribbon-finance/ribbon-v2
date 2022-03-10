@@ -21,4 +21,10 @@ contract SAVAXDepositHelper {
         sAVAX.approve(address(sAVAXVault), sAVAXAmount);
         sAVAXVault.depositFor(sAVAXAmount, msg.sender);
     }
+
+    function depositFor(address recipient) external payable {
+        uint256 sAVAXAmount = sAVAX.submit{value: msg.value}();
+        sAVAX.approve(address(sAVAXVault), sAVAXAmount);
+        sAVAXVault.depositFor(sAVAXAmount, recipient);
+    }
 }

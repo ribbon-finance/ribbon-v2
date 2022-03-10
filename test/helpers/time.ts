@@ -1,6 +1,8 @@
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 
+export const DELAY_INCREMENT = 100;
+
 // Increases ganache time by the passed duration in seconds
 export async function increase(duration: number | BigNumber) {
   if (!BigNumber.isBigNumber(duration)) {
