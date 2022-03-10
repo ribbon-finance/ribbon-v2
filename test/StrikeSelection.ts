@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { assert, expect } from "chai";
-import { Contract } from "ethers";
+import { constants, Contract } from "ethers";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -41,7 +41,13 @@ describe("DeltaStrikeSelection", () => {
     await mockOptionsPremiumPricer.setVolatilityOracle(
       mockVolatilityOracle.address
     );
-    await mockOptionsPremiumPricer.setPool(mockPriceOracle.address);
+
+    const mockOptionId = constants.HashZero.slice(
+      0,
+      constants.HashZero.length - 1
+    ) + "1";
+
+    await mockOptionsPremiumPricer.setOptionId(mockOptionId);
     await mockPriceOracle.setDecimals(8);
     await mockVolatilityOracle.setAnnualizedVol(parseUnits("1", 8));
 
@@ -335,7 +341,13 @@ describe("PercentStrikeSelection", () => {
     await mockOptionsPremiumPricer.setVolatilityOracle(
       mockVolatilityOracle.address
     );
-    await mockOptionsPremiumPricer.setPool(mockPriceOracle.address);
+
+    const mockOptionId = constants.HashZero.slice(
+      0,
+      constants.HashZero.length - 1
+    ) + "1";
+
+    await mockOptionsPremiumPricer.setOptionId(mockOptionId);
     await mockPriceOracle.setDecimals(8);
     await mockVolatilityOracle.setAnnualizedVol(1);
 
