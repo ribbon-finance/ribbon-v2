@@ -277,7 +277,7 @@ export async function addMinter(
   const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
   await forceSend.deployed();
   await forceSend.go(contractOwner, {
-    value: parseEther("1"),
+    value: parseEther("10"),
   });
 
   await contract.connect(tokenOwnerSigner).addMinter(minter);
