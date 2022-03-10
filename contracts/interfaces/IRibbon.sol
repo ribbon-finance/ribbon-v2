@@ -49,5 +49,5 @@ interface IOptionsPremiumPricer {
 
     function volatilityOracle() external view returns (address);
 
-    function pool() external view returns (address);
+    function optionId() external view returns (bytes32);
 }
