@@ -43,7 +43,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     uint256 public immutable DOMAIN_CHAIN_ID;
     bytes32 public immutable DOMAIN_SEPARATOR;
 
-    uint256 internal constant MAX_PERCENTAGE = 1000;
+    uint256 internal constant MAX_PERCENTAGE = 10000;
+    uint256 internal constant MAX_FEE = 1000;
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
@@ -89,7 +90,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
      */
     function setFee(address referrer, uint256 fee) external onlyOwner {
         require(referrer != address(0), "Referrer cannot be the zero address");
-        require(fee < MAX_PERCENTAGE, "Fee exceeds maximum");
+        require(fee < MAX_FEE, "Fee exceeds maximum");
 
         referralFees[referrer] = fee;
 
