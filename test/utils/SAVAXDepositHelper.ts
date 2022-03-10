@@ -18,7 +18,7 @@ describe("SAVAXDepositHelper", () => {
   let sAVAX: Contract;
   let signer: SignerWithAddress;
 
-  before(async () => {
+  beforeEach(async () => {
     await network.provider.request({
       method: "hardhat_reset",
       params: [
@@ -68,7 +68,31 @@ describe("SAVAXDepositHelper", () => {
       (await sAVAXVault.depositReceipts(signer.address))[
         AMOUNT_INDEX
       ].toString(),
-      "259480652035615045"
+      "258855101807555732"
+    );
+    const endBalance = await sAVAX.balanceOf(sAVAXVault.address);
+    assert.isAbove(endBalance, startBalance);
+  });
+
+  it("Stakes AVAX and 'deposits for' sAVAX into vault", async () => {
+    const AMOUNT_INDEX = 1;
+    assert.equal(
+      (await sAVAXVault.depositReceipts(signer.address))[
+        AMOUNT_INDEX
+      ].toString(),
+      "0"
+    );
+    const startBalance = await sAVAX.balanceOf(sAVAXVault.address);
+
+    await sAVAXDepositHelper.depositFor(signer.address, {
+      value: ethers.utils.parseEther(".26"),
+    });
+
+    assert.equal(
+      (await sAVAXVault.depositReceipts(signer.address))[
+        AMOUNT_INDEX
+      ].toString(),
+      "258855101807555732"
     );
     const endBalance = await sAVAX.balanceOf(sAVAXVault.address);
     assert.isAbove(endBalance, startBalance);

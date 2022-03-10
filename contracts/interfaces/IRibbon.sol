@@ -11,7 +11,21 @@ interface IRibbonVault {
 
     function depositFor(uint256 amount, address creditor) external;
 
+    function depositFor(address creditor) external payable;
+
     function vaultParams() external view returns (Vault.VaultParams memory);
+
+    function completeWithdraw() external;
+
+    function initiateWithdraw(uint256 numShares) external;
+
+    function redeem(uint256 numShares) external;
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
 }
 
 interface IStrikeSelection {
@@ -50,4 +64,8 @@ interface IOptionsPremiumPricer {
     function volatilityOracle() external view returns (address);
 
     function optionId() external view returns (bytes32);
+}
+
+interface IDepositContract {
+    function depositFor(address recipient) external payable;
 }
