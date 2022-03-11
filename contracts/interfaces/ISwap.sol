@@ -50,6 +50,19 @@ interface ISwap {
         bytes32 s;
     }
 
+    struct OfferDetails {
+        // Seller wallet address
+        address seller;
+        // Addess of oToken
+        address oToken;
+        // Price per oToken denominated in biddingToken
+        uint256 minPrice;
+        // ERC20 Token to bid for oToken
+        address biddingToken;
+        // Minimum oToken amount acceptable for a single bid
+        uint256 minBidSize;
+    }
+
     event Swap(
         uint256 indexed swapId,
         uint256 nonce,
@@ -69,6 +82,8 @@ interface ISwap {
         uint256 minBidSize,
         uint256 totalSize
     );
+
+    event SetFee(address referrer, uint256 fee);
 
     event CloseOffer(uint256 swapId);
 

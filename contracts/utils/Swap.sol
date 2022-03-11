@@ -44,6 +44,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     uint256 internal constant MAX_PERCENTAGE = 10000;
+    uint256 internal constant MAX_FEE = 1000;
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
@@ -89,9 +90,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
      */
     function setFee(address referrer, uint256 fee) external onlyOwner {
         require(referrer != address(0), "Referrer cannot be the zero address");
-        require(fee < MAX_PERCENTAGE, "Fee exceeds maximum");
+        require(fee < MAX_FEE, "Fee exceeds maximum");
 
         referralFees[referrer] = fee;
+
+        emit SetFee(referrer, fee);
     }
 
     /************************************************
@@ -175,6 +178,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         offerDetails.minBidSize = offer.minBidSize;
 
         for (uint256 i = 0; i < bids.length; i++) {
+            require(
+                swapId == bids[i].swapId,
+                "Offer and bid swapId mismatched"
+            );
+
             _swap(offerDetails, offer, bids[i]);
             totalSales += bids[i].sellAmount;
         }
@@ -358,14 +366,6 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     /************************************************
      *  INTERNAL FUNCTIONS
      ***********************************************/
-
-    struct OfferDetails {
-        address seller;
-        address oToken;
-        address biddingToken;
-        uint256 minPrice;
-        uint256 minBidSize;
-    }
 
     /**
      * @notice Swap Atomic ERC20 Swap

@@ -709,7 +709,7 @@ describe("Swap", () => {
       const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
       const buyAmount = totalSize;
       const referrer = feeRecipient;
-      const fee = 1000;
+      const fee = 500;
 
       swap.setFee(feeRecipient, fee);
 
@@ -819,7 +819,7 @@ describe("Swap", () => {
       const tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 174100);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 174146);
     });
 
     it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
@@ -858,7 +858,7 @@ describe("Swap", () => {
       let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 420000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 420642);
     });
   });
 
