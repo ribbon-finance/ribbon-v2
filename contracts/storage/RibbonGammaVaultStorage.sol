@@ -4,10 +4,10 @@ pragma solidity =0.8.4;
 abstract contract RibbonGammaVaultStorageV1 {
     // Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
-    // Path for swapping usdc to weth
-    bytes public usdcSwapPath;
     // Path for swapping sqth to weth
     bytes public sqthSwapPath;
+    // Path for swapping usdc to weth
+    bytes public usdcSwapPath;
 }
 
 // We are following Compound's method of upgrading new contract implementations
