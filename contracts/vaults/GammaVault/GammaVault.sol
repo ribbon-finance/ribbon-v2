@@ -47,8 +47,6 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
      * @param _performanceFee is the perfomance fee pct.
      * @param _tokenName is the name of the token
      * @param _tokenSymbol is the symbol of the token
-     * @param _usdcSwapPath is the path for swapping USDC deposits to ETH
-     * @param _sqthSwapPath is the path for swapping oSQTH to ETH
      */
     struct InitParams {
         address _owner;
@@ -74,6 +72,9 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
      * @param _squeeth is the contract address for oSQTH
      * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
      * @param _uniswapFactory is the contract address for UniswapV3 factory
+     * @param _sqthWeth is the path for swapping SQTH to WETH
+     * @param _usdcWeth is the path for swapping USDC to WETH
+     * @param _oracle is the Oracle contract used by the Squeeth controller
      */
     constructor(
         address _weth,
@@ -82,7 +83,9 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         address _squeeth,
         address _uniswapRouter,
         address _uniswapFactory,
-        address _wethSqueeth
+        address _sqthWeth,
+        address _usdcWeth,
+        address _oracle
     )
         RibbonVault(
             _weth,
@@ -91,7 +94,9 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
             _squeeth,
             _uniswapRouter,
             _uniswapFactory,
-            _wethSqueeth
+            _sqthWeth,
+            _usdcWeth,
+            _oracle
         )
     {}
 
@@ -115,9 +120,27 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
             _vaultParams
         );
 
+        require(
+            VaultLifecycleGamma.checkPath(
+                _initParams._usdcSwapPath,
+                USDC,
+                WETH,
+                UNISWAP_FACTORY
+            ),
+            "Invalid usdcSwapPath"
+        );
+        require(
+            VaultLifecycleGamma.checkPath(
+                _initParams._sqthSwapPath,
+                SQUEETH,
+                WETH,
+                UNISWAP_FACTORY
+            ),
+            "Invalid sqthSwapPath"
+        );
+
         usdcSwapPath = _initParams._usdcSwapPath;
         sqthSwapPath = _initParams._sqthSwapPath;
-        vaultId = IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount(0, 0, 0);
     }
 
     /************************************************
@@ -166,24 +189,25 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         nonReentrant
     {
         // TODO: Update vault state post-rollover
-        VaultLifecycle.swap(
+        VaultLifecycleGamma.swap(
             USDC,
+            0,
             usdcMinAmountOut,
             UNISWAP_ROUTER,
             usdcSwapPath
         );
-        uint256 _vaultId = vaultId;
         IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
         uint256 targetSQTHAmount = VaultLifecycleGamma.getTargetSqueethAmount(
             SQUEETH_CONTROLLER,
-            _vaultId,
+            VAULT_ID,
             address(this).balance
         );
         IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
             value: address(this).balance
-        }(_vaultId, targetSQTHAmount, 0);
-        VaultLifecycle.swap(
+        }(VAULT_ID, targetSQTHAmount, 0);
+        VaultLifecycleGamma.swap(
             SQUEETH,
+            0,
             sqthMinAmountOut,
             UNISWAP_ROUTER,
             sqthSwapPath
@@ -191,7 +215,7 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
         IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
             value: address(this).balance
-        }(_vaultId, 0, 0);
+        }(VAULT_ID, 0, 0);
         // TODO: Calculate shares to mint based on deposits
 
         (
@@ -210,24 +234,25 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         external
         nonReentrant
     {
-        VaultLifecycle.swap(
+        VaultLifecycleGamma.swap(
             USDC,
+            0,
             usdcMinAmountOut,
             UNISWAP_ROUTER,
             usdcSwapPath
         );
-        uint256 _vaultId = vaultId;
         IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
         uint256 targetSQTHAmount = VaultLifecycleGamma.getTargetSqueethAmount(
             SQUEETH_CONTROLLER,
-            _vaultId,
+            VAULT_ID,
             address(this).balance
         );
         IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
             value: address(this).balance
-        }(_vaultId, targetSQTHAmount, 0);
-        VaultLifecycle.swap(
+        }(VAULT_ID, targetSQTHAmount, 0);
+        VaultLifecycleGamma.swap(
             SQUEETH,
+            0,
             sqthMinAmountOut,
             UNISWAP_ROUTER,
             sqthSwapPath
@@ -235,7 +260,7 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
         IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
             value: address(this).balance
-        }(_vaultId, 0, 0);
+        }(VAULT_ID, 0, 0);
         // TODO: Calculate shares to mint based on deposits
 
         (

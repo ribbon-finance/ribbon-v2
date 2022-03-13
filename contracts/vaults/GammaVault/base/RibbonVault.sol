@@ -7,11 +7,13 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 
 import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
+import {IController} from "../../../interfaces/PowerTokenInterface.sol";
 
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
@@ -42,9 +44,6 @@ contract RibbonVault is
 
     /// @notice Vault's lifecycle state like round and locked amounts
     Vault.VaultState public vaultState;
-
-    /// @notice Vault's state of the options sold and the timelocked option
-    Vault.GammaState public gammaState;
 
     /// @notice Fee recipient for the performance and management fees
     address public feeRecipient;
@@ -104,7 +103,16 @@ contract RibbonVault is
     address public immutable UNISWAP_FACTORY;
 
     // WETH-oSQTH Uniswap V3 Pool
-    address public immutable UNISWAP_WETH_SQUEETH;
+    address public immutable UNISWAP_SQTH_WETH;
+
+    // WETH-USDC Uniswap V3 Pool
+    address public immutable UNISWAP_USDC_WETH;
+
+    // Squeeth Oracle
+    address public immutable ORACLE;
+
+    // Squeeth short position vault ID
+    uint256 public immutable VAULT_ID;
 
     /************************************************
      *  EVENTS
@@ -143,10 +151,13 @@ contract RibbonVault is
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
-     * @param _squeethController is the contract address for squeeth actions
+     * @param _squeethController is the contract address for Squeeth actions
      * @param _squeeth is the contract address for oSQTH
      * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
      * @param _uniswapFactory is the contract address for UniswapV3 factory
+     * @param _sqthWeth is the WETH-oSQTH Uniswap V3 Pool
+     * @param _usdcWeth is the WETH-USDC Uniswap V3 Pool
+     * @param _oracle is the Oracle contract used by the Squeeth controller
      */
     constructor(
         address _weth,
@@ -155,7 +166,9 @@ contract RibbonVault is
         address _squeeth,
         address _uniswapRouter,
         address _uniswapFactory,
-        address _wethSqueeth
+        address _sqthWeth,
+        address _usdcWeth,
+        address _oracle
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
@@ -163,7 +176,28 @@ contract RibbonVault is
         require(_squeeth != address(0), "!_squeeth");
         require(_uniswapRouter != address(0), "!_uniswapRouter");
         require(_uniswapFactory != address(0), "!_uniswapFactory");
-        require(_wethSqueeth != address(0), "!_wethSqueeth");
+        require(_sqthWeth != address(0), "!_sqthWeth");
+        require(_usdcWeth != address(0), "!_usdcWeth");
+        require(_oracle != address(0), "!_oracle");
+
+        (address _token0, address _token1) = (
+            IUniswapV3Pool(_sqthWeth).token0(),
+            IUniswapV3Pool(_sqthWeth).token1()
+        );
+        require(
+            (_token0 == _squeeth && _token1 == _weth) ||
+                (_token0 == _weth && _token1 == _squeeth),
+            "Invalid UNISWAP_SQTH_WETH"
+        );
+        (_token0, _token1) = (
+            IUniswapV3Pool(_usdcWeth).token0(),
+            IUniswapV3Pool(_usdcWeth).token1()
+        );
+        require(
+            (_token0 == _usdc && _token1 == _weth) ||
+                (_token0 == _weth && _token1 == _usdc),
+            "Invalid UNISWAP_USDC_WETH"
+        );
 
         WETH = _weth;
         USDC = _usdc;
@@ -171,7 +205,16 @@ contract RibbonVault is
         SQUEETH = _squeeth;
         UNISWAP_ROUTER = _uniswapRouter;
         UNISWAP_FACTORY = _uniswapFactory;
-        UNISWAP_WETH_SQUEETH = _wethSqueeth;
+        UNISWAP_SQTH_WETH = _sqthWeth;
+        UNISWAP_USDC_WETH = _usdcWeth;
+        ORACLE = _oracle;
+
+        // Creates a vault for this contract and saves the vault ID
+        VAULT_ID = IController(_squeethController).mintWPowerPerpAmount(
+            0,
+            0,
+            0
+        );
     }
 
     /**
@@ -743,39 +786,7 @@ contract RibbonVault is
         return vaultParams.cap;
     }
 
-    // TODO: Replace with GammaState
-    // function nextOptionReadyAt() external view returns (uint256) {
-    //     return optionState.nextOptionReadyAt;
-    // }
-
-    // function currentOption() external view returns (address) {
-    //     return optionState.currentOption;
-    // }
-
-    // function nextOption() external view returns (address) {
-    //     return optionState.nextOption;
-    // }
-
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
-    }
-
-    /************************************************
-     *  HELPERS
-     ***********************************************/
-
-    /**
-     * @notice Helper to check whether swap path goes from stables (USDC) to vault's underlying asset
-     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
-     * @return boolean whether the path is valid
-     */
-    function _checkPath(bytes calldata swapPath) internal view returns (bool) {
-        return
-            VaultLifecycle.checkPath(
-                swapPath,
-                USDC,
-                vaultParams.asset,
-                UNISWAP_FACTORY
-            );
     }
 }
