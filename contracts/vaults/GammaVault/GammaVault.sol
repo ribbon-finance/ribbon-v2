@@ -56,8 +56,8 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
         uint256 _performanceFee;
         string _tokenName;
         string _tokenSymbol;
-        bytes _usdcSwapPath;
         bytes _sqthSwapPath;
+        bytes _usdcSwapPath;
     }
 
     /************************************************
@@ -139,8 +139,46 @@ contract RibbonGammaVault is RibbonVault, RibbonGammaVaultStorage {
             "Invalid sqthSwapPath"
         );
 
-        usdcSwapPath = _initParams._usdcSwapPath;
         sqthSwapPath = _initParams._sqthSwapPath;
+        usdcSwapPath = _initParams._usdcSwapPath;
+    }
+
+    /************************************************
+     *  SETTERS
+     ***********************************************/
+
+    /**
+     * @notice Sets a new path for swaps
+     * @param newSwapPath is the new path
+     */
+    function setSqthSwapPath(bytes calldata newSwapPath) external onlyOwner {
+        require(
+            VaultLifecycleGamma.checkPath(
+                newSwapPath,
+                SQUEETH,
+                WETH,
+                UNISWAP_FACTORY
+            ),
+            "Invalid swapPath"
+        );
+        sqthSwapPath = newSwapPath;
+    }
+
+    /**
+     * @notice Sets a new path for swaps
+     * @param newSwapPath is the new path
+     */
+    function setUsdcSwapPath(bytes calldata newSwapPath) external onlyOwner {
+        require(
+            VaultLifecycleGamma.checkPath(
+                newSwapPath,
+                USDC,
+                WETH,
+                UNISWAP_FACTORY
+            ),
+            "Invalid swapPath"
+        );
+        usdcSwapPath = newSwapPath;
     }
 
     /************************************************
