@@ -8,8 +8,6 @@ abstract contract RibbonGammaVaultStorageV1 {
     bytes public usdcSwapPath;
     // Path for swapping sqth to weth
     bytes public sqthSwapPath;
-    // Vault ID for the current short position
-    uint256 public vaultId;
 }
 
 // We are following Compound's method of upgrading new contract implementations
