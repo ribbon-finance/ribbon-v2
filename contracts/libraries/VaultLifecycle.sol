@@ -14,7 +14,6 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
 library VaultLifecycle {
@@ -60,7 +59,16 @@ library VaultLifecycle {
             uint256 delta
         )
     {
-        uint256 expiry = getNextExpiry(closeParams.currentOption);
+        uint256 expiry;
+
+        // uninitialized state
+        if (closeParams.currentOption == address(0)) {
+            expiry = getNextFriday(block.timestamp);
+        } else {
+            expiry = getNextFriday(
+                IOtoken(closeParams.currentOption).expiryTimestamp()
+            );
+        }
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
@@ -134,37 +142,23 @@ library VaultLifecycle {
     }
 
     /**
-     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
-     * @param asset is the address of the vault's asset
-     * @param decimals is the decimals of the asset
-     * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
-     * @param performanceFee is the perf fee percent to charge on premiums
-     * @param managementFee is the management fee percent to charge on the AUM
-     */
-    struct RolloverParams {
-        uint256 decimals;
-        uint256 totalBalance;
-        uint256 currentShareSupply;
-        uint256 lastQueuedWithdrawAmount;
-        uint256 performanceFee;
-        uint256 managementFee;
-    }
-
-    /**
      * @notice Calculate the shares to mint, new price per share, and
       amount of funds to re-allocate as collateral for the new round
-     * @param vaultState is the storage variable vaultState passed from RibbonVault
-     * @param params is the rollover parameters passed to compute the next state
+     * @param currentShareSupply is the total supply of shares
+     * @param asset is the address of the vault's asset
+     * @param decimals is the decimals of the asset
+     * @param pendingAmount is the amount of funds pending from recent deposits
      * @return newLockedAmount is the amount of funds to allocate for the new round
      * @return queuedWithdrawAmount is the amount of funds set aside for withdrawal
      * @return newPricePerShare is the price per share of the new round
      * @return mintShares is the amount of shares to mint from deposits
-     * @return performanceFeeInAsset is the performance fee charged by vault
-     * @return totalVaultFee is the total amount of fee charged by vault
      */
     function rollover(
-        Vault.VaultState storage vaultState,
-        RolloverParams calldata params
+        uint256 currentShareSupply,
+        address asset,
+        uint256 decimals,
+        uint256 pendingAmount,
+        uint256 queuedWithdrawShares
     )
         external
         view
@@ -172,104 +166,45 @@ library VaultLifecycle {
             uint256 newLockedAmount,
             uint256 queuedWithdrawAmount,
             uint256 newPricePerShare,
-            uint256 mintShares,
-            uint256 performanceFeeInAsset,
-            uint256 totalVaultFee
+            uint256 mintShares
         )
     {
-        uint256 currentBalance = params.totalBalance;
-        uint256 pendingAmount = vaultState.totalPending;
-        uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
+        uint256 currentBalance = IERC20(asset).balanceOf(address(this));
 
-        uint256 balanceForVaultFees;
-        {
-            uint256 pricePerShareBeforeFee =
-                ShareMath.pricePerShare(
-                    params.currentShareSupply,
-                    currentBalance,
-                    pendingAmount,
-                    params.decimals
-                );
+        newPricePerShare = ShareMath.pricePerShare(
+            currentShareSupply,
+            currentBalance,
+            pendingAmount,
+            decimals
+        );
 
-            uint256 queuedWithdrawBeforeFee =
-                params.currentShareSupply > 0
-                    ? ShareMath.sharesToAsset(
-                        queuedWithdrawShares,
-                        pricePerShareBeforeFee,
-                        params.decimals
-                    )
-                    : 0;
+        // After closing the short, if the options expire in-the-money
+        // vault pricePerShare would go down because vault's asset balance decreased.
+        // This ensures that the newly-minted shares do not take on the loss.
+        uint256 _mintShares =
+            ShareMath.assetToShares(pendingAmount, newPricePerShare, decimals);
 
-            // Deduct the difference between the newly scheduled withdrawals
-            // and the older withdrawals
-            // so we can charge them fees before they leave
-            uint256 withdrawAmountDiff =
-                queuedWithdrawBeforeFee > params.lastQueuedWithdrawAmount
-                    ? queuedWithdrawBeforeFee.sub(
-                        params.lastQueuedWithdrawAmount
-                    )
-                    : 0;
+        uint256 newSupply = currentShareSupply.add(_mintShares);
 
-            balanceForVaultFees = currentBalance
-                .sub(queuedWithdrawBeforeFee)
-                .add(withdrawAmountDiff);
-        }
-
-        {
-            (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
-                .getVaultFees(
-                balanceForVaultFees,
-                vaultState.lastLockedAmount,
-                vaultState.totalPending,
-                params.performanceFee,
-                params.managementFee
-            );
-        }
-
-        // Take into account the fee
-        // so we can calculate the newPricePerShare
-        currentBalance = currentBalance.sub(totalVaultFee);
-
-        {
-            newPricePerShare = ShareMath.pricePerShare(
-                params.currentShareSupply,
-                currentBalance,
-                pendingAmount,
-                params.decimals
-            );
-
-            // After closing the short, if the options expire in-the-money
-            // vault pricePerShare would go down because vault's asset balance decreased.
-            // This ensures that the newly-minted shares do not take on the loss.
-            mintShares = ShareMath.assetToShares(
-                pendingAmount,
-                newPricePerShare,
-                params.decimals
-            );
-
-            uint256 newSupply = params.currentShareSupply.add(mintShares);
-
-            queuedWithdrawAmount = newSupply > 0
+        uint256 queuedWithdraw =
+            newSupply > 0
                 ? ShareMath.sharesToAsset(
                     queuedWithdrawShares,
                     newPricePerShare,
-                    params.decimals
+                    decimals
                 )
                 : 0;
-        }
 
         return (
-            currentBalance.sub(queuedWithdrawAmount), // new locked balance subtracts the queued withdrawals
-            queuedWithdrawAmount,
+            currentBalance.sub(queuedWithdraw),
+            queuedWithdraw,
             newPricePerShare,
-            mintShares,
-            performanceFeeInAsset,
-            totalVaultFee
+            _mintShares
         );
     }
 
     /**
-     * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
+     * @notice Creates NON-LEVERAGED Opyn short position by depositing collateral and minting otokens
      * @param gammaController is the address of the opyn controller contract
      * @param marginPool is the address of the opyn margin contract which holds the collateral
      * @param oTokenAddress is the address of the otoken to mint
@@ -281,6 +216,43 @@ library VaultLifecycle {
         address marginPool,
         address oTokenAddress,
         uint256 depositAmount
+    ) external returns (uint256) {
+        return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, 0);
+    }
+
+    /**
+     * @notice Creates LEVERAGED Opyn short position by depositing collateral and minting otokens
+     * @param gammaController is the address of the opyn controller contract
+     * @param marginPool is the address of the opyn margin contract which holds the collateral
+     * @param oTokenAddress is the address of the otoken to mint
+     * @param depositAmount is the amount of collateral to deposit
+     * @param cFactor is the collateralFactor for leveraged vault
+     * @return the otoken mint amount
+     */
+    function createShort(
+        address gammaController,
+        address marginPool,
+        address oTokenAddress,
+        uint256 depositAmount,
+        uint256 cFactor
+    ) external returns (uint256) {
+        return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, cFactor);
+    }
+
+    /**
+     * @notice Creates the actual Opyn short position by depositing collateral and minting otokens
+     * @param gammaController is the address of the opyn controller contract
+     * @param marginPool is the address of the opyn margin contract which holds the collateral
+     * @param oTokenAddress is the address of the otoken to mint
+     * @param depositAmount is the amount of collateral to deposit
+     * @return the otoken mint amount
+     */
+    function _createShort(
+        address gammaController,
+        address marginPool,
+        address oTokenAddress,
+        uint256 depositAmount,
+        uint256 cFactor
     ) external returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
@@ -316,12 +288,10 @@ library VaultLifecycle {
                 .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
+            uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
 
-            if (collateralDecimals > 8) {
-                uint256 scaleBy = 10**(collateralDecimals.sub(8)); // oTokens have 8 decimals
-                if (mintAmount > scaleBy) {
-                    mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
-                }
+            if (mintAmount > scaleBy && collateralDecimals > 8) {
+                mintAmount = depositAmount.div(scaleBy); // scale down from 10**18 to 10**8
             }
         }
 
@@ -358,7 +328,7 @@ library VaultLifecycle {
             IController.ActionType.MintShortOption,
             address(this), // owner
             address(this), // address to transfer to
-            oTokenAddress, // option address
+            oTokenAddress, // deposited asset
             newVaultID, // vaultId
             mintAmount, // amount
             0, //index
@@ -541,9 +511,8 @@ library VaultLifecycle {
 
     /**
      * @notice Calculates the performance and management fee for this week's round
-     * @param currentBalance is the balance of funds held on the vault after closing short
-     * @param lastLockedAmount is the amount of funds locked from the previous round
-     * @param pendingAmount is the pending deposit amount
+     * @param vaultState is the struct with vault accounting state
+     * @param currentLockedBalance is the amount of funds currently locked in opyn
      * @param performanceFeePercent is the performance fee pct.
      * @param managementFeePercent is the management fee pct.
      * @return performanceFeeInAsset is the performance fee
@@ -551,26 +520,23 @@ library VaultLifecycle {
      * @return vaultFee is the total fees
      */
     function getVaultFees(
-        uint256 currentBalance,
-        uint256 lastLockedAmount,
-        uint256 pendingAmount,
+        Vault.VaultState storage vaultState,
+        uint256 currentLockedBalance,
         uint256 performanceFeePercent,
         uint256 managementFeePercent
     )
-        internal
-        pure
+        external
+        view
         returns (
             uint256 performanceFeeInAsset,
             uint256 managementFeeInAsset,
             uint256 vaultFee
         )
     {
-        // At the first round, currentBalance=0, pendingAmount>0
-        // so we just do not charge anything on the first round
+        uint256 prevLockedAmount = vaultState.lastLockedAmount;
+
         uint256 lockedBalanceSansPending =
-            currentBalance > pendingAmount
-                ? currentBalance.sub(pendingAmount)
-                : 0;
+            currentLockedBalance.sub(vaultState.totalPending);
 
         uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
@@ -581,10 +547,10 @@ library VaultLifecycle {
         // deposits and withdrawals, is positive. If it is negative, last week's
         // option expired ITM past breakeven, and the vault took a loss so we
         // do not collect performance fee for last week
-        if (lockedBalanceSansPending > lastLockedAmount) {
+        if (lockedBalanceSansPending > prevLockedAmount) {
             _performanceFeeInAsset = performanceFeePercent > 0
                 ? lockedBalanceSansPending
-                    .sub(lastLockedAmount)
+                    .sub(prevLockedAmount)
                     .mul(performanceFeePercent)
                     .div(100 * Vault.FEE_MULTIPLIER)
                 : 0;
@@ -670,17 +636,6 @@ library VaultLifecycle {
     }
 
     /**
-     * @notice Settles the gnosis auction
-     * @param gnosisEasyAuction is the contract address of Gnosis easy auction protocol
-     * @param auctionID is the auction ID of the gnosis easy auction
-     */
-    function settleAuction(address gnosisEasyAuction, uint256 auctionID)
-        internal
-    {
-        IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
-    }
-
-    /**
      * @notice Places a bid in an auction
      * @param bidDetails is the struct with all the details of the
       bid including the auction's id and how much to bid
@@ -760,45 +715,26 @@ library VaultLifecycle {
     }
 
     /**
-     * @notice Gets the next option expiry timestamp
-     * @param currentOption is the otoken address that the vault is currently writing
-     */
-    function getNextExpiry(address currentOption)
-        internal
-        view
-        returns (uint256)
-    {
-        // uninitialized state
-        if (currentOption == address(0)) {
-            return getNextFriday(block.timestamp);
-        }
-        uint256 currentExpiry = IOtoken(currentOption).expiryTimestamp();
-
-        // After options expiry if no options are written for >1 week
-        // We need to give the ability continue writing options
-        if (block.timestamp > currentExpiry + 7 days) {
-            return getNextFriday(block.timestamp);
-        }
-        return getNextFriday(currentExpiry);
-    }
-
-    /**
      * @notice Gets the next options expiry timestamp
-     * @param timestamp is the expiry timestamp of the current option
+     * @param currentExpiry is the expiry timestamp of the current option
      * Reference: https://codereview.stackexchange.com/a/33532
      * Examples:
      * getNextFriday(week 1 thursday) -> week 1 friday
      * getNextFriday(week 1 friday) -> week 2 friday
      * getNextFriday(week 1 saturday) -> week 2 friday
      */
-    function getNextFriday(uint256 timestamp) internal pure returns (uint256) {
+    function getNextFriday(uint256 currentExpiry)
+        internal
+        pure
+        returns (uint256)
+    {
         // dayOfWeek = 0 (sunday) - 6 (saturday)
-        uint256 dayOfWeek = ((timestamp / 1 days) + 4) % 7;
-        uint256 nextFriday = timestamp + ((7 + 5 - dayOfWeek) % 7) * 1 days;
+        uint256 dayOfWeek = ((currentExpiry / 1 days) + 4) % 7;
+        uint256 nextFriday = currentExpiry + ((7 + 5 - dayOfWeek) % 7) * 1 days;
         uint256 friday8am = nextFriday - (nextFriday % (24 hours)) + (8 hours);
 
-        // If the passed timestamp is day=Friday hour>8am, we simply increment it by a week to next Friday
-        if (timestamp >= friday8am) {
+        // If the passed currentExpiry is day=Friday hour>8am, we simply increment it by a week to next Friday
+        if (currentExpiry >= friday8am) {
             friday8am += 7 days;
         }
         return friday8am;
