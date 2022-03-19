@@ -13,6 +13,7 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  APE_ADDRESS,
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
   YEARN_PRICER_OWNER,
@@ -211,7 +212,7 @@ export async function setupOracle(
 
   await oracle
     .connect(oracleOwnerSigner)
-    .setAssetPricer(await getPricerAsset(pricer), chainlinkPricer);
+    .updateAssetPricer(APE_ADDRESS[chainId], chainlinkPricer);
 
   return oracle;
 }
@@ -318,6 +319,7 @@ export async function mintToken(
   } else if (
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
+    contract.address === APE_ADDRESS[chainId] ||
     chainId === CHAINID.AURORA_MAINNET
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
@@ -506,6 +508,7 @@ export const getDeltaStep = (asset: string) => {
     case "SAVAX":
     case "NEAR":
     case "AURORA":
+    case "APE":
       return BigNumber.from("5");
     case "SUSHI":
       return BigNumber.from("1");
