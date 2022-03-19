@@ -272,6 +272,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param newLevFactor is the leverage factor to use
      */
     function setLevFactor(uint16 newLevFactor) external onlyOwner {
+        require(newLevFactor > 10 ** 6 && newLevFactor < 2 * 10 ** 6, "Leverage not 1x - 2x!");
         levFactor = newLevFactor;
     }
 
