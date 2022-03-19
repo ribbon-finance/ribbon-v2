@@ -40,7 +40,7 @@ abstract contract RibbonThetaVaultStorageV4 {
 abstract contract RibbonThetaVaultStorageV5 {
     // Leverage Factor
     // between 1x - 2x). lev factor of 100% = 10 ** 6. lev factor of 200% = 2 * 10 ** 6
-    uint128 public levFactor;
+    uint256 public levFactor;
 }
 
 // We are following Compound's method of upgrading new contract implementations
