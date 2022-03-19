@@ -267,6 +267,14 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         liquidityGauge = newLiquidityGauge;
     }
 
+    /**
+     * @notice Sets the new leverage factor
+     * @param newLevFactor is the leverage factor to use
+     */
+    function setLevFactor(uint16 newLevFactor) external onlyOwner {
+        levFactor = newLevFactor;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -412,7 +420,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
-            lockedBalance
+            lockedBalance,
+            levFactor > 0 ? levFactor : 10 ** 6
         );
 
         _startAuction();
