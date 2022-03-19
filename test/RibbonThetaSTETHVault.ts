@@ -8,6 +8,7 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
   BLOCK_NUMBER,
+  OPTION_PROTOCOL,
   CHAINLINK_WETH_PRICER_STETH,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
@@ -76,12 +77,12 @@ describe("RibbonThetaSTETHVault", () => {
     deltaStep: BigNumber.from("100"),
     depositAmount: parseEther("1"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("94494724"),
+    expectedMintAmount: BigNumber.from("93851929"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     crvSlippage: BigNumber.from("1"),
-    stETHAmountAfterRounding: BigNumber.from("999685122545818005"),
+    stETHAmountAfterRounding: BigNumber.from("999746414674411972"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -232,7 +233,7 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+      const oracle = await setupOracle(params.asset, params.underlyingPricer, ownerSigner, OPTION_PROTOCOL.GAMMA);
 
       await setOpynOracleExpiryPriceYearn(
         params.asset,
@@ -398,7 +399,8 @@ function behavesLikeRibbonOptionsVault(params: {
         params.asset,
         params.strikeAsset,
         params.collateralAsset,
-        params.isPut
+        params.isPut,
+        OPTION_PROTOCOL.GAMMA,
       );
 
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
@@ -496,7 +498,7 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       );
 
-      await setAssetPricer(collateralAsset, params.collateralPricer);
+      await setAssetPricer(collateralAsset, params.collateralPricer, OPTION_PROTOCOL.GAMMA);
 
       collateralPricerSigner = await getAssetPricer(
         params.collateralPricer,
@@ -1186,7 +1188,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(
           await intermediaryAssetContract.balanceOf(user),
-          startBalance.sub(depositAmount.mul(2)).add(1)
+          startBalance.sub(depositAmount.mul(2)).add(2)
         );
         assert.isTrue((await vault.totalSupply()).isZero());
         assert.isTrue((await vault.balanceOf(user)).isZero());
@@ -1502,7 +1504,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.depositAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+        oracle = await setupOracle(params.asset, params.underlyingPricer, ownerSigner, OPTION_PROTOCOL.GAMMA);
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2121,7 +2123,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+        oracle = await setupOracle(params.asset, params.underlyingPricer, ownerSigner, OPTION_PROTOCOL.GAMMA);
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2491,7 +2493,7 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.underlyingPricer, ownerSigner);
+        oracle = await setupOracle(params.asset, params.underlyingPricer, ownerSigner, OPTION_PROTOCOL.GAMMA);
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {

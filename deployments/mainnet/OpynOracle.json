@@ -1,0 +1,123 @@
+{
+  "address": "0xEF3B91345dd7be2C5C1F95C40545e9bF274ee698",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_oracle",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_asset",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "asset",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "decimals",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "latestAnswer",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "oracle",
+      "outputs": [
+        {
+          "internalType": "contract IOracle",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x84113a7f68e2cd2a4cf2af4835b69832316010a3c9137e5c6cd952aaec0ed171",
+  "receipt": {
+    "to": null,
+    "from": "0xd4816D144C005B29dF24C8eb1865fB8A1e79FdDE",
+    "contractAddress": "0xEF3B91345dd7be2C5C1F95C40545e9bF274ee698",
+    "transactionIndex": 63,
+    "gasUsed": "163916",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0x36287e5e3456678925eb96b2a202e81d2a8dadfe15210e49ca3983e9de195972",
+    "transactionHash": "0x84113a7f68e2cd2a4cf2af4835b69832316010a3c9137e5c6cd952aaec0ed171",
+    "logs": [],
+    "blockNumber": 14418089,
+    "cumulativeGasUsed": "4761239",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0xb5711dAeC960c9487d95bA327c570a7cCE4982c0",
+    "0x4d224452801ACEd8B2F0aebE155379bb5D594381"
+  ],
+  "solcInputHash": "cb6e5018d6779dd1784c257a2041d0dd",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.4+commit.c7e474f2\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_oracle\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_asset\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"asset\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"decimals\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"latestAnswer\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"oracle\",\"outputs\":[{\"internalType\":\"contract IOracle\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"stateVariables\":{\"decimals\":{\"details\":\"base decimals\"}},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"asset()\":{\"notice\":\"Asset to get the price of\"},\"oracle()\":{\"notice\":\"Gamma Protocol oracle\"}},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/oracles/OpynOracle.sol\":\"OpynOracle\"},\"evmVersion\":\"istanbul\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/interfaces/GammaInterface.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity =0.8.4;\\n\\nlibrary GammaTypes {\\n    // vault is a struct of 6 arrays that describe a position a user has, a user can have multiple vaults.\\n    struct Vault {\\n        // addresses of oTokens a user has shorted (i.e. written) against this vault\\n        address[] shortOtokens;\\n        // addresses of oTokens a user has bought and deposited in this vault\\n        // user can be long oTokens without opening a vault (e.g. by buying on a DEX)\\n        // generally, long oTokens will be 'deposited' in vaults to act as collateral\\n        // in order to write oTokens against (i.e. in spreads)\\n        address[] longOtokens;\\n        // addresses of other ERC-20s a user has deposited as collateral in this vault\\n        address[] collateralAssets;\\n        // quantity of oTokens minted/written for each oToken address in shortOtokens\\n        uint256[] shortAmounts;\\n        // quantity of oTokens owned and held in the vault for each oToken address in longOtokens\\n        uint256[] longAmounts;\\n        // quantity of ERC-20 deposited as collateral in the vault for each ERC-20 address in collateralAssets\\n        uint256[] collateralAmounts;\\n    }\\n}\\n\\ninterface IOtoken {\\n    function underlyingAsset() external view returns (address);\\n\\n    function strikeAsset() external view returns (address);\\n\\n    function collateralAsset() external view returns (address);\\n\\n    function strikePrice() external view returns (uint256);\\n\\n    function expiryTimestamp() external view returns (uint256);\\n\\n    function isPut() external view returns (bool);\\n}\\n\\ninterface IOtokenFactory {\\n    function getOtoken(\\n        address _underlyingAsset,\\n        address _strikeAsset,\\n        address _collateralAsset,\\n        uint256 _strikePrice,\\n        uint256 _expiry,\\n        bool _isPut\\n    ) external view returns (address);\\n\\n    function createOtoken(\\n        address _underlyingAsset,\\n        address _strikeAsset,\\n        address _collateralAsset,\\n        uint256 _strikePrice,\\n        uint256 _expiry,\\n        bool _isPut\\n    ) external returns (address);\\n\\n    function getTargetOtokenAddress(\\n        address _underlyingAsset,\\n        address _strikeAsset,\\n        address _collateralAsset,\\n        uint256 _strikePrice,\\n        uint256 _expiry,\\n        bool _isPut\\n    ) external view returns (address);\\n\\n    event OtokenCreated(\\n        address tokenAddress,\\n        address creator,\\n        address indexed underlying,\\n        address indexed strike,\\n        address indexed collateral,\\n        uint256 strikePrice,\\n        uint256 expiry,\\n        bool isPut\\n    );\\n}\\n\\ninterface IController {\\n    // possible actions that can be performed\\n    enum ActionType {\\n        OpenVault,\\n        MintShortOption,\\n        BurnShortOption,\\n        DepositLongOption,\\n        WithdrawLongOption,\\n        DepositCollateral,\\n        WithdrawCollateral,\\n        SettleVault,\\n        Redeem,\\n        Call,\\n        Liquidate\\n    }\\n\\n    struct ActionArgs {\\n        // type of action that is being performed on the system\\n        ActionType actionType;\\n        // address of the account owner\\n        address owner;\\n        // address which we move assets from or to (depending on the action type)\\n        address secondAddress;\\n        // asset that is to be transfered\\n        address asset;\\n        // index of the vault that is to be modified (if any)\\n        uint256 vaultId;\\n        // amount of asset that is to be transfered\\n        uint256 amount;\\n        // each vault can hold multiple short / long / collateral assets\\n        // but we are restricting the scope to only 1 of each in this version\\n        // in future versions this would be the index of the short / long / collateral asset that needs to be modified\\n        uint256 index;\\n        // any other data that needs to be passed in for arbitrary function calls\\n        bytes data;\\n    }\\n\\n    struct RedeemArgs {\\n        // address to which we pay out the oToken proceeds\\n        address receiver;\\n        // oToken that is to be redeemed\\n        address otoken;\\n        // amount of oTokens that is to be redeemed\\n        uint256 amount;\\n    }\\n\\n    function getPayout(address _otoken, uint256 _amount)\\n        external\\n        view\\n        returns (uint256);\\n\\n    function operate(ActionArgs[] calldata _actions) external;\\n\\n    function getAccountVaultCounter(address owner)\\n        external\\n        view\\n        returns (uint256);\\n\\n    function oracle() external view returns (address);\\n\\n    function getVault(address _owner, uint256 _vaultId)\\n        external\\n        view\\n        returns (GammaTypes.Vault memory);\\n\\n    function getProceed(address _owner, uint256 _vaultId)\\n        external\\n        view\\n        returns (uint256);\\n\\n    function isSettlementAllowed(\\n        address _underlying,\\n        address _strike,\\n        address _collateral,\\n        uint256 _expiry\\n    ) external view returns (bool);\\n}\\n\\ninterface IOracle {\\n    function setAssetPricer(address _asset, address _pricer) external;\\n\\n    function updateAssetPricer(address _asset, address _pricer) external;\\n\\n    function getPrice(address _asset) external view returns (uint256);\\n}\\n\",\"keccak256\":\"0x148930e8fd36c64b8dbe75c2ba71117eaf4a6da5a019e08f3ff8161b274785ba\",\"license\":\"MIT\"},\"contracts/interfaces/IPriceOracle.sol\":{\"content\":\"//SPDX-License-Identifier: GPL-3.0\\npragma solidity ^0.8.4;\\n\\ninterface IPriceOracle {\\n    function decimals() external view returns (uint256 _decimals);\\n\\n    function latestAnswer() external view returns (uint256 price);\\n}\\n\",\"keccak256\":\"0x348b3c9919f1273777782571f887c055724264107e51cb895888b87b9a716faf\",\"license\":\"GPL-3.0\"},\"contracts/oracles/OpynOracle.sol\":{\"content\":\"// SPDX-License-Identifier: UNLICENSED\\npragma solidity ^0.8.4;\\n\\nimport {IOracle} from \\\"../interfaces/GammaInterface.sol\\\";\\nimport {IPriceOracle} from \\\"../interfaces/IPriceOracle.sol\\\";\\n\\ncontract OpynOracle is IPriceOracle {\\n    /// @dev base decimals\\n    uint256 public constant override decimals = 8;\\n\\n    /// @notice Gamma Protocol oracle\\n    IOracle public immutable oracle;\\n\\n    /// @notice Asset to get the price of\\n    address public immutable asset;\\n\\n    constructor(address _oracle, address _asset) {\\n        require(_oracle != address(0), \\\"!oracle\\\");\\n        require(_asset != address(0), \\\"!asset\\\");\\n\\n        oracle = IOracle(_oracle);\\n        asset = _asset;\\n    }\\n\\n    function latestAnswer() external view override returns (uint256) {\\n        return oracle.getPrice(asset);\\n    }\\n}\\n\",\"keccak256\":\"0x5ef8c44c887303087e16626ecc11e59437144e9b1805f8f2cc25d7dcdcef2a12\",\"license\":\"UNLICENSED\"}},\"version\":1}",
+  "bytecode": "0x60c060405234801561001057600080fd5b5060405161034038038061034083398101604081905261002f916100ed565b6001600160a01b0382166100745760405162461bcd60e51b8152602060048201526007602482015266216f7261636c6560c81b60448201526064015b60405180910390fd5b6001600160a01b0381166100b35760405162461bcd60e51b815260206004820152600660248201526508585cdcd95d60d21b604482015260640161006b565b6001600160601b0319606092831b8116608052911b1660a05261011f565b80516001600160a01b03811681146100e857600080fd5b919050565b600080604083850312156100ff578182fd5b610108836100d1565b9150610116602084016100d1565b90509250929050565b60805160601c60a05160601c6101eb610155600039600081816071015260f101526000818160b8015261011c01526101eb6000f3fe608060405234801561001057600080fd5b506004361061004c5760003560e01c8063313ce5671461005157806338d52e0f1461006c57806350d25bcd146100ab5780637dc0d1d0146100b3575b600080fd5b610059600881565b6040519081526020015b60405180910390f35b6100937f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b039091168152602001610063565b6100596100da565b6100937f000000000000000000000000000000000000000000000000000000000000000081565b6040516341976e0960e01b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000811660048301526000917f0000000000000000000000000000000000000000000000000000000000000000909116906341976e099060240160206040518083038186803b15801561016057600080fd5b505afa158015610174573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610198919061019d565b905090565b6000602082840312156101ae578081fd5b505191905056fea2646970667358221220105bec827c91a2075ae1a63772dc21a28b5c89962651e233b154fe119e502e4c64736f6c63430008040033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061004c5760003560e01c8063313ce5671461005157806338d52e0f1461006c57806350d25bcd146100ab5780637dc0d1d0146100b3575b600080fd5b610059600881565b6040519081526020015b60405180910390f35b6100937f000000000000000000000000000000000000000000000000000000000000000081565b6040516001600160a01b039091168152602001610063565b6100596100da565b6100937f000000000000000000000000000000000000000000000000000000000000000081565b6040516341976e0960e01b81526001600160a01b037f0000000000000000000000000000000000000000000000000000000000000000811660048301526000917f0000000000000000000000000000000000000000000000000000000000000000909116906341976e099060240160206040518083038186803b15801561016057600080fd5b505afa158015610174573d6000803e3d6000fd5b505050506040513d601f19601f82011682018060405250810190610198919061019d565b905090565b6000602082840312156101ae578081fd5b505191905056fea2646970667358221220105bec827c91a2075ae1a63772dc21a28b5c89962651e233b154fe119e502e4c64736f6c63430008040033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "stateVariables": {
+      "decimals": {
+        "details": "base decimals"
+      }
+    },
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "asset()": {
+        "notice": "Asset to get the price of"
+      },
+      "oracle()": {
+        "notice": "Gamma Protocol oracle"
+      }
+    },
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}

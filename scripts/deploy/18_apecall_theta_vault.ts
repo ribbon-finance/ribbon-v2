@@ -4,8 +4,8 @@ import {
   CHAINID,
   APE_ADDRESS,
   APE_OPTION_ID,
-  APE_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
+  GAMMA_ORACLE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
@@ -51,12 +51,12 @@ const main = async ({
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const apeOracle = await deploy("ApeOracle", {
-    contract: "ApeOracle",
+  const apeOracle = await deploy("OpynOracle", {
+    contract: "OpynOracle",
     from: deployer,
     args: [
+      GAMMA_ORACLE[chainId],
       APE_ADDRESS[chainId],
-      APE_PRICE_ORACLE[chainId],
     ],
   });
 
@@ -67,7 +67,7 @@ const main = async ({
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      APE_OPTION_ID,
+      APE_OPTION_ID[chainId],
       manualVolOracle.address,
       apeOracle.address,
       stablesOracle,
@@ -101,13 +101,8 @@ const main = async ({
     console.log(error);
   }
 
-  const lifecycle = await deployments.get("VaultLifecycle");
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault", {
-    libraries: {
-      VaultLifecycle: lifecycle.address,
-    },
-  });
+  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
 
   const initArgs = [
     {
