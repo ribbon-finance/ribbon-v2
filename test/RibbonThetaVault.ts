@@ -589,6 +589,14 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
+      if (leverage) {
+        await vault
+          .connect(ownerSigner)
+          .setLevFactor(
+            BigNumber.from(leverage).mul(BigNumber.from(10).pow(6))
+          );
+      }
+
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
         OTOKEN_FACTORY[chainId]
