@@ -282,7 +282,8 @@ library VaultLifecycle {
         address oTokenAddress,
         uint256 depositAmount
     ) external returns (uint256) {
-        return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, 0);
+        // lev factor = 10 ** 6 = 100%
+        return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, 10 ** 6);
     }
 
     /**
@@ -291,7 +292,8 @@ library VaultLifecycle {
      * @param marginPool is the address of the opyn margin contract which holds the collateral
      * @param oTokenAddress is the address of the otoken to mint
      * @param depositAmount is the amount of collateral to deposit
-     * @param cFactor is the collateralFactor for leveraged vault
+     * @param levFactor is the collateralFactor for leveraged vault
+     * (between 1x - 2x). lev factor of 100% = 10 ** 6. lev factor of 200% = 2 * 10 ** 6
      * @return the otoken mint amount
      */
     function createShort(
@@ -299,7 +301,7 @@ library VaultLifecycle {
         address marginPool,
         address oTokenAddress,
         uint256 depositAmount,
-        uint256 cFactor
+        uint256 levFactor
     ) external returns (uint256) {
         return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, cFactor);
     }
@@ -310,7 +312,7 @@ library VaultLifecycle {
      * @param marginPool is the address of the opyn margin contract which holds the collateral
      * @param oTokenAddress is the address of the otoken to mint
      * @param depositAmount is the amount of collateral to deposit
-     * @param cFactor is the collateralFactor for leveraged vault
+     * @param levFactor is the leverage factor for leveraged vault
      * @return the otoken mint amount
      */
     function _createShort(
@@ -318,7 +320,7 @@ library VaultLifecycle {
         address marginPool,
         address oTokenAddress,
         uint256 depositAmount,
-        uint256 cFactor
+        uint256 levFactor
     ) internal returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
@@ -378,7 +380,7 @@ library VaultLifecycle {
             newVaultID, // vaultId
             0, // amount
             0, //index
-            "" //data
+            levFactor > 0 ? "0x1" : "" //data
         );
 
         actions[1] = IController.ActionArgs(
@@ -398,7 +400,7 @@ library VaultLifecycle {
             address(this), // address to transfer to
             oTokenAddress, // option address
             newVaultID, // vaultId
-            mintAmount, // amount
+            mintAmount.mul(levFactor).div(10 ** 6), // amount to mint (multiply by lev factor)
             0, //index
             "" //data
         );

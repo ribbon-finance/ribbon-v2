@@ -37,6 +37,12 @@ abstract contract RibbonThetaVaultStorageV4 {
     address public liquidityGauge;
 }
 
+abstract contract RibbonThetaVaultStorageV5 {
+    // Leverage Factor
+    // between 1x - 2x). lev factor of 100% = 10 ** 6. lev factor of 200% = 2 * 10 ** 6
+    uint128 public levFactor;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
@@ -45,7 +51,8 @@ abstract contract RibbonThetaVaultStorage is
     RibbonThetaVaultStorageV1,
     RibbonThetaVaultStorageV2,
     RibbonThetaVaultStorageV3,
-    RibbonThetaVaultStorageV4
+    RibbonThetaVaultStorageV4,
+    RibbonThetaVaultStorageV5
 {
 
 }
