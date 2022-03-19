@@ -303,7 +303,7 @@ library VaultLifecycle {
         uint256 depositAmount,
         uint256 levFactor
     ) external returns (uint256) {
-        return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, cFactor);
+        return _createShort(gammaController, marginPool, oTokenAddress, depositAmount, levFactor);
     }
 
     /**
