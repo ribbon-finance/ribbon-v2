@@ -7,8 +7,8 @@ import {
 } from "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 import {
-    IVolatilityOracle
-} from "@ribbon-finance/rvol/contracts/interfaces/IVolatilityOracle.sol";
+    IManualVolatilityOracle
+} from "@ribbon-finance/rvol/contracts/interfaces/IManualVolatilityOracle.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {Vault} from "../libraries/Vault.sol";
 

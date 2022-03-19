@@ -10,6 +10,7 @@ import {
 } from "../constants/constants";
 import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
 import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
+import { constants } from "ethers";
 
 const { BigNumber, getContractFactory, getSigners } = ethers;
 
@@ -109,9 +110,15 @@ describe("ManualVolOracle", () => {
 
   it("setAnnualizedVol", async () => {
     const annualizedVol = 106480000;
+
+    const mockOptionId = constants.HashZero.slice(
+      0,
+      constants.HashZero.length - 1
+    ) + "1";
+
     await manualVolOracle.setAnnualizedVol(
-      ETH_USDC_POOL[CHAINID.ETH_MAINNET],
-      annualizedVol
+      [mockOptionId],
+      [annualizedVol]
     );
   });
 });

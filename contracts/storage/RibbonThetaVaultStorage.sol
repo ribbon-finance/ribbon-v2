@@ -26,10 +26,10 @@ abstract contract RibbonThetaVaultStorageV2 {
 }
 
 abstract contract RibbonThetaVaultStorageV3 {
-    // Auction will be denominated in USDC if true
-    bool public isUsdcAuction;
-    // Path for swaps
-    bytes public swapPath;
+    // DEPRECATED: Auction will be denominated in USDC if true
+    bool private _isUsdcAuction;
+    // DEPRECATED: Path for swaps
+    bytes private _swapPath;
 }
 
 abstract contract RibbonThetaVaultStorageV4 {

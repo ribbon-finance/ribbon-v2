@@ -1,32 +1,31 @@
 import { network, ethers } from "hardhat";
 import { assert, expect } from "chai";
 import { Contract } from "ethers";
-import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
-import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricer.json";
-import TestVolOracle_ABI from "../constants/abis/TestVolOracle.json";
+import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
+import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import {
   OptionsPremiumPricerInStables_BYTECODE,
-  TestVolOracle_BYTECODE,
+  ManualVolOracle_BYTECODE,
+  WETH_ADDRESS,
 } from "../constants/constants";
-const { provider, getContractFactory } = ethers;
+const { getContractFactory } = ethers;
 
-moment.tz.setDefault("UTC");
-
-describe("DeltaStrikeSelectionE2E", () => {
+describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
   let volOracle: Contract;
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
   let wethPriceOracle: Contract;
   let signer: SignerWithAddress;
   let signer2: SignerWithAddress;
+  let optionId: string;
 
-  const PERIOD = 43200; // 12 hours
   const WEEK = 604800; // 7 days
+  const DELTA = 1000;
 
-  const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
+  const weth = WETH_ADDRESS[1];
 
   const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
   const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
@@ -46,9 +45,9 @@ describe("DeltaStrikeSelectionE2E", () => {
     });
 
     [signer, signer2] = await ethers.getSigners();
-    const TestVolOracle = await getContractFactory(
-      TestVolOracle_ABI,
-      TestVolOracle_BYTECODE,
+    const ManualVolOracle = await getContractFactory(
+      ManualVolOracle_ABI,
+      ManualVolOracle_BYTECODE,
       signer
     );
     const OptionsPremiumPricer = await getContractFactory(
@@ -61,12 +60,17 @@ describe("DeltaStrikeSelectionE2E", () => {
       signer
     );
 
-    volOracle = await TestVolOracle.deploy(PERIOD, 7);
+    volOracle = await ManualVolOracle.deploy(signer.address);
 
-    await volOracle.initPool(ethusdcPool);
+    optionId = await volOracle.getOptionId(
+      DELTA,
+      weth,
+      weth,
+      false
+    );
 
     optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-      ethusdcPool,
+      optionId,
       volOracle.address,
       wethPriceOracleAddress,
       usdcPriceOracleAddress
@@ -127,7 +131,12 @@ describe("DeltaStrikeSelectionE2E", () => {
     let expiryTimestamp: BigNumber;
 
     beforeEach(async () => {
-      await updateVol();
+      volOracle
+        .connect(signer)
+        .setAnnualizedVol(
+          [optionId],
+          [BigNumber.from("15").mul(BigNumber.from("10").pow("7"))]
+        );
       underlyingPrice = await optionsPremiumPricer.getUnderlyingPrice();
       underlyingPrice = underlyingPrice.sub(
         BigNumber.from(underlyingPrice).mod(await strikeSelection.step())
@@ -163,6 +172,7 @@ describe("DeltaStrikeSelectionE2E", () => {
             deltaAtUnderlying
               .sub(targetDelta)
               .div(500)
+              .sub(1)
               .mul(100)
               .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
           )
@@ -198,14 +208,14 @@ describe("DeltaStrikeSelectionE2E", () => {
             deltaAtUnderlying
               .sub(targetDelta)
               .div(500)
-              .sub(3)
+              .sub(4)
               .mul(100)
               .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
           )
           .toString()
       );
 
-      assert.isAbove(
+      assert.isBelow(
         parseInt(targetDelta.toString()),
         parseInt(BigNumber.from(10000).sub(delta).toString())
       );
@@ -224,47 +234,9 @@ describe("DeltaStrikeSelectionE2E", () => {
       );
     });
   });
-
-  const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
-    let topOfPeriod: number;
-
-    const rem = latestTimestamp % PERIOD;
-    if (rem < Math.floor(PERIOD / 2)) {
-      topOfPeriod = latestTimestamp - rem + PERIOD;
-    } else {
-      topOfPeriod = latestTimestamp + rem + PERIOD;
-    }
-    return topOfPeriod;
-  };
-
-  const updateVol = async () => {
-    const values = [
-      BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2550000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2650000000"),
-    ];
-
-    for (let i = 0; i < values.length; i++) {
-      await volOracle.setPrice(values[i]);
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
-      await time.increaseTo(topOfPeriod);
-      await volOracle.mockCommit(ethusdcPool);
-    }
-  };
 });
 
-describe("PercentStrikeSelectionE2E", () => {
+describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
   let volOracle: Contract;
   let strikeSelection: Contract;
   let optionsPremiumPricer: Contract;
@@ -272,10 +244,11 @@ describe("PercentStrikeSelectionE2E", () => {
   let signer2: SignerWithAddress;
   let wethPriceOracle: Contract;
   let multiplier: number;
+  let optionId: string;
 
-  const PERIOD = 43200; // 12 hours
+  const DELTA = 1000;
 
-  const ethusdcPool = "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8";
+  const weth = WETH_ADDRESS[1];
 
   const wethPriceOracleAddress = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
   const usdcPriceOracleAddress = "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6";
@@ -295,9 +268,9 @@ describe("PercentStrikeSelectionE2E", () => {
     });
 
     [signer, signer2] = await ethers.getSigners();
-    const TestVolOracle = await getContractFactory(
-      TestVolOracle_ABI,
-      TestVolOracle_BYTECODE,
+    const ManualVolOracle = await getContractFactory(
+      ManualVolOracle_ABI,
+      ManualVolOracle_BYTECODE,
       signer
     );
     const OptionsPremiumPricer = await getContractFactory(
@@ -310,12 +283,17 @@ describe("PercentStrikeSelectionE2E", () => {
       signer
     );
 
-    volOracle = await TestVolOracle.deploy(PERIOD, 7);
+    volOracle = await ManualVolOracle.deploy(signer.address);
 
-    await volOracle.initPool(ethusdcPool);
+    optionId = await volOracle.getOptionId(
+      DELTA,
+      weth,
+      weth,
+      false
+    );
 
     optionsPremiumPricer = await OptionsPremiumPricer.deploy(
-      ethusdcPool,
+      optionId,
       volOracle.address,
       wethPriceOracleAddress,
       usdcPriceOracleAddress
@@ -390,7 +368,12 @@ describe("PercentStrikeSelectionE2E", () => {
     let underlyingPrice: BigNumber;
 
     beforeEach(async () => {
-      await updateVol();
+      volOracle
+        .connect(signer)
+        .setAnnualizedVol(
+          [optionId],
+          [BigNumber.from("15").mul(BigNumber.from("10").pow("7"))]
+        );
       underlyingPrice = await optionsPremiumPricer.getUnderlyingPrice();
       underlyingPrice = underlyingPrice.sub(
         BigNumber.from(underlyingPrice).mod(await strikeSelection.step())
@@ -422,42 +405,4 @@ describe("PercentStrikeSelectionE2E", () => {
       assert.equal(strikePrice.toString(), correctStrike.toString());
     });
   });
-
-  const getTopOfPeriod = async () => {
-    const latestTimestamp = (await provider.getBlock("latest")).timestamp;
-    let topOfPeriod: number;
-
-    const rem = latestTimestamp % PERIOD;
-    if (rem < Math.floor(PERIOD / 2)) {
-      topOfPeriod = latestTimestamp - rem + PERIOD;
-    } else {
-      topOfPeriod = latestTimestamp + rem + PERIOD;
-    }
-    return topOfPeriod;
-  };
-
-  const updateVol = async () => {
-    const values = [
-      BigNumber.from("2000000000"),
-      BigNumber.from("2100000000"),
-      BigNumber.from("2200000000"),
-      BigNumber.from("2150000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2550000000"),
-      BigNumber.from("2350000000"),
-      BigNumber.from("2450000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2250000000"),
-      BigNumber.from("2650000000"),
-    ];
-
-    for (let i = 0; i < values.length; i++) {
-      await volOracle.setPrice(values[i]);
-      const topOfPeriod = (await getTopOfPeriod()) + PERIOD;
-      await time.increaseTo(topOfPeriod);
-      await volOracle.mockCommit(ethusdcPool);
-    }
-  };
 });
