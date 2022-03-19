@@ -11,11 +11,13 @@ import {
     IOtokenFactory,
     IOtoken,
     IController,
-    GammaTypes
+    GammaTypes,
+    IMarginCalculator
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
+import "hardhat/console.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -380,7 +382,7 @@ library VaultLifecycle {
             newVaultID, // vaultId
             0, // amount
             0, //index
-            bytes(levFactor > 0 ? hex"01" : hex"00") //data
+            bytes(levFactor > 0 ? hex"01" : hex"00") // data: 0x1 indicates a naked option vault
         );
 
         actions[1] = IController.ActionArgs(
@@ -393,6 +395,17 @@ library VaultLifecycle {
             0, //index
             "" //data
         );
+        // console.log(mintAmount, mintAmount.mul(levFactor).div(10 ** 6), levFactor);
+
+        // console.log(oToken.strikePrice(), oToken.expiryTimestamp());
+
+        // uint margin = IMarginCalculator(0xfaa67e3736572645B38AF7410B3E1006708e13F4).getNakedMarginRequired(
+        //     0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+        //     0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+        //     0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+        //     mintAmount, 260000000000, 290000000000, oToken.expiryTimestamp(), 10**6, true);
+
+        // console.log(margin);
 
         actions[2] = IController.ActionArgs(
             IController.ActionType.MintShortOption,
@@ -400,7 +413,8 @@ library VaultLifecycle {
             address(this), // address to transfer to
             oTokenAddress, // option address
             newVaultID, // vaultId
-            mintAmount.mul(levFactor).div(10 ** 6), // amount to mint (multiply by lev factor)
+            mintAmount,
+            // mintAmount.mul(levFactor).div(10 ** 6), // amount to mint (multiply by lev factor)
             0, //index
             "" //data
         );
