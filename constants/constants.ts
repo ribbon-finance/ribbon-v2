@@ -178,6 +178,9 @@ export const PERP_PRICE_ORACLE = {
   [CHAINID.ETH_KOVAN]: "0x9326BFA02ADD2366b30bacB125260Af641031331", //NOTE: Unofficial, use only for deployment testing
 };
 
+export const APE_PRICE_ORACLE = {
+  [CHAINID.AURORA_MAINNET]: "FIXME",
+};
 /**
  * Yearn Pricers / Reference contracts
  */
@@ -382,10 +385,19 @@ export const SAVAX_USDC_POOL = {
   [CHAINID.AVAX_FUJI]: "0x0A59f35F00A482bB04d95428e1ec051cBac216C9", // NOTE: sAVAX Pricer
 };
 
+
 export const AAVE_ETH_POOL = "0x5aB53EE1d50eeF2C1DD3d5402789cd27bB52c1bB";
 export const PERP_ETH_POOL = {
   [CHAINID.ETH_MAINNET]: "0xcD83055557536EFf25FD0eAfbC56e74a1b4260B3",
   [CHAINID.ETH_KOVAN]: "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
+};
+
+/**
+ * Option ID
+ */
+
+export const APE_OPTION_ID = {
+  [CHAINID.ETH_MAINNET]: "0x53df032786f782a036aa7a561d8fe9eea0710602cab739e0ef3ce0f06560df00",
 };
 
 /**
