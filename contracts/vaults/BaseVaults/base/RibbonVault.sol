@@ -109,14 +109,6 @@ contract RibbonVault is
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
-    // UNISWAP_ROUTER is the contract address of UniswapV3 Router which handles swaps
-    // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
-    address public immutable UNISWAP_ROUTER;
-
-    // UNISWAP_FACTORY is the contract address of UniswapV3 Factory which stores pool information
-    // https://github.com/Uniswap/v3-core/blob/main/contracts/interfaces/IUniswapV3Factory.sol
-    address public immutable UNISWAP_FACTORY;
-
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -157,33 +149,25 @@ contract RibbonVault is
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _uniswapRouter is the contract address for UniswapV3 router which handles swaps
-     * @param _uniswapFactory is the contract address for UniswapV3 factory
      */
     constructor(
         address _weth,
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction,
-        address _uniswapRouter,
-        address _uniswapFactory
+        address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
-        require(_uniswapRouter != address(0), "!_uniswapRouter");
-        require(_uniswapFactory != address(0), "!_uniswapFactory");
 
         WETH = _weth;
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
-        UNISWAP_ROUTER = _uniswapRouter;
-        UNISWAP_FACTORY = _uniswapFactory;
     }
 
     /**
@@ -778,24 +762,5 @@ contract RibbonVault is
 
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
-    }
-
-    /************************************************
-     *  HELPERS
-     ***********************************************/
-
-    /**
-     * @notice Helper to check whether swap path goes from stables (USDC) to vault's underlying asset
-     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
-     * @return boolean whether the path is valid
-     */
-    function _checkPath(bytes calldata swapPath) internal view returns (bool) {
-        return
-            VaultLifecycle.checkPath(
-                swapPath,
-                USDC,
-                vaultParams.asset,
-                UNISWAP_FACTORY
-            );
     }
 }

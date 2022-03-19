@@ -280,7 +280,7 @@ export async function addMinter(
   const forceSend = await forceSendContract.deploy(); // Some contract do not have receive(), so we force send
   await forceSend.deployed();
   await forceSend.go(contractOwner, {
-    value: parseEther("1"),
+    value: parseEther("10"),
   });
 
   await contract.connect(tokenOwnerSigner).addMinter(minter);
@@ -463,27 +463,6 @@ async function sharesToAsset(
   return shares
     .mul(assetPerShare)
     .div(BigNumber.from(10).pow(decimals.toString()));
-}
-
-export function encodePath(tokenAddresses, fees) {
-  // Encode path for Uniswap swap path
-  const FEE_SIZE = 3;
-
-  if (tokenAddresses.length !== fees.length + 1) {
-    throw new Error("path/fee lengths do not match");
-  }
-
-  let encoded = "0x";
-  for (let i = 0; i < fees.length; i++) {
-    // 20 byte encoding of the address
-    encoded += tokenAddresses[i].slice(2);
-    // 3 byte encoding of the fee
-    encoded += fees[i].toString(16).padStart(2 * FEE_SIZE, "0");
-  }
-  // encode the final token
-  encoded += tokenAddresses[tokenAddresses.length - 1].slice(2);
-
-  return encoded.toLowerCase();
 }
 
 /* eslint @typescript-eslint/no-explicit-any: "off" */
