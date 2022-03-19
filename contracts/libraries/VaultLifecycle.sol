@@ -380,7 +380,7 @@ library VaultLifecycle {
             newVaultID, // vaultId
             0, // amount
             0, //index
-            levFactor > 0 ? "0x1" : "" //data
+            bytes(levFactor > 0 ? hex"01" : hex"00") //data
         );
 
         actions[1] = IController.ActionArgs(
