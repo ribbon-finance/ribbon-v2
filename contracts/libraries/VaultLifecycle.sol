@@ -310,6 +310,7 @@ library VaultLifecycle {
      * @param marginPool is the address of the opyn margin contract which holds the collateral
      * @param oTokenAddress is the address of the otoken to mint
      * @param depositAmount is the amount of collateral to deposit
+     * @param cFactor is the collateralFactor for leveraged vault
      * @return the otoken mint amount
      */
     function _createShort(
@@ -318,7 +319,7 @@ library VaultLifecycle {
         address oTokenAddress,
         uint256 depositAmount,
         uint256 cFactor
-    ) external returns (uint256) {
+    ) internal returns (uint256) {
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
