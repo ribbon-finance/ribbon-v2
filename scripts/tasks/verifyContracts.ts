@@ -1,7 +1,5 @@
 import { TaskArguments } from "hardhat/types";
 import {
-  DEX_FACTORY,
-  DEX_ROUTER,
   GAMMA_CONTROLLER,
   GNOSIS_EASY_AUCTION,
   LDO_ADDRESS,
@@ -61,8 +59,6 @@ const main = async (
     GAMMA_CONTROLLER[chainId],
     MARGIN_POOL[chainId],
     GNOSIS_EASY_AUCTION[chainId],
-    DEX_ROUTER[chainId],
-    DEX_FACTORY[chainId],
   ];
 
   try {
