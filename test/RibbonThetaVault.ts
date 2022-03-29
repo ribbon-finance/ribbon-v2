@@ -65,7 +65,7 @@ const WEEKS_PER_YEAR = 52142857;
 const PUT_EXPECTED_MINT_AMOUNT = {
   [CHAINID.ETH_MAINNET]: "3846153846",
   [CHAINID.AVAX_MAINNET]: "138888888888",
-  [CHAINID.AURORA_MAINNET]: "3846153846",
+  [CHAINID.AURORA_MAINNET]: "4761904761",
 };
 
 const chainId = network.config.chainId;
@@ -165,7 +165,7 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 98000,
     },
     mintConfig: {
-      amount: BigNumber.from("10000000000000"),
+      amount: parseUnits("10000000", 6),
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
     availableChains: [
