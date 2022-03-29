@@ -8,6 +8,15 @@ export enum CHAINID {
   AVAX_MAINNET = 43114, // eslint-disable-line no-unused-vars
   AVAX_FUJI = 43113, // eslint-disable-line no-unused-vars
 }
+export enum OPTION_PROTOCOL {
+  GAMMA = 1, // eslint-disable-line no-unused-vars
+  TD = 10, // eslint-disable-line no-unused-vars
+}
+
+export enum TransferActions {
+  INTERVAULT = 0, // eslint-disable-line no-unused-vars
+  WITHDRAW = 1, // eslint-disable-line no-unused-vars
+}
 
 // Make the block number on Thursday 12pm UTC
 // Must be 1 day from current time
@@ -16,11 +25,6 @@ export const BLOCK_NUMBER = {
   [CHAINID.AVAX_MAINNET]: 12037377,
   [CHAINID.AVAX_FUJI]: 2823963,
 };
-
-export enum OPTION_PROTOCOL {
-  GAMMA = 1, // eslint-disable-line no-unused-vars
-  TD = 10, // eslint-disable-line no-unused-vars
-}
 
 export const NULL_ADDR = "0x0000000000000000000000000000000000000000";
 export const PLACEHOLDER_ADDR = "0x0000000000000000000000000000000000000001";
@@ -176,6 +180,7 @@ export const APE_PRICER = {
   [CHAINID.ETH_MAINNET]: "0x65769fAc629C1128C1461661F29F7e598746DBCa", // Custom Uniswap Pricer
 };
 
+// NOTE: Oracle locking period and dispute period is set differently on different vaults
 export const ORACLE_DISPUTE_PERIOD = 7200;
 export const ORACLE_LOCKING_PERIOD = 300;
 
@@ -281,7 +286,7 @@ export const CHAINLINK_WETH_PRICER = {
 };
 
 export const CHAINLINK_WBTC_PRICER = {
-  [CHAINID.ETH_MAINNET]: "0x32363cAB91EEaad10BFdd0b6Cd013CAF2595E85d",
+  [CHAINID.ETH_MAINNET]: "0xa0647D32deA8bf50bb4CC6d96A91F9F2bbE43EfD",
   [CHAINID.AVAX_FUJI]: "0x0634890CF8c12F86AEfe5a3fd1F2474F12407eb5",
 };
 

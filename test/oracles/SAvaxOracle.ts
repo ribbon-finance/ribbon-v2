@@ -38,7 +38,7 @@ describe("SVAXOracle", () => {
 
   it("gets staked avax price", async () => {
     const sAvaxPrice = await sAvaxOracle.latestAnswer();
-    assert.equal(sAvaxPrice.toString(), "8147274116");
+    assert.equal(sAvaxPrice.toString(), "7148436116");
   });
 
   it("checks staked avax trades at a premium above wrapped avax", async () => {

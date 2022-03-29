@@ -9,6 +9,10 @@ interface IRibbonVault {
 
     function cap() external view returns (uint256);
 
+    function WETH() external view returns (address);
+
+    function withdrawals(address) external view returns (uint256);
+
     function depositFor(uint256 amount, address creditor) external;
 
     function depositFor(address creditor) external payable;
@@ -26,6 +30,13 @@ interface IRibbonVault {
         address recipient,
         uint256 amount
     ) external returns (bool);
+
+    // STETH
+    function STETH() external view returns (address);
+
+    function collateralToken() external view returns (address);
+
+    function completeWithdraw(uint256 minAmountOut) external;
 }
 
 interface IStrikeSelection {

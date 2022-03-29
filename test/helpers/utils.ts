@@ -228,14 +228,24 @@ export async function setupOracle(
 export async function setOpynOracleExpiryPrice(
   asset: string,
   oracle: Contract,
+  pricer: string,
   expiry: BigNumber,
   settlePrice: BigNumber
 ) {
-  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+  const lockingPeriod = await oracle.getPricerLockingPeriod(pricer);
+  const disputePeriod = await oracle.getPricerDisputePeriod(pricer);
+
+  // NOTE: There's a timing issue due to the above RPCs pushing the timestamp forward,
+  // adjust the block number a bit into the past to account for this
+  await increaseTo(expiry.toNumber() + lockingPeriod.toNumber());
+
+  const pricerSigner = await impersonate(pricer);
+  const res = await oracle
+    .connect(pricerSigner)
+    .setExpiryPrice(asset, expiry, settlePrice);
   const receipt = await res.wait();
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
-
-  await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
+  await increaseTo(timestamp + disputePeriod.toNumber());
 }
 
 export async function setOpynOracleExpiryPriceYearn(
