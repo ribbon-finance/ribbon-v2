@@ -153,3 +153,11 @@ interface IController {
         uint256 _expiry
     ) external view returns (bool);
 }
+
+interface IOracle {
+    function setAssetPricer(address _asset, address _pricer) external;
+
+    function updateAssetPricer(address _asset, address _pricer) external;
+
+    function getPrice(address _asset) external view returns (uint256);
+}

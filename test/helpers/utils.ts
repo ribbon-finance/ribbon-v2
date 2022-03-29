@@ -6,6 +6,7 @@ import CHAINLINK_PRICER_ABI from "../../constants/abis/ChainLinkPricer.json";
 import SAVAX_PRICER_ABI from "../../constants/abis/SAvaxPricer.json";
 import {
   CHAINID,
+  OPTION_PROTOCOL,
   GAMMA_ORACLE,
   GAMMA_WHITELIST,
   GAMMA_WHITELIST_OWNER,
@@ -13,10 +14,21 @@ import {
   ORACLE_LOCKING_PERIOD,
   ORACLE_OWNER,
   USDC_ADDRESS,
+  APE_ADDRESS,
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
   YEARN_PRICER_OWNER,
   SAVAX_PRICER,
+  GAMMA_CONTROLLER,
+  OTOKEN_FACTORY,
+  MARGIN_POOL,
+  TD_CONTROLLER,
+  TD_OTOKEN_FACTORY,
+  TD_MARGIN_POOL,
+  TD_ORACLE,
+  TD_ORACLE_OWNER,
+  TD_WHITELIST,
+  TD_WHITELIST_OWNER,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -117,15 +129,18 @@ export async function getAssetPricer(
   return await pricerContract.connect(ownerSigner);
 }
 
-export async function setAssetPricer(asset: string, pricer: string) {
+export async function setAssetPricer(asset: string, pricer: string, protocol: OPTION_PROTOCOL) {
+  const oracleAddr = protocol === OPTION_PROTOCOL.GAMMA ? GAMMA_ORACLE[chainId] : TD_ORACLE[chainId];
+  const oracleOwnerAddr = protocol === OPTION_PROTOCOL.GAMMA ? ORACLE_OWNER[chainId] : TD_ORACLE_OWNER[chainId];
+
   await network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ORACLE_OWNER[chainId]],
+    params: [oracleOwnerAddr],
   });
 
-  const ownerSigner = await provider.getSigner(ORACLE_OWNER[chainId]);
+  const ownerSigner = await provider.getSigner(oracleOwnerAddr);
 
-  const oracle = await ethers.getContractAt("IOracle", GAMMA_ORACLE[chainId]);
+  const oracle = await ethers.getContractAt("IOracle", oracleAddr);
 
   await oracle.connect(ownerSigner).setAssetPricer(asset, pricer);
 }
@@ -134,25 +149,27 @@ export async function whitelistProduct(
   underlying: string,
   strike: string,
   collateral: string,
-  isPut: boolean
+  isPut: boolean,
+  protocol: OPTION_PROTOCOL,
 ) {
   const [adminSigner] = await ethers.getSigners();
-  const ownerAddress = GAMMA_WHITELIST_OWNER[chainId];
+  const whitelistAddr = protocol === OPTION_PROTOCOL.GAMMA ? GAMMA_WHITELIST[chainId] : TD_WHITELIST[chainId];
+  const whitelistOwnerAddr = protocol === OPTION_PROTOCOL.GAMMA ? GAMMA_WHITELIST_OWNER[chainId] : TD_WHITELIST_OWNER[chainId];
 
   await network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [ownerAddress],
+    params: [whitelistOwnerAddr],
   });
 
-  const ownerSigner = await provider.getSigner(ownerAddress);
+  const ownerSigner = await provider.getSigner(whitelistOwnerAddr);
 
   const whitelist = await ethers.getContractAt(
     "IGammaWhitelist",
-    GAMMA_WHITELIST[chainId]
+    whitelistAddr,
   );
 
   await adminSigner.sendTransaction({
-    to: ownerAddress,
+    to: whitelistOwnerAddr,
     value: parseEther("5"),
   });
 
@@ -164,20 +181,25 @@ export async function whitelistProduct(
 }
 
 export async function setupOracle(
+  assetAddr: string,
   chainlinkPricer: string,
-  signer: SignerWithAddress
+  signer: SignerWithAddress,
+  protocol: OPTION_PROTOCOL,
 ) {
   await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [chainlinkPricer],
   });
 
-  const oracleOwner = ORACLE_OWNER[chainId];
+  const oracleAddr = protocol === OPTION_PROTOCOL.GAMMA ? GAMMA_ORACLE[chainId] : TD_ORACLE[chainId];
+  const oracleOwnerAddr = protocol === OPTION_PROTOCOL.GAMMA ? ORACLE_OWNER[chainId] : TD_ORACLE_OWNER[chainId];
 
   await network.provider.request({
     method: "hardhat_impersonateAccount",
-    params: [oracleOwner],
+    params: [oracleOwnerAddr],
   });
+  const oracleOwnerSigner = await provider.getSigner(oracleOwnerAddr);
+
   const pricerSigner = await provider.getSigner(chainlinkPricer);
 
   const forceSendContract = await ethers.getContractFactory("ForceSend");
@@ -187,15 +209,13 @@ export async function setupOracle(
     .go(chainlinkPricer, { value: parseEther("1") });
 
   const oracle = new ethers.Contract(
-    GAMMA_ORACLE[chainId],
+    oracleAddr,
     ORACLE_ABI,
     pricerSigner
   );
 
-  const oracleOwnerSigner = await provider.getSigner(oracleOwner);
-
   await signer.sendTransaction({
-    to: oracleOwner,
+    to: oracleOwnerAddr,
     value: parseEther("1"),
   });
 
@@ -203,15 +223,15 @@ export async function setupOracle(
     .connect(oracleOwnerSigner)
     .setStablePrice(USDC_ADDRESS[chainId], "100000000");
 
-  const pricer = new ethers.Contract(
-    chainlinkPricer,
-    getPricerABI(chainlinkPricer),
-    oracleOwnerSigner
-  );
-
-  await oracle
-    .connect(oracleOwnerSigner)
-    .setAssetPricer(await getPricerAsset(pricer), chainlinkPricer);
+  if (protocol === OPTION_PROTOCOL.GAMMA) {
+    await oracle
+      .connect(oracleOwnerSigner)
+      .setAssetPricer(assetAddr, chainlinkPricer);
+  } else {
+    await oracle
+      .connect(oracleOwnerSigner)
+      .updateAssetPricer(assetAddr, chainlinkPricer);
+  }
 
   return oracle;
 }
@@ -318,6 +338,7 @@ export async function mintToken(
   } else if (
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
+    contract.address === APE_ADDRESS[chainId] ||
     chainId === CHAINID.AURORA_MAINNET
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
@@ -506,6 +527,7 @@ export const getDeltaStep = (asset: string) => {
     case "SAVAX":
     case "NEAR":
     case "AURORA":
+    case "APE":
       return BigNumber.from("5");
     case "SUSHI":
       return BigNumber.from("1");
@@ -534,5 +556,16 @@ export const getPricerAsset = async (pricer: Contract) => {
       return await pricer.sAVAX();
     default:
       return await pricer.asset();
+  }
+};
+
+export const getProtocolAddresses = (protocol: OPTION_PROTOCOL, chainId: number) => {
+  switch (protocol) {
+    case OPTION_PROTOCOL.GAMMA:
+      return [GAMMA_CONTROLLER[chainId], OTOKEN_FACTORY[chainId], MARGIN_POOL[chainId], ORACLE_OWNER[chainId]];
+    case OPTION_PROTOCOL.TD:
+      return [TD_CONTROLLER[chainId], TD_OTOKEN_FACTORY[chainId], TD_MARGIN_POOL[chainId], TD_ORACLE_OWNER[chainId]];
+    default:
+      throw new Error('Protocol not found');
   }
 };
