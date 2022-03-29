@@ -8,7 +8,7 @@ export const SAVAX_STRIKE_STEP = 10;
 export const AAVE_STRIKE_STEP = 10;
 export const NEAR_STRIKE_STEP = 5;
 export const AURORA_STRIKE_STEP = 5;
-export const APE_STRIKE_STEP = 5;
+export const APE_STRIKE_STEP = 1;
 
 export const STRIKE_DELTA = 1000; // 0.1d
 export const PREMIUM_DISCOUNT = 200; // 0.20, 80% discount
