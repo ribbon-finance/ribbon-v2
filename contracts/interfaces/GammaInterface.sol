@@ -160,4 +160,20 @@ interface IOracle {
     function updateAssetPricer(address _asset, address _pricer) external;
 
     function getPrice(address _asset) external view returns (uint256);
+
+    function setExpiryPrice(
+        address _asset,
+        uint256 _expiryTimestamp,
+        uint256 _price
+    ) external;
+
+    function getPricerLockingPeriod(address _pricer)
+        external
+        view
+        returns (uint256);
+
+    function getPricerDisputePeriod(address _pricer)
+        external
+        view
+        returns (uint256);
 }

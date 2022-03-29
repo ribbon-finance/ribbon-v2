@@ -11,60 +11,139 @@ import {
     ReentrancyGuardUpgradeable
 } from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ISAVAX} from "../interfaces/ISAVAX.sol";
 import {IRibbonVault, IDepositContract} from "../interfaces/IRibbon.sol";
+import {ICRV} from "../interfaces/ICRV.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {DSMath} from "../vendor/DSMath.sol";
-
-interface IVaultQueue {
-    enum TransferType {INTERVAULT, SKIP_ROUND}
-    struct Transfer {
-        address creditor;
-        address srcVault;
-        address dstVault;
-        address depositContract;
-        uint256 amount;
-        uint256 timestamp;
-    }
-}
 
 contract VaultQueue is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    mapping(address => IVaultQueue.Transfer[]) public qTransfer;
-    mapping(address => uint256) public totalAmount;
-    address[] public vaults;
-
-    function initialize() external initializer {
-        __ReentrancyGuard_init();
-        __Ownable_init();
-        transferOwnership(msg.sender);
+    enum TransferAction {INTERVAULT, WITHDRAW}
+    struct Transfer {
+        address creditor;
+        address srcVault;
+        address dstVault;
+        address depositContract;
+        TransferAction action;
+        uint256 amount;
+        uint256 timestamp;
     }
 
-    function transfer() external onlyOwner nonReentrant {
-        for (uint256 i = 0; i < vaults.length; i++) {
-            IRibbonVault(vaults[i]).completeWithdraw();
+    using SafeERC20 for IERC20;
+
+    mapping(address => Transfer[]) public qTransfer;
+    mapping(address => uint256) public totalAmount;
+
+    address public wethVault;
+    address public stethVault;
+    address public stethEthCrvPool;
+
+    event Disburse(address vault, Transfer txn, uint256 portion);
+
+    function initialize(
+        address _wethVault,
+        address _stethVault,
+        address _stethEthCrvPool
+    ) external initializer {
+        __ReentrancyGuard_init();
+        __Ownable_init();
+
+        transferOwnership(msg.sender);
+
+        wethVault = _wethVault; // Can be the native vault (weth or wavax)
+        stethVault = _stethVault; // Must ONLY be steth vault.  (savax vault returns erc20, set as keeper)
+        stethEthCrvPool = _stethEthCrvPool;
+    }
+
+    function getInterVaultBalance(address vault)
+        private
+        view
+        returns (uint256 balance)
+    {
+        // Case 1. stETH - Withdrawing gives stETH
+        // Case 2. WETH - Withdrawing gives ETH
+        // Case 3. erc20 token
+        if (vault == stethVault) {
+            address steth = IRibbonVault(vault).STETH();
+            balance = IERC20(steth).balanceOf(address(this));
+        } else if (vault == wethVault) {
+            balance = address(this).balance;
+        } else {
+            Vault.VaultParams memory vaultParams =
+                IRibbonVault(vault).vaultParams();
+            balance = IERC20(vaultParams.asset).balanceOf(address(this));
         }
+    }
 
-        for (uint256 i = 0; i < vaults.length; i++) {
-            uint256 balance = address(this).balance;
-            address vault = vaults[i];
-            uint256 len = qTransfer[vault].length;
-            uint256 totalAmt = totalAmount[vault];
-            totalAmount[vault] = 0;
+    function withdrawToCreditor(
+        address vault,
+        address creditor,
+        uint256 portion
+    ) private {
+        if (vault == stethVault) {
+            address steth = IRibbonVault(vault).STETH();
+            IERC20(steth).transfer(creditor, portion);
+        } else if (vault == wethVault) {
+            payable(creditor).transfer(portion);
+        } else {
+            Vault.VaultParams memory vaultParams =
+                IRibbonVault(vault).vaultParams();
+            IERC20(vaultParams.asset).transfer(creditor, portion);
+        }
+    }
 
-            for (uint256 j = len; j > 0; j--) {
-                IVaultQueue.Transfer memory queue = pop(qTransfer[vault]);
+    function transferToVault(
+        address depositContract,
+        address creditor,
+        uint256 portion
+    ) private {
+        IDepositContract(depositContract).depositFor{value: portion}(creditor);
+    }
 
-                uint256 portion =
-                    DSMath.wmul(balance, DSMath.wdiv(queue.amount, totalAmt));
-                require(portion > 0, "!portion");
+    function disburse(address vault) private {
+        uint256 balance = getInterVaultBalance(vault);
+        uint256 len = qTransfer[vault].length;
+        uint256 totalAmt = totalAmount[vault];
+        totalAmount[vault] = 0;
 
-                IDepositContract(queue.depositContract).depositFor{
-                    value: portion
-                }(queue.creditor);
+        for (uint256 j = len; j > 0; j--) {
+            Transfer memory queue = pop(qTransfer[vault]);
+
+            uint256 portion =
+                DSMath.wmul(balance, DSMath.wdiv(queue.amount, totalAmt));
+            if (portion > 0) {
+                if (queue.action == TransferAction.INTERVAULT) {
+                    transferToVault(
+                        queue.depositContract,
+                        queue.creditor,
+                        portion
+                    );
+                } else if (queue.action == TransferAction.WITHDRAW) {
+                    withdrawToCreditor(vault, queue.creditor, portion);
+                }
+                emit Disburse(vault, queue, portion);
+            }
+        }
+    }
+
+    function transfer(address vault) external onlyOwner nonReentrant {
+        uint256 withdrawals = IRibbonVault(vault).withdrawals(address(this));
+        if (withdrawals > 0) {
+            if (vault == stethVault) {
+                uint256 minEthOut =
+                    ICRV(stethEthCrvPool).get_dy(1, 0, totalAmount[vault]);
+                IRibbonVault(vault).completeWithdraw(minEthOut);
+                disburse(vault);
+            } else {
+                IRibbonVault(vault).completeWithdraw();
+                disburse(vault);
             }
         }
     }
@@ -73,21 +152,36 @@ contract VaultQueue is
         address srcVault,
         address dstVault,
         address depositContract,
+        TransferAction transferAction,
         uint256 amount
     ) external nonReentrant {
-        require(!hasWithdrawal(msg.sender), "Withdraw already submitted");
+        require(
+            !hasWithdrawal(srcVault, msg.sender),
+            "Withdraw already submitted"
+        );
         require(qTransfer[srcVault].length < 256, "Transfer queue full");
+
+        if (transferAction == TransferAction.INTERVAULT) {
+            require(depositContract != address(0), "Intervault !address");
+        } else if (transferAction == TransferAction.WITHDRAW) {
+            // depositContract is not used on withdraw, so let's set it to msg.sender
+            require(
+                depositContract == msg.sender,
+                "On withdraw, depositContract must be msg.sender"
+            );
+        }
 
         IRibbonVault(srcVault).transferFrom(msg.sender, address(this), amount);
 
         IRibbonVault(srcVault).initiateWithdraw(amount);
 
         qTransfer[srcVault].push(
-            IVaultQueue.Transfer(
+            Transfer(
                 msg.sender,
                 srcVault,
                 dstVault,
                 depositContract,
+                transferAction,
                 amount,
                 uint256(block.timestamp)
             )
@@ -95,56 +189,28 @@ contract VaultQueue is
         totalAmount[srcVault] += amount;
     }
 
-    function hasWithdrawal(address user) public view returns (bool) {
-        for (uint256 i = 0; i < vaults.length; i++) {
-            address vault = vaults[i];
-            for (uint256 j = 0; j < qTransfer[vault].length; j++) {
-                if (user == qTransfer[vault][j].creditor) {
-                    return true;
-                }
+    function hasWithdrawal(address vault, address user)
+        public
+        view
+        returns (bool)
+    {
+        for (uint256 j = 0; j < qTransfer[vault].length; j++) {
+            if (user == qTransfer[vault][j].creditor) {
+                return true;
             }
         }
         return false;
     }
 
-    function pushVault(address vault) external onlyOwner {
-        vaults.push(vault);
-    }
-
-    function pop(IVaultQueue.Transfer[] storage array)
-        internal
-        returns (IVaultQueue.Transfer memory)
-    {
-        IVaultQueue.Transfer memory item = array[array.length - 1];
+    function pop(Transfer[] storage array) private returns (Transfer memory) {
+        Transfer memory item = array[array.length - 1];
         array.pop();
         return item;
     }
 
-    function setQTransfer(
-        address vault,
-        uint256 index,
-        address user,
-        address srcVault,
-        address dstVault,
-        address depositContract,
-        uint256 amount
-    ) external onlyOwner {
-        qTransfer[vault][index] = IVaultQueue.Transfer(
-            user,
-            srcVault,
-            dstVault,
-            depositContract,
-            amount,
-            block.timestamp
-        );
-    }
-
-    function reset() external onlyOwner {
-        for (uint256 i = 0; i < vaults.length; i++) {
-            delete qTransfer[vaults[i]];
-            totalAmount[vaults[i]] = 0;
-        }
-        delete vaults;
+    function reset(address vault) external onlyOwner {
+        delete qTransfer[vault];
+        totalAmount[vault] = 0;
     }
 
     // ETH and ERC20s are not kept in this contract unless explicitly sent.
@@ -155,7 +221,7 @@ contract VaultQueue is
 
     function rescue(address asset, uint256 amount) external onlyOwner {
         IERC20(asset).approve(address(this), amount);
-        IERC20(asset).transferFrom(address(this), msg.sender, amount);
+        IERC20(asset).transfer(msg.sender, amount);
     }
 
     receive() external payable {}
