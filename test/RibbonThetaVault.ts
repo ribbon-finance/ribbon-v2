@@ -3614,6 +3614,191 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
     });
+
+    if (params.mintConfig) {
+      describe("pricePerShare calculations", () => {
+        // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
+        const totalDepositAmount = parseUnits("10000", params.tokenDecimals);
+        const depositAmount = totalDepositAmount.div(2); // 5000
+
+        time.revertToSnapshotAfterEach(async () => {
+          await mintToken(
+            assetContract,
+            params.mintConfig.contractOwnerAddress,
+            ownerSigner.address,
+            vault.address,
+            totalDepositAmount
+          ); // Mint 10000 to user 0
+
+          await assetContract
+            .connect(ownerSigner)
+            .transfer(userSigner.address, depositAmount); // Transfer 5000 to user 1
+
+          await assetContract
+            .connect(ownerSigner)
+            .approve(vault.address, depositAmount);
+          await vault.connect(ownerSigner).deposit(depositAmount); // User 0 deposits 5000
+
+          await assetContract
+            .connect(userSigner)
+            .approve(vault.address, depositAmount);
+          await vault.connect(userSigner).deposit(depositAmount); // User 1 deposits 5000
+
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount);
+          await rollToNextOption(); // Process deposits
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount);
+        });
+
+        it("Initiated withdraw is completed in a later round", async function () {
+          /* ===== EPOCH 0 ===== */
+
+          assert.bnEqual(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare == 1
+
+          await vault.connect(userSigner).initiateWithdraw(depositAmount); // User 1 initiates 5000 shares (5000 tokens) withdraw
+
+          // assert.bnEqual(
+          //   await vault.pricePerShare(),
+          //   parseUnits("1.005", params.tokenDecimals)
+          // ); // pricePerShare == 1.005
+
+          // let pendingAmount = (await vault.vaultState()).totalPending;
+          // let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          //   await lockedBalanceForRollover(vault);
+
+          // assert.bnEqual(
+          //   await vault.totalBalance(),
+          //   totalDepositAmount.add(premiumAmount)
+          // ); // 10050
+
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount);
+          await rollToSecondOption(firstOptionStrike); // Process withdraws
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount);
+
+          /* ===== EPOCH 1 ===== */
+
+          // Transfer 50 tokens in premiums to vault
+          const premiumAmount = parseUnits("50", params.tokenDecimals); // 50
+          await mintToken(
+            assetContract,
+            params.mintConfig.contractOwnerAddress,
+            adminSigner.address,
+            vault.address,
+            premiumAmount
+          ); // Mint premiums
+          await assetContract
+            .connect(adminSigner)
+            .transfer(vault.address, premiumAmount); // Transfer premiums to vault
+
+          assert.bnEqual(
+            await vault.totalBalance(),
+            totalDepositAmount.add(premiumAmount)
+          );
+          await rollToSecondOption(firstOptionStrike); // Process premiums
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount);
+
+          /* ===== EPOCH 2 ===== */
+
+          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
+
+          await rollToSecondOption(firstOptionStrike); // Process withdraws
+          //assert.bnEqual(await vault.totalSupply(), totalDepositAmount.div(2));
+
+          /* ===== EPOCH 3 ===== */
+
+          let withdrawnTokens0 = await assetContract.balanceOf(
+            ownerSigner.address
+          );
+          await vault.connect(ownerSigner).completeWithdraw();
+          withdrawnTokens0 = (
+            await assetContract.balanceOf(ownerSigner.address)
+          ).sub(withdrawnTokens0); // User 0 completes withdraw
+          console.log(withdrawnTokens0.toString());
+
+          let withdrawnTokens1 = await assetContract.balanceOf(
+            userSigner.address
+          );
+          await vault.connect(userSigner).completeWithdraw();
+          withdrawnTokens1 = (
+            await assetContract.balanceOf(userSigner.address)
+          ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
+          assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
+          console.log((await vault.totalBalance()).toString());
+          console.log((await vault.totalSupply()).toString());
+
+          // const newTotalBalance = await vault.totalBalance();
+          // const newPricePerShare = await vault.pricePerShare();
+          // const vaultFees = secondInitialLockedBalance
+          //   .add(queuedWithdrawAmount)
+          //   .sub(pendingAmount)
+          //   .mul(await vault.managementFee())
+          //   .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+          //   .add(
+          //     secondInitialLockedBalance
+          //       .add(queuedWithdrawAmount)
+          //       .sub((await vault.vaultState()).lastLockedAmount)
+          //       .sub(pendingAmount)
+          //       .mul(await vault.performanceFee())
+          //       .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
+          //   );
+
+          // assert.bnEqual(
+          //   totalDepositAmount.add(premiumAmount).sub(newTotalBalance),
+          //   vaultFees
+          // ); // newTotalBalance == 10036.145222 (since fee is deducted from 10050)
+          // assert.bnEqual(
+          //   newTotalBalance
+          //     .mul(BigNumber.from(10).pow(await vault.decimals()))
+          //     .div(await vault.totalSupply()),
+          //   newPricePerShare
+          // ); // pricePerShare == 1.0036145222
+
+          // await mintToken(
+          //   assetContract,
+          //   params.mintConfig.contractOwnerAddress,
+          //   adminSigner.address,
+          //   vault.address,
+          //   premiumAmount
+          // ); // Mint premiums
+          // await assetContract
+          //   .connect(adminSigner)
+          //   .transfer(vault.address, premiumAmount); // Transfer premiums to vault
+          // await rollToSecondOption(firstOptionStrike); // Process withdraws
+
+          // let withdrawnTokens0 = await assetContract.balanceOf(
+          //   userSigner.address
+          // );
+          // await vault.connect(userSigner).completeWithdraw();
+          // withdrawnTokens0 = (
+          //   await assetContract.balanceOf(userSigner.address)
+          // ).sub(withdrawnTokens0); // User 1 completes withdraw
+          // console.log(withdrawnTokens0.toString());
+
+          // assert.bnEqual(withdrawnTokens0, newTotalBalance.div(2)); // User 1 receives 5018.0726 tokens
+          //assert.bnGt(withdrawnTokens0, depositAmount); // Received tokens are greater than initial deposit of 5000
+          // assert.bnEqual(await vault.totalSupply(), totalDepositAmount.div(2)); // totalSupply of shares is now 5000
+
+          // await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
+
+          // await rollToSecondOption(firstOptionStrike); // Process withdraws
+
+          // /* ===== EPOCH 2 ===== */
+
+          // let withdrawnTokens1 = await assetContract.balanceOf(
+          //   ownerSigner.address
+          // );
+          // await vault.connect(ownerSigner).completeWithdraw();
+          // withdrawnTokens1 = (
+          //   await assetContract.balanceOf(ownerSigner.address)
+          // ).sub(withdrawnTokens1); // User 1 completes withdraw
+          // console.log(withdrawnTokens1.toString());
+          // console.log((await vault.totalBalance()).toString());
+          // console.log((await vault.totalSupply()).toString());
+        });
+      });
+    }
   });
 }
 
