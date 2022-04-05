@@ -36,11 +36,10 @@
     "underscore": "^1.9.0"
   },
   "scripts": {
-    "test": "yarn test:eth && yarn test:avax && yarn test:aurora && yarn test:oracles && yarn test:utils",
+    "test": "yarn test:eth && yarn test:avax && yarn test:oracles && yarn test:utils",
     "test:eth": "CHAINID=1 npx hardhat test test/*.ts test/libraries/*.ts",
     "test:avax": "CHAINID=43114 npx hardhat test test/RibbonThetaVault.ts",
-    "test:aurora": "CHAINID=1313161554 npx hardhat test test/RibbonThetaVault.ts",
-    "test:sanity": "CHAINID=1313161554 npx hardhat test test/VaultSanityCheck.ts",
+    "test:sanity": "CHAINID=43114 npx hardhat test test/VaultSanityCheck.ts",
     "test:oracles": "npx hardhat test test/oracles/*.ts",
     "test:upgrade": "npx hardhat test test/upgrades/*.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
