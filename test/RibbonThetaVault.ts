@@ -3634,7 +3634,11 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    if (params.mintConfig && params.protocol === OPTION_PROTOCOL.GAMMA) {
+    if (
+      chainId === CHAINID.ETH_MAINNET &&
+      params.protocol === OPTION_PROTOCOL.GAMMA &&
+      params.mintConfig
+    ) {
       describe("pricePerShare checks", () => {
         // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
         const totalDepositAmount = parseUnits("10000", params.tokenDecimals);
