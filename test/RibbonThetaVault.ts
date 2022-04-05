@@ -374,7 +374,6 @@ function behavesLikeRibbonOptionsVault(params: {
   availableChains: number[];
   protocol: OPTION_PROTOCOL;
 }) {
-
   // Test configs
   let availableChains = params.availableChains;
 
@@ -383,7 +382,10 @@ function behavesLikeRibbonOptionsVault(params: {
     return;
   }
 
-  const [GAMMA_CONTROLLER, OTOKEN_FACTORY, MARGIN_POOL] = getProtocolAddresses(params.protocol, chainId);
+  const [GAMMA_CONTROLLER, OTOKEN_FACTORY, MARGIN_POOL] = getProtocolAddresses(
+    params.protocol,
+    chainId
+  );
 
   // Addresses
   let owner: string, keeper: string, user: string, feeRecipient: string;
@@ -444,7 +446,12 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+      const oracle = await setupOracle(
+        params.asset,
+        params.chainlinkPricer,
+        ownerSigner,
+        params.protocol
+      );
 
       await setOpynOracleExpiryPrice(
         params.asset,
@@ -593,17 +600,14 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
-      oTokenFactory = await getContractAt(
-        "IOtokenFactory",
-        OTOKEN_FACTORY
-      );
+      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
 
       await whitelistProduct(
         params.asset,
         params.strikeAsset,
         params.collateralAsset,
         params.isPut,
-        params.protocol,
+        params.protocol
       );
 
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
@@ -637,7 +641,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.collateralAsset,
         firstOptionStrike,
         firstOptionExpiry,
-        params.isPut,
+        params.isPut
       );
 
       firstOption = {
@@ -667,7 +671,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.collateralAsset,
         secondOptionStrike,
         secondOptionExpiry,
-        params.isPut,
+        params.isPut
       );
 
       secondOption = {
@@ -1714,7 +1718,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const controller = await ethers.getContractAt(
           "IController",
-          GAMMA_CONTROLLER,
+          GAMMA_CONTROLLER
         );
 
         assert.equal(await controller.getAccountVaultCounter(vault.address), 2);
@@ -1970,7 +1974,12 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+        oracle = await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          params.protocol
+        );
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2543,7 +2552,12 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+        oracle = await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          params.protocol
+        );
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2898,7 +2912,12 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+        oracle = await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          params.protocol
+        );
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {
@@ -3615,38 +3634,45 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    if (params.mintConfig) {
-      describe("pricePerShare calculations", () => {
+    if (params.mintConfig && params.protocol === OPTION_PROTOCOL.GAMMA) {
+      describe("pricePerShare checks", () => {
         // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
         const totalDepositAmount = parseUnits("10000", params.tokenDecimals);
         const depositAmount = totalDepositAmount.div(2); // 5000
+        const oneToken = parseUnits("1", params.tokenDecimals); // 1
 
         time.revertToSnapshotAfterEach(async () => {
+          // Increase vault cap if it's <10000
+          if ((await vault.cap()).lt(totalDepositAmount)) {
+            await vault.connect(ownerSigner).setCap(totalDepositAmount);
+          }
+
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
-            ownerSigner.address,
+            ownerSigner.address, // User 0
             vault.address,
             totalDepositAmount
-          ); // Mint 10000 to user 0
+          ); // Mint 10000 tokens to user 0
 
-          await assetContract
-            .connect(ownerSigner)
-            .transfer(userSigner.address, depositAmount); // Transfer 5000 to user 1
+          await assetContract.connect(ownerSigner).transfer(
+            userSigner.address, // User 1
+            depositAmount
+          ); // Transfer 5000 tokens to user 1
 
           await assetContract
             .connect(ownerSigner)
             .approve(vault.address, depositAmount);
-          await vault.connect(ownerSigner).deposit(depositAmount); // User 0 deposits 5000
+          await vault.connect(ownerSigner).deposit(depositAmount); // User 0 deposits 5000 tokens
 
           await assetContract
             .connect(userSigner)
             .approve(vault.address, depositAmount);
-          await vault.connect(userSigner).deposit(depositAmount); // User 1 deposits 5000
+          await vault.connect(userSigner).deposit(depositAmount); // User 1 deposits 5000 tokens
 
-          assert.bnEqual(await vault.totalBalance(), totalDepositAmount);
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount); // 10000 tokens
           await rollToNextOption(); // Process deposits
-          assert.bnEqual(await vault.totalSupply(), totalDepositAmount);
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
         });
 
         it("Initiated withdraw is completed in a later round", async function () {
@@ -3657,56 +3683,37 @@ function behavesLikeRibbonOptionsVault(params: {
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare == 1
 
-          await vault.connect(userSigner).initiateWithdraw(depositAmount); // User 1 initiates 5000 shares (5000 tokens) withdraw
+          await vault.connect(userSigner).initiateWithdraw(depositAmount); // User 1 initiates 5000 shares withdraw
 
-          // assert.bnEqual(
-          //   await vault.pricePerShare(),
-          //   parseUnits("1.005", params.tokenDecimals)
-          // ); // pricePerShare == 1.005
-
-          // let pendingAmount = (await vault.vaultState()).totalPending;
-          // let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          //   await lockedBalanceForRollover(vault);
-
-          // assert.bnEqual(
-          //   await vault.totalBalance(),
-          //   totalDepositAmount.add(premiumAmount)
-          // ); // 10050
-
-          assert.bnEqual(await vault.totalBalance(), totalDepositAmount);
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount); // 10000 tokens
           await rollToSecondOption(firstOptionStrike); // Process withdraws
-          assert.bnEqual(await vault.totalSupply(), totalDepositAmount);
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
 
           /* ===== EPOCH 1 ===== */
 
           // Transfer 50 tokens in premiums to vault
-          const premiumAmount = parseUnits("50", params.tokenDecimals); // 50
+          const premiumAmount = parseUnits("50", params.tokenDecimals);
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
             adminSigner.address,
             vault.address,
             premiumAmount
-          ); // Mint premiums
+          ); // Mint 50 tokens
           await assetContract
             .connect(adminSigner)
-            .transfer(vault.address, premiumAmount); // Transfer premiums to vault
+            .transfer(vault.address, premiumAmount); // Transfer 50 tokens to vault
+
+          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
 
           assert.bnEqual(
             await vault.totalBalance(),
             totalDepositAmount.add(premiumAmount)
-          );
-          await rollToSecondOption(firstOptionStrike); // Process premiums
-          assert.bnEqual(await vault.totalSupply(), totalDepositAmount);
+          ); // 10050 tokens
+          await rollToSecondOption(firstOptionStrike); // Process premiums/withdraws
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
 
           /* ===== EPOCH 2 ===== */
-
-          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
-
-          await rollToSecondOption(firstOptionStrike); // Process withdraws
-          //assert.bnEqual(await vault.totalSupply(), totalDepositAmount.div(2));
-
-          /* ===== EPOCH 3 ===== */
 
           let withdrawnTokens0 = await assetContract.balanceOf(
             ownerSigner.address
@@ -3714,8 +3721,10 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.connect(ownerSigner).completeWithdraw();
           withdrawnTokens0 = (
             await assetContract.balanceOf(ownerSigner.address)
-          ).sub(withdrawnTokens0); // User 0 completes withdraw
-          console.log(withdrawnTokens0.toString());
+          ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
+          // User 0 receives ~5019.0315 tokens (5000 tokens + 19.0315 premiums)
+          // console.log(withdrawnTokens0.toString());
+          assert.bnGt(withdrawnTokens0, depositAmount.add(oneToken)); // withdrawnTokens0 > 5001 tokens
 
           let withdrawnTokens1 = await assetContract.balanceOf(
             userSigner.address
@@ -3725,77 +3734,11 @@ function behavesLikeRibbonOptionsVault(params: {
             await assetContract.balanceOf(userSigner.address)
           ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
           assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
-          console.log((await vault.totalBalance()).toString());
-          console.log((await vault.totalSupply()).toString());
 
-          // const newTotalBalance = await vault.totalBalance();
-          // const newPricePerShare = await vault.pricePerShare();
-          // const vaultFees = secondInitialLockedBalance
-          //   .add(queuedWithdrawAmount)
-          //   .sub(pendingAmount)
-          //   .mul(await vault.managementFee())
-          //   .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-          //   .add(
-          //     secondInitialLockedBalance
-          //       .add(queuedWithdrawAmount)
-          //       .sub((await vault.vaultState()).lastLockedAmount)
-          //       .sub(pendingAmount)
-          //       .mul(await vault.performanceFee())
-          //       .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-          //   );
-
-          // assert.bnEqual(
-          //   totalDepositAmount.add(premiumAmount).sub(newTotalBalance),
-          //   vaultFees
-          // ); // newTotalBalance == 10036.145222 (since fee is deducted from 10050)
-          // assert.bnEqual(
-          //   newTotalBalance
-          //     .mul(BigNumber.from(10).pow(await vault.decimals()))
-          //     .div(await vault.totalSupply()),
-          //   newPricePerShare
-          // ); // pricePerShare == 1.0036145222
-
-          // await mintToken(
-          //   assetContract,
-          //   params.mintConfig.contractOwnerAddress,
-          //   adminSigner.address,
-          //   vault.address,
-          //   premiumAmount
-          // ); // Mint premiums
-          // await assetContract
-          //   .connect(adminSigner)
-          //   .transfer(vault.address, premiumAmount); // Transfer premiums to vault
-          // await rollToSecondOption(firstOptionStrike); // Process withdraws
-
-          // let withdrawnTokens0 = await assetContract.balanceOf(
-          //   userSigner.address
-          // );
-          // await vault.connect(userSigner).completeWithdraw();
-          // withdrawnTokens0 = (
-          //   await assetContract.balanceOf(userSigner.address)
-          // ).sub(withdrawnTokens0); // User 1 completes withdraw
-          // console.log(withdrawnTokens0.toString());
-
-          // assert.bnEqual(withdrawnTokens0, newTotalBalance.div(2)); // User 1 receives 5018.0726 tokens
-          //assert.bnGt(withdrawnTokens0, depositAmount); // Received tokens are greater than initial deposit of 5000
-          // assert.bnEqual(await vault.totalSupply(), totalDepositAmount.div(2)); // totalSupply of shares is now 5000
-
-          // await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
-
-          // await rollToSecondOption(firstOptionStrike); // Process withdraws
-
-          // /* ===== EPOCH 2 ===== */
-
-          // let withdrawnTokens1 = await assetContract.balanceOf(
-          //   ownerSigner.address
-          // );
-          // await vault.connect(ownerSigner).completeWithdraw();
-          // withdrawnTokens1 = (
-          //   await assetContract.balanceOf(ownerSigner.address)
-          // ).sub(withdrawnTokens1); // User 1 completes withdraw
-          // console.log(withdrawnTokens1.toString());
+          // Vault has ~19.031522 in locked premiums
           // console.log((await vault.totalBalance()).toString());
-          // console.log((await vault.totalSupply()).toString());
+          assert.bnGt(await vault.totalBalance(), oneToken); // vault.totalBalance() > 1 tokens
+          assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
         });
       });
     }
