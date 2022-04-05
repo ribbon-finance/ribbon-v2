@@ -20,14 +20,8 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  NEAR_ADDRESS,
-  NEAR_OWNER_ADDRESS,
   SAVAX_ADDRESS,
   SAVAX_OWNER_ADDRESS,
-  CHAINLINK_NEAR_PRICER,
-  AURORA_ADDRESS,
-  AURORA_OWNER_ADDRESS,
-  CHAINLINK_AURORA_PRICER,
   SAVAX_PRICER,
   APE_ADDRESS,
   APE_OWNER_ADDRESS,
@@ -130,11 +124,7 @@ describe("RibbonThetaVault", () => {
       depositWorstCase: 101000,
       depositBestCase: 90000,
     },
-    availableChains: [
-      CHAINID.ETH_MAINNET,
-      CHAINID.AVAX_MAINNET,
-      CHAINID.AURORA_MAINNET,
-    ],
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
   });
 
@@ -168,77 +158,7 @@ describe("RibbonThetaVault", () => {
       amount: parseUnits("10000000", 6),
       contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
     },
-    availableChains: [
-      CHAINID.ETH_MAINNET,
-      CHAINID.AVAX_MAINNET,
-      CHAINID.AURORA_MAINNET,
-    ],
-    protocol: OPTION_PROTOCOL.GAMMA,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon NEAR Theta Vault (Call)`,
-    tokenName: "Ribbon NEAR Theta Vault",
-    tokenSymbol: "rNEAR-THETA",
-    asset: NEAR_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: NEAR_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_NEAR_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("NEAR"),
-    depositAmount: parseUnits("1", 24),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 24,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      amount: parseUnits("200", 24),
-      contractOwnerAddress: NEAR_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.AURORA_MAINNET],
-    protocol: OPTION_PROTOCOL.GAMMA,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon AURORA Theta Vault (Call)`,
-    tokenName: "Ribbon AURORA Theta Vault",
-    tokenSymbol: "rAURORA-THETA",
-    asset: AURORA_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: AURORA_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_AURORA_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("AURORA"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    mintConfig: {
-      amount: parseEther("200"),
-      contractOwnerAddress: AURORA_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.AURORA_MAINNET],
+    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
   });
 
@@ -374,7 +294,6 @@ function behavesLikeRibbonOptionsVault(params: {
   availableChains: number[];
   protocol: OPTION_PROTOCOL;
 }) {
-
   // Test configs
   let availableChains = params.availableChains;
 
@@ -383,7 +302,10 @@ function behavesLikeRibbonOptionsVault(params: {
     return;
   }
 
-  const [GAMMA_CONTROLLER, OTOKEN_FACTORY, MARGIN_POOL] = getProtocolAddresses(params.protocol, chainId);
+  const [GAMMA_CONTROLLER, OTOKEN_FACTORY, MARGIN_POOL] = getProtocolAddresses(
+    params.protocol,
+    chainId
+  );
 
   // Addresses
   let owner: string, keeper: string, user: string, feeRecipient: string;
@@ -444,7 +366,12 @@ function behavesLikeRibbonOptionsVault(params: {
     };
 
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
-      const oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+      const oracle = await setupOracle(
+        params.asset,
+        params.chainlinkPricer,
+        ownerSigner,
+        params.protocol
+      );
 
       await setOpynOracleExpiryPrice(
         params.asset,
@@ -593,17 +520,14 @@ function behavesLikeRibbonOptionsVault(params: {
         )
       ).connect(userSigner);
 
-      oTokenFactory = await getContractAt(
-        "IOtokenFactory",
-        OTOKEN_FACTORY
-      );
+      oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
 
       await whitelistProduct(
         params.asset,
         params.strikeAsset,
         params.collateralAsset,
         params.isPut,
-        params.protocol,
+        params.protocol
       );
 
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
@@ -637,7 +561,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.collateralAsset,
         firstOptionStrike,
         firstOptionExpiry,
-        params.isPut,
+        params.isPut
       );
 
       firstOption = {
@@ -667,7 +591,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.collateralAsset,
         secondOptionStrike,
         secondOptionExpiry,
-        params.isPut,
+        params.isPut
       );
 
       secondOption = {
@@ -1714,7 +1638,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const controller = await ethers.getContractAt(
           "IController",
-          GAMMA_CONTROLLER,
+          GAMMA_CONTROLLER
         );
 
         assert.equal(await controller.getAccountVaultCounter(vault.address), 2);
@@ -1970,7 +1894,12 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
-        oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+        oracle = await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          params.protocol
+        );
       });
 
       it("reverts when not called with keeper", async function () {
@@ -2211,14 +2140,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
-        // We have a newer version of Opyn deployed, error messages are different
-        const EXPECTED_ERROR = {
-          [CHAINID.ETH_MAINNET]: "C31",
-          // "Controller: can not settle vault with un-expired otoken",
-          [CHAINID.AVAX_MAINNET]: "C31",
-          [CHAINID.AVAX_FUJI]: "C31",
-          [CHAINID.AURORA_MAINNET]: "C31",
-        };
+        const EXPECTED_ERROR = "C31";
 
         const firstOptionAddress = firstOption.address;
 
@@ -2240,7 +2162,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).commitAndClose()
-        ).to.be.revertedWith(EXPECTED_ERROR[chainId]);
+        ).to.be.revertedWith(EXPECTED_ERROR);
       });
 
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
@@ -2543,7 +2465,12 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async function () {
-        oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+        oracle = await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          params.protocol
+        );
       });
 
       it("is able to redeem deposit at new price per share", async function () {
@@ -2898,7 +2825,12 @@ function behavesLikeRibbonOptionsVault(params: {
       let oracle: Contract;
 
       time.revertToSnapshotAfterEach(async () => {
-        oracle = await setupOracle(params.asset, params.chainlinkPricer, ownerSigner, params.protocol);
+        oracle = await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          params.protocol
+        );
       });
 
       it("reverts when user initiates withdraws without any deposit", async function () {

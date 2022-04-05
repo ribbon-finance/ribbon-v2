@@ -62,12 +62,7 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
 
     volOracle = await ManualVolOracle.deploy(signer.address);
 
-    optionId = await volOracle.getOptionId(
-      DELTA,
-      weth,
-      weth,
-      false
-    );
+    optionId = await volOracle.getOptionId(DELTA, weth, weth, false);
 
     optionsPremiumPricer = await OptionsPremiumPricer.deploy(
       optionId,
@@ -285,12 +280,7 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
 
     volOracle = await ManualVolOracle.deploy(signer.address);
 
-    optionId = await volOracle.getOptionId(
-      DELTA,
-      weth,
-      weth,
-      false
-    );
+    optionId = await volOracle.getOptionId(DELTA, weth, weth, false);
 
     optionsPremiumPricer = await OptionsPremiumPricer.deploy(
       optionId,
