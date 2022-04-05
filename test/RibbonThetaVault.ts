@@ -3675,7 +3675,7 @@ function behavesLikeRibbonOptionsVault(params: {
         });
 
         it("Initiated withdraw is completed in a later round", async function () {
-          /* ===== EPOCH 0 ===== */
+          /* ===== ROUND 2 ===== */
 
           assert.bnEqual(
             await vault.pricePerShare(),
@@ -3688,7 +3688,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await rollToSecondOption(firstOptionStrike); // Process withdraws
           assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
 
-          /* ===== EPOCH 1 ===== */
+          /* ===== ROUND 3 ===== */
 
           // Transfer 50 tokens in premiums to vault
           const premiumAmount = parseUnits("50", params.tokenDecimals);
@@ -3712,7 +3712,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await rollToSecondOption(firstOptionStrike); // Process premiums/withdraws
           assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
 
-          /* ===== EPOCH 2 ===== */
+          /* ===== ROUND 4 ===== */
 
           const tenTokens = parseUnits("10", params.tokenDecimals); // 10 tokens
 
