@@ -3681,11 +3681,6 @@ function behavesLikeRibbonOptionsVault(params: {
         it("initiated withdraw is completed in a later round", async function () {
           /* ===== ROUND 2 ===== */
 
-          assert.bnEqual(
-            await vault.pricePerShare(),
-            parseUnits("1", params.tokenDecimals)
-          ); // pricePerShare == 1
-
           await vault.connect(userSigner).initiateWithdraw(depositAmount); // User 1 initiates 5000 shares withdraw
 
           assert.bnEqual(await vault.totalBalance(), totalDepositAmount); // 10000 tokens
@@ -3693,6 +3688,11 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
 
           /* ===== ROUND 3 ===== */
+
+          assert.bnEqual(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare == 1
 
           // Transfer 50 tokens in premiums to vault
           const premiumAmount = parseUnits("50", params.tokenDecimals);
@@ -3717,6 +3717,13 @@ function behavesLikeRibbonOptionsVault(params: {
           assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
 
           /* ===== ROUND 4 ===== */
+
+          // pricePerShare is ~1.0038063
+          // console.log((await vault.pricePerShare()).toString());
+          assert.bnGt(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare > 1
 
           const tenTokens = parseUnits("10", params.tokenDecimals); // 10 tokens
 
