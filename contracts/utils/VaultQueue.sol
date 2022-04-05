@@ -31,9 +31,9 @@ contract VaultQueue is
         address srcVault;
         address dstVault;
         address depositContract;
-        TransferAction action;
+        uint32 timestamp;
         uint256 amount;
-        uint256 timestamp;
+        TransferAction action;
     }
 
     using SafeERC20 for IERC20;
@@ -43,15 +43,13 @@ contract VaultQueue is
 
     address public wethVault;
     address public stethVault;
-    address public stethEthCrvPool;
 
     event Disburse(address vault, Transfer txn, uint256 portion);
 
-    function initialize(
-        address _wethVault,
-        address _stethVault,
-        address _stethEthCrvPool
-    ) external initializer {
+    function initialize(address _wethVault, address _stethVault)
+        external
+        initializer
+    {
         __ReentrancyGuard_init();
         __Ownable_init();
 
@@ -59,7 +57,6 @@ contract VaultQueue is
 
         wethVault = _wethVault; // Can be the native vault (weth or wavax)
         stethVault = _stethVault; // Must ONLY be steth vault.  (savax vault returns erc20, set as keeper)
-        stethEthCrvPool = _stethEthCrvPool;
     }
 
     function getInterVaultBalance(address vault)
@@ -137,9 +134,7 @@ contract VaultQueue is
         uint256 withdrawals = IRibbonVault(vault).withdrawals(address(this));
         if (withdrawals > 0) {
             if (vault == stethVault) {
-                uint256 minEthOut =
-                    ICRV(stethEthCrvPool).get_dy(1, 0, totalAmount[vault]);
-                IRibbonVault(vault).completeWithdraw(minEthOut);
+                IRibbonVault(vault).completeWithdraw(0);
                 disburse(vault);
             } else {
                 IRibbonVault(vault).completeWithdraw();
@@ -181,9 +176,9 @@ contract VaultQueue is
                 srcVault,
                 dstVault,
                 depositContract,
-                transferAction,
+                uint32(block.timestamp),
                 amount,
-                uint256(block.timestamp)
+                transferAction
             )
         );
         totalAmount[srcVault] += amount;
