@@ -3639,7 +3639,6 @@ function behavesLikeRibbonOptionsVault(params: {
         // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
         const totalDepositAmount = parseUnits("10000", params.tokenDecimals);
         const depositAmount = totalDepositAmount.div(2); // 5000
-        const oneToken = parseUnits("1", params.tokenDecimals); // 1
 
         time.revertToSnapshotAfterEach(async () => {
           // Increase vault cap if it's <10000
@@ -3715,6 +3714,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
           /* ===== EPOCH 2 ===== */
 
+          const tenTokens = parseUnits("10", params.tokenDecimals); // 10 tokens
+
           let withdrawnTokens0 = await assetContract.balanceOf(
             ownerSigner.address
           );
@@ -3724,7 +3725,7 @@ function behavesLikeRibbonOptionsVault(params: {
           ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
           // User 0 receives ~5019.0315 tokens (5000 tokens + 19.0315 premiums)
           // console.log(withdrawnTokens0.toString());
-          assert.bnGt(withdrawnTokens0, depositAmount.add(oneToken)); // withdrawnTokens0 > 5001 tokens
+          assert.bnGt(withdrawnTokens0, depositAmount.add(tenTokens)); // withdrawnTokens0 > 5010 tokens
 
           let withdrawnTokens1 = await assetContract.balanceOf(
             userSigner.address
@@ -3737,7 +3738,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           // Vault has ~19.031522 in locked premiums
           // console.log((await vault.totalBalance()).toString());
-          assert.bnGt(await vault.totalBalance(), oneToken); // vault.totalBalance() > 1 tokens
+          assert.bnGt(await vault.totalBalance(), tenTokens); // vault.totalBalance() > 10 tokens
           assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
         });
       });
