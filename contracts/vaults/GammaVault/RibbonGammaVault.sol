@@ -806,7 +806,6 @@ contract RibbonGammaVault is
         external
         nonReentrant
     {
-        // TODO: Update vault state post-rollover
         VaultLifecycleGamma.swap(
             USDC,
             0,
@@ -891,6 +890,67 @@ contract RibbonGammaVault is
 
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
+    }
+
+    function rebalance(uint256 usdcMinAmountOut, uint256 sqthMinAmountOut)
+        external
+        nonReentrant
+    {
+        // VaultLifecycleGamma.swap(
+        //     USDC,
+        //     0,
+        //     usdcMinAmountOut,
+        //     UNISWAP_ROUTER,
+        //     usdcSwapPath
+        // );
+        // IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
+        // uint256 targetSQTHAmount = VaultLifecycleGamma.getTargetSqueethAmount(
+        //     SQUEETH_CONTROLLER,
+        //     VAULT_ID,
+        //     address(this).balance
+        // );
+        // IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
+        //     value: address(this).balance
+        // }(VAULT_ID, targetSQTHAmount, 0);
+        // VaultLifecycleGamma.swap(
+        //     SQUEETH,
+        //     0,
+        //     sqthMinAmountOut,
+        //     UNISWAP_ROUTER,
+        //     sqthSwapPath
+        // );
+        // IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
+        // IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
+        //     value: address(this).balance
+        // }(VAULT_ID, 0, 0);
+
+        // VaultLifecycleGamma.swap(
+        //     USDC,
+        //     0,
+        //     usdcMinAmountOut,
+        //     UNISWAP_ROUTER,
+        //     usdcSwapPath
+        // );
+        // IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
+        // targetSQTHAmount = VaultLifecycleGamma.getTargetSqueethAmount(
+        //     SQUEETH_CONTROLLER,
+        //     VAULT_ID,
+        //     address(this).balance
+        // );
+        // IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
+        //     value: address(this).balance
+        // }(VAULT_ID, targetSQTHAmount, 0);
+        // VaultLifecycleGamma.swap(
+        //     SQUEETH,
+        //     0,
+        //     sqthMinAmountOut,
+        //     UNISWAP_ROUTER,
+        //     sqthSwapPath
+        // );
+        // IWETH(WETH).withdraw(IERC20(WETH).balanceOf(address(this)));
+        // IController(SQUEETH_CONTROLLER).mintWPowerPerpAmount{
+        //     value: address(this).balance
+        // }(VAULT_ID, 0, 0);
     }
 
     /************************************************
