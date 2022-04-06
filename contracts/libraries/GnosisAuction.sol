@@ -59,6 +59,7 @@ library GnosisAuction {
     {
         uint256 oTokenSellAmount =
             getOTokenSellAmount(auctionDetails.oTokenAddress);
+        require(oTokenSellAmount > 0, "No otokens to sell");
 
         IERC20(auctionDetails.oTokenAddress).safeApprove(
             auctionDetails.gnosisEasyAuction,
