@@ -7,7 +7,12 @@ import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
 import {GnosisAuction} from "./GnosisAuction.sol";
-import {IOtokenFactory, IOtoken, IController, GammaTypes} from "../interfaces/GammaInterface.sol";
+import {
+    IOtokenFactory,
+    IOtoken,
+    IController,
+    GammaTypes
+} from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
@@ -179,28 +184,32 @@ library VaultLifecycle {
 
         uint256 balanceForVaultFees;
         {
-            uint256 pricePerShareBeforeFee = ShareMath.pricePerShare(
-                params.currentShareSupply,
-                currentBalance,
-                pendingAmount,
-                params.decimals
-            );
-
-            uint256 queuedWithdrawBeforeFee = params.currentShareSupply > 0
-                ? ShareMath.sharesToAsset(
-                    queuedWithdrawShares,
-                    pricePerShareBeforeFee,
+            uint256 pricePerShareBeforeFee =
+                ShareMath.pricePerShare(
+                    params.currentShareSupply,
+                    currentBalance,
+                    pendingAmount,
                     params.decimals
-                )
-                : 0;
+                );
+
+            uint256 queuedWithdrawBeforeFee =
+                params.currentShareSupply > 0
+                    ? ShareMath.sharesToAsset(
+                        queuedWithdrawShares,
+                        pricePerShareBeforeFee,
+                        params.decimals
+                    )
+                    : 0;
 
             // Deduct the difference between the newly scheduled withdrawals
             // and the older withdrawals
             // so we can charge them fees before they leave
-            uint256 withdrawAmountDiff = queuedWithdrawBeforeFee >
-                params.lastQueuedWithdrawAmount
-                ? queuedWithdrawBeforeFee.sub(params.lastQueuedWithdrawAmount)
-                : 0;
+            uint256 withdrawAmountDiff =
+                queuedWithdrawBeforeFee > params.lastQueuedWithdrawAmount
+                    ? queuedWithdrawBeforeFee.sub(
+                        params.lastQueuedWithdrawAmount
+                    )
+                    : 0;
 
             balanceForVaultFees = currentBalance
                 .sub(queuedWithdrawBeforeFee)
@@ -210,12 +219,12 @@ library VaultLifecycle {
         {
             (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
                 .getVaultFees(
-                    balanceForVaultFees,
-                    vaultState.lastLockedAmount,
-                    vaultState.totalPending,
-                    params.performanceFee,
-                    params.managementFee
-                );
+                balanceForVaultFees,
+                vaultState.lastLockedAmount,
+                vaultState.totalPending,
+                params.performanceFee,
+                params.managementFee
+            );
         }
 
         // Take into account the fee
@@ -273,17 +282,16 @@ library VaultLifecycle {
         uint256 depositAmount
     ) external returns (uint256) {
         IController controller = IController(gammaController);
-        uint256 newVaultID = (controller.getAccountVaultCounter(address(this)))
-            .add(1);
+        uint256 newVaultID =
+            (controller.getAccountVaultCounter(address(this))).add(1);
 
         // An otoken's collateralAsset is the vault's `asset`
         // So in the context of performing Opyn short operations we call them collateralAsset
         IOtoken oToken = IOtoken(oTokenAddress);
         address collateralAsset = oToken.collateralAsset();
 
-        uint256 collateralDecimals = uint256(
-            IERC20Detailed(collateralAsset).decimals()
-        );
+        uint256 collateralDecimals =
+            uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
 
         if (oToken.isPut()) {
@@ -320,9 +328,8 @@ library VaultLifecycle {
         IERC20 collateralToken = IERC20(collateralAsset);
         collateralToken.safeApproveNonCompliant(marginPool, depositAmount);
 
-        IController.ActionArgs[] memory actions = new IController.ActionArgs[](
-            3
-        );
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](3);
 
         actions[0] = IController.ActionArgs(
             IController.ActionType.OpenVault,
@@ -376,10 +383,8 @@ library VaultLifecycle {
         // gets the currently active vault ID
         uint256 vaultID = controller.getAccountVaultCounter(address(this));
 
-        GammaTypes.Vault memory vault = controller.getVault(
-            address(this),
-            vaultID
-        );
+        GammaTypes.Vault memory vault =
+            controller.getVault(address(this), vaultID);
 
         require(vault.shortOtokens.length > 0, "No short");
 
@@ -394,15 +399,13 @@ library VaultLifecycle {
         }
 
         // This is equivalent to doing IERC20(vault.asset).balanceOf(address(this))
-        uint256 startCollateralBalance = collateralToken.balanceOf(
-            address(this)
-        );
+        uint256 startCollateralBalance =
+            collateralToken.balanceOf(address(this));
 
         // If it is after expiry, we need to settle the short position using the normal way
         // Delete the vault and withdraw all remaining collateral from the vault
-        IController.ActionArgs[] memory actions = new IController.ActionArgs[](
-            1
-        );
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
 
         actions[0] = IController.ActionArgs(
             IController.ActionType.SettleVault,
@@ -446,9 +449,8 @@ library VaultLifecycle {
         uint256 startAssetBalance = IERC20(asset).balanceOf(address(this));
 
         // If it is after expiry, we need to redeem the profits
-        IController.ActionArgs[] memory actions = new IController.ActionArgs[](
-            1
-        );
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
 
         actions[0] = IController.ActionArgs(
             IController.ActionType.Redeem,
@@ -480,9 +482,8 @@ library VaultLifecycle {
         external
         returns (uint256)
     {
-        uint256 numOTokensToBurn = IERC20(currentOption).balanceOf(
-            address(this)
-        );
+        uint256 numOTokensToBurn =
+            IERC20(currentOption).balanceOf(address(this));
 
         require(numOTokensToBurn > 0, "No oTokens to burn");
 
@@ -491,24 +492,20 @@ library VaultLifecycle {
         // gets the currently active vault ID
         uint256 vaultID = controller.getAccountVaultCounter(address(this));
 
-        GammaTypes.Vault memory vault = controller.getVault(
-            address(this),
-            vaultID
-        );
+        GammaTypes.Vault memory vault =
+            controller.getVault(address(this), vaultID);
 
         require(vault.shortOtokens.length > 0, "No short");
 
         IERC20 collateralToken = IERC20(vault.collateralAssets[0]);
 
-        uint256 startCollateralBalance = collateralToken.balanceOf(
-            address(this)
-        );
+        uint256 startCollateralBalance =
+            collateralToken.balanceOf(address(this));
 
         // Burning `amount` of oTokens from the ribbon vault,
         // then withdrawing the corresponding collateral amount from the vault
-        IController.ActionArgs[] memory actions = new IController.ActionArgs[](
-            2
-        );
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](2);
 
         actions[0] = IController.ActionArgs(
             IController.ActionType.BurnShortOption,
@@ -569,9 +566,10 @@ library VaultLifecycle {
     {
         // At the first round, currentBalance=0, pendingAmount>0
         // so we just do not charge anything on the first round
-        uint256 lockedBalanceSansPending = currentBalance > pendingAmount
-            ? currentBalance.sub(pendingAmount)
-            : 0;
+        uint256 lockedBalanceSansPending =
+            currentBalance > pendingAmount
+                ? currentBalance.sub(pendingAmount)
+                : 0;
 
         uint256 _performanceFeeInAsset;
         uint256 _managementFeeInAsset;
@@ -623,27 +621,29 @@ library VaultLifecycle {
     ) internal returns (address) {
         IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
 
-        address otokenFromFactory = factory.getOtoken(
-            underlying,
-            closeParams.USDC,
-            collateralAsset,
-            strikePrice,
-            expiry,
-            isPut
-        );
+        address otokenFromFactory =
+            factory.getOtoken(
+                underlying,
+                closeParams.USDC,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                isPut
+            );
 
         if (otokenFromFactory != address(0)) {
             return otokenFromFactory;
         }
 
-        address otoken = factory.createOtoken(
-            underlying,
-            closeParams.USDC,
-            collateralAsset,
-            strikePrice,
-            expiry,
-            isPut
-        );
+        address otoken =
+            factory.createOtoken(
+                underlying,
+                closeParams.USDC,
+                collateralAsset,
+                strikePrice,
+                expiry,
+                isPut
+            );
 
         verifyOtoken(
             otoken,
