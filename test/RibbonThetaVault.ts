@@ -3008,7 +3008,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 105000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 126000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
@@ -3638,6 +3638,7 @@ function behavesLikeRibbonOptionsVault(params: {
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare > 1
 
+          const oneToken = parseUnits("1", params.tokenDecimals); // 1 token
           const tenTokens = parseUnits("10", params.tokenDecimals); // 10 tokens
 
           let withdrawnTokens0 = await assetContract.balanceOf(
@@ -3647,9 +3648,9 @@ function behavesLikeRibbonOptionsVault(params: {
           withdrawnTokens0 = (
             await assetContract.balanceOf(ownerSigner.address)
           ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
-          // User 0 receives ~5019.0315 tokens (5000 tokens + 19.0315 premiums)
+          // User 0 receives ~5038.063 tokens (5000 tokens + 38.063 premiums)
           // console.log(withdrawnTokens0.toString());
-          assert.bnGt(withdrawnTokens0, depositAmount.add(tenTokens)); // withdrawnTokens0 > 5010 tokens
+          assert.bnGt(withdrawnTokens0, depositAmount.add(tenTokens.mul(3))); // withdrawnTokens0 > 5030 tokens
 
           let withdrawnTokens1 = await assetContract.balanceOf(
             userSigner.address
@@ -3660,9 +3661,9 @@ function behavesLikeRibbonOptionsVault(params: {
           ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
           assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
 
-          // Vault has ~19.031522 in locked premiums
+          // Vault has ~0.000022 in tokens leftover
           // console.log((await vault.totalBalance()).toString());
-          assert.bnGt(await vault.totalBalance(), tenTokens); // totalBalance > 10 tokens
+          assert.bnLt(await vault.totalBalance(), oneToken); // totalBalance < 1 tokens
           assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
         });
 
@@ -3701,6 +3702,8 @@ function behavesLikeRibbonOptionsVault(params: {
               parseUnits("1", params.tokenDecimals)
             ); // pricePerShare < 1
 
+            const oneToken = parseUnits("1", params.tokenDecimals); // 1 token
+
             let withdrawnTokens0 = await assetContract.balanceOf(
               ownerSigner.address
             );
@@ -3708,7 +3711,7 @@ function behavesLikeRibbonOptionsVault(params: {
             withdrawnTokens0 = (
               await assetContract.balanceOf(ownerSigner.address)
             ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
-            // User 0 receives ~4772.72725 tokens
+            // User 0 receives ~4545.4545 tokens
             // console.log(withdrawnTokens0.toString());
             assert.bnLt(withdrawnTokens0, depositAmount); // withdrawnTokens0 < 5000 tokens
 
@@ -3721,13 +3724,20 @@ function behavesLikeRibbonOptionsVault(params: {
               .div(parseUnits("1", params.tokenDecimals));
             // User 1 is expected to receive 5000 tokens when they complete withdraw 5000 shares
             assert.bnEqual(withdrawAmount, depositAmount); // 5000 tokens
-            // However the vault only has 4772.72729545 tokens
+
+            let withdrawnTokens1 = await assetContract.balanceOf(
+              userSigner.address
+            );
+            await vault.connect(userSigner).completeWithdraw();
+            withdrawnTokens1 = (
+              await assetContract.balanceOf(userSigner.address)
+            ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
+            assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
+
+            // Vault has ~0.00004545 in tokens leftover
             // console.log((await vault.totalBalance()).toString());
-            assert.bnLt(await vault.totalBalance(), depositAmount); // totalBalance < 5000 tokens
-            // Hence User 1's funds are locked in the vault
-            await expect(
-              vault.connect(userSigner).completeWithdraw()
-            ).to.be.revertedWith("SafeERC20: low-level call failed"); // User 1's attempted completeWithdraw reverts
+            assert.bnLt(await vault.totalBalance(), oneToken); // totalBalance < 1 tokens
+            assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
           });
         }
       });

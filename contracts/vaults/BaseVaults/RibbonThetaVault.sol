@@ -3,14 +3,10 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
-import {
-    RibbonThetaVaultStorage
-} from "../../storage/RibbonThetaVaultStorage.sol";
+import {RibbonThetaVaultStorage} from "../../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
@@ -276,8 +272,9 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @param amount is the amount to withdraw
      */
     function withdrawInstantly(uint256 amount) external nonReentrant {
-        Vault.DepositReceipt storage depositReceipt =
-            depositReceipts[msg.sender];
+        Vault.DepositReceipt storage depositReceipt = depositReceipts[
+            msg.sender
+        ];
 
         uint256 currentRound = vaultState.round;
         require(amount > 0, "!amount");
@@ -295,6 +292,15 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
         transferAsset(msg.sender, amount);
+    }
+
+    /**
+     * @notice Initiates a withdrawal that can be processed once the round completes
+     * @param numShares is the number of shares to withdraw
+     */
+    function initiateWithdraw(uint256 numShares) external nonReentrant {
+        _initiateWithdraw(numShares);
+        queuedWithdrawShares = queuedWithdrawShares.add(numShares);
     }
 
     /**
@@ -331,8 +337,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycle.CloseParams memory closeParams =
-            VaultLifecycle.CloseParams({
+        VaultLifecycle.CloseParams memory closeParams = VaultLifecycle
+            .CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
@@ -346,8 +352,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             uint256 premium,
             uint256 strikePrice,
             uint256 delta
-        ) =
-            VaultLifecycle.commitAndClose(
+        ) = VaultLifecycle.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
@@ -385,8 +390,9 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         optionState.currentOption = address(0);
 
         if (oldOption != address(0)) {
-            uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
+            uint256 withdrawAmount = VaultLifecycle.settleShort(
+                GAMMA_CONTROLLER
+            );
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -399,9 +405,20 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             address newOption,
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount
-        ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+        ) = _rollToNextOption(
+                uint256(lastQueuedWithdrawAmount),
+                queuedWithdrawShares
+            );
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
+
+        uint256 newQueuedWithdrawShares = uint256(
+            vaultState.queuedWithdrawShares
+        ).add(queuedWithdrawShares);
+        ShareMath.assertUint128(newQueuedWithdrawShares);
+        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
+
+        queuedWithdrawShares = 0;
 
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
@@ -446,11 +463,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
-        uint256 unlockedAssetAmount =
-            VaultLifecycle.burnOtokens(
-                GAMMA_CONTROLLER,
-                optionState.currentOption
-            );
+        uint256 unlockedAssetAmount = VaultLifecycle.burnOtokens(
+            GAMMA_CONTROLLER,
+            optionState.currentOption
+        );
 
         vaultState.lockedAmount = uint104(
             uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
