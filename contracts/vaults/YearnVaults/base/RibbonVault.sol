@@ -630,7 +630,8 @@ contract RibbonVault is
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,
-                    managementFee
+                    managementFee,
+                    0
                 )
             );
 
