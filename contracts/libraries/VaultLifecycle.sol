@@ -312,8 +312,8 @@ library VaultLifecycle {
             // to see how much dust (or excess collateral) is left behind.
             mintAmount = depositAmount
                 .mul(10**Vault.OTOKEN_DECIMALS)
-                .mul(10**18)
-                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals))); // we use 10**18 to give extra precision
+                .mul(10**18) // we use 10**18 to give extra precision
+                .div(oToken.strikePrice().mul(10**(10 + collateralDecimals)));
         } else {
             mintAmount = depositAmount;
 
