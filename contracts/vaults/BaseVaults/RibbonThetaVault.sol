@@ -408,11 +408,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             address newOption,
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount
-        ) =
-            _rollToNextOption(
-                uint256(lastQueuedWithdrawAmount),
-                queuedWithdrawShares
-            );
+        ) = _rollToNextOption(lastQueuedWithdrawAmount, queuedWithdrawShares);
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 

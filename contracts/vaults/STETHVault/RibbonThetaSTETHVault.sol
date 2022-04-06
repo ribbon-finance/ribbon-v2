@@ -285,6 +285,15 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     }
 
     /**
+     * @notice Initiates a withdrawal that can be processed once the round completes
+     * @param numShares is the number of shares to withdraw
+     */
+    function initiateWithdraw(uint256 numShares) external nonReentrant {
+        _initiateWithdraw(numShares);
+        queuedWithdrawShares = queuedWithdrawShares.add(numShares);
+    }
+
+    /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      * @param minETHOut is the min amount of `asset` to recieve for the swapped amount of steth in crv pool
      */
@@ -385,9 +394,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      */
     function rollToNextOption() external onlyKeeper nonReentrant {
         (address newOption, uint256 queuedWithdrawAmount) =
-            _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+            _rollToNextOption(lastQueuedWithdrawAmount, queuedWithdrawShares);
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
+
+        uint256 newQueuedWithdrawShares =
+            uint256(vaultState.queuedWithdrawShares).add(queuedWithdrawShares);
+        ShareMath.assertUint128(newQueuedWithdrawShares);
+        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
+
+        queuedWithdrawShares = 0;
 
         // Locked balance denominated in `collateralToken`
         uint256 lockedBalance =
