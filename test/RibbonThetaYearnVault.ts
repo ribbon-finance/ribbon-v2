@@ -2449,13 +2449,15 @@ function behavesLikeRibbonOptionsVault(params: {
           secondInitialBalance
             .sub(await vault.totalBalance())
             .add(dustForWithdraw)
+            .mul(110)
+            .div(100)
         );
         assert.bnGt(
           vaultFees,
           secondInitialBalance
             .sub(await vault.totalBalance())
             .add(dustForWithdraw)
-            .mul(99)
+            .mul(90)
             .div(100)
         );
       });
