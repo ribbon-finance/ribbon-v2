@@ -11,7 +11,10 @@ interface IRibbonVault {
 
     function WETH() external view returns (address);
 
-    function withdrawals(address) external view returns (uint256);
+    function withdrawals(address)
+        external
+        view
+        returns (Vault.Withdrawal memory);
 
     function depositFor(uint256 amount, address creditor) external;
 
