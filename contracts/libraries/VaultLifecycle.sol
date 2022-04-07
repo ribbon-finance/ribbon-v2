@@ -142,7 +142,7 @@ library VaultLifecycle {
      * @param lastQueuedWithdrawAmount is the total amount queued for withdrawals
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
-     * @param queuedWithdrawShares is amount of queued withdrawals from the current round
+     * @param currentQueuedWithdrawShares is amount of queued withdrawals from the current round
      */
     struct RolloverParams {
         uint256 decimals;
@@ -151,7 +151,7 @@ library VaultLifecycle {
         uint256 lastQueuedWithdrawAmount;
         uint256 performanceFee;
         uint256 managementFee;
-        uint256 queuedWithdrawShares;
+        uint256 currentQueuedWithdrawShares;
     }
 
     /**
@@ -183,7 +183,8 @@ library VaultLifecycle {
     {
         uint256 currentBalance = params.totalBalance;
         uint256 pendingAmount = vaultState.totalPending;
-        uint256 totalQueuedWithdrawShares = vaultState.queuedWithdrawShares;
+        // Total amount of queued withdrawal shares from previous rounds (doesn't include the current round)
+        uint256 lastQueuedWithdrawShares = vaultState.queuedWithdrawShares;
 
         // Deduct older queued withdraws so we don't charge fees on them
         uint256 balanceForVaultFees =
@@ -206,7 +207,7 @@ library VaultLifecycle {
 
         {
             newPricePerShare = ShareMath.pricePerShare(
-                params.currentShareSupply.sub(totalQueuedWithdrawShares),
+                params.currentShareSupply.sub(lastQueuedWithdrawShares),
                 currentBalance.sub(params.lastQueuedWithdrawAmount),
                 pendingAmount,
                 params.decimals
@@ -214,7 +215,7 @@ library VaultLifecycle {
 
             queuedWithdrawAmount = params.lastQueuedWithdrawAmount.add(
                 ShareMath.sharesToAsset(
-                    params.queuedWithdrawShares,
+                    params.currentQueuedWithdrawShares,
                     newPricePerShare,
                     params.decimals
                 )
