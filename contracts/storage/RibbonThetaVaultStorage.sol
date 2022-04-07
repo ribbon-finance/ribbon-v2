@@ -44,7 +44,7 @@ abstract contract RibbonThetaVaultStorageV5 {
 
 abstract contract RibbonThetaVaultStorageV6 {
     // Queued withdraw shares for the current round
-    uint256 public queuedWithdrawShares;
+    uint256 public currentQueuedWithdrawShares;
 }
 
 // We are following Compound's method of upgrading new contract implementations
