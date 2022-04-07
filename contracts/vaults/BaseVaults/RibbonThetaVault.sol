@@ -303,7 +303,9 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      */
     function initiateWithdraw(uint256 numShares) external nonReentrant {
         _initiateWithdraw(numShares);
-        queuedWithdrawShares = queuedWithdrawShares.add(numShares);
+        currentQueuedWithdrawShares = currentQueuedWithdrawShares.add(
+            numShares
+        );
     }
 
     /**
@@ -404,20 +406,28 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyKeeper nonReentrant {
+        uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
+
         (
             address newOption,
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount
-        ) = _rollToNextOption(lastQueuedWithdrawAmount, queuedWithdrawShares);
+        ) =
+            _rollToNextOption(
+                lastQueuedWithdrawAmount,
+                currQueuedWithdrawShares
+            );
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(queuedWithdrawShares);
+            uint256(vaultState.queuedWithdrawShares).add(
+                currQueuedWithdrawShares
+            );
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-        queuedWithdrawShares = 0;
+        currentQueuedWithdrawShares = 0;
 
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);

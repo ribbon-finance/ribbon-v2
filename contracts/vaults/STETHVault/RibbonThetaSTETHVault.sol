@@ -290,7 +290,9 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      */
     function initiateWithdraw(uint256 numShares) external nonReentrant {
         _initiateWithdraw(numShares);
-        queuedWithdrawShares = queuedWithdrawShares.add(numShares);
+        currentQueuedWithdrawShares = currentQueuedWithdrawShares.add(
+            numShares
+        );
     }
 
     /**
@@ -393,17 +395,24 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Rolls the vault's funds into a new short position.
      */
     function rollToNextOption() external onlyKeeper nonReentrant {
+        uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
+
         (address newOption, uint256 queuedWithdrawAmount) =
-            _rollToNextOption(lastQueuedWithdrawAmount, queuedWithdrawShares);
+            _rollToNextOption(
+                lastQueuedWithdrawAmount,
+                currQueuedWithdrawShares
+            );
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
         uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(queuedWithdrawShares);
+            uint256(vaultState.queuedWithdrawShares).add(
+                currQueuedWithdrawShares
+            );
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-        queuedWithdrawShares = 0;
+        currentQueuedWithdrawShares = 0;
 
         // Locked balance denominated in `collateralToken`
         uint256 lockedBalance =

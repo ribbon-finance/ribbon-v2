@@ -598,13 +598,13 @@ contract RibbonVault is
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
      * @param lastQueuedWithdrawAmount is old queued withdraw amount
-     * @param queuedWithdrawShares is the queued withdraw shares for the current round
+     * @param currentQueuedWithdrawShares is the queued withdraw shares for the current round
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
     function _rollToNextOption(
         uint256 lastQueuedWithdrawAmount,
-        uint256 queuedWithdrawShares
+        uint256 currentQueuedWithdrawShares
     ) internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
@@ -628,7 +628,7 @@ contract RibbonVault is
                     lastQueuedWithdrawAmount,
                     performanceFee,
                     managementFee,
-                    queuedWithdrawShares
+                    currentQueuedWithdrawShares
                 )
             );
 
