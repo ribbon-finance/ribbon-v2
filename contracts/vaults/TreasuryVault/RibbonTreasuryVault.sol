@@ -75,6 +75,9 @@ contract RibbonTreasuryVault is
     // The minimum duration for an option auction.
     uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
 
+    // The minimum amount above which premium distribution will occur during commitAndClose
+    uint256 private constant MIN_DUST_AMOUNT = 10000000;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -903,7 +906,7 @@ contract RibbonTreasuryVault is
 
         // In case chargeAndDistribute was not called last round, call
         // the function to conclude last round's performance fee and distribution
-        if (IERC20(USDC).balanceOf(address(this)) > 0) {
+        if (IERC20(USDC).balanceOf(address(this)) > MIN_DUST_AMOUNT) {
             _chargeAndDistribute();
         }
     }
@@ -1004,7 +1007,7 @@ contract RibbonTreasuryVault is
             optionAuctionID
         );
 
-        if (IERC20(USDC).balanceOf(address(this)) > 0) {
+        if (IERC20(USDC).balanceOf(address(this)) > MIN_DUST_AMOUNT) {
             _chargeAndDistribute();
         }
     }
