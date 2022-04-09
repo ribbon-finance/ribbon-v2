@@ -637,10 +637,9 @@ describe("VaultQueue", () => {
   });
 
   it("Queues up partial vault withdraw from ETH vault to creditor vault", async () => {
+    const amountToWithdraw = parseEther(".001");
     const queueWithdrawal = async (signer: JsonRpcSigner) => {
         await ethCallVault.connect(signer).maxRedeem();
-
-        const amountToWithdraw = parseEther(".001");
 
         await ethCallVault.connect(signer).approve(vaultQueue.address, amountToWithdraw);
         await vaultQueue
@@ -648,8 +647,8 @@ describe("VaultQueue", () => {
           .queueTransfer(
             ethCallVault.address,
             stethCallVault.address,
-            stethCallVault.address,
-            "0",
+            await signer.getAddress(),
+            "1",
             amountToWithdraw
           );
     };
@@ -688,20 +687,22 @@ describe("VaultQueue", () => {
       .connect(keeperSigner)
       .transfer(ethCallVault.address);
 
-    // Deposit events are the same because the amount is fixed at .001 eth
+    // Withdraw amount events are the same because the amount is fixed at .001 eth
+    const WITHDRAW_AMOUNT = BigNumber.from("1076049895034363");
     await expect(interVaultTransferTx1)
-      .to.emit(stethCallVault, "Deposit")
-      .withArgs(await signer1.getAddress(), "1076049895034363", "16");
-
-    await expect(interVaultTransferTx1)
-      .to.emit(stethCallVault, "Deposit")
-      .withArgs(await signer2.getAddress(), "1076049895034363", "16");
+      .to.emit(ethCallVault, "Withdraw")
+      .withArgs(vaultQueue.address, WITHDRAW_AMOUNT.mul(2).toString(), amountToWithdraw.mul(2).toString());
 
     await expect(interVaultTransferTx2)
-      .to.emit(stethCallVault, "Deposit")
-      .withArgs(await signer5.getAddress(), "1076049895034363", "16");
-  });
+      .to.emit(ethCallVault, "Withdraw")
+      .withArgs(vaultQueue.address, WITHDRAW_AMOUNT.toString(), amountToWithdraw.toString());
 
+    await expect(interVaultTransferTx1)
+      .to.emit(vaultQueue, "Disburse");
+
+    await expect(interVaultTransferTx2)
+      .to.emit(vaultQueue, "Disburse");
+  });
 
   //
   // Payable

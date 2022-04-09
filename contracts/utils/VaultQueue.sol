@@ -47,9 +47,11 @@ contract VaultQueue is
     event Disburse(address vault, Transfer txn, uint256 portion);
 
     constructor(address _wethVault, address _stethVault) {
+        require(_wethVault != address(0), "!_wethVault");
+        require(_stethVault != address(0), "!_stethVault");
+
         WETH_VAULT = _wethVault; // Can be the native vault (weth or wavax)
         STETH_VAULT = _stethVault; // Must ONLY be steth vault.  (savax vault returns erc20, set as keeper)
-        queueSize = 32;
     }
 
     function initialize() external initializer {
@@ -57,6 +59,7 @@ contract VaultQueue is
         __Ownable_init();
 
         transferOwnership(msg.sender);
+        queueSize = 32;
     }
 
     function getInterVaultBalance(address vault)

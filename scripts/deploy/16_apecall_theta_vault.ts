@@ -83,11 +83,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [
-        pricer.address,
-        STRIKE_DELTA,
-        STRIKE_STEP.APE,
-      ],
+      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.APE],
     });
   } catch (error) {
     console.log(error);
