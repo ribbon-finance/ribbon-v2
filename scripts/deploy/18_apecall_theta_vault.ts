@@ -54,10 +54,7 @@ const main = async ({
   const apeOracle = await deploy("OpynOracle", {
     contract: "OpynOracle",
     from: deployer,
-    args: [
-      GAMMA_ORACLE[chainId],
-      APE_ADDRESS[chainId],
-    ],
+    args: [GAMMA_ORACLE[chainId], APE_ADDRESS[chainId]],
   });
 
   const pricer = await deploy("OptionsPremiumPricerAPE", {

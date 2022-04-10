@@ -42,10 +42,8 @@ describe("DeltaStrikeSelection", () => {
       mockVolatilityOracle.address
     );
 
-    const mockOptionId = constants.HashZero.slice(
-      0,
-      constants.HashZero.length - 1
-    ) + "1";
+    const mockOptionId =
+      constants.HashZero.slice(0, constants.HashZero.length - 1) + "1";
 
     await mockOptionsPremiumPricer.setOptionId(mockOptionId);
     await mockPriceOracle.setDecimals(8);
@@ -342,10 +340,8 @@ describe("PercentStrikeSelection", () => {
       mockVolatilityOracle.address
     );
 
-    const mockOptionId = constants.HashZero.slice(
-      0,
-      constants.HashZero.length - 1
-    ) + "1";
+    const mockOptionId =
+      constants.HashZero.slice(0, constants.HashZero.length - 1) + "1";
 
     await mockOptionsPremiumPricer.setOptionId(mockOptionId);
     await mockPriceOracle.setDecimals(8);
