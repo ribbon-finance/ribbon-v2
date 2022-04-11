@@ -544,9 +544,12 @@ contract RibbonTreasuryVault is
 
         // We do a max redeem before initiating a withdrawal
         // But we check if they must first have unredeemed shares
+        Vault.DepositReceipt storage depositReceipt =
+            depositReceipts[msg.sender];
+
         if (
-            depositReceipts[msg.sender].amount > 0 ||
-            depositReceipts[msg.sender].unredeemedShares > 0
+            depositReceipt.amount > 0 ||
+            depositReceipt.unredeemedShares > 0
         ) {
             _redeem(0, true);
         }
@@ -596,6 +599,10 @@ contract RibbonTreasuryVault is
             uint256(vaultState.queuedWithdrawShares).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
+
+        if (depositReceipt.amount == 0 && shares(msg.sender).sub(newQueuedWithdrawShares) == 0) {
+            _removeDepositor(msg.sender);
+        }
 
         _transfer(msg.sender, address(this), numShares);
     }
@@ -742,17 +749,10 @@ contract RibbonTreasuryVault is
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
     function completeWithdraw() external nonReentrant {
-        Vault.DepositReceipt storage depositReceipt =
-            depositReceipts[msg.sender];
-
         uint256 withdrawAmount = _completeWithdraw();
         lastQueuedWithdrawAmount = uint128(
             uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
         );
-
-        if (depositReceipt.amount == 0 && shares(msg.sender) == 0) {
-            _removeDepositor(msg.sender);
-        }
     }
 
     /************************************************
@@ -1062,7 +1062,7 @@ contract RibbonTreasuryVault is
         // Distribute to depositor address
         address[] storage _depositors = depositorsArray;
         uint256[] memory _amounts = new uint256[](_depositors.length);
-        uint256 totalSupply = totalSupply();
+        uint256 totalSupply = totalSupply() - lastQueuedWithdrawAmount;
 
         for (uint256 i = 0; i < _depositors.length; i++) {
             // Distribute to depositors proportional to the amount of
