@@ -73,7 +73,7 @@ describe("RibbonTreasuryVault", () => {
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
+    managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
     manualStrikePrice: BigNumber.from("1").pow("8"),
     auctionDuration: 21600,
@@ -3063,6 +3063,166 @@ function behavesLikeRibbonOptionsVault(params: {
             [user, owner],
             1
           );
+      });
+
+      it("does not distribute to users who withdraw", async function () {
+        const firstOptionAddress = firstOption.address;
+        const secondOptionAddress = secondOption.address;
+        
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+
+        await expect(firstTx)
+          .to.emit(vault, "OpenShort")
+          .withArgs(firstOptionAddress, depositAmount.mul(3), keeper);
+
+        let bidMultiplier = 1;
+
+        let tokenContract = premiumInStables ? premiumContract : assetContract;
+
+        let auctionDetails = await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          firstOptionAddress,
+          firstOptionPremium,
+          premiumInStables ? premiumDecimals : tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+        
+        await gnosisAuction
+          .connect(keeperSigner)
+          .settleAuction(await vault.optionAuctionID());
+
+        let userBalanceBefore = await premiumContract.balanceOf(user);
+        let ownerBalanceBefore = await premiumContract.balanceOf(owner);
+  
+        let auctionProceeds = (await premiumContract.balanceOf(vault.address))
+          .mul(BigNumber.from("100000000").sub(performanceFee))
+          .div(FEE_SCALING.mul(100));
+        
+        let tx = await vault.connect(keeperSigner).chargeAndDistribute();
+
+        const settlementPriceOTM = isPut
+          ? firstOptionStrike.add(1)
+          : firstOptionStrike.sub(1);
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          settlementPriceOTM
+        );
+
+        let userBalanceAfter = await premiumContract.balanceOf(user);
+        let ownerBalanceAfter = await premiumContract.balanceOf(owner);
+
+        assert.bnGte(
+          userBalanceAfter.sub(userBalanceBefore),
+          auctionProceeds.div(3).sub(1)
+        );
+        assert.bnLte(
+          userBalanceAfter.sub(userBalanceBefore),
+          auctionProceeds.div(3).add(1)
+        );
+        assert.bnGte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.mul(2).div(3).sub(1)
+        );
+        assert.bnLte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.mul(2).div(3).add(1)
+        );
+
+        let performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+        let totalDistributed = BigNumber.from(auctionDetails[2]).sub(
+          performanceFeeInAsset
+        );
+        
+        await expect(tx)
+          .to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
+            [user, owner],
+            1
+          );
+        
+        const userShares = await vault.shares(user)
+        await vault.connect(userSigner).initiateWithdraw(userShares)
+        
+        await vault.connect(ownerSigner).commitAndClose();
+        
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const secondTx = await vault.connect(keeperSigner).rollToNextOption();
+        
+        await expect(secondTx)
+          .to.emit(vault, "OpenShort")
+          .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
+
+        auctionDetails = await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          secondOptionAddress,
+          firstOptionPremium,
+          premiumInStables ? premiumDecimals : tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        userBalanceBefore = await premiumContract.balanceOf(user);
+        ownerBalanceBefore = await premiumContract.balanceOf(owner);
+
+        await gnosisAuction
+          .connect(keeperSigner)
+          .settleAuction(await vault.optionAuctionID());
+        
+        auctionProceeds = (await premiumContract.balanceOf(vault.address))
+          .mul(BigNumber.from("100000000").sub(performanceFee))
+          .div(FEE_SCALING.mul(100));
+
+        tx = await vault.connect(keeperSigner).chargeAndDistribute();
+
+        userBalanceAfter = await premiumContract.balanceOf(user);
+        ownerBalanceAfter = await premiumContract.balanceOf(owner);
+        
+        assert.bnGte(
+          userBalanceAfter.sub(userBalanceBefore),
+          0
+        );
+        assert.bnGte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.sub(1)
+        );
+        assert.bnLte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.add(1)
+        );
+
+        performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+        totalDistributed = BigNumber.from(auctionDetails[2]).sub(
+          performanceFeeInAsset
+        );
+
+        await expect(tx)
+          .to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed],
+            [owner],
+            2
+          );
+        
       });
 
       it("charge the correct fees", async function () {
