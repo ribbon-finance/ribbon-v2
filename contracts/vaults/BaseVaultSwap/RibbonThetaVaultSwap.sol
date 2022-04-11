@@ -7,6 +7,7 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {ISwap} from "../../interfaces/ISwap.sol";
 import {
     RibbonThetaVaultStorage
 } from "../../storage/RibbonThetaVaultStorage.sol";
@@ -15,7 +16,6 @@ import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
-import {ISwap} from "../../interfaces/ISwap.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -23,7 +23,7 @@ import {ISwap} from "../../interfaces/ISwap.sol";
  * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
  * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
  */
-contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
+contract RibbonThetaVaultSwap is RibbonVault, RibbonThetaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -37,9 +37,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     // The minimum duration for an option auction.
     uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
-
-    // The minimum bid size for the auction
-    uint96 private constant MIN_BID_SIZE = 10;
 
     /************************************************
      *  EVENTS
@@ -137,15 +134,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         address _gammaController,
         address _marginPool,
         address _swapContract
-    )
-        RibbonVault(
-            _weth,
-            _usdc,
-            _gammaController,
-            _marginPool,
-            _swapContract
-        )
-    {
+    ) RibbonVault(_weth, _usdc, _gammaController, _marginPool, _swapContract) {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
         OTOKEN_FACTORY = _oTokenFactory;
     }
@@ -437,7 +426,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             "currentOtokenPremium > type(uint96) max value!"
         );
         require(currentOtokenPremium > 0, "!currentOtokenPremium");
-        
+
         address oTokenAddress = optionState.currentOption;
         uint256 oTokenBalance = IERC20(oTokenAddress).balanceOf(address(this));
         require(
@@ -445,13 +434,42 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             "oTokenBalance > type(uint128) max value!"
         );
 
-        ISwap(SWAP_CONTRACT).createOffer(
-            oTokenAddress, 
-            vaultParams.asset, 
-            uint96(currentOtokenPremium), 
-            MIN_BID_SIZE * vaultParams.decimals, 
+        IERC20(oTokenAddress).safeApprove(
+            SWAP_CONTRACT,
+            IERC20(oTokenAddress).balanceOf(address(this))
+        );
+
+        uint256 decimals = decimals();
+        uint256 minBidSize =
+            oTokenBalance > 10 ** decimals
+                ? 10 ** decimals
+                : oTokenBalance.div(10);
+
+        optionAuctionID = ISwap(SWAP_CONTRACT).createOffer(
+            oTokenAddress,
+            vaultParams.asset,
+            uint96(currentOtokenPremium),
+            uint96(minBidSize),
             uint128(oTokenBalance)
         );
+    }
+
+    /**
+     * @notice Settle current offer
+     */
+    function settleOffer(ISwap.Bid[] calldata bids)
+        external
+        onlyKeeper
+        nonReentrant
+    {
+        ISwap(SWAP_CONTRACT).settleOffer(optionAuctionID, bids);
+    }
+
+    /**
+     * @notice Close current vault's oToken offer
+     */
+    function closeOffer() external onlyKeeper nonReentrant {
+        ISwap(SWAP_CONTRACT).closeOffer(optionAuctionID);
     }
 
     /**
