@@ -3068,10 +3068,10 @@ function behavesLikeRibbonOptionsVault(params: {
       it("does not distribute to users who withdraw", async function () {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
-        
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        
+
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(firstTx)
@@ -3092,18 +3092,18 @@ function behavesLikeRibbonOptionsVault(params: {
           bidMultiplier.toString(),
           auctionDuration
         );
-        
+
         await gnosisAuction
           .connect(keeperSigner)
           .settleAuction(await vault.optionAuctionID());
 
         let userBalanceBefore = await premiumContract.balanceOf(user);
         let ownerBalanceBefore = await premiumContract.balanceOf(owner);
-  
+
         let auctionProceeds = (await premiumContract.balanceOf(vault.address))
           .mul(BigNumber.from("100000000").sub(performanceFee))
           .div(FEE_SCALING.mul(100));
-        
+
         let tx = await vault.connect(keeperSigner).chargeAndDistribute();
 
         const settlementPriceOTM = isPut
@@ -3144,7 +3144,7 @@ function behavesLikeRibbonOptionsVault(params: {
         let totalDistributed = BigNumber.from(auctionDetails[2]).sub(
           performanceFeeInAsset
         );
-        
+
         await expect(tx)
           .to.emit(vault, "DistributePremium")
           .withArgs(
@@ -3153,16 +3153,16 @@ function behavesLikeRibbonOptionsVault(params: {
             [user, owner],
             1
           );
-        
-        const userShares = await vault.shares(user)
-        await vault.connect(userSigner).initiateWithdraw(userShares)
-        
+
+        const userShares = await vault.shares(user);
+        await vault.connect(userSigner).initiateWithdraw(userShares);
+
         await vault.connect(ownerSigner).commitAndClose();
-        
+
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        
+
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
@@ -3184,7 +3184,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await gnosisAuction
           .connect(keeperSigner)
           .settleAuction(await vault.optionAuctionID());
-        
+
         auctionProceeds = (await premiumContract.balanceOf(vault.address))
           .mul(BigNumber.from("100000000").sub(performanceFee))
           .div(FEE_SCALING.mul(100));
@@ -3193,7 +3193,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         userBalanceAfter = await premiumContract.balanceOf(user);
         ownerBalanceAfter = await premiumContract.balanceOf(owner);
-        
+
         assert.bnGte(
           userBalanceAfter.sub(userBalanceBefore),
           0
@@ -3222,7 +3222,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [owner],
             2
           );
-        
+
       });
 
       it("charge the correct fees", async function () {

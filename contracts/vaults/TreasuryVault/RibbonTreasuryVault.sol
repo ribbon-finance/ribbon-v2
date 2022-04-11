@@ -547,10 +547,7 @@ contract RibbonTreasuryVault is
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
-        if (
-            depositReceipt.amount > 0 ||
-            depositReceipt.unredeemedShares > 0
-        ) {
+        if (depositReceipt.amount > 0 || depositReceipt.unredeemedShares > 0) {
             _redeem(0, true);
         }
 
@@ -600,7 +597,10 @@ contract RibbonTreasuryVault is
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-        if (depositReceipt.amount == 0 && shares(msg.sender).sub(newQueuedWithdrawShares) == 0) {
+        if (
+            depositReceipt.amount == 0 &&
+            shares(msg.sender).sub(newQueuedWithdrawShares) == 0
+        ) {
             _removeDepositor(msg.sender);
         }
 
