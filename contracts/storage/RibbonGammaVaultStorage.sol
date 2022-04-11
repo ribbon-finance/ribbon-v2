@@ -34,14 +34,17 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice Management fee charged on entire AUM in rollToNextOption. Only charged when there is no loss.
     uint256 public managementFee;
 
-    // Amount locked for scheduled withdrawals last week;
+    /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
 
-    // Path for swapping sqth to weth
-    bytes public sqthSwapPath;
+    /// @notice True if the vault is currently adding/withdrawing from the squeeth short position
+    bool public newRoundInProgress;
 
-    // Path for swapping usdc to weth
-    bytes public usdcSwapPath;
+    /// @notice The collateral ratio threshold at which the vault is eligible for a rebalancing
+    uint256 public ratioThreshold;
+
+    /// @notice USDC -> WETH swap path
+    bytes public usdcWethSwapPath;
 }
 
 // We are following Compound's method of upgrading new contract implementations

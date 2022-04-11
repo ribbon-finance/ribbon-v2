@@ -2,70 +2,124 @@
 pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
 import {IController, IOracle} from "../interfaces/PowerTokenInterface.sol";
 import {VaultLib} from "./PowerTokenVaultLib.sol";
-import {UniswapRouter} from "./UniswapRouter.sol";
 
 library VaultLifecycleGamma {
     using SafeMath for uint256;
 
-    function getTargetSqueethAmount(
+    uint32 internal constant TWAP_PERIOD = 420 seconds;
+    uint256 internal constant INDEX_SCALE = 1e4;
+    uint256 internal constant ONE = 1e18;
+    uint256 internal constant ONE_ONE = 1e36;
+    uint256 internal constant COLLATERAL_UNITS = 100;
+
+    function getSqthMintAmount(
+        address controller,
+        uint256 wethUsdcPrice,
+        uint256 collateralRatio,
+        uint256 wethAmount
+    ) internal view returns (uint256) {
+        uint256 normalizationFactor =
+            IController(controller).getExpectedNormalizationFactor();
+        uint256 debtValueInWeth =
+            wethAmount.mul(COLLATERAL_UNITS).div(collateralRatio);
+        return
+            debtValueInWeth.mul(ONE_ONE).div(wethUsdcPrice).div(
+                normalizationFactor
+            );
+    }
+
+    function getVaultUsdcBalance(
+        uint256 wethUsdcPrice,
+        uint256 collateralAmount,
+        uint256 debtValueInWeth
+    ) internal pure returns (uint256) {
+        uint256 vaultValueInWeth =
+            collateralAmount > debtValueInWeth
+                ? collateralAmount.sub(debtValueInWeth)
+                : 0;
+        return getWethUsdcValue(wethUsdcPrice, vaultValueInWeth);
+    }
+
+    function getWethUsdcValue(uint256 wethUsdcPrice, uint256 wethAmount)
+        internal
+        pure
+        returns (uint256)
+    {
+        return wethAmount.mul(wethUsdcPrice).div(ONE);
+    }
+
+    function getVaultPosition(
         address controller,
         uint256 vaultId,
-        uint256 amount
-    ) internal view returns (uint256) {
+        uint256 wethUsdcPrice
+    ) internal view returns (uint256, uint256) {
         VaultLib.Vault memory vault = IController(controller).vaults(vaultId);
-        return uint256(vault.shortAmount).mul(amount);
+        uint256 normalizationFactor =
+            IController(controller).getExpectedNormalizationFactor();
+        uint256 debtValueInWeth =
+            uint256(vault.shortAmount)
+                .mul(normalizationFactor)
+                .mul(wethUsdcPrice)
+                .div(ONE_ONE);
+        return (vault.collateralAmount, debtValueInWeth);
+    }
+
+    function getCollateralRatio(
+        uint256 collateralAmount,
+        uint256 debtValueInWeth
+    ) internal pure returns (uint256) {
+        return collateralAmount.mul(COLLATERAL_UNITS).div(debtValueInWeth);
     }
 
     function getSqueethPrice(
         address oracle,
-        address squeethPool,
-        address powerPerp,
+        address sqthWethPool,
+        address sqth,
         address weth
     ) internal view returns (uint256) {
-        return IOracle(oracle).getTwap(squeethPool, powerPerp, weth, 0, true);
-    }
-
-    /**
-     * @notice Swaps tokens using UniswapV3 router
-     * @param tokenIn is the token address to swap
-     * @param amount is the amount of tokenIn to swap
-     * @param minAmountOut is the minimum acceptable amount of tokenOut received from swap
-     * @param router is the contract address of UniswapV3 router
-     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
-     */
-    function swap(
-        address tokenIn,
-        uint256 amount,
-        uint256 minAmountOut,
-        address router,
-        bytes calldata swapPath
-    ) external {
-        if (amount > 0) {
-            UniswapRouter.swap(
-                address(this),
-                tokenIn,
-                amount,
-                minAmountOut,
-                router,
-                swapPath
-            );
-        }
-    }
-
-    function checkPath(
-        bytes calldata swapPath,
-        address validTokenIn,
-        address validTokenOut,
-        address uniswapFactory
-    ) external view returns (bool isValidPath) {
         return
-            UniswapRouter.checkPath(
-                swapPath,
-                validTokenIn,
-                validTokenOut,
-                uniswapFactory
+            IOracle(oracle).getTwap(
+                sqthWethPool,
+                sqth,
+                weth,
+                TWAP_PERIOD,
+                true
             );
+    }
+
+    function getWethPrice(
+        address oracle,
+        address usdcWethPool,
+        address weth,
+        address usdc
+    ) internal view returns (uint256) {
+        return
+            IOracle(oracle).getTwap(
+                usdcWethPool,
+                weth,
+                usdc,
+                TWAP_PERIOD,
+                true
+            );
+    }
+
+    function getScaledWethPrice(
+        address oracle,
+        address usdcWethPool,
+        address weth,
+        address usdc
+    ) internal view returns (uint256) {
+        uint256 twap =
+            IOracle(oracle).getTwap(
+                usdcWethPool,
+                weth,
+                usdc,
+                TWAP_PERIOD,
+                true
+            );
+        return twap.div(INDEX_SCALE);
     }
 }
