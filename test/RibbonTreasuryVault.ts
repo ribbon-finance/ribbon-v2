@@ -2607,10 +2607,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).deposit(depositAmount);
         await vault.connect(userSigner).deposit(depositAmount);
-        await vault.connect(userSigner).withdrawInstantly(depositAmount);
+        await vault.connect(userSigner).withdrawInstantly(depositAmount.div(2));
 
         assert.equal(await vault.depositorsArray(0), owner);
         assert.equal(await vault.depositorsMap(owner), true);
+
+        assert.equal(await vault.depositorsArray(1), user);
+        assert.equal(await vault.depositorsMap(user), true);
+
+        await vault.connect(userSigner).withdrawInstantly(depositAmount.div(2));
 
         await expect(vault.depositorsArray(1)).to.be.reverted;
         assert.equal(await vault.depositorsMap(user), false);
@@ -2820,6 +2825,34 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, vault.address, depositAmount);
       });
 
+      it("removes user from list if initiating withdrawing full amount", async function () {
+        // Assume user is initiating withdraw twice which amounts to full amount
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx1 = await vault.initiateWithdraw(depositAmount.div(2));
+
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(2));
+
+        assert.equal(await vault.depositorsArray(0), user);
+        assert.equal(await vault.depositorsMap(user), true);
+
+        const tx2 = await vault.initiateWithdraw(depositAmount.div(2));
+
+        await expect(tx2)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(2));
+
+        await expect(vault.depositorsArray(0)).to.be.reverted;
+        assert.equal(await vault.depositorsMap(user), false);
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract
           .connect(userSigner)
@@ -2830,7 +2863,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 128000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 127000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
