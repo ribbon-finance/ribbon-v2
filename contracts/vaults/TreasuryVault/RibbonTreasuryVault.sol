@@ -597,10 +597,7 @@ contract RibbonTreasuryVault is
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
-        if (
-            depositReceipt.amount == 0 &&
-            balanceOf(msg.sender) == numShares
-        ) {
+        if (depositReceipt.amount == 0 && balanceOf(msg.sender) == numShares) {
             _removeDepositor(msg.sender);
         }
 
