@@ -599,7 +599,7 @@ contract RibbonTreasuryVault is
 
         if (
             depositReceipt.amount == 0 &&
-            shares(msg.sender).sub(newQueuedWithdrawShares) == 0
+            shares(msg.sender) == newQueuedWithdrawShares
         ) {
             _removeDepositor(msg.sender);
         }
