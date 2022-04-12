@@ -443,16 +443,13 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium;
-
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
+        auctionDetails.optionsPremiumPricer = optionsPremiumPricer;
+        auctionDetails.premiumDiscount = premiumDiscount;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
     }

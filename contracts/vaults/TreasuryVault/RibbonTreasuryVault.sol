@@ -964,18 +964,15 @@ contract RibbonTreasuryVault is
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium;
-
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
         uint256 stableDecimals = IERC20Detailed(USDC).decimals();
 
         auctionDetails.oTokenAddress = optionState.currentOption;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = USDC;
         auctionDetails.assetDecimals = stableDecimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
+        auctionDetails.optionsPremiumPricer = optionsPremiumPricer;
+        auctionDetails.premiumDiscount = premiumDiscount;
 
         optionAuctionID = VaultLifecycleTreasury.startAuction(auctionDetails);
     }
