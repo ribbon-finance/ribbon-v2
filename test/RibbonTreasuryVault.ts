@@ -2825,7 +2825,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, vault.address, depositAmount);
       });
 
-      it("removes user from list if initiating withdrawing full amount", async function () {
+      it("removes user from list if initiating full amount withdraw", async function () {
         // Assume user is initiating withdraw twice which amounts to full amount
         await assetContract
           .connect(userSigner)
@@ -2834,20 +2834,20 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        const tx1 = await vault.initiateWithdraw(depositAmount.div(2));
+        const tx1 = await vault.initiateWithdraw(depositAmount.div(3));
 
         await expect(tx1)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.div(2));
+          .withArgs(user, vault.address, depositAmount.div(3));
 
         assert.equal(await vault.depositorsArray(0), user);
         assert.equal(await vault.depositorsMap(user), true);
 
-        const tx2 = await vault.initiateWithdraw(depositAmount.div(2));
+        const tx2 = await vault.initiateWithdraw(depositAmount.sub(depositAmount.div(3)));
 
         await expect(tx2)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.div(2));
+          .withArgs(user, vault.address, depositAmount.sub(depositAmount.div(3)));
 
         await expect(vault.depositorsArray(0)).to.be.reverted;
         assert.equal(await vault.depositorsMap(user), false);
