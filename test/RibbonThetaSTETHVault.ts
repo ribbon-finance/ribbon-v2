@@ -36,6 +36,7 @@ import {
   bidForOToken,
   decodeOrder,
   lockedBalanceForRollover,
+  getAuctionMinPrice,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -2896,18 +2897,8 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         // otoken price is decreased on the auction
-        assert.bnLt(
-          BigNumber.from(
-            await optionsPremiumPricer.getPremium(
-              firstOptionStrike,
-              firstOptionExpiry,
-              params.isPut
-            )
-          )
-            .mul(await vault.premiumDiscount())
-            .div(1000),
-          startOtokenPrice
-        );
+        const minPrice = await getAuctionMinPrice(gnosisAuction, tokenDecimals);
+        assert.bnLt(minPrice, startOtokenPrice);
       });
 
       it("reverts when first auction fully sells out", async () => {
