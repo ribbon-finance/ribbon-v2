@@ -3477,14 +3477,6 @@ function behavesLikeRibbonOptionsVault(params: {
         // Share balance should remain the same because the 1 share
         // is transferred to the user
         assert.bnEqual(await vault.shares(user), depositAmount);
-
-        await vault.transfer(owner, redeemAmount);
-
-        assert.bnEqual(
-          await vault.shares(user),
-          depositAmount.sub(redeemAmount)
-        );
-        assert.bnEqual(await vault.shares(owner), redeemAmount);
       });
     });
 
@@ -3579,6 +3571,54 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.decimals()).toString(),
           tokenDecimals.toString()
         );
+      });
+    });
+
+    describe("#transfer", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("reverts on transfer", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        const redeemAmount = BigNumber.from(1);
+        await vault.redeem(redeemAmount);
+
+        // Share balance should remain the same because the 1 share
+        // is transferred to the user
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        await expect(vault.transfer(owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
+      });
+    });
+
+    describe("#transferFrom", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("reverts on transfer", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        const redeemAmount = BigNumber.from(1);
+        await vault.redeem(redeemAmount);
+
+        // Share balance should remain the same because the 1 share
+        // is transferred to the user
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        await expect(vault.transferFrom(user, owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
       });
     });
   });
