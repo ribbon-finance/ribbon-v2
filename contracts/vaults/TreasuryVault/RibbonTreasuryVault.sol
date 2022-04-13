@@ -1206,4 +1206,19 @@ contract RibbonTreasuryVault is
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
     }
+
+    /**
+     * @notice ERC20 _transfer override function
+     */
+    function _transfer(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal override {
+        require(
+            recipient == address(this) || sender == address(this),
+            "Treasury rToken is not transferrable"
+        );
+        return ERC20Upgradeable._transfer(sender, recipient, amount);
+    }
 }
