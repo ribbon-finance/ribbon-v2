@@ -604,8 +604,7 @@ contract RibbonGammaVault is
      * @notice Mints vault shares for new depositors
      */
     function rollToNextRound() external onlyKeeper nonReentrant {
-        uint256 lockedAmount = vaultState.lockedAmount;
-        vaultState.lastLockedAmount = uint104(lockedAmount);
+        vaultState.lastLockedAmount = uint104(vaultState.lockedAmount);
         vaultState.lockedAmount = 0;
 
         address recipient = feeRecipient;
