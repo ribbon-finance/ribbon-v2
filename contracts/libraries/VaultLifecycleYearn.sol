@@ -13,7 +13,6 @@ import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
-import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
     IOtoken,
@@ -30,10 +29,6 @@ library VaultLifecycleYearn {
 
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
-     * @param strikeSelection is the address of the contract with strike selection logic
-     * @param optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param premiumDiscount is the vault's discount applied to the premium
      * @param closeParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
@@ -44,9 +39,6 @@ library VaultLifecycleYearn {
      * @return delta is the delta of the new option
      */
     function commitAndClose(
-        address strikeSelection,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount,
         VaultLifecycle.CloseParams calldata closeParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState,
@@ -65,7 +57,8 @@ library VaultLifecycleYearn {
 
         bool isPut = vaultParams.isPut;
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IStrikeSelection selection =
+            IStrikeSelection(closeParams.strikeSelection);
 
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
@@ -89,17 +82,15 @@ library VaultLifecycleYearn {
         // get the black scholes premium of the option and adjust premium based on
         // collateral asset <-> asset exchange rate
         premium = DSMath.wmul(
-            GnosisAuction.getOTokenPremium(
+            VaultLifecycle.getOTokenPremium(
                 otokenAddress,
-                optionsPremiumPricer,
-                premiumDiscount
+                closeParams.optionsPremiumPricer,
+                closeParams.premiumDiscount
             ),
             IYearnVault(collateralAsset).pricePerShare().mul(
                 decimalShift(collateralAsset)
             )
         );
-
-        require(premium > 0, "!premium");
 
         return (otokenAddress, premium, strikePrice, delta);
     }
