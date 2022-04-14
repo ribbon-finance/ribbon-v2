@@ -671,15 +671,7 @@ library VaultLifecycleTreasury {
         external
         returns (uint256)
     {
-        uint256 oTokenPremium =
-            GnosisAuction.getOTokenPremium(
-                auctionDetails.oTokenAddress,
-                auctionDetails.optionsPremiumPricer,
-                auctionDetails.premiumDiscount
-            );
-        require(oTokenPremium > 0, "!oTokenPremium");
-
-        return GnosisAuction.startAuction(auctionDetails, oTokenPremium);
+        return GnosisAuction.startAuction(auctionDetails);
     }
 
     /**
