@@ -15,6 +15,9 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
+import {
+    IOptionsPurchaseQueue
+} from "../../interfaces/IOptionsPurchaseQueue.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 /**
@@ -408,12 +411,23 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
+        uint256 optionsMintAmount =
+            VaultLifecycle.createShort(
+                GAMMA_CONTROLLER,
+                MARGIN_POOL,
+                newOption,
+                lockedBalance
+            );
+
+        address _optionsPurchaseQueue = optionsPurchaseQueue;
+        if (_optionsPurchaseQueue != address(0)) {
+            // Allocate a maximum of 50% of options towards the purchase queue
+            uint256 allocatedOptions = optionsMintAmount.div(2);
+            IERC20(newOption).approve(_optionsPurchaseQueue, allocatedOptions);
+            IOptionsPurchaseQueue(_optionsPurchaseQueue).allocateOptions(
+                allocatedOptions
+            );
+        }
 
         _startAuction();
     }
@@ -440,6 +454,13 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
+    }
+
+    /**
+     * @notice Sell the allocated options to the purchase queue post auction settlement
+     */
+    function sellOptionsToQueue() external onlyKeeper nonReentrant {
+        IOptionsPurchaseQueue(optionsPurchaseQueue).sellToBuyers();
     }
 
     /**
