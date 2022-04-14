@@ -36,9 +36,8 @@ library GnosisAuction {
         address oTokenAddress;
         address gnosisEasyAuction;
         address asset;
-        address optionsPremiumPricer;
         uint256 assetDecimals;
-        uint256 premiumDiscount;
+        uint256 oTokenPremium;
         uint256 duration;
     }
 
@@ -54,10 +53,10 @@ library GnosisAuction {
         address bidder;
     }
 
-    function startAuction(
-        AuctionDetails calldata auctionDetails,
-        uint256 oTokenPremium
-    ) internal returns (uint256 auctionID) {
+    function startAuction(AuctionDetails calldata auctionDetails)
+        internal
+        returns (uint256 auctionID)
+    {
         uint256 oTokenSellAmount =
             getOTokenSellAmount(auctionDetails.oTokenAddress);
         require(oTokenSellAmount > 0, "No otokens to sell");
@@ -71,7 +70,10 @@ library GnosisAuction {
         // shift decimals to correspond to decimals of USDC for puts
         // and underlying for calls
         uint256 minBidAmount =
-            DSMath.wmul(oTokenSellAmount.mul(10**10), oTokenPremium);
+            DSMath.wmul(
+                oTokenSellAmount.mul(10**10),
+                auctionDetails.oTokenPremium
+            );
 
         minBidAmount = auctionDetails.assetDecimals > 18
             ? minBidAmount.mul(10**(auctionDetails.assetDecimals.sub(18)))

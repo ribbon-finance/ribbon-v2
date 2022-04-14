@@ -428,13 +428,21 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        auctionDetails.oTokenAddress = optionState.currentOption;
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            GnosisAuction.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
+        require(currOtokenPremium > 0, "!currentOtokenPremium");
+
+        auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
+        auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
-        auctionDetails.optionsPremiumPricer = optionsPremiumPricer;
-        auctionDetails.premiumDiscount = premiumDiscount;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
     }
