@@ -8,7 +8,6 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
-  CHAINLINK_WETH_PRICER,
   CHAINID,
   OPTION_PROTOCOL,
   BLOCK_NUMBER,
@@ -16,16 +15,9 @@ import {
   BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   USDC_ADDRESS,
-  USDC_OWNER_ADDRESS,
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  SAVAX_ADDRESS,
-  SAVAX_OWNER_ADDRESS,
-  SAVAX_PRICER,
-  APE_ADDRESS,
-  APE_OWNER_ADDRESS,
-  APE_PRICER,
   GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
@@ -55,11 +47,6 @@ const DELAY_INCREMENT = 100;
 const gasPrice = parseUnits("30", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
-const PUT_EXPECTED_MINT_AMOUNT = {
-  [CHAINID.ETH_MAINNET]: "3846153846",
-  [CHAINID.AVAX_MAINNET]: "138888888888",
-  [CHAINID.AURORA_MAINNET]: "4761904761",
-};
 
 const chainId = network.config.chainId;
 
@@ -96,135 +83,6 @@ describe("RibbonThetaVaultWithSwap", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Call)`,
-    tokenName: "Ribbon ETH Theta Vault",
-    tokenSymbol: "rETH-THETA",
-    asset: WETH_ADDRESS[chainId],
-    assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: WETH_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("WETH"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 101000,
-      depositBestCase: 90000,
-    },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
-    protocol: OPTION_PROTOCOL.GAMMA,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ETH Theta Vault (Put)`,
-    tokenName: "Ribbon ETH Theta Vault Put",
-    tokenSymbol: "rETH-THETA-P",
-    asset: WETH_ADDRESS[chainId],
-    assetContractName:
-      chainId === CHAINID.AVAX_MAINNET ? "IBridgeToken" : "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: USDC_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("WETH"),
-    depositAmount: BigNumber.from("100000000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    minimumSupply: BigNumber.from("10").pow("3").toString(),
-    expectedMintAmount: BigNumber.from(PUT_EXPECTED_MINT_AMOUNT[chainId]),
-    auctionDuration: 21600,
-    tokenDecimals: 6,
-    isPut: true,
-    gasLimits: {
-      depositWorstCase: 115000,
-      depositBestCase: 98000,
-    },
-    mintConfig: {
-      amount: parseUnits("10000000", 6),
-      contractOwnerAddress: USDC_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
-    protocol: OPTION_PROTOCOL.GAMMA,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon SAVAX Theta Vault (Call)`,
-    tokenName: "Ribbon SAVAX Theta Vault",
-    tokenSymbol: "rSAVAX-THETA",
-    asset: SAVAX_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: SAVAX_ADDRESS[chainId],
-    chainlinkPricer: SAVAX_PRICER,
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("SAVAX"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 109576,
-      depositBestCase: 93200,
-    },
-    mintConfig: {
-      amount: parseEther("20"),
-      contractOwnerAddress: SAVAX_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.AVAX_MAINNET],
-    protocol: OPTION_PROTOCOL.GAMMA,
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon APE Theta Vault (Call)`,
-    tokenName: "Ribbon APE Theta Vault",
-    tokenSymbol: "rAPE-THETA",
-    asset: APE_ADDRESS[chainId],
-    assetContractName: "IWBTC",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: APE_ADDRESS[chainId],
-    chainlinkPricer: APE_PRICER[chainId],
-    deltaFirstOption: BigNumber.from("1000"),
-    deltaSecondOption: BigNumber.from("1000"),
-    deltaStep: getDeltaStep("APE"),
-    depositAmount: parseEther("1"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
-    performanceFee: BigNumber.from("20000000"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 109576,
-      depositBestCase: 93200,
-    },
-    mintConfig: {
-      amount: parseEther("20"),
-      contractOwnerAddress: APE_OWNER_ADDRESS[chainId],
-    },
-    availableChains: [CHAINID.ETH_MAINNET],
-    protocol: OPTION_PROTOCOL.TD,
   });
 });
 
