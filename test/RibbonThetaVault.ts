@@ -1638,7 +1638,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const controller = await ethers.getContractAt(
           "IController",
-          GAMMA_CONTROLLER,
+          GAMMA_CONTROLLER
         );
 
         assert.equal(await controller.getAccountVaultCounter(vault.address), 2);
