@@ -439,7 +439,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             IERC20(oTokenAddress).balanceOf(address(this))
         );
 
-        uint256 decimals = decimals();
+        uint256 decimals = vaultParams.decimals;
+        
+        // If total size is larger than 1, set minimum bid as 1
+        // Otherwise, set minimum bid to one tenth the total size
         uint256 minBidSize =
             oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
 
