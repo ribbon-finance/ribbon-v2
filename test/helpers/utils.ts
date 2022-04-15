@@ -413,6 +413,7 @@ export async function generateSignedBid(
 
   const userSigner = ethers.provider.getSigner(contractSigner);
 
+  /* eslint no-underscore-dangle: 0 */
   const signedMsg = await userSigner._signTypedData(
     domain,
     types,
