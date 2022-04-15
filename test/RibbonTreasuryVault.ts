@@ -69,11 +69,11 @@ describe("RibbonTreasuryVault", () => {
     collateralAsset: PERP_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_PERP_PRICER[chainId],
     deltaStep: BigNumber.from(PERP_STRIKE_STEP),
-    depositAmount: parseEther("1"),
+    depositAmount: parseEther("20"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("100000000"),
+    expectedMintAmount: BigNumber.from("2000000000"),
     premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("2000000"),
+    managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
     manualStrikePrice: BigNumber.from("1").pow("8"),
     auctionDuration: 21600,
@@ -2192,8 +2192,8 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToSecondOption(firstOptionStrike);
 
         // After the first round, the user is charged the fee
-        assert.bnLt(await vault.totalBalance(), secondStartBalance);
-        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
+        assert.bnLte(await vault.totalBalance(), secondStartBalance);
+        assert.bnGte(await vault.accountVaultBalance(user), depositAmount);
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
@@ -2549,8 +2549,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
+        const withdrawAmount = depositAmount.sub(parseEther('0.5'));
+
         await expect(
-          vault.withdrawInstantly(depositAmount.div(2))
+          vault.withdrawInstantly(withdrawAmount)
         ).to.be.revertedWith("Minimum deposit not reached");
       });
 
@@ -2605,10 +2607,15 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).deposit(depositAmount);
         await vault.connect(userSigner).deposit(depositAmount);
-        await vault.connect(userSigner).withdrawInstantly(depositAmount);
+        await vault.connect(userSigner).withdrawInstantly(depositAmount.div(2));
 
         assert.equal(await vault.depositorsArray(0), owner);
         assert.equal(await vault.depositorsMap(owner), true);
+
+        assert.equal(await vault.depositorsArray(1), user);
+        assert.equal(await vault.depositorsMap(user), true);
+
+        await vault.connect(userSigner).withdrawInstantly(depositAmount.div(2));
 
         await expect(vault.depositorsArray(1)).to.be.reverted;
         assert.equal(await vault.depositorsMap(user), false);
@@ -2818,6 +2825,34 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(user, vault.address, depositAmount);
       });
 
+      it("removes user from list if initiating full amount withdraw", async function () {
+        // Assume user is initiating withdraw twice which amounts to full amount
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const tx1 = await vault.initiateWithdraw(depositAmount.div(3));
+
+        await expect(tx1)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.div(3));
+
+        assert.equal(await vault.depositorsArray(0), user);
+        assert.equal(await vault.depositorsMap(user), true);
+
+        const tx2 = await vault.initiateWithdraw(depositAmount.sub(depositAmount.div(3)));
+
+        await expect(tx2)
+          .to.emit(vault, "Transfer")
+          .withArgs(user, vault.address, depositAmount.sub(depositAmount.div(3)));
+
+        await expect(vault.depositorsArray(0)).to.be.reverted;
+        assert.equal(await vault.depositorsMap(user), false);
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract
           .connect(userSigner)
@@ -2828,7 +2863,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 117000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 127000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
@@ -3065,6 +3100,166 @@ function behavesLikeRibbonOptionsVault(params: {
           );
       });
 
+      it("does not distribute to users who withdraw", async function () {
+        const firstOptionAddress = firstOption.address;
+        const secondOptionAddress = secondOption.address;
+
+        await vault.connect(ownerSigner).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const firstTx = await vault.connect(keeperSigner).rollToNextOption();
+
+        await expect(firstTx)
+          .to.emit(vault, "OpenShort")
+          .withArgs(firstOptionAddress, depositAmount.mul(3), keeper);
+
+        let bidMultiplier = 1;
+
+        let tokenContract = premiumInStables ? premiumContract : assetContract;
+
+        let auctionDetails = await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          firstOptionAddress,
+          firstOptionPremium,
+          premiumInStables ? premiumDecimals : tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(keeperSigner)
+          .settleAuction(await vault.optionAuctionID());
+
+        let userBalanceBefore = await premiumContract.balanceOf(user);
+        let ownerBalanceBefore = await premiumContract.balanceOf(owner);
+
+        let auctionProceeds = (await premiumContract.balanceOf(vault.address))
+          .mul(BigNumber.from("100000000").sub(performanceFee))
+          .div(FEE_SCALING.mul(100));
+
+        let tx = await vault.connect(keeperSigner).chargeAndDistribute();
+
+        const settlementPriceOTM = isPut
+          ? firstOptionStrike.add(1)
+          : firstOptionStrike.sub(1);
+
+        // withdraw 100% because it's OTM
+        await setOpynOracleExpiryPrice(
+          params.asset,
+          oracle,
+          await getCurrentOptionExpiry(),
+          settlementPriceOTM
+        );
+
+        let userBalanceAfter = await premiumContract.balanceOf(user);
+        let ownerBalanceAfter = await premiumContract.balanceOf(owner);
+
+        assert.bnGte(
+          userBalanceAfter.sub(userBalanceBefore),
+          auctionProceeds.div(3).sub(1)
+        );
+        assert.bnLte(
+          userBalanceAfter.sub(userBalanceBefore),
+          auctionProceeds.div(3).add(1)
+        );
+        assert.bnGte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.mul(2).div(3).sub(1)
+        );
+        assert.bnLte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.mul(2).div(3).add(1)
+        );
+
+        let performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+        let totalDistributed = BigNumber.from(auctionDetails[2]).sub(
+          performanceFeeInAsset
+        );
+
+        await expect(tx)
+          .to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed,
+            [totalDistributed.div(3), totalDistributed.mul(2).div(3)],
+            [user, owner],
+            1
+          );
+
+        const userShares = await vault.shares(user);
+        await vault.connect(userSigner).initiateWithdraw(userShares);
+
+        await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        const secondTx = await vault.connect(keeperSigner).rollToNextOption();
+
+        await expect(secondTx)
+          .to.emit(vault, "OpenShort")
+          .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
+
+        auctionDetails = await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          secondOptionAddress,
+          firstOptionPremium,
+          premiumInStables ? premiumDecimals : tokenDecimals,
+          bidMultiplier.toString(),
+          auctionDuration
+        );
+
+        userBalanceBefore = await premiumContract.balanceOf(user);
+        ownerBalanceBefore = await premiumContract.balanceOf(owner);
+
+        await gnosisAuction
+          .connect(keeperSigner)
+          .settleAuction(await vault.optionAuctionID());
+
+        auctionProceeds = (await premiumContract.balanceOf(vault.address))
+          .mul(BigNumber.from("100000000").sub(performanceFee))
+          .div(FEE_SCALING.mul(100));
+
+        tx = await vault.connect(keeperSigner).chargeAndDistribute();
+
+        userBalanceAfter = await premiumContract.balanceOf(user);
+        ownerBalanceAfter = await premiumContract.balanceOf(owner);
+
+        assert.bnGte(
+          userBalanceAfter.sub(userBalanceBefore),
+          0
+        );
+        assert.bnGte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.sub(1)
+        );
+        assert.bnLte(
+          ownerBalanceAfter.sub(ownerBalanceBefore),
+          auctionProceeds.add(1)
+        );
+
+        performanceFeeInAsset = BigNumber.from(auctionDetails[2])
+          .mul(performanceFee)
+          .div(FEE_SCALING.mul(100));
+        totalDistributed = BigNumber.from(auctionDetails[2]).sub(
+          performanceFeeInAsset
+        );
+
+        await expect(tx)
+          .to.emit(vault, "DistributePremium")
+          .withArgs(
+            totalDistributed.add(1),
+            [totalDistributed.add(1)],
+            [owner],
+            2
+          );
+
+      });
+
       it("charge the correct fees", async function () {
         const firstOptionAddress = firstOption.address;
 
@@ -3282,14 +3477,6 @@ function behavesLikeRibbonOptionsVault(params: {
         // Share balance should remain the same because the 1 share
         // is transferred to the user
         assert.bnEqual(await vault.shares(user), depositAmount);
-
-        await vault.transfer(owner, redeemAmount);
-
-        assert.bnEqual(
-          await vault.shares(user),
-          depositAmount.sub(redeemAmount)
-        );
-        assert.bnEqual(await vault.shares(owner), redeemAmount);
       });
     });
 
@@ -3384,6 +3571,54 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.decimals()).toString(),
           tokenDecimals.toString()
         );
+      });
+    });
+
+    describe("#transfer", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("reverts on transfer", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        const redeemAmount = BigNumber.from(1);
+        await vault.redeem(redeemAmount);
+
+        // Share balance should remain the same because the 1 share
+        // is transferred to the user
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        await expect(vault.transfer(owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
+      });
+    });
+
+    describe("#transferFrom", () => {
+      time.revertToSnapshotAfterEach();
+
+      it("reverts on transfer", async function () {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        await rollToNextOption();
+
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        const redeemAmount = BigNumber.from(1);
+        await vault.redeem(redeemAmount);
+
+        // Share balance should remain the same because the 1 share
+        // is transferred to the user
+        assert.bnEqual(await vault.shares(user), depositAmount);
+
+        await expect(vault.transferFrom(user, owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
       });
     });
   });
