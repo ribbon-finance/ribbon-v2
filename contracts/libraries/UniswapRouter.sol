@@ -84,7 +84,7 @@ library UniswapRouter {
         uint256 amountIn,
         uint256 minAmountOut,
         address router,
-        bytes memory swapPath
+        bytes calldata swapPath
     ) internal returns (uint256 amountOut) {
         // Approve router to spend tokenIn
         IERC20(tokenIn).safeApprove(router, amountIn);
