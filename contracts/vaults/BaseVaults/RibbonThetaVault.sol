@@ -460,7 +460,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sell the allocated options to the purchase queue post auction settlement
      */
     function sellOptionsToQueue() external onlyKeeper nonReentrant {
-        IOptionsPurchaseQueue(optionsPurchaseQueue).sellToBuyers();
+        IOptionsPurchaseQueue(optionsPurchaseQueue).sellToBuyers(
+            VaultLifecycle.getAuctionSettlementPrice(
+                GNOSIS_EASY_AUCTION,
+                optionAuctionID
+            )
+        );
     }
 
     /**
