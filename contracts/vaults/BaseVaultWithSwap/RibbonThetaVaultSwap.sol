@@ -23,7 +23,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
  * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
  * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
  */
-contract RibbonThetaVaultSwap is RibbonVault, RibbonThetaVaultStorage {
+contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -441,9 +441,7 @@ contract RibbonThetaVaultSwap is RibbonVault, RibbonThetaVaultStorage {
 
         uint256 decimals = decimals();
         uint256 minBidSize =
-            oTokenBalance > 10 ** decimals
-                ? 10 ** decimals
-                : oTokenBalance.div(10);
+            oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
 
         optionAuctionID = ISwap(SWAP_CONTRACT).createOffer(
             oTokenAddress,
