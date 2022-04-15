@@ -11,7 +11,6 @@ import {
 
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {Vault} from "../libraries/Vault.sol";
 
 contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
@@ -31,9 +30,6 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
         uint128 premiums;
         address buyer; // Slot 1
     }
-
-    /// @notice Gnosis Easy Auction
-    IGnosisAuction public immutable gnosisEasyAuction;
 
     /************************************************
      *  STORAGE
@@ -56,6 +52,11 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
     /// @notice Stores the ceiling price of a vaults options
     /// @dev If the ceilingPrice != 0, then the vault is available for requesting purchases
     mapping(address => uint256) public override ceilingPrice;
+
+    /// @notice Minimum amount of options a buyer needs to request from a vault, necessary to prevent the purchase
+    ///  queue from getting griefed
+    /// @dev Buyers on the whitelist are exempted from this requirement
+    mapping(address => uint256) public override minPurchaseAmount;
 
     /************************************************
      *  EVENTS
@@ -113,16 +114,15 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
      */
     event CeilingPriceUpdated(address indexed vault, uint256 ceilingPrice);
 
-    /************************************************
-     *  CONSTRUCTOR
-     ***********************************************/
-
     /**
-     * @param _gnosisEasyAuction Gnosis Easy Auction contract
+     * @notice Emitted when the minimum purchase amount for a vault is updated
+     * @param vault The vault
+     * @param optionsAmount The new minimum purchase amount
      */
-    constructor(address _gnosisEasyAuction) {
-        gnosisEasyAuction = IGnosisAuction(_gnosisEasyAuction);
-    }
+    event MinPurchaseAmountUpdated(
+        address indexed vault,
+        uint256 optionsAmount
+    );
 
     /************************************************
      *  QUEUE OPERATIONS
@@ -146,12 +146,17 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
         override
         returns (uint256)
     {
-        require(whitelistedBuyer[msg.sender], "Buyer not whitelisted");
+        require(optionsAmount != 0, "!optionsAmount");
+        // Exempt buyers on the whitelist from the minimum purchase requirement
+        require(
+            optionsAmount >= minPurchaseAmount[msg.sender] ||
+                whitelistedBuyer[msg.sender],
+            "Minimum purchase requirement"
+        );
         uint256 _ceilingPrice = ceilingPrice[vault];
         require(_ceilingPrice != 0, "Invalid vault");
         // This prevents new purchase requested after the vault has set its allocation
         require(vaultAllocatedOptions[msg.sender] == 0, "Vault allocated");
-        require(optionsAmount != 0, "!optionsAmount");
 
         // premiums = optionsAmount * ceilingPrice
         uint256 premiums =
@@ -227,15 +232,19 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
      *  The buyers receive their options at the auction settlement price and any leftover premiums are refunded.
      *  If the auction settles above the ceiling price, the vault receives the premiums at the ceiling price (so it
      *  receives premiums at a worse price than the auction) and the buyers are not refunded.
+     * @param settlementPrice The vault passes in the settlement price of the options
      * @return totalPremiums The total premiums the vault received from the purchase queue
      */
-    function sellToBuyers() external override returns (uint256) {
+    function sellToBuyers(uint256 settlementPrice)
+        external
+        override
+        returns (uint256)
+    {
         require(ceilingPrice[msg.sender] != 0, "Not vault");
 
         uint256 totalPremiums;
         uint256 allocatedOptions = vaultAllocatedOptions[msg.sender];
         uint256 totalOptions = allocatedOptions; // Cache allocatedOptions here for emitting an event later
-        uint256 settlementPrice = getOptionsSettlementPrice(msg.sender);
         IERC20 currentOption =
             IERC20(IRibbonThetaVault(msg.sender).currentOption());
         IERC20 asset =
@@ -353,6 +362,24 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
         emit CeilingPriceUpdated(vault, price);
     }
 
+    /**
+     * @notice Sets the minimum purchase amount for a vault
+     * @dev Only callable by the owner
+     * @param vault The vault to set the minimum purchase amount for
+     * @param optionsAmount The minimum options purchase amount
+     */
+    function setMinPurchaseAmount(address vault, uint256 optionsAmount)
+        external
+        override
+        onlyOwner
+    {
+        require(vault != address(0), "!vault");
+
+        minPurchaseAmount[vault] = optionsAmount;
+
+        emit MinPurchaseAmountUpdated(vault, optionsAmount);
+    }
+
     /************************************************
      *  GETTERS
      ***********************************************/
@@ -374,69 +401,5 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
             optionsAmount.mul(ceilingPrice[vault]).div(
                 10**Vault.OTOKEN_DECIMALS
             );
-    }
-
-    /**
-     * @notice Calculates the latest settlement price of the options from a vault
-     * @dev Agnostic to whatever settlement method the vault uses, still works if the vault doesn't use an auction
-     * @param vault The vault to get the settlement price for
-     * @return settlementPrice Options settlement price
-     */
-    function getOptionsSettlementPrice(address vault)
-        public
-        view
-        override
-        returns (uint256)
-    {
-        // The current price per share after receiving premiums
-        uint256 newPricePerShare = IRibbonThetaVault(vault).pricePerShare();
-        // The price per share before receiving premiums
-        uint256 oldPricePerShare =
-            IRibbonThetaVault(vault).roundPricePerShare(
-                IRibbonThetaVault(vault).vaultState().round - 1
-            );
-        uint256 assetUnits =
-            10**IRibbonThetaVault(vault).vaultParams().decimals;
-
-        // settlementPrice = max((newPricePerShare / oldPricePerShare) - 1, 0)
-        uint256 settlementPrice =
-            newPricePerShare.mul(assetUnits).div(oldPricePerShare);
-        if (settlementPrice > assetUnits) {
-            return settlementPrice.sub(assetUnits);
-        } else {
-            return 0;
-        }
-    }
-
-    /**
-     * @notice TODO: REMOVE
-     * @param vault The vault to get the auction settlement price for
-     * @return settlementPrice Auction settlement price
-     */
-    function getAuctionSettlementPrice(address vault)
-        public
-        view
-        returns (uint256)
-    {
-        bytes32 clearingPriceOrder =
-            gnosisEasyAuction
-                .auctionData(IRibbonThetaVault(vault).optionAuctionID())
-                .clearingPriceOrder;
-
-        if (clearingPriceOrder == bytes32(0)) {
-            // Current auction hasn't settled yet
-            return 0;
-        } else {
-            // We decode the clearingPriceOrder to find the auction settlement price
-            // settlementPrice = clearingPriceOrder.sellAmount / clearingPriceOrder.buyAmount
-            return
-                (10**Vault.OTOKEN_DECIMALS)
-                    .mul(
-                    uint96(uint256(clearingPriceOrder)) // sellAmount
-                )
-                    .div(
-                    uint96(uint256(clearingPriceOrder) >> 96) // buyAmount
-                );
-        }
     }
 }

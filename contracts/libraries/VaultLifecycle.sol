@@ -717,6 +717,37 @@ library VaultLifecycle {
     }
 
     /**
+     * @notice Gets the settlement price of a settled auction
+     * @param gnosisEasyAuction The address of the Gnosis Easy Auction contract
+     * @return settlementPrice Auction settlement price
+     */
+    function getAuctionSettlementPrice(
+        address gnosisEasyAuction,
+        uint256 optionAuctionID
+    ) external view returns (uint256) {
+        bytes32 clearingPriceOrder =
+            IGnosisAuction(gnosisEasyAuction)
+                .auctionData(optionAuctionID)
+                .clearingPriceOrder;
+
+        if (clearingPriceOrder == bytes32(0)) {
+            // Current auction hasn't settled yet
+            return 0;
+        } else {
+            // We decode the clearingPriceOrder to find the auction settlement price
+            // settlementPrice = clearingPriceOrder.sellAmount / clearingPriceOrder.buyAmount
+            return
+                (10**Vault.OTOKEN_DECIMALS)
+                    .mul(
+                    uint96(uint256(clearingPriceOrder)) // sellAmount
+                )
+                    .div(
+                    uint96(uint256(clearingPriceOrder) >> 96) // buyAmount
+                );
+        }
+    }
+
+    /**
      * @notice Verify the constructor params satisfy requirements
      * @param owner is the owner of the vault with critical permissions
      * @param feeRecipient is the address to recieve vault performance and management fees
