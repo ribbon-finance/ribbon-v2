@@ -36,11 +36,11 @@ import {
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
+  Bid,
+  generateSignedBid,
   lockedBalanceForRollover,
   getDeltaStep,
   getProtocolAddresses,
-  Bid,
-  generateSignedBid,
 } from "./helpers/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
@@ -236,7 +236,8 @@ type Option = {
 
 /**
  *
- * @param {Object} params - Parameter of option vau
+ * @param {Object} params - Parameter of option vault
+ * @param {string} params.name - Name of test
  * @param {string} params.tokenName - Name of Option Vault
  * @param {string} params.tokenSymbol - Symbol of Option Vault
  * @param {number} params.tokenDecimals - Decimals of the vault shares
@@ -1743,16 +1744,11 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
 
-        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
-
         let assetBalanceBeforeSettle;
 
         assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 
-        assert.equal(
-          (await defaultOtoken.balanceOf(vault.address)).toString(),
-          "0"
-        );
+        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
