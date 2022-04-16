@@ -17,26 +17,12 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    /**
-     * @dev Contains purchase request info
-     * @param optionsAmount Amount of options to purchase
-     * @param premiums Total premiums the buyer is spending to purchase the options (optionsAmount * ceilingPrice)
-     *  We need to track the premiums here since the ceilingPrice could change between the time the purchase was
-     *  requested and when the options are sold
-     * @param buyer The buyer requesting this purchase
-     */
-    struct Purchase {
-        uint128 optionsAmount; // Slot 0
-        uint128 premiums;
-        address buyer; // Slot 1
-    }
-
     /************************************************
      *  STORAGE
      ***********************************************/
 
     /// @notice Stores the purchase queue for each vault
-    mapping(address => Purchase[]) public purchases;
+    mapping(address => Purchase[]) public override purchases;
 
     /// @notice Stores the total options being purchased for each vault
     mapping(address => uint256) public override totalOptionsAmount;
@@ -146,6 +132,8 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
         override
         returns (uint256)
     {
+        uint256 _ceilingPrice = ceilingPrice[vault];
+        require(_ceilingPrice != 0, "Invalid vault");
         require(optionsAmount != 0, "!optionsAmount");
         // Exempt buyers on the whitelist from the minimum purchase requirement
         require(
@@ -153,8 +141,6 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
                 whitelistedBuyer[msg.sender],
             "Minimum purchase requirement"
         );
-        uint256 _ceilingPrice = ceilingPrice[vault];
-        require(_ceilingPrice != 0, "Invalid vault");
         // This prevents new purchase requested after the vault has set its allocation
         require(vaultAllocatedOptions[msg.sender] == 0, "Vault allocated");
 
@@ -383,6 +369,20 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
     /************************************************
      *  GETTERS
      ***********************************************/
+
+    /**
+     * @notice Gets all the purchase requests for a vault
+     * @param vault The vault to get purchase requests for
+     * @return purchases The purchase array
+     */
+    function getPurchases(address vault)
+        external
+        view
+        override
+        returns (Purchase[] memory)
+    {
+        return purchases[vault];
+    }
 
     /**
      * @notice Gets the premiums the buyer needs to deposit to request a certain amount of options
