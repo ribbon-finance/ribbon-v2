@@ -3,7 +3,6 @@ pragma solidity =0.8.4;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     SafeERC20
@@ -14,7 +13,6 @@ import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {Vault} from "../libraries/Vault.sol";
 
 contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
-    using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     /************************************************
@@ -146,7 +144,7 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
 
         // premiums = optionsAmount * ceilingPrice
         uint256 premiums =
-            optionsAmount.mul(_ceilingPrice).div(10**Vault.OTOKEN_DECIMALS);
+            (optionsAmount * _ceilingPrice) / (10**Vault.OTOKEN_DECIMALS);
 
         // Add purchase to queue
         purchases[vault].push(
@@ -157,9 +155,7 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
             )
         );
 
-        totalOptionsAmount[vault] = totalOptionsAmount[vault].add(
-            optionsAmount
-        );
+        totalOptionsAmount[vault] += optionsAmount;
 
         // Transfer premiums from the buyer to this contract
         IERC20(IRibbonThetaVault(vault).vaultParams().asset).safeTransferFrom(
@@ -254,24 +250,21 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
 
                 // premiums = optionsAmount * settlementPrice
                 uint256 premiums =
-                    optionsAmount.mul(settlementPrice).div(
-                        10**Vault.OTOKEN_DECIMALS
-                    );
+                    (optionsAmount * settlementPrice) /
+                        (10**Vault.OTOKEN_DECIMALS);
 
                 if (premiums < purchaseQueue[i].premiums) {
                     // Transfer leftover premiums back to the buyer
                     asset.safeTransfer(
                         purchaseQueue[i].buyer,
-                        uint256(purchaseQueue[i].premiums).sub(premiums)
+                        purchaseQueue[i].premiums - premiums
                     );
 
-                    totalPremiums = totalPremiums.add(premiums);
+                    totalPremiums += premiums;
                 } else {
                     // If the settlement price exceed the buyer's price (ceiling price), the vault receives all
                     // of the buyer's premiums at a worse price than the auction
-                    totalPremiums = totalPremiums.add(
-                        purchaseQueue[i].premiums
-                    );
+                    totalPremiums += purchaseQueue[i].premiums;
                 }
 
                 // Transfer options to the buyer
@@ -281,7 +274,7 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
                 );
 
                 // Deduct transferred options from allocatedOptions
-                allocatedOptions = allocatedOptions.sub(optionsAmount);
+                allocatedOptions -= optionsAmount;
             }
         }
 
@@ -398,8 +391,6 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
     {
         // premiums = optionsAmount * ceilingPrice
         return
-            optionsAmount.mul(ceilingPrice[vault]).div(
-                10**Vault.OTOKEN_DECIMALS
-            );
+            (optionsAmount * ceilingPrice[vault]) / (10**Vault.OTOKEN_DECIMALS);
     }
 }
