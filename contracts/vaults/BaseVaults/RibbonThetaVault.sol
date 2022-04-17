@@ -15,9 +15,6 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
-import {
-    IOptionsPurchaseQueue
-} from "../../interfaces/IOptionsPurchaseQueue.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 /**
