@@ -45,6 +45,11 @@ interface IOptionsPurchaseQueue {
         view
         returns (uint256);
 
+    function getOptionsAllocation(address vault, uint256 allocatedOptions)
+        external
+        view
+        returns (uint256);
+
     function requestPurchase(address vault, uint256 optionsAmount)
         external
         returns (uint256);

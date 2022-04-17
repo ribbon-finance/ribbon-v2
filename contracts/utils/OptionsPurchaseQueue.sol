@@ -267,12 +267,7 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
         require(ceilingPrice[msg.sender] != 0, "Not vault");
 
         // Prevent the vault from allocating more options than there are requested
-        uint256 optionsAmount =
-            totalOptionsAmount[msg.sender] - vaultAllocatedOptions[msg.sender];
-        // allocatedOptions = min(allocatedOptions, totalOptionsAmount[vault] - vaultAllocatedOptions[vault])
-        allocatedOptions = optionsAmount < allocatedOptions
-            ? optionsAmount
-            : allocatedOptions;
+        allocatedOptions = getOptionsAllocation(msg.sender, allocatedOptions);
 
         // Blocks new purchase requests until sellToBuyers() is called
         vaultAllocatedOptions[msg.sender] += allocatedOptions;
@@ -475,5 +470,25 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
         // premiums = optionsAmount * ceilingPrice
         return
             (optionsAmount * ceilingPrice[vault]) / (10**Vault.OTOKEN_DECIMALS);
+    }
+
+    /**
+     * @notice Gets the amount of options the vault can allocate to the queue
+     * @param vault The vault selling options to the queue
+     * @param allocatedOptions Maximum amount of options the vault can allocate to the queue
+     * @return allocatedOptions Actual amount of options the vault allocates to the queue
+     */
+    function getOptionsAllocation(address vault, uint256 allocatedOptions)
+        public
+        view
+        override
+        returns (uint256)
+    {
+        // Prevent the vault from allocating more options than there are requested
+        uint256 optionsAmount =
+            totalOptionsAmount[vault] - vaultAllocatedOptions[vault];
+        // allocatedOptions = min(allocatedOptions, totalOptionsAmount[vault] - vaultAllocatedOptions[vault])
+        return
+            optionsAmount < allocatedOptions ? optionsAmount : allocatedOptions;
     }
 }
