@@ -61,6 +61,20 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
     );
 
     /**
+     * @notice Emitted when a purchase is cancelled
+     * @param buyer The buyer cancelling their purchase
+     * @param vault The vault the buyer was purchasing from
+     * @param optionsAmount Amount of options cancelled
+     * @param premiums Total premiums transferred back to the buyer
+     */
+    event PurchaseCancelled(
+        address indexed buyer,
+        address indexed vault,
+        uint256 optionsAmount,
+        uint256 premiums
+    );
+
+    /**
      * @notice Emitted when the vault allocates options to be sold to the buyers
      * @param vault The vault allocating options
      * @param allocatedOptions Amount of options allocated
@@ -74,18 +88,6 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
      * @param totalOptions Total options transferred to the buyers (allocatedOptions)
      */
     event OptionsSold(
-        address indexed vault,
-        uint256 totalPremiums,
-        uint256 totalOptions
-    );
-
-    /**
-     * @notice Emitted when the owner cancels all purchase requests for a vault
-     * @param vault The vault selling the options
-     * @param totalPremiums Total premiums cancelled
-     * @param totalOptions Total options cancelled
-     */
-    event AllPurchasesCancelled(
         address indexed vault,
         uint256 totalPremiums,
         uint256 totalOptions
@@ -320,7 +322,6 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
         // This prevents cancellations after the vault has set its allocation
         require(vaultAllocatedOptions[vault] == 0, "Vault allocated");
 
-        uint256 totalPremiums;
         IERC20 asset = IERC20(IRibbonThetaVault(vault).vaultParams().asset);
         Purchase[] memory purchaseQueue = purchases[vault];
 
@@ -331,14 +332,13 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
                 purchaseQueue[i].premiums
             );
 
-            totalPremiums += purchaseQueue[i].premiums;
+            emit PurchaseCancelled(
+                purchaseQueue[i].buyer,
+                vault,
+                purchaseQueue[i].optionsAmount,
+                purchaseQueue[i].premiums
+            );
         }
-
-        emit AllPurchasesCancelled(
-            vault,
-            totalPremiums,
-            totalOptionsAmount[vault]
-        );
 
         // Clear purchase queue
         delete purchases[vault];
