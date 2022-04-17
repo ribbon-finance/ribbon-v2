@@ -12,7 +12,7 @@ import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {Vault} from "../libraries/Vault.sol";
 
-contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
+contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
     using SafeERC20 for IERC20;
 
     /************************************************
@@ -54,6 +54,20 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
      * @param premiums Total premiums from the buyers (optionsAmount * ceilingPrice)
      */
     event PurchaseRequested(
+        address indexed buyer,
+        address indexed vault,
+        uint256 optionsAmount,
+        uint256 premiums
+    );
+
+    /**
+     * @notice Emitted when a purchase is cancelled
+     * @param buyer The buyer cancelling their purchase
+     * @param vault The vault the buyer was purchasing from
+     * @param optionsAmount Amount of options cancelled
+     * @param premiums Total premiums transferred back to the buyer
+     */
+    event PurchaseCancelled(
         address indexed buyer,
         address indexed vault,
         uint256 optionsAmount,
@@ -109,7 +123,7 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
     );
 
     /************************************************
-     *  QUEUE OPERATIONS
+     *  BUYER OPERATIONS
      ***********************************************/
 
     /**
@@ -135,12 +149,12 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
         require(optionsAmount != 0, "!optionsAmount");
         // Exempt buyers on the whitelist from the minimum purchase requirement
         require(
-            optionsAmount >= minPurchaseAmount[msg.sender] ||
+            optionsAmount >= minPurchaseAmount[vault] ||
                 whitelistedBuyer[msg.sender],
             "Minimum purchase requirement"
         );
         // This prevents new purchase requested after the vault has set its allocation
-        require(vaultAllocatedOptions[msg.sender] == 0, "Vault allocated");
+        require(vaultAllocatedOptions[vault] == 0, "Vault allocated");
 
         // premiums = optionsAmount * ceilingPrice
         uint256 premiums =
@@ -170,10 +184,78 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
     }
 
     /**
+     * @notice Cancel a request to purchase options from a vault
+     * @dev Cancels the last purchase request from the buyer. If the buyer has multiple request, they will have to
+     *  call this function again. Will revert if the buyer doesn't have a purchase request.
+     *  This removes the buyer's purchase from the queue by shifting the requests, in order to maintain the queue's
+     *  order. Cancellation isn't allowed once the vault allocates options to the buyers.
+     * @param vault The vault to purchase options from
+     * @return optionsAmount Amount of options cancelled
+     * @return premiums Amount of premiums transferred back to the buyer
+     */
+    function cancelPurchase(address vault)
+        external
+        override
+        returns (uint256, uint256)
+    {
+        require(ceilingPrice[vault] != 0, "Invalid vault");
+        // This prevents cancellations after the vault has set its allocation
+        require(vaultAllocatedOptions[vault] == 0, "Vault allocated");
+
+        Purchase[] memory purchaseQueue = purchases[vault];
+        uint256 index = purchaseQueue.length - 1;
+
+        // Iterate the purchase queue in reverse so we cancel the last purchase request from the buyer
+        for (; index >= 0; index--) {
+            if (purchaseQueue[index].buyer == msg.sender) {
+                break;
+            }
+
+            // Revert if we don't find any purchase from the sender
+            require(index != 0, "Purchase not found");
+        }
+
+        // Remove the purchase from the queue in order (order must be maintained since requests are filled FIFO)
+
+        // We could just zero out the element in the queue, but this would require sellToBuyers() to iterate over
+        // it which means someone could grief the queue by making and cancelling a bunch of purchase requests
+        for (uint256 i = index; i < purchaseQueue.length - 1; i++) {
+            purchases[vault][i] = purchaseQueue[i + 1];
+        }
+        // Revert if the queue is empty
+        purchases[vault].pop();
+
+        totalOptionsAmount[vault] -= purchaseQueue[index].optionsAmount;
+
+        // Transfer premiums back to the buyer
+        IERC20(IRibbonThetaVault(vault).vaultParams().asset).safeTransfer(
+            msg.sender,
+            purchaseQueue[index].premiums
+        );
+
+        emit PurchaseCancelled(
+            msg.sender,
+            vault,
+            purchaseQueue[index].optionsAmount,
+            purchaseQueue[index].premiums
+        );
+
+        return (
+            purchaseQueue[index].optionsAmount,
+            purchaseQueue[index].premiums
+        );
+    }
+
+    /************************************************
+     *  VAULT OPERATIONS
+     ***********************************************/
+
+    /**
      * @notice Allocate options to the purchase queue
      * @dev Only callable by the vault selling options. Since we cannot allocate more options than there are on the
      *  purchase queue, we cap the allocated options at the totalOptionsAmount. The vault decides how many options
-     *  of its options it wants to allocate.
+     *  of its options it wants to allocate. Allows allocating additional options if already called. Transfers the
+     *  options from the vault to this contract.
      * @param allocatedOptions Maximum amount of options the vault can allocate to buyers
      * @return allocatedOptions The actual amount of options allocated
      */
@@ -185,14 +267,15 @@ contract OptionsPurchaseQueue is Ownable, IOptionsPurchaseQueue {
         require(ceilingPrice[msg.sender] != 0, "Not vault");
 
         // Prevent the vault from allocating more options than there are requested
-        uint256 optionsAmount = totalOptionsAmount[msg.sender];
-        // allocatedOptions = min(allocatedOptions, optionsAmount)
+        uint256 optionsAmount =
+            totalOptionsAmount[msg.sender] - vaultAllocatedOptions[msg.sender];
+        // allocatedOptions = min(allocatedOptions, totalOptionsAmount[vault] - vaultAllocatedOptions[vault])
         allocatedOptions = optionsAmount < allocatedOptions
             ? optionsAmount
             : allocatedOptions;
 
         // Blocks new purchase requests until sellToBuyers() is called
-        vaultAllocatedOptions[msg.sender] = allocatedOptions;
+        vaultAllocatedOptions[msg.sender] += allocatedOptions;
 
         if (allocatedOptions != 0) {
             // Transfer allocated options from the vault to this contract
