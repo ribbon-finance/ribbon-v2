@@ -54,10 +54,6 @@ interface IOptionsPurchaseQueue {
         external
         returns (uint256);
 
-    function cancelPurchase(address vault) external returns (uint256, uint256);
-
-    function instantPurchase(address vault) external returns (uint256, uint256);
-
     function allocateOptions(uint256 allocatedOptions)
         external
         returns (uint256);
