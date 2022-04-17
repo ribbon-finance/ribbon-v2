@@ -419,15 +419,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 lockedBalance
             );
 
-        address _optionsPurchaseQueue = optionsPurchaseQueue;
-        if (_optionsPurchaseQueue != address(0)) {
-            // Allocate a maximum of 50% of options towards the purchase queue
-            uint256 allocatedOptions = optionsMintAmount.div(2);
-            IERC20(newOption).approve(_optionsPurchaseQueue, allocatedOptions);
-            IOptionsPurchaseQueue(_optionsPurchaseQueue).allocateOptions(
-                allocatedOptions
-            );
-        }
+        VaultLifecycle.allocateOptions(
+            optionsPurchaseQueue,
+            newOption,
+            optionsMintAmount,
+            VaultLifecycle.QUEUE_OPTION_ALLOCATION
+        );
 
         _startAuction();
     }
@@ -460,11 +457,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sell the allocated options to the purchase queue post auction settlement
      */
     function sellOptionsToQueue() external onlyKeeper nonReentrant {
-        IOptionsPurchaseQueue(optionsPurchaseQueue).sellToBuyers(
-            VaultLifecycle.getAuctionSettlementPrice(
-                GNOSIS_EASY_AUCTION,
-                optionAuctionID
-            )
+        VaultLifecycle.sellOptionsToQueue(
+            optionsPurchaseQueue,
+            GNOSIS_EASY_AUCTION,
+            optionAuctionID
         );
     }
 
