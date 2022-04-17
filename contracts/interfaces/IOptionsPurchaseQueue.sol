@@ -56,11 +56,15 @@ interface IOptionsPurchaseQueue {
 
     function cancelPurchase(address vault) external returns (uint256, uint256);
 
+    function instantPurchase(address vault) external returns (uint256, uint256);
+
     function allocateOptions(uint256 allocatedOptions)
         external
         returns (uint256);
 
     function sellToBuyers(uint256 settlementPrice) external returns (uint256);
+
+    function cancelAllPurchases(address vault) external;
 
     function whitelistBuyer(address buyer) external;
 
