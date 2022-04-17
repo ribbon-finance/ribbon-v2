@@ -515,14 +515,11 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
         Purchase[] memory purchaseQueue = purchases[vault];
 
         for (uint256 i; i < purchaseQueue.length; i++) {
-            // Skips request if an instant purchase has already occurred
-            if (purchaseQueue[i].optionsAmount != 0) {
-                // Refund premiums to the buyer
-                asset.safeTransfer(
-                    purchaseQueue[i].buyer,
-                    totalPremiums += purchaseQueue[i].premiums
-                );
-            }
+            // Refund premiums to the buyer
+            asset.safeTransfer(
+                purchaseQueue[i].buyer,
+                totalPremiums += purchaseQueue[i].premiums
+            );
         }
 
         emit AllPurchasesCancelled(
@@ -628,7 +625,7 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
      * @return premiums Premiums required to request a purchase
      */
     function getPremiums(address vault, uint256 optionsAmount)
-        public
+        external
         view
         override
         returns (uint256)
