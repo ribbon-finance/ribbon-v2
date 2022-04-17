@@ -518,8 +518,10 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
             // Refund premiums to the buyer
             asset.safeTransfer(
                 purchaseQueue[i].buyer,
-                totalPremiums += purchaseQueue[i].premiums
+                purchaseQueue[i].premiums
             );
+
+            totalPremiums += purchaseQueue[i].premiums;
         }
 
         emit AllPurchasesCancelled(
