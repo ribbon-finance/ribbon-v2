@@ -500,12 +500,13 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
      ***********************************************/
 
     /**
-     * @notice Cancels all purchase requests for a vault
-     * @dev Only callable by the owner, should only be used when delisting a vault. Will revert if options
-     *  have already been allocated by the vault.
+     * @notice Cancels all purchase requests for a delisted vault
+     * @dev Only callable by the owner. Will revert if options have already been allocated by the vault.
      * @param vault The vault to cancel all purchases for
      */
     function cancelAllPurchases(address vault) external override onlyOwner {
+        // Revert if the vault is still listed
+        require(ceilingPrice[vault] == 0, "Vault listed");
         // This prevents cancellations after the vault has set its allocation
         require(vaultAllocatedOptions[vault] == 0, "Vault allocated");
 
