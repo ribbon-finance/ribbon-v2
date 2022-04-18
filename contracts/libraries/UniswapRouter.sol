@@ -123,10 +123,12 @@ library UniswapRouter {
      * @notice Single exact input flash swap (specify an exact amount to pay)
      * @param tokenIn token address to sell
      * @param tokenOut token address to receive
-     * @param amountIn amount to sell
+     * @param pool pool address for tokenIn and tokenOut
+     * @param amountIn exact amount to sell
      * @param minAmountOut minimum amount to receive
      * @param callback callback function id
      * @param data callback data
+     * @return amountOut amount of token received
      */
     function exactInputFlashSwap(
         address tokenIn,
@@ -139,7 +141,7 @@ library UniswapRouter {
     ) internal returns (uint256 amountOut) {
         bool zeroForOne = tokenIn < tokenOut;
 
-        //swap on uniswap, including data to trigger call back for flashswap
+        // Triggers callback on uniswapV3SwapCallback()
         (int256 amount0, int256 amount1) =
             IUniswapV3Pool(pool).swap(
                 address(this),
@@ -154,5 +156,51 @@ library UniswapRouter {
         amountOut = uint256(-(zeroForOne ? amount1 : amount0));
 
         require(amountOut >= minAmountOut, "!minAmountOut");
+    }
+
+    /**
+     * @notice Single exact output flash swap (specify an exact amount to receive)
+     * @param tokenIn token address to sell
+     * @param tokenOut token address to receive
+     * @param pool pool address for tokenIn and tokenOut
+     * @param amountOut exact amount to receive
+     * @param maxAmountIn maximum amount to sell
+     * @param callback function call source
+     * @param data arbitrary data assigned with the call
+     * @return amountIn amount of token sold
+     */
+    function exactOutputFlashSwap(
+        address tokenIn,
+        address tokenOut,
+        address pool,
+        uint256 amountOut,
+        uint256 maxAmountIn,
+        uint8 callback,
+        bytes memory data
+    ) internal returns (uint256 amountIn) {
+        bool zeroForOne = tokenIn < tokenOut;
+
+        // Triggers callback on uniswapV3SwapCallback()
+        (int256 amount0Delta, int256 amount1Delta) =
+            IUniswapV3Pool(pool).swap(
+                address(this),
+                zeroForOne,
+                -amountOut.toInt256(),
+                zeroForOne
+                    ? TickMath.MIN_SQRT_RATIO + 1
+                    : TickMath.MAX_SQRT_RATIO - 1,
+                abi.encode(SwapCallbackData(callback, data))
+            );
+
+        // Determine the amountIn and amountOut based on which token has a lower address
+        uint256 amountOutReceived;
+        (amountIn, amountOutReceived) = zeroForOne
+            ? (uint256(amount0Delta), uint256(-amount1Delta))
+            : (uint256(amount1Delta), uint256(-amount0Delta));
+        // It's technically possible to not receive the full output amount,
+        // so if no price limit has been specified, require this possibility away
+        require(amountOutReceived == amountOut);
+
+        require(amountIn <= maxAmountIn, "!maxAmountIn");
     }
 }
