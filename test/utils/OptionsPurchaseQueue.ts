@@ -13,8 +13,8 @@ moment.tz.setDefault("UTC");
 const TOKEN_DECIMALS = 18;
 const OPTION_DECIMALS = 8;
 const CEILING_PRICE = parseUnits("0.01", TOKEN_DECIMALS);
-// const LOWER_SETTLEMENT_PRICE = parseUnits("0.005", TOKEN_DECIMALS);
-// const UPPER_SETTLEMENT_PRICE = parseUnits("0.02", TOKEN_DECIMALS);
+const HIGHER_SETTLEMENT_PRICE = parseUnits("0.02", TOKEN_DECIMALS);
+const LOWER_SETTLEMENT_PRICE = parseUnits("0.005", TOKEN_DECIMALS);
 const MIN_PURCHASE_AMOUNT = parseUnits("100", OPTION_DECIMALS);
 
 describe("OptionsPurchaseQueue", () => {
@@ -73,6 +73,451 @@ describe("OptionsPurchaseQueue", () => {
 
   after(async () => {
     await time.revertToSnapShot(initSnapshotId);
+  });
+
+  describe("#allocateOptions", () => {
+    const optionsAmount = MIN_PURCHASE_AMOUNT.mul(10);
+    const premiums = optionsAmount
+      .mul(CEILING_PRICE)
+      .div(BigNumber.from(10).pow(OPTION_DECIMALS));
+
+    time.revertToSnapshotAfterEach(async function () {
+      // Set ceiling price
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, CEILING_PRICE);
+
+      // Set min purchase amount
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setMinPurchaseAmount(vault.address, MIN_PURCHASE_AMOUNT);
+
+      // Mint premiums to buyer 0
+      await token.connect(ownerSigner).mint(buyer0Signer.address, premiums);
+      // Approve premiums to OptionsPurchaseQueue
+      await token
+        .connect(buyer0Signer)
+        .approve(optionsPurchaseQueue.address, premiums);
+    });
+
+    it("reverts if caller is not vault", async function () {
+      await expect(
+        optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .allocateOptions(optionsAmount)
+      ).to.be.revertedWith("Not vault");
+    });
+
+    it("reverts if ceilingPrice is 0", async function () {
+      // Set ceiling price to 0
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, BigNumber.from(0));
+
+      await expect(
+        vault.allocateOptions(
+          optionsPurchaseQueue.address,
+          option.address,
+          optionsAmount
+      )).to.be.revertedWith("Not vault");
+    });
+
+    it("reverts when the vault has insufficient token balance", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount.div(2));
+
+      // Buyer 0 makes a purchase request
+      await optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .requestPurchase(vault.address, optionsAmount);
+
+      await expect(vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      )).to.be.revertedWith('ERC20: transfer amount exceeds balance');
+    });
+
+    it("allocates the correct options amount", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      // Buyer 0 makes a purchase request
+      await optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .requestPurchase(vault.address, optionsAmount);
+
+      const queueBalanceBefore = await option.balanceOf(optionsPurchaseQueue.address);
+
+      const tx = await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount.div(2)
+      );
+
+      const queueBalanceAfter = await option.balanceOf(optionsPurchaseQueue.address);
+
+      await expect(tx).to.emit(optionsPurchaseQueue, "OptionsAllocated")
+      .withArgs(
+        vault.address,
+        optionsAmount.div(2)
+      );
+
+      assert.bnEqual(
+        await optionsPurchaseQueue.vaultAllocatedOptions(vault.address),
+        optionsAmount.div(2)
+      );
+      assert.bnEqual(
+        queueBalanceAfter.sub(queueBalanceBefore),
+        optionsAmount.div(2)
+      );
+    });
+
+    it("does not transfer otokens when allocating 0 amount", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      // Buyer 0 makes a purchase request
+      await optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .requestPurchase(vault.address, optionsAmount);
+
+      const queueBalanceBefore = await option.balanceOf(optionsPurchaseQueue.address);
+
+      const tx = await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        BigNumber.from(0)
+      );
+
+      const queueBalanceAfter = await option.balanceOf(optionsPurchaseQueue.address);
+
+      await expect(tx).to.emit(optionsPurchaseQueue, "OptionsAllocated")
+      .withArgs(
+        vault.address,
+        BigNumber.from(0)
+      );
+
+      assert.bnEqual(
+        queueBalanceAfter.sub(queueBalanceBefore),
+        BigNumber.from(0)
+      );
+    });
+
+    it("caps options allocation to total request", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      // Buyer 0 makes a purchase request
+      await optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .requestPurchase(vault.address, optionsAmount.div(2));
+
+      const queueBalanceBefore = await option.balanceOf(optionsPurchaseQueue.address);
+
+      await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      );
+
+      const queueBalanceAfter = await option.balanceOf(optionsPurchaseQueue.address);
+
+      assert.bnEqual(
+        await optionsPurchaseQueue.vaultAllocatedOptions(vault.address),
+        optionsAmount.div(2)
+      );
+      assert.bnEqual(
+        queueBalanceAfter.sub(queueBalanceBefore),
+        optionsAmount.div(2)
+      );
+    });
+
+    it("adds to current allocated options", async function () {
+      const firstAllocationAmount = optionsAmount.mul(1).div(3);
+
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      // Buyer 0 makes a purchase request
+      await optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .requestPurchase(vault.address, optionsAmount);
+
+      const queueBalanceBeforeFirst = await option.balanceOf(optionsPurchaseQueue.address);
+
+      const tx1 = await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        firstAllocationAmount
+      );
+
+      await expect(tx1).to.emit(optionsPurchaseQueue, "OptionsAllocated")
+      .withArgs(
+        vault.address,
+        firstAllocationAmount
+      );
+
+      const queueBalanceAfterFirst = await option.balanceOf(optionsPurchaseQueue.address);
+
+      assert.bnEqual(
+        await optionsPurchaseQueue.vaultAllocatedOptions(vault.address),
+        firstAllocationAmount
+      );
+      assert.bnEqual(
+        queueBalanceAfterFirst.sub(queueBalanceBeforeFirst),
+        firstAllocationAmount
+      );
+
+      const tx2 = await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      );
+
+      await expect(tx2).to.emit(optionsPurchaseQueue, "OptionsAllocated")
+      .withArgs(
+        vault.address,
+        optionsAmount.sub(firstAllocationAmount)
+      );
+
+      const queueBalanceAfterSecond = await option.balanceOf(optionsPurchaseQueue.address);
+
+      assert.bnEqual(
+        await optionsPurchaseQueue.vaultAllocatedOptions(vault.address),
+        optionsAmount
+      );
+      assert.bnEqual(
+        queueBalanceAfterSecond.sub(queueBalanceAfterFirst),
+        optionsAmount.sub(firstAllocationAmount)
+      );
+    });
+
+    it("fits gas budget [ @skip-on-coverage ]", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      // Buyer 0 makes a purchase request
+      await optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .requestPurchase(vault.address, optionsAmount.div(2));
+
+      const tx = await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      );
+
+      const receipt = await tx.wait();
+
+      assert.isAtMost(receipt.gasUsed.toNumber(), 119049);
+      // console.log("allocateOptions", receipt.gasUsed.toNumber());
+    });
+  });
+
+  describe("#sellToBuyers", () => {
+    const optionsAmount = MIN_PURCHASE_AMOUNT.mul(10);
+    const premiums = optionsAmount
+      .mul(CEILING_PRICE)
+      .div(BigNumber.from(10).pow(OPTION_DECIMALS));
+
+    time.revertToSnapshotAfterEach(async function () {
+      // Set ceiling price
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, CEILING_PRICE);
+
+      // Set min purchase amount
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setMinPurchaseAmount(vault.address, MIN_PURCHASE_AMOUNT);
+
+      // Mint premiums to buyer 0
+      await token.connect(ownerSigner).mint(buyer0Signer.address, premiums);
+      // Approve premiums to OptionsPurchaseQueue
+      await token
+        .connect(buyer0Signer)
+        .approve(optionsPurchaseQueue.address, premiums);
+
+      // Mint premiums to buyer 1
+      await token.connect(ownerSigner).mint(buyer1Signer.address, premiums);
+      // Approve premiums to OptionsPurchaseQueue
+      await token
+        .connect(buyer1Signer)
+        .approve(optionsPurchaseQueue.address, premiums);
+    });
+
+    it("reverts if caller is not vault", async function () {
+      await expect(
+        optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .sellToBuyers(LOWER_SETTLEMENT_PRICE)
+      ).to.be.revertedWith("Not vault");
+    });
+
+    it("reverts if ceilingPrice is 0", async function () {
+      // Set ceiling price to 0
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, BigNumber.from(0));
+
+      await expect(
+        vault.sellToBuyers(optionsPurchaseQueue.address, LOWER_SETTLEMENT_PRICE)).to.be.revertedWith("Not vault");
+    });
+
+    it("clears the purchase queue when settlement is lower than ceiling", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      const buyer0Amount = optionsAmount.mul(1).div(3);
+      const buyer1Amount = optionsAmount;
+      const expectedBuyer0Refund = buyer0Amount.mul(CEILING_PRICE.sub(LOWER_SETTLEMENT_PRICE)).div(10 ** 8);
+      const expectedBuyer1Refund = optionsAmount.mul(CEILING_PRICE).div(10 ** 8)
+        .sub((optionsAmount.sub(buyer0Amount)).mul(LOWER_SETTLEMENT_PRICE).div(10 ** 8));
+
+      await optionsPurchaseQueue
+        .connect(buyer0Signer)
+        .requestPurchase(vault.address, buyer0Amount);
+
+      await optionsPurchaseQueue
+        .connect(buyer1Signer)
+        .requestPurchase(vault.address, buyer1Amount);
+
+      await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      );
+
+      const vaultBalanceBeforeSell = await token.balanceOf(vault.address);
+      const buyer0OptionBalanceBeforeSell = await option.balanceOf(buyer0Signer.address);
+      const buyer1OptionBalanceBeforeSell = await option.balanceOf(buyer1Signer.address);
+      const buyer0TokenBalanceBeforeSell = await token.balanceOf(buyer0Signer.address);
+      const buyer1TokenBalanceBeforeSell = await token.balanceOf(buyer1Signer.address);
+
+      const tx = await vault.sellToBuyers(optionsPurchaseQueue.address, LOWER_SETTLEMENT_PRICE);
+
+      const vaultBalanceAfterSell = await token.balanceOf(vault.address);
+      const buyer0OptionBalanceAfterSell = await option.balanceOf(buyer0Signer.address);
+      const buyer1OptionBalanceAfterSell = await option.balanceOf(buyer1Signer.address);
+      const buyer0TokenBalanceAfterSell = await token.balanceOf(buyer0Signer.address);
+      const buyer1TokenBalanceAfterSell = await token.balanceOf(buyer1Signer.address);
+
+      assert.bnEqual(
+        vaultBalanceAfterSell.sub(vaultBalanceBeforeSell),
+        optionsAmount.mul(LOWER_SETTLEMENT_PRICE).div(10 ** 8)
+      );
+      assert.bnEqual(
+        buyer0OptionBalanceAfterSell.sub(buyer0OptionBalanceBeforeSell),
+        buyer0Amount
+      );
+      assert.bnEqual(
+        buyer1OptionBalanceAfterSell.sub(buyer1OptionBalanceBeforeSell),
+        optionsAmount.sub(buyer0Amount)
+      );
+      assert.bnEqual(
+        buyer0TokenBalanceAfterSell.sub(buyer0TokenBalanceBeforeSell),
+        BigNumber.from(expectedBuyer0Refund)
+      );
+      assert.bnEqual(
+        buyer1TokenBalanceAfterSell.sub(buyer1TokenBalanceBeforeSell),
+        BigNumber.from(expectedBuyer1Refund)
+      );
+
+      await expect(tx).to.emit(optionsPurchaseQueue, 'OptionsSold').withArgs(
+          vault.address,
+          optionsAmount.mul(LOWER_SETTLEMENT_PRICE).div(10 ** 8),
+          optionsAmount
+      );
+    });
+
+    it("clears the purchase queue when settlement is higher than ceiling", async function () {
+      // Mint oTokens to the vault
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      const buyer0Amount = optionsAmount.mul(1).div(3);
+      const buyer1Amount = optionsAmount;
+      const expectedBuyer0Prems = buyer0Amount.mul(CEILING_PRICE).div(10 ** 8);
+      const expectedBuyer1Prems = buyer1Amount.mul(CEILING_PRICE).div(10 ** 8);
+
+      await optionsPurchaseQueue
+        .connect(buyer0Signer)
+        .requestPurchase(vault.address, buyer0Amount);
+
+      await optionsPurchaseQueue
+        .connect(buyer1Signer)
+        .requestPurchase(vault.address, buyer1Amount);
+
+      await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      );
+
+      const vaultBalanceBeforeSell = await token.balanceOf(vault.address);
+      const buyer0OptionBalanceBeforeSell = await option.balanceOf(buyer0Signer.address);
+      const buyer1OptionBalanceBeforeSell = await option.balanceOf(buyer1Signer.address);
+      const buyer0TokenBalanceBeforeSell = await token.balanceOf(buyer0Signer.address);
+      const buyer1TokenBalanceBeforeSell = await token.balanceOf(buyer1Signer.address);
+
+      const tx = await vault.sellToBuyers(optionsPurchaseQueue.address, HIGHER_SETTLEMENT_PRICE);
+
+      const vaultBalanceAfterSell = await token.balanceOf(vault.address);
+      const buyer0OptionBalanceAfterSell = await option.balanceOf(buyer0Signer.address);
+      const buyer1OptionBalanceAfterSell = await option.balanceOf(buyer1Signer.address);
+      const buyer0TokenBalanceAfterSell = await token.balanceOf(buyer0Signer.address);
+      const buyer1TokenBalanceAfterSell = await token.balanceOf(buyer1Signer.address);
+
+      assert.bnEqual(
+        vaultBalanceAfterSell.sub(vaultBalanceBeforeSell),
+        expectedBuyer0Prems.add(expectedBuyer1Prems),
+      );
+      assert.bnEqual(
+        buyer0OptionBalanceAfterSell.sub(buyer0OptionBalanceBeforeSell),
+        buyer0Amount
+      );
+      assert.bnEqual(
+        buyer1OptionBalanceAfterSell.sub(buyer1OptionBalanceBeforeSell),
+        optionsAmount.sub(buyer0Amount)
+      );
+      assert.bnEqual(
+        buyer0TokenBalanceAfterSell.sub(buyer0TokenBalanceBeforeSell),
+        BigNumber.from(0)
+      );
+      assert.bnEqual(
+        buyer1TokenBalanceAfterSell.sub(buyer1TokenBalanceBeforeSell),
+        BigNumber.from(0)
+      );
+
+      await expect(tx).to.emit(optionsPurchaseQueue, 'OptionsSold').withArgs(
+          vault.address,
+          expectedBuyer0Prems.add(expectedBuyer1Prems),
+          optionsAmount
+      );
+    });
+
+    it("fits gas budget [ @skip-on-coverage ]", async function () {
+      await option.connect(ownerSigner).mint(vault.address, optionsAmount);
+
+      const buyer0Amount = optionsAmount;
+
+      await optionsPurchaseQueue
+        .connect(buyer0Signer)
+        .requestPurchase(vault.address, buyer0Amount);
+
+      await vault.allocateOptions(
+        optionsPurchaseQueue.address,
+        option.address,
+        optionsAmount
+      );
+
+      const tx = await vault.sellToBuyers(optionsPurchaseQueue.address, LOWER_SETTLEMENT_PRICE);
+
+      const receipt = await tx.wait();
+
+      assert.isAtMost(receipt.gasUsed.toNumber(), 130095);
+      // console.log("sellToBuyers", receipt.gasUsed.toNumber());
+    });
   });
 
   describe("#requestPurchase", () => {
@@ -317,6 +762,146 @@ describe("OptionsPurchaseQueue", () => {
         totalOptionsAmount.sub(oldTotalOptionsAmount),
         optionsAmount
       );
+    });
+  });
+
+  describe('#cancelAllPurchases', () => {
+    const optionsAmount = MIN_PURCHASE_AMOUNT.mul(10);
+    const premiums = optionsAmount
+      .mul(CEILING_PRICE)
+      .div(BigNumber.from(10).pow(OPTION_DECIMALS));
+
+    time.revertToSnapshotAfterEach(async function () {
+      // Set min purchase amount
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setMinPurchaseAmount(vault.address, MIN_PURCHASE_AMOUNT);
+
+      // Mint premiums to buyer 0
+      await token.connect(ownerSigner).mint(buyer0Signer.address, premiums);
+      // Approve premiums to OptionsPurchaseQueue
+      await token
+        .connect(buyer0Signer)
+        .approve(optionsPurchaseQueue.address, premiums);
+
+      // Mint premiums to buyer 1
+      await token.connect(ownerSigner).mint(buyer1Signer.address, premiums);
+      // Approve premiums to OptionsPurchaseQueue
+      await token
+        .connect(buyer1Signer)
+        .approve(optionsPurchaseQueue.address, premiums);
+    });
+
+    it("should revert if not owner", async function () {
+      await expect(
+        optionsPurchaseQueue
+          .connect(buyer0Signer)
+          .cancelAllPurchases(buyer0Signer.address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("reverts if ceilingPrice is not 0", async function () {
+      // Set ceiling price
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, CEILING_PRICE);
+
+      await expect(
+        optionsPurchaseQueue.connect(ownerSigner).cancelAllPurchases(
+          vault.address
+      )).to.be.revertedWith("Vault listed");
+    });
+
+    it("cancels all purchases", async function () {
+      // Set ceiling price
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, CEILING_PRICE);
+
+      const queueBalanceBeforePurchase = await token.balanceOf(optionsPurchaseQueue.address);
+      const buyer0BalanceBeforePurchase = await token.balanceOf(buyer0Signer.address);
+      const buyer1BalanceBeforePurchase = await token.balanceOf(buyer1Signer.address);
+
+      const buyer0Amount = optionsAmount.mul(1).div(3);
+      const buyer1Amount = optionsAmount.sub(buyer0Amount);
+      const expectedBuyer0Prems = buyer0Amount.mul(CEILING_PRICE).div(10 ** 8);
+      const expectedBuyer1Prems = buyer1Amount.mul(CEILING_PRICE).div(10 ** 8);
+
+      await optionsPurchaseQueue
+        .connect(buyer0Signer)
+        .requestPurchase(vault.address, buyer0Amount);
+
+      await optionsPurchaseQueue
+        .connect(buyer1Signer)
+        .requestPurchase(vault.address, buyer1Amount);
+
+      const queueBalanceAfterPurchase = await token.balanceOf(optionsPurchaseQueue.address);
+      const buyer0BalanceAfterPurchase = await token.balanceOf(buyer0Signer.address);
+      const buyer1BalanceAfterPurchase = await token.balanceOf(buyer1Signer.address);
+
+      assert.bnEqual(
+        queueBalanceAfterPurchase.sub(queueBalanceBeforePurchase),
+        premiums
+      );
+      assert.bnEqual(
+        buyer0BalanceBeforePurchase.sub(buyer0BalanceAfterPurchase),
+        expectedBuyer0Prems
+      );
+      assert.bnEqual(
+        buyer1BalanceBeforePurchase.sub(buyer1BalanceAfterPurchase),
+        expectedBuyer1Prems
+      );
+
+      assert.bnEqual(
+        (await optionsPurchaseQueue.getPurchases(vault.address)).length,
+        BigNumber.from(2)
+      );
+
+      // Set ceiling price to 0
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, BigNumber.from(0));
+
+      const tx = await optionsPurchaseQueue.connect(ownerSigner).cancelAllPurchases(vault.address);
+
+      await expect(tx).to.emit(optionsPurchaseQueue, 'PurchaseCancelled').withArgs(
+          buyer0Signer.address,
+          vault.address,
+          buyer0Amount,
+          expectedBuyer0Prems
+      );
+
+      await expect(tx).to.emit(optionsPurchaseQueue, 'PurchaseCancelled').withArgs(
+        buyer1Signer.address,
+        vault.address,
+        buyer1Amount,
+        expectedBuyer1Prems
+      );
+    });
+
+    it("fits gas budget [ @skip-on-coverage ]", async function () {
+      // Set ceiling price
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, CEILING_PRICE);
+
+      const buyer0Amount = optionsAmount.mul(1).div(3);
+
+      await optionsPurchaseQueue
+        .connect(buyer0Signer)
+        .requestPurchase(vault.address, buyer0Amount);
+
+      // Set ceiling price to 0
+      await optionsPurchaseQueue
+        .connect(ownerSigner)
+        .setCeilingPrice(vault.address, BigNumber.from(0));
+
+      const tx = await optionsPurchaseQueue.connect(ownerSigner).cancelAllPurchases(vault.address);
+
+      const receipt = await tx.wait();
+
+      assert.isAtMost(receipt.gasUsed.toNumber(), 63702);
+      // console.log("cancelAllPurchases", receipt.gasUsed.toNumber());
     });
   });
 
