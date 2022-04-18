@@ -1,19 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    IUniswapV3Factory
+} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import {
+    IUniswapV3Pool
+} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import {
+    ISwapRouter
+} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ISwapRouter} from "../interfaces/ISwapRouter.sol";
-import {IUniswapV3Factory} from "../interfaces/IUniswapV3Factory.sol";
-import "./Path.sol";
+import {TickMath} from "./TickMath.sol";
+import {Path} from "./Path.sol";
 
 library UniswapRouter {
     using Path for bytes;
+    using SafeCast for uint256;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
+
+    struct SwapCallbackData {
+        uint8 callback;
+        bytes data;
+    }
 
     /**
      * @notice Check if the path set for swap is valid
@@ -94,7 +109,7 @@ library UniswapRouter {
             ISwapRouter.ExactInputParams({
                 recipient: recipient,
                 path: swapPath,
-                deadline: block.timestamp.add(10 minutes),
+                deadline: block.timestamp,
                 amountIn: amountIn,
                 amountOutMinimum: minAmountOut
             });
@@ -102,5 +117,42 @@ library UniswapRouter {
         amountOut = ISwapRouter(router).exactInput(swapParams);
 
         return amountOut;
+    }
+
+    /**
+     * @notice Single exact input flash swap (specify an exact amount to pay)
+     * @param tokenIn token address to sell
+     * @param tokenOut token address to receive
+     * @param amountIn amount to sell
+     * @param minAmountOut minimum amount to receive
+     * @param callback callback function id
+     * @param data callback data
+     */
+    function exactInputFlashSwap(
+        address tokenIn,
+        address tokenOut,
+        address pool,
+        uint256 amountIn,
+        uint256 minAmountOut,
+        uint8 callback,
+        bytes memory data
+    ) internal returns (uint256 amountOut) {
+        bool zeroForOne = tokenIn < tokenOut;
+
+        //swap on uniswap, including data to trigger call back for flashswap
+        (int256 amount0, int256 amount1) =
+            IUniswapV3Pool(pool).swap(
+                address(this),
+                zeroForOne,
+                amountIn.toInt256(),
+                zeroForOne
+                    ? TickMath.MIN_SQRT_RATIO + 1
+                    : TickMath.MAX_SQRT_RATIO - 1,
+                abi.encode(SwapCallbackData(callback, data))
+            );
+
+        amountOut = uint256(-(zeroForOne ? amount1 : amount0));
+
+        require(amountOut >= minAmountOut, "!minAmountOut");
     }
 }
