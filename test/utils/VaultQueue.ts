@@ -176,7 +176,6 @@ describe("VaultQueue", () => {
       .queueTransfer(
         ethCallVault.address,
         stethCallVault.address,
-        stethCallVault.address,
         "0",
         balance
       );
@@ -251,7 +250,6 @@ describe("VaultQueue", () => {
       .queueTransfer(
         ethCallVault.address,
         stethCallVault.address,
-        stethCallVault.address,
         "0",
         balance1
       );
@@ -262,7 +260,6 @@ describe("VaultQueue", () => {
       .queueTransfer(
         ethCallVault.address,
         stethCallVault.address,
-        stethCallVault.address,
         "0",
         balance2
       );
@@ -272,7 +269,6 @@ describe("VaultQueue", () => {
       .connect(signer5)
       .queueTransfer(
         ethCallVault.address,
-        stethCallVault.address,
         stethCallVault.address,
         "0",
         balance3
@@ -330,7 +326,6 @@ describe("VaultQueue", () => {
           .connect(signer)
           .queueTransfer(
             ethCallVault.address,
-            stethCallVault.address,
             stethCallVault.address,
             "0",
             balance
@@ -440,7 +435,6 @@ describe("VaultQueue", () => {
       .connect(signer1)
       .queueTransfer(
         ethCallVault.address,
-        stethCallVault.address,
         await signer1.getAddress(),
         "1",
         balance
@@ -545,7 +539,6 @@ describe("VaultQueue", () => {
       .connect(signer3)
       .queueTransfer(
         stethCallVault.address,
-        stethCallVault.address,
         await signer3.getAddress(),
         "1",
         balance
@@ -607,7 +600,6 @@ describe("VaultQueue", () => {
       .connect(signer4)
       .queueTransfer(
         wbtcCallVault.address,
-        wbtcCallVault.address,
         await signer4.getAddress(),
         "1",
         balance
@@ -646,7 +638,6 @@ describe("VaultQueue", () => {
           .connect(signer)
           .queueTransfer(
             ethCallVault.address,
-            stethCallVault.address,
             await signer.getAddress(),
             "1",
             amountToWithdraw

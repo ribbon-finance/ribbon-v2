@@ -28,9 +28,7 @@ contract VaultQueue is
     enum TransferAction {INTERVAULT, WITHDRAW}
     struct Transfer {
         address creditor;
-        address dstVault;
         address depositContract;
-        uint32 timestamp;
         uint256 amount;
         TransferAction action;
     }
@@ -150,15 +148,10 @@ contract VaultQueue is
 
     function queueTransfer(
         address srcVault,
-        address dstVault,
         address depositContract,
         TransferAction transferAction,
         uint256 amount
     ) external nonReentrant {
-        require(
-            !hasWithdrawal(srcVault, msg.sender),
-            "Withdraw already submitted"
-        );
         require(qTransfer[srcVault].length < queueSize, "Transfer queue full");
 
         if (transferAction == TransferAction.INTERVAULT) {
@@ -178,9 +171,7 @@ contract VaultQueue is
         qTransfer[srcVault].push(
             Transfer(
                 msg.sender,
-                dstVault,
                 depositContract,
-                uint32(block.timestamp),
                 amount,
                 transferAction
             )
