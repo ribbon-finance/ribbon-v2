@@ -84,6 +84,37 @@ library UniswapRouter {
     }
 
     /**
+     * @notice Check if a Uniswap pool is valid
+     * @param tokenA is one of the tokens in the pool
+     * @param tokenB is the other token in the pool
+     * @param pool is the pool address
+     * @param factory is the factory address
+     * @return isValidPool is whether the path is valid
+     */
+    function checkPool(
+        address tokenA,
+        address tokenB,
+        address pool,
+        address factory
+    ) internal view returns (bool) {
+        // Check the factory if the pool exists
+        require(
+            IUniswapV3Factory(factory).getPool(
+                tokenA,
+                tokenB,
+                IUniswapV3Pool(pool).fee()
+            ) == pool,
+            "Invalid pool"
+        );
+
+        address token0 = IUniswapV3Pool(pool).token0();
+        address token1 = IUniswapV3Pool(pool).token1();
+        return
+            ((tokenA == token0) && (tokenB == token1)) ||
+            ((tokenB == token0) && (tokenA == token1));
+    }
+
+    /**
      * @notice Swaps assets by calling UniswapV3 router
      * @param recipient is the address of recipient of the tokenOut
      * @param tokenIn is the address of the token given to the router

@@ -37,6 +37,12 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
 
+    /// @notice LiquidityGauge contract for the vault
+    address public liquidityGauge;
+
+    /// @notice OptionsPurchaseQueue contract for the vault
+    address public optionsPurchaseQueue;
+
     /// @notice True if the vault is currently adding/withdrawing from the squeeth short position
     bool public newRoundInProgress;
 
@@ -45,6 +51,9 @@ abstract contract RibbonGammaVaultStorageV1 {
 
     /// @notice USDC -> WETH swap path
     bytes public usdcWethSwapPath;
+
+    /// @notice WETH -> USDC swap path
+    bytes public wethUsdcSwapPath;
 }
 
 // We are following Compound's method of upgrading new contract implementations

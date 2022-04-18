@@ -46,6 +46,9 @@ contract RibbonGammaVault is
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
+    /// @dev Enum for handling different types of flash swap callbacks
+    enum FlashCallback {DEPOSIT, WITHDRAW, INCREASE, DECREASE}
+
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
@@ -59,8 +62,8 @@ contract RibbonGammaVault is
     /// @notice 7 day period between each options sale.
     uint256 public constant PERIOD = 7 days;
 
-    /// @notice The collateral ratio targeted by the vault
-    uint256 public constant COLLATERAL_RATIO = 200;
+    /// @notice The collateral ratio targeted by the vault (200%)
+    uint256 public constant COLLATERAL_RATIO = 2e18;
 
     // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
@@ -153,6 +156,9 @@ contract RibbonGammaVault is
      * @param _performanceFee is the perfomance fee pct.
      * @param _tokenName is the name of the token
      * @param _tokenSymbol is the symbol of the token
+     * @param _ratioThreshold is the collateral ratio threshold at which the vault is eligible for a rebalancing
+     * @param _usdcWethSwapPath is the USDC -> WETH swap path
+     * @param _wethUsdcSwapPath is the WETH -> USDC swap path
      */
     struct InitParams {
         address _owner;
@@ -162,6 +168,9 @@ contract RibbonGammaVault is
         uint256 _performanceFee;
         string _tokenName;
         string _tokenSymbol;
+        uint256 _ratioThreshold;
+        bytes _usdcWethSwapPath;
+        bytes _wethUsdcSwapPath;
     }
 
     /************************************************
@@ -198,17 +207,37 @@ contract RibbonGammaVault is
         require(_usdcWethPool != address(0), "!_usdcWethPool");
         require(_sqthWethPool != address(0), "!_sqthWethPool");
 
-        WETH = _weth;
         USDC = _usdc;
+        WETH = _weth;
 
         CONTROLLER = _squeethController;
-        SQTH = address(IController(_squeethController).wPowerPerp());
+        address _sqth = address(IController(_squeethController).wPowerPerp());
+        SQTH = _sqth;
         ORACLE = _oracle;
         // Creates a vault for this contract and saves the vault ID
         VAULT_ID = IController(_squeethController).mintWPowerPerpAmount(
             0,
             0,
             0
+        );
+
+        require(
+            UniswapRouter.checkPool(
+                _usdc,
+                _weth,
+                _usdcWethPool,
+                _uniswapFactory
+            ),
+            "Invalid _usdcWethPool"
+        );
+        require(
+            UniswapRouter.checkPool(
+                _sqth,
+                _weth,
+                _sqthWethPool,
+                _uniswapFactory
+            ),
+            "Invalid _sqthWethPool"
         );
 
         UNISWAP_ROUTER = _uniswapRouter;
@@ -263,6 +292,35 @@ contract RibbonGammaVault is
         vaultState.lastLockedAmount = uint104(assetBalance);
 
         vaultState.round = 1;
+
+        require(
+            _initParams._ratioThreshold != 0 &&
+                _initParams._ratioThreshold <
+                VaultLifecycleGamma.COLLATERAL_UNITS,
+            "!_ratioThreshold"
+        );
+        require(
+            UniswapRouter.checkPath(
+                _initParams._usdcWethSwapPath,
+                USDC,
+                WETH,
+                UNISWAP_FACTORY
+            ),
+            "!_usdcWethSwapPath"
+        );
+        require(
+            UniswapRouter.checkPath(
+                _initParams._wethUsdcSwapPath,
+                WETH,
+                USDC,
+                UNISWAP_FACTORY
+            ),
+            "!_wethUsdcSwapPath"
+        );
+
+        ratioThreshold = _initParams._ratioThreshold;
+        usdcWethSwapPath = _initParams._usdcWethSwapPath;
+        wethUsdcSwapPath = _initParams._wethUsdcSwapPath;
     }
 
     /**
@@ -339,6 +397,55 @@ contract RibbonGammaVault is
         ShareMath.assertUint104(newCap);
         emit CapSet(vaultParams.cap, newCap);
         vaultParams.cap = uint104(newCap);
+    }
+
+    /**
+     * @notice Sets the new liquidityGauge contract for this vault
+     * @param newLiquidityGauge is the address of the new liquidityGauge contract
+     */
+    function setLiquidityGauge(address newLiquidityGauge) external onlyOwner {
+        liquidityGauge = newLiquidityGauge;
+    }
+
+    /**
+     * @notice Sets the new optionsPurchaseQueue contract for this vault
+     * @param newOptionsPurchaseQueue is the address of the new optionsPurchaseQueue contract
+     */
+    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
+        external
+        onlyOwner
+    {
+        optionsPurchaseQueue = newOptionsPurchaseQueue;
+    }
+
+    /**
+     * @notice Sets the new ratioThreshold value for this vault
+     * @param newRatioThreshold is the new ratioThreshold
+     */
+    function setRatioThreshold(uint256 newRatioThreshold) external onlyOwner {
+        ratioThreshold = newRatioThreshold;
+    }
+
+    /**
+     * @notice Sets the new USDC -> WETH swap path for this vault
+     * @param newUsdcWethSwapPath is the new usdcWethSwapPath
+     */
+    function setUsdcWethSwapPath(bytes calldata newUsdcWethSwapPath)
+        external
+        onlyOwner
+    {
+        usdcWethSwapPath = newUsdcWethSwapPath;
+    }
+
+    /**
+     * @notice Sets the new WETH -> USDC swap path for this vault
+     * @param newWethUsdcSwapPath is the new wethUsdcSwapPath
+     */
+    function setWethUsdcSwapPath(bytes calldata newWethUsdcSwapPath)
+        external
+        onlyOwner
+    {
+        wethUsdcSwapPath = newWethUsdcSwapPath;
     }
 
     /************************************************
@@ -596,6 +703,23 @@ contract RibbonGammaVault is
         _transfer(address(this), msg.sender, numShares);
     }
 
+    /**
+     * @notice Stakes a users vault shares
+     * @param numShares is the number of shares to stake
+     */
+    function stake(uint256 numShares) external nonReentrant {
+        address _liquidityGauge = liquidityGauge;
+        require(_liquidityGauge != address(0)); // Removed revert msgs due to contract size limit
+        require(numShares > 0);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        if (heldByAccount < numShares) {
+            _redeem(numShares.sub(heldByAccount), false);
+        }
+        _transfer(msg.sender, address(this), numShares);
+        _approve(address(this), _liquidityGauge, numShares);
+        ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -847,6 +971,33 @@ contract RibbonGammaVault is
         } else {
             revert("!_ratioThreshold");
         }
+    }
+
+    /**
+     * @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.
+     * @dev In the implementation you must pay the pool tokens owed for the swap.
+     *  The caller of this method must be checked to be a UniswapV3Pool deployed by the canonical UniswapV3Factory.
+     *  amount0Delta and amount1Delta can both be 0 if no tokens were swapped.
+     * @param amount0Delta The amount of token0 that was sent (negative) or must be received (positive) by the pool by
+     *  the end of the swap. If positive, the callback must send that amount of token0 to the pool.
+     * @param amount1Delta The amount of token1 that was sent (negative) or must be received (positive) by the pool by
+     *  the end of the swap. If positive, the callback must send that amount of token1 to the pool.
+     * @param data Any data passed through by the caller via the IUniswapV3PoolActions#swap call
+     */
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes calldata data
+    ) external {
+        require(msg.sender == SQTH_WETH_POOL, "!SQTH_WETH_POOL"); // Only allow callbacks from the oSQTH/WETH pool
+        require(amount0Delta > 0 || amount1Delta > 0); // Swaps entirely within 0-liquidity regions are not supported
+
+        // Determine the amount that needs to be repaid as part of the flash swap
+        uint256 amountToPay =
+            amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
+
+        UniswapRouter.SwapCallbackData memory callbackData =
+            abi.decode(data, (UniswapRouter.SwapCallbackData));
     }
 
     /**
