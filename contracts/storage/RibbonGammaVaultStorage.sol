@@ -37,6 +37,9 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice Amount locked for scheduled withdrawals last week;
     uint256 public lastQueuedWithdrawAmount;
 
+    /// @notice Pending deposits for rollover
+    uint256 public pendingDeposits;
+
     /// @notice LiquidityGauge contract for the vault
     address public liquidityGauge;
 
