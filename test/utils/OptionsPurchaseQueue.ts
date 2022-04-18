@@ -310,7 +310,7 @@ describe("OptionsPurchaseQueue", () => {
 
       const receipt = await tx.wait();
 
-      assert.isAtMost(receipt.gasUsed.toNumber(), 119049);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 119071);
       // console.log("allocateOptions", receipt.gasUsed.toNumber());
     });
   });
@@ -583,7 +583,7 @@ describe("OptionsPurchaseQueue", () => {
       // Whitelist buyer 0
       await optionsPurchaseQueue
         .connect(ownerSigner)
-        .whitelistBuyer(buyer0Signer.address);
+        .addWhitelist(buyer0Signer.address);
 
       let tokenBuyer0Balance = await token.balanceOf(buyer0Signer.address);
       let tokenQueueBalance = await token.balanceOf(
@@ -905,14 +905,14 @@ describe("OptionsPurchaseQueue", () => {
     });
   });
 
-  describe("#whitelistBuyer", () => {
+  describe("#addWhitelist", () => {
     time.revertToSnapshotAfterEach();
 
     it("should revert if not owner", async function () {
       await expect(
         optionsPurchaseQueue
           .connect(buyer0Signer)
-          .whitelistBuyer(buyer0Signer.address)
+          .addWhitelist(buyer0Signer.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -920,7 +920,7 @@ describe("OptionsPurchaseQueue", () => {
       await expect(
         optionsPurchaseQueue
           .connect(ownerSigner)
-          .whitelistBuyer(constants.AddressZero)
+          .addWhitelist(constants.AddressZero)
       ).to.be.revertedWith("!buyer");
     });
 
@@ -932,9 +932,9 @@ describe("OptionsPurchaseQueue", () => {
 
       let tx = await optionsPurchaseQueue
         .connect(ownerSigner)
-        .whitelistBuyer(buyer0Signer.address);
+        .addWhitelist(buyer0Signer.address);
       await expect(tx)
-        .to.emit(optionsPurchaseQueue, "BuyerWhitelisted")
+        .to.emit(optionsPurchaseQueue, "AddWhitelist")
         .withArgs(buyer0Signer.address);
 
       assert.equal(
@@ -944,14 +944,14 @@ describe("OptionsPurchaseQueue", () => {
     });
   });
 
-  describe("#blacklistBuyer", () => {
+  describe("#removeWhitelist", () => {
     time.revertToSnapshotAfterEach();
 
     it("should revert if not owner", async function () {
       await expect(
         optionsPurchaseQueue
           .connect(buyer0Signer)
-          .blacklistBuyer(buyer0Signer.address)
+          .removeWhitelist(buyer0Signer.address)
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -959,14 +959,14 @@ describe("OptionsPurchaseQueue", () => {
       await expect(
         optionsPurchaseQueue
           .connect(ownerSigner)
-          .blacklistBuyer(constants.AddressZero)
+          .removeWhitelist(constants.AddressZero)
       ).to.be.revertedWith("!buyer");
     });
 
     it("should blacklist buyer", async function () {
       await optionsPurchaseQueue
         .connect(ownerSigner)
-        .whitelistBuyer(buyer0Signer.address);
+        .addWhitelist(buyer0Signer.address);
 
       assert.equal(
         await optionsPurchaseQueue.whitelistedBuyer(buyer0Signer.address),
@@ -975,9 +975,9 @@ describe("OptionsPurchaseQueue", () => {
 
       let tx = await optionsPurchaseQueue
         .connect(ownerSigner)
-        .blacklistBuyer(buyer0Signer.address);
+        .removeWhitelist(buyer0Signer.address);
       await expect(tx)
-        .to.emit(optionsPurchaseQueue, "BuyerBlacklisted")
+        .to.emit(optionsPurchaseQueue, "RemoveWhitelist")
         .withArgs(buyer0Signer.address);
 
       assert.equal(
