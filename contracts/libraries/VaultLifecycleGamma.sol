@@ -13,7 +13,7 @@ library VaultLifecycleGamma {
     uint256 internal constant INDEX_SCALE = 1e4;
     uint256 internal constant ONE = 1e18;
     uint256 internal constant ONE_ONE = 1e36;
-    uint256 internal constant COLLATERAL_UNITS = 100;
+    uint256 internal constant COLLATERAL_UNITS = 1e18;
 
     function getSqthMintAmount(
         address controller,
