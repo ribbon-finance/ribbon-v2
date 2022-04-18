@@ -841,49 +841,24 @@ contract RibbonGammaVault is
         nonReentrant
     {
         require(newRoundInProgress, "!newRoundInProgress");
-        require(wethAmount > 0, "!wethAmount");
-        require(minAmountOut > 0, "!minAmountOut");
 
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
         if (wethAmount > wethBalance) wethAmount = wethBalance;
 
-        uint256 wethUsdcPrice =
-            VaultLifecycleGamma.getWethPrice(
-                ORACLE,
-                USDC_WETH_POOL,
-                WETH,
-                USDC
-            );
-        uint256 sqthAmount =
-            VaultLifecycleGamma.getSqthMintAmount(
-                CONTROLLER,
-                wethUsdcPrice,
-                COLLATERAL_RATIO,
-                wethAmount
-            );
+        require(wethAmount > 0, "!wethAmount");
+        require(minAmountOut > 0, "!minAmountOut");
 
-        // Deposit ETH collateral and mint oSQTH
-        IWETH(WETH).withdraw(wethAmount);
-        IController(CONTROLLER).mintWPowerPerpAmount{value: wethAmount}(
+        VaultLifecycleGamma.depositTotalPending(
+            CONTROLLER,
+            ORACLE,
+            SQTH_WETH_POOL,
+            SQTH,
+            WETH,
             VAULT_ID,
-            sqthAmount,
-            0
+            COLLATERAL_RATIO,
+            wethAmount,
+            minAmountOut
         );
-
-        // Swap received SQTH to WETH
-        uint256 amountOut =
-            UniswapRouter.swap(
-                address(this),
-                SQTH,
-                sqthAmount,
-                minAmountOut,
-                UNISWAP_ROUTER,
-                usdcWethSwapPath
-            );
-
-        // Deposit ETH as collateral
-        IWETH(WETH).withdraw(amountOut);
-        IController(CONTROLLER).deposit{value: amountOut}(VAULT_ID);
     }
 
     /**
