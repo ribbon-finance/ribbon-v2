@@ -62,9 +62,9 @@ interface IOptionsPurchaseQueue {
 
     function cancelAllPurchases(address vault) external;
 
-    function whitelistBuyer(address buyer) external;
+    function addWhitelist(address buyer) external;
 
-    function blacklistBuyer(address buyer) external;
+    function removeWhitelist(address buyer) external;
 
     function setCeilingPrice(address vault, uint256 price) external;
 

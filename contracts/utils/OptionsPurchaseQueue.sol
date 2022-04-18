@@ -97,13 +97,13 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
      * @notice Emitted when a buyer is whitelisted for purchasing options
      * @param buyer The whitelisted buyer
      */
-    event BuyerWhitelisted(address indexed buyer);
+    event AddWhitelist(address indexed buyer);
 
     /**
      * @notice Emitted when a buyer is removed from the whitelist for purchasing options
      * @param buyer The blacklisted buyer
      */
-    event BuyerBlacklisted(address indexed buyer);
+    event RemoveWhitelist(address indexed buyer);
 
     /**
      * @notice Emitted when the ceiling price for a vault is updated
@@ -354,25 +354,25 @@ contract OptionsPurchaseQueue is IOptionsPurchaseQueue, Ownable {
      * @dev Only callable by the owner
      * @param buyer The buyer to whitelist
      */
-    function whitelistBuyer(address buyer) external override onlyOwner {
+    function addWhitelist(address buyer) external override onlyOwner {
         require(buyer != address(0), "!buyer");
 
         whitelistedBuyer[buyer] = true;
 
-        emit BuyerWhitelisted(buyer);
+        emit AddWhitelist(buyer);
     }
 
     /**
      * @notice Removes a buyer from the purchase queue whitelist
      * @dev Only callable by the owner
-     * @param buyer The buyer to blacklist
+     * @param buyer The buyer to remove from the whitelist
      */
-    function blacklistBuyer(address buyer) external override onlyOwner {
+    function removeWhitelist(address buyer) external override onlyOwner {
         require(buyer != address(0), "!buyer");
 
         whitelistedBuyer[buyer] = false;
 
-        emit BuyerBlacklisted(buyer);
+        emit RemoveWhitelist(buyer);
     }
 
     /**
