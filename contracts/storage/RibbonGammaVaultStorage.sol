@@ -49,6 +49,9 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice The collateral ratio threshold at which the vault is eligible for a rebalancing
     uint256 public ratioThreshold;
 
+    /// @notice A multiplier on the amount to allocate towards the long strangle
+    uint256 public optionAllocation;
+
     /// @notice USDC -> WETH swap path
     bytes public usdcWethSwapPath;
 

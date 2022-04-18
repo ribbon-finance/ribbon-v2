@@ -157,6 +157,7 @@ contract RibbonGammaVault is
      * @param _tokenName is the name of the token
      * @param _tokenSymbol is the symbol of the token
      * @param _ratioThreshold is the collateral ratio threshold at which the vault is eligible for a rebalancing
+     * @param _optionAllocation is the multiplier on the amount to allocate towards the long strangle
      * @param _usdcWethSwapPath is the USDC -> WETH swap path
      * @param _wethUsdcSwapPath is the WETH -> USDC swap path
      */
@@ -169,6 +170,7 @@ contract RibbonGammaVault is
         string _tokenName;
         string _tokenSymbol;
         uint256 _ratioThreshold;
+        uint256 _optionAllocation;
         bytes _usdcWethSwapPath;
         bytes _wethUsdcSwapPath;
     }
@@ -319,6 +321,7 @@ contract RibbonGammaVault is
         );
 
         ratioThreshold = _initParams._ratioThreshold;
+        optionAllocation = _initParams._optionAllocation;
         usdcWethSwapPath = _initParams._usdcWethSwapPath;
         wethUsdcSwapPath = _initParams._wethUsdcSwapPath;
     }
@@ -424,6 +427,17 @@ contract RibbonGammaVault is
      */
     function setRatioThreshold(uint256 newRatioThreshold) external onlyOwner {
         ratioThreshold = newRatioThreshold;
+    }
+
+    /**
+     * @notice Sets the new optionAllocation value for this vault
+     * @param newOptionAllocation is the new optionAllocation
+     */
+    function setOptionAllocation(uint256 newOptionAllocation)
+        external
+        onlyOwner
+    {
+        optionAllocation = newOptionAllocation;
     }
 
     /**
