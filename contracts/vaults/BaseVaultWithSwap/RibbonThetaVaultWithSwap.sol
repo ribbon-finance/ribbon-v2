@@ -434,17 +434,18 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             "oTokenBalance > type(uint128) max value!"
         );
 
-        IERC20(oTokenAddress).safeApprove(
-            SWAP_CONTRACT,
-            IERC20(oTokenAddress).balanceOf(address(this))
-        );
+        IERC20(oTokenAddress).safeApprove(SWAP_CONTRACT, oTokenBalance);
 
         uint256 decimals = vaultParams.decimals;
-        
+
         // If total size is larger than 1, set minimum bid as 1
         // Otherwise, set minimum bid to one tenth the total size
         uint256 minBidSize =
             oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
+        require(
+            minBidSize <= type(uint96).max,
+            "minBidSize > type(uint96) max value!"
+        );
 
         optionAuctionID = ISwap(SWAP_CONTRACT).createOffer(
             oTokenAddress,
@@ -464,13 +465,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         nonReentrant
     {
         ISwap(SWAP_CONTRACT).settleOffer(optionAuctionID, bids);
-    }
-
-    /**
-     * @notice Close current vault's oToken offer
-     */
-    function closeOffer() external onlyKeeper nonReentrant {
-        ISwap(SWAP_CONTRACT).closeOffer(optionAuctionID);
     }
 
     /**
