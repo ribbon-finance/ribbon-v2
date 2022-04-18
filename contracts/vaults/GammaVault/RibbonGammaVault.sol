@@ -46,9 +46,6 @@ contract RibbonGammaVault is
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
-    /// @dev Enum for handling different types of flash swap callbacks
-    enum FlashCallback {DEPOSIT, WITHDRAW, INCREASE, DECREASE}
-
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
@@ -782,6 +779,8 @@ contract RibbonGammaVault is
                 recipient
             );
 
+            pendingDeposits = vaultState.totalPending;
+
             vaultState.totalPending = 0;
             vaultState.round = uint16(currentRound + 1);
         }
@@ -813,27 +812,22 @@ contract RibbonGammaVault is
         returns (uint256 amountOut)
     {
         require(newRoundInProgress, "!newRoundInProgress");
-        require(amountIn > 0, "!amountIn");
-        require(minAmountOut > 0, "!minAmountOut");
 
-        // Deduct queued withdrawals from the balance
-        uint256 _totalPending = vaultState.totalPending;
-        if (amountIn > _totalPending) amountIn = _totalPending;
+        uint256 _pendingDeposits = pendingDeposits;
+        if (amountIn > _pendingDeposits) amountIn = _pendingDeposits;
 
-        // Swap pending USDC deposits to WETH
-        amountOut = UniswapRouter.swap(
-            address(this),
+        amountOut = VaultLifecycleGamma.swapTotalPending(
             USDC,
-            amountIn,
-            minAmountOut,
             UNISWAP_ROUTER,
-            usdcWethSwapPath
+            usdcWethSwapPath,
+            amountIn,
+            minAmountOut
         );
 
-        _totalPending = _totalPending.sub(amountIn);
-        ShareMath.assertUint128(_totalPending);
+        _pendingDeposits = _pendingDeposits.sub(amountIn);
+        ShareMath.assertUint128(_pendingDeposits);
 
-        vaultState.totalPending = uint128(_totalPending);
+        pendingDeposits = uint128(_pendingDeposits);
     }
 
     /**
@@ -1010,8 +1004,14 @@ contract RibbonGammaVault is
         uint256 amountToPay =
             amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
 
-        UniswapRouter.SwapCallbackData memory callbackData =
-            abi.decode(data, (UniswapRouter.SwapCallbackData));
+        VaultLifecycleGamma.processCallback(
+            CONTROLLER,
+            WETH,
+            SQTH,
+            VAULT_ID,
+            amountToPay,
+            data
+        );
     }
 
     /**
