@@ -77,6 +77,9 @@ library VaultLifecycleGamma {
         uint256 wethAmount,
         uint256 minAmountOut
     ) external returns (uint256) {
+        require(wethAmount > 0, "!wethAmount");
+        require(minAmountOut > 0, "!minAmountOut");
+
         uint256 sqthMintAmount =
             getSqthMintAmount(
                 controller,

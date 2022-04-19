@@ -845,9 +845,6 @@ contract RibbonGammaVault is
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
         if (wethAmount > wethBalance) wethAmount = wethBalance;
 
-        require(wethAmount > 0, "!wethAmount");
-        require(minAmountOut > 0, "!minAmountOut");
-
         VaultLifecycleGamma.depositTotalPending(
             CONTROLLER,
             ORACLE,
