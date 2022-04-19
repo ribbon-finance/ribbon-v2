@@ -563,9 +563,8 @@ contract RibbonVault is
 
     /*
      * @notice Helper function that performs most administrative tasks
-     * such as setting next option, minting new shares, getting vault fees, etc.
+     * such as minting new shares, getting vault fees, etc.
      * @param lastQueuedWithdrawAmount is old queued withdraw amount
-     * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      * @return queuedWithdrawAmount is the new queued withdraw amount for this round
      */
