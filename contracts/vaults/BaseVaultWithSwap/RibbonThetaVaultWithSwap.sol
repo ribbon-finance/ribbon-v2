@@ -365,7 +365,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Sets the next option the vault will be shorting
      */
-    function commitNextOption() external nonReentrant {
+    function commitNextOption() external onlyKeeper nonReentrant {
         VaultLifecycle.CommitParams memory commitParams =
             VaultLifecycle.CommitParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
@@ -398,32 +398,28 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         optionState.nextOption = otokenAddress;
     }
 
-    // /**
-    //  * @notice Rolls the vault's funds into a new short position.
-    //  */
-    // function rollToNextOption() external onlyKeeper nonReentrant {
-    //     (
-    //         address newOption,
-    //         uint256 lockedBalance,
-    //         uint256 queuedWithdrawAmount
-    //     ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+    /**
+     * @notice Rolls the vault's funds into a new short position and create a new offer.
+     */
+    function rollToNextOption() external onlyKeeper nonReentrant {
+        address newOption = optionState.nextOption;
+        require(newOption != address(0), "!nextOption");
 
-    //     lastQueuedWithdrawAmount = queuedWithdrawAmount;
+        optionState.currentOption = newOption;
+        optionState.nextOption = address(0);
+        uint256 lockedBalance = vaultState.lockedAmount;
+        
+        emit OpenShort(optionState.nextOption, lockedBalance, msg.sender);
 
-    //     ShareMath.assertUint104(lockedBalance);
-    //     vaultState.lockedAmount = uint104(lockedBalance);
+        VaultLifecycle.createShort(
+            GAMMA_CONTROLLER,
+            MARGIN_POOL,
+            newOption,
+            lockedBalance
+        );
 
-    //     emit OpenShort(newOption, lockedBalance, msg.sender);
-
-    //     VaultLifecycle.createShort(
-    //         GAMMA_CONTROLLER,
-    //         MARGIN_POOL,
-    //         newOption,
-    //         lockedBalance
-    //     );
-
-    //     _createOffer();
-    // }
+        _createOffer();
+    }
 
     /**
      * @notice Create offer in the swap contract.
