@@ -319,53 +319,30 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
     }
 
-    // /**
-    //  * @notice Sets the next option the vault will be shorting, and closes the existing short.
-    //  *         This allows all the users to withdraw if the next option is malicious.
-    //  */
-    // function commitAndClose() external nonReentrant {
-    //     address oldOption = optionState.currentOption;
+    /**
+     * @notice Closes the existing short and calculate the shares to mint, new price per share &
+      amount of funds to re-allocate as collateral for the new round
+     */
+    function closeRound() external nonReentrant {
+        _closeShort(optionState.currentOption);
 
-    //     VaultLifecycle.CloseParams memory closeParams =
-    //         VaultLifecycle.CloseParams({
-    //             OTOKEN_FACTORY: OTOKEN_FACTORY,
-    //             USDC: USDC,
-    //             currentOption: oldOption,
-    //             delay: DELAY,
-    //             lastStrikeOverrideRound: lastStrikeOverrideRound,
-    //             overriddenStrikePrice: overriddenStrikePrice
-    //         });
+        (
+            uint256 lockedBalance,
+            uint256 queuedWithdrawAmount
+        ) = _closeRound(uint256(lastQueuedWithdrawAmount));
 
-    //     (
-    //         address otokenAddress,
-    //         uint256 premium,
-    //         uint256 strikePrice,
-    //         uint256 delta
-    //     ) =
-    //         VaultLifecycle.commitAndClose(
-    //             strikeSelection,
-    //             optionsPremiumPricer,
-    //             premiumDiscount,
-    //             closeParams,
-    //             vaultParams,
-    //             vaultState
-    //         );
+        lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
-    //     emit NewOptionStrikeSelected(strikePrice, delta);
+        ShareMath.assertUint104(lockedBalance);
+        vaultState.lockedAmount = uint104(lockedBalance);
 
-    //     ShareMath.assertUint104(premium);
-    //     currentOtokenPremium = uint104(premium);
-    //     optionState.nextOption = otokenAddress;
-
-    //     uint256 nextOptionReady = block.timestamp.add(DELAY);
-    //     require(
-    //         nextOptionReady <= type(uint32).max,
-    //         "Overflow nextOptionReady"
-    //     );
-    //     optionState.nextOptionReadyAt = uint32(nextOptionReady);
-
-    //     _closeShort(oldOption);
-    // }
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
+    }
 
     /**
      * @notice Closes the existing short position for the vault.
