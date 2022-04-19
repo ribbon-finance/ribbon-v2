@@ -1476,7 +1476,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await rollToNextOption();
 
-        await vault.connect(keeperSigner).closeOffer();
+        // await vault.connect(keeperSigner).closeOffer();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1877,8 +1877,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // We just settle the auction without any bids
         // So we simulate a loss when the options expire in the money
-        await vault.connect(keeperSigner)
-          .closeOffer();
+        // await vault.connect(keeperSigner)
+        //   .closeOffer();
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
