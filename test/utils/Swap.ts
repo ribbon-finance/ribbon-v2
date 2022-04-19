@@ -1,18 +1,18 @@
 import { ethers, network } from "hardhat";
 import { expect } from "chai";
-import { assert } from "./helpers/assertions";
+import { assert } from "../helpers/assertions";
 import { BigNumber, constants, Contract } from "ethers";
 import { parseEther, parseUnits } from "ethers/lib/utils";
-import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
+import { TEST_URI } from "../../scripts/helpers/getDefaultEthersProvider";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
-import * as time from "./helpers/time";
-import { mintToken } from "./helpers/utils";
+import * as time from "../helpers/time";
+import { mintToken } from "../helpers/utils";
 import {
   BLOCK_NUMBER,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WETH_ADDRESS,
-} from "../constants/constants";
+} from "../../constants/constants";
 const { getContractAt, getContractFactory } = ethers;
 const chainId = network.config.chainId;
 
@@ -389,7 +389,7 @@ describe("Swap", () => {
     it("reverts when offer is already closed", async function () {
       const nonce = 1;
       const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
-      const buyAmount = totalSize.div(2);
+      const buyAmount = totalSize;
       const referrer = constants.AddressZero;
 
       const order = {
@@ -407,7 +407,7 @@ describe("Swap", () => {
         [
           swapId,
           nonce,
-          keeper,
+          user,
           sellAmount,
           buyAmount,
           referrer,
@@ -417,7 +417,7 @@ describe("Swap", () => {
         ],
       ];
 
-      await swap.connect(keeperSigner).closeOffer(swapId);
+      await swap.connect(keeperSigner).settleOffer(swapId, bids);
 
       await expect(
         swap.connect(keeperSigner).settleOffer(swapId, bids)
@@ -819,7 +819,7 @@ describe("Swap", () => {
       const tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 174146);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 151500);
     });
 
     it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
@@ -858,93 +858,7 @@ describe("Swap", () => {
       let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 420642);
-    });
-  });
-
-  describe("#closeOffer", () => {
-    time.revertToSnapshotAfterTest();
-
-    it("reverts when offer doesn't exist", async function () {
-      await expect(swap.closeOffer(1)).to.be.revertedWith(
-        "Only seller can close or offer doesn't exist"
-      );
-    });
-
-    it("reverts when not seller call", async function () {
-      const swapId = (await swap.offersCounter()).add(1);
-
-      await swap
-        .connect(keeperSigner)
-        .createOffer(
-          wethAddress,
-          usdcAddress,
-          parseUnits("3", 6),
-          parseUnits("0.01", 8),
-          parseUnits("1", 8)
-        );
-
-      await expect(swap.closeOffer(swapId)).to.be.revertedWith(
-        "Only seller can close or offer doesn't exist"
-      );
-    });
-
-    it("reverts when offer is already closed", async function () {
-      const swapId = (await swap.offersCounter()).add(1);
-
-      await swap
-        .connect(keeperSigner)
-        .createOffer(
-          wethAddress,
-          usdcAddress,
-          parseUnits("3", 6),
-          parseUnits("0.01", 8),
-          parseUnits("1", 8)
-        );
-
-      await swap.connect(keeperSigner).closeOffer(swapId);
-
-      await expect(
-        swap.connect(keeperSigner).closeOffer(swapId)
-      ).to.be.revertedWith("Only seller can close or offer doesn't exist");
-    });
-
-    it("closes swap offering correctly", async function () {
-      const swapId = (await swap.offersCounter()).add(1);
-
-      await swap
-        .connect(keeperSigner)
-        .createOffer(
-          wethAddress,
-          usdcAddress,
-          parseUnits("3", 6),
-          parseUnits("0.01", 8),
-          parseUnits("1", 8)
-        );
-
-      await expect(swap.connect(keeperSigner).closeOffer(swapId))
-        .to.emit(swap, "CloseOffer")
-        .withArgs(swapId);
-    });
-
-    it("fits gas budget [ @skip-on-coverage ]", async function () {
-      const swapId = (await swap.offersCounter()).add(1);
-
-      await swap
-        .connect(keeperSigner)
-        .createOffer(
-          wethAddress,
-          usdcAddress,
-          parseUnits("3", 6),
-          parseUnits("0.01", 8),
-          parseUnits("1", 8)
-        );
-
-      const tx = await swap.connect(keeperSigner).closeOffer(swapId);
-
-      const receipt = await tx.wait();
-      // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 40000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 397996);
     });
   });
 
