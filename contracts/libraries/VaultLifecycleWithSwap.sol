@@ -141,7 +141,7 @@ library VaultLifecycle {
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
      */
-    struct CloseRoundParams {
+    struct CloseParams {
         uint256 decimals;
         uint256 totalBalance;
         uint256 currentShareSupply;
@@ -164,7 +164,7 @@ library VaultLifecycle {
      */
     function close(
         Vault.VaultState storage vaultState,
-        CloseRoundParams calldata params
+        CloseParams calldata params
     )
         external
         view
