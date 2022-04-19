@@ -326,10 +326,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         returns (uint256)
     {
         Offer storage offer = swapOffers[swapId];
-        require(
-            offer.totalSize != 0,
-            "Offer has not settled or offer does not exist"
-        );
+        require(offer.totalSize != 0, "Offer does not exist");
 
         uint256 availableSize = offer.availableSize;
 
