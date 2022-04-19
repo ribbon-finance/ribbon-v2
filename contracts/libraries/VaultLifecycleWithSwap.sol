@@ -21,7 +21,7 @@ library VaultLifecycle {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
 
-    struct CloseParams {
+    struct CommitParams {
         address OTOKEN_FACTORY;
         address USDC;
         address currentOption;
@@ -36,7 +36,7 @@ library VaultLifecycle {
      * @param optionsPremiumPricer is the address of the contract with the
        black-scholes premium calculation logic
      * @param premiumDiscount is the vault's discount applied to the premium
-     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
      * @return otokenAddress is the address of the new option
@@ -44,11 +44,11 @@ library VaultLifecycle {
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
-    function commitAndClose(
+    function commit(
         address strikeSelection,
         address optionsPremiumPricer,
         uint256 premiumDiscount,
-        CloseParams calldata closeParams,
+        CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState
     )
@@ -60,7 +60,7 @@ library VaultLifecycle {
             uint256 delta
         )
     {
-        uint256 expiry = getNextExpiry(closeParams.currentOption);
+        uint256 expiry = getNextExpiry(commitParams.currentOption);
 
         IStrikeSelection selection = IStrikeSelection(strikeSelection);
 
@@ -68,16 +68,16 @@ library VaultLifecycle {
         address underlying = vaultParams.underlying;
         address asset = vaultParams.asset;
 
-        (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
+        (strikePrice, delta) = commitParams.lastStrikeOverrideRound ==
             vaultState.round
-            ? (closeParams.overriddenStrikePrice, selection.delta())
+            ? (commitParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
-            closeParams,
+            commitParams,
             vaultParams,
             underlying,
             asset,
@@ -602,7 +602,7 @@ library VaultLifecycle {
 
     /**
      * @notice Either retrieves the option token if it already exists, or deploy it
-     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param underlying is the address of the underlying asset of the option
      * @param collateralAsset is the address of the collateral asset of the option
@@ -612,7 +612,7 @@ library VaultLifecycle {
      * @return the address of the option
      */
     function getOrDeployOtoken(
-        CloseParams calldata closeParams,
+        CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         address underlying,
         address collateralAsset,
@@ -620,12 +620,12 @@ library VaultLifecycle {
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
+        IOtokenFactory factory = IOtokenFactory(commitParams.OTOKEN_FACTORY);
 
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                closeParams.USDC,
+                commitParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -639,7 +639,7 @@ library VaultLifecycle {
         address otoken =
             factory.createOtoken(
                 underlying,
-                closeParams.USDC,
+                commitParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -650,8 +650,8 @@ library VaultLifecycle {
             otoken,
             vaultParams,
             collateralAsset,
-            closeParams.USDC,
-            closeParams.delay
+            commitParams.USDC,
+            commitParams.delay
         );
 
         return otoken;
