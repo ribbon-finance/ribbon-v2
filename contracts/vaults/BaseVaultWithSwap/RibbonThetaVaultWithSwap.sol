@@ -12,7 +12,7 @@ import {
     RibbonThetaVaultStorage
 } from "../../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {VaultLifecycle} from "../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
@@ -319,53 +319,53 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         ILiquidityGauge(_liquidityGauge).deposit(numShares, msg.sender, false);
     }
 
-    /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short.
-     *         This allows all the users to withdraw if the next option is malicious.
-     */
-    function commitAndClose() external nonReentrant {
-        address oldOption = optionState.currentOption;
+    // /**
+    //  * @notice Sets the next option the vault will be shorting, and closes the existing short.
+    //  *         This allows all the users to withdraw if the next option is malicious.
+    //  */
+    // function commitAndClose() external nonReentrant {
+    //     address oldOption = optionState.currentOption;
 
-        VaultLifecycle.CloseParams memory closeParams =
-            VaultLifecycle.CloseParams({
-                OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
-                currentOption: oldOption,
-                delay: DELAY,
-                lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
-            });
+    //     VaultLifecycle.CloseParams memory closeParams =
+    //         VaultLifecycle.CloseParams({
+    //             OTOKEN_FACTORY: OTOKEN_FACTORY,
+    //             USDC: USDC,
+    //             currentOption: oldOption,
+    //             delay: DELAY,
+    //             lastStrikeOverrideRound: lastStrikeOverrideRound,
+    //             overriddenStrikePrice: overriddenStrikePrice
+    //         });
 
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
-            VaultLifecycle.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
-                closeParams,
-                vaultParams,
-                vaultState
-            );
+    //     (
+    //         address otokenAddress,
+    //         uint256 premium,
+    //         uint256 strikePrice,
+    //         uint256 delta
+    //     ) =
+    //         VaultLifecycle.commitAndClose(
+    //             strikeSelection,
+    //             optionsPremiumPricer,
+    //             premiumDiscount,
+    //             closeParams,
+    //             vaultParams,
+    //             vaultState
+    //         );
 
-        emit NewOptionStrikeSelected(strikePrice, delta);
+    //     emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
-        optionState.nextOption = otokenAddress;
+    //     ShareMath.assertUint104(premium);
+    //     currentOtokenPremium = uint104(premium);
+    //     optionState.nextOption = otokenAddress;
 
-        uint256 nextOptionReady = block.timestamp.add(DELAY);
-        require(
-            nextOptionReady <= type(uint32).max,
-            "Overflow nextOptionReady"
-        );
-        optionState.nextOptionReadyAt = uint32(nextOptionReady);
+    //     uint256 nextOptionReady = block.timestamp.add(DELAY);
+    //     require(
+    //         nextOptionReady <= type(uint32).max,
+    //         "Overflow nextOptionReady"
+    //     );
+    //     optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
-        _closeShort(oldOption);
-    }
+    //     _closeShort(oldOption);
+    // }
 
     /**
      * @notice Closes the existing short position for the vault.
@@ -386,32 +386,32 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         }
     }
 
-    /**
-     * @notice Rolls the vault's funds into a new short position.
-     */
-    function rollToNextOption() external onlyKeeper nonReentrant {
-        (
-            address newOption,
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount
-        ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
+    // /**
+    //  * @notice Rolls the vault's funds into a new short position.
+    //  */
+    // function rollToNextOption() external onlyKeeper nonReentrant {
+    //     (
+    //         address newOption,
+    //         uint256 lockedBalance,
+    //         uint256 queuedWithdrawAmount
+    //     ) = _rollToNextOption(uint256(lastQueuedWithdrawAmount));
 
-        lastQueuedWithdrawAmount = queuedWithdrawAmount;
+    //     lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
-        ShareMath.assertUint104(lockedBalance);
-        vaultState.lockedAmount = uint104(lockedBalance);
+    //     ShareMath.assertUint104(lockedBalance);
+    //     vaultState.lockedAmount = uint104(lockedBalance);
 
-        emit OpenShort(newOption, lockedBalance, msg.sender);
+    //     emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
+    //     VaultLifecycle.createShort(
+    //         GAMMA_CONTROLLER,
+    //         MARGIN_POOL,
+    //         newOption,
+    //         lockedBalance
+    //     );
 
-        _createOffer();
-    }
+    //     _createOffer();
+    // }
 
     /**
      * @notice Create offer in the swap contract.
