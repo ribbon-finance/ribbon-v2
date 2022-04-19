@@ -361,6 +361,41 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             VaultLifecycle.settleShort(GAMMA_CONTROLLER);
         emit CloseShort(oldOption, withdrawAmount, msg.sender);
     }
+
+    /**
+     * @notice Sets the next option the vault will be shorting
+     */
+    function commitNextOption() external nonReentrant {
+        VaultLifecycle.CommitParams memory commitParams =
+            VaultLifecycle.CommitParams({
+                OTOKEN_FACTORY: OTOKEN_FACTORY,
+                USDC: USDC,
+                currentOption: address(0),
+                delay: DELAY,
+                lastStrikeOverrideRound: lastStrikeOverrideRound,
+                overriddenStrikePrice: overriddenStrikePrice
+            });
+
+        (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        ) =
+            VaultLifecycle.commit(
+                strikeSelection,
+                optionsPremiumPricer,
+                premiumDiscount,
+                commitParams,
+                vaultParams,
+                vaultState
+            );
+
+        emit NewOptionStrikeSelected(strikePrice, delta);
+
+        ShareMath.assertUint104(premium);
+        currentOtokenPremium = uint104(premium);
+        optionState.nextOption = otokenAddress;
     }
 
     // /**
