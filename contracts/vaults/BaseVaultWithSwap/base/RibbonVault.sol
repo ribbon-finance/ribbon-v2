@@ -590,7 +590,7 @@ contract RibbonVault is
                 totalVaultFee
             ) = VaultLifecycle.close(
                 vaultState,
-                VaultLifecycle.CloseRoundParams(
+                VaultLifecycle.CloseParams(
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
