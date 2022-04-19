@@ -324,6 +324,8 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
       amount of funds to re-allocate as collateral for the new round
      */
     function closeRound() external nonReentrant {
+        address oldOption = optionState.currentOption;
+        require(oldOption != address(0) || vaultState.round == 1, 'Round closed');
         _closeShort(optionState.currentOption);
 
         (
@@ -349,18 +351,16 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         uint256 lockedAmount = vaultState.lockedAmount;
-        if (oldOption != address(0)) {
-            vaultState.lastLockedAmount = uint104(lockedAmount);
-        }
+        
+        vaultState.lastLockedAmount = uint104(lockedAmount);
         vaultState.lockedAmount = 0;
 
         optionState.currentOption = address(0);
 
-        if (oldOption != address(0)) {
-            uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
-            emit CloseShort(oldOption, withdrawAmount, msg.sender);
-        }
+        uint256 withdrawAmount =
+            VaultLifecycle.settleShort(GAMMA_CONTROLLER);
+        emit CloseShort(oldOption, withdrawAmount, msg.sender);
+    }
     }
 
     // /**
