@@ -971,7 +971,7 @@ describe("Swap", () => {
 
     it("reverts when offering does not exist", async function () {
       await expect(swap.averagePriceForOffer(2)).to.be.revertedWith(
-        "Offer has not settled or offer does not exist"
+        "Offer does not exist"
       );
     });
 
