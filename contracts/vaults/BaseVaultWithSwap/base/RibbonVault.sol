@@ -569,19 +569,13 @@ contract RibbonVault is
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      * @return queuedWithdrawAmount is the new queued withdraw amount for this round
      */
-    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
+    function _closeRound(uint256 lastQueuedWithdrawAmount)
         internal
         returns (
-            address newOption,
             uint256 lockedBalance,
             uint256 queuedWithdrawAmount
         )
     {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
-
-        newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
-
         address recipient = feeRecipient;
         uint256 mintShares;
         uint256 performanceFeeInAsset;
@@ -595,9 +589,9 @@ contract RibbonVault is
                 mintShares,
                 performanceFeeInAsset,
                 totalVaultFee
-            ) = VaultLifecycle.rollover(
+            ) = VaultLifecycle.close(
                 vaultState,
-                VaultLifecycle.RolloverParams(
+                VaultLifecycle.CloseRoundParams(
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
@@ -606,9 +600,6 @@ contract RibbonVault is
                     managementFee
                 )
             );
-
-            optionState.currentOption = newOption;
-            optionState.nextOption = address(0);
 
             // Finalize the pricePerShare at the end of the round
             uint256 currentRound = vaultState.round;
@@ -631,7 +622,7 @@ contract RibbonVault is
             transferAsset(payable(recipient), totalVaultFee);
         }
 
-        return (newOption, lockedBalance, queuedWithdrawAmount);
+        return (lockedBalance, queuedWithdrawAmount);
     }
 
     /**

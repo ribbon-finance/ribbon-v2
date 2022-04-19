@@ -141,7 +141,7 @@ library VaultLifecycle {
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
      */
-    struct RolloverParams {
+    struct CloseRoundParams {
         uint256 decimals;
         uint256 totalBalance;
         uint256 currentShareSupply;
@@ -162,9 +162,9 @@ library VaultLifecycle {
      * @return performanceFeeInAsset is the performance fee charged by vault
      * @return totalVaultFee is the total amount of fee charged by vault
      */
-    function rollover(
+    function close(
         Vault.VaultState storage vaultState,
-        RolloverParams calldata params
+        CloseRoundParams calldata params
     )
         external
         view
