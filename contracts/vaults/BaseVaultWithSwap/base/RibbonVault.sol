@@ -17,7 +17,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {Vault} from "../../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../../libraries/VaultLifecycleWithSwap.sol";
+import {VaultLifecycleWithSwap} from "../../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
@@ -183,7 +183,7 @@ contract RibbonVault is
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycle.verifyInitializerParams(
+        VaultLifecycleWithSwap.verifyInitializerParams(
             _owner,
             _keeper,
             _feeRecipient,
@@ -588,9 +588,9 @@ contract RibbonVault is
                 mintShares,
                 performanceFeeInAsset,
                 totalVaultFee
-            ) = VaultLifecycle.close(
+            ) = VaultLifecycleWithSwap.close(
                 vaultState,
-                VaultLifecycle.CloseParams(
+                VaultLifecycleWithSwap.CloseParams(
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),

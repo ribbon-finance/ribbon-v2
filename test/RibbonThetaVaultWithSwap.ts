@@ -18,7 +18,6 @@ import {
   WBTC_ADDRESS,
   WBTC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../constants/constants";
@@ -321,7 +320,7 @@ function behavesLikeRibbonOptionsVault(params: {
         params.deltaStep
       );
 
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycleWithSwap");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
       const SwapContract = await getContractFactory(
@@ -343,7 +342,6 @@ function behavesLikeRibbonOptionsVault(params: {
           optionsPremiumPricer.address,
           strikeSelection.address,
           premiumDiscount,
-          auctionDuration,
         ],
         [
           isPut,
@@ -372,7 +370,7 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleWithSwap: vaultLifecycleLib.address,
             },
           }
         )
@@ -492,7 +490,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaVault",
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleWithSwap: vaultLifecycleLib.address,
             },
           }
         );
@@ -502,7 +500,7 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY,
           GAMMA_CONTROLLER,
           MARGIN_POOL,
-          GNOSIS_EASY_AUCTION[chainId]
+          swapContract.address,
         );
       });
 
@@ -570,7 +568,6 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               premiumDiscount,
-              auctionDuration,
             ],
             [
               isPut,
@@ -598,7 +595,6 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               premiumDiscount,
-              auctionDuration,
             ],
             [
               isPut,
@@ -626,7 +622,6 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               premiumDiscount,
-              auctionDuration,
             ],
             [
               isPut,
@@ -654,7 +649,6 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               premiumDiscount,
-              auctionDuration,
             ],
             [
               isPut,
@@ -682,7 +676,6 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               premiumDiscount,
-              auctionDuration,
             ],
             [
               isPut,
@@ -710,7 +703,6 @@ function behavesLikeRibbonOptionsVault(params: {
               optionsPremiumPricer.address,
               strikeSelection.address,
               premiumDiscount,
-              auctionDuration,
             ],
             [
               isPut,
