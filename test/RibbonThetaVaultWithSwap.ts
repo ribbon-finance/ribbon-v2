@@ -70,7 +70,6 @@ describe("RibbonThetaVaultWithSwap", () => {
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
-    auctionDuration: 21600,
     isPut: false,
     gasLimits: {
       depositWorstCase: 101000,
@@ -111,7 +110,6 @@ type Option = {
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
- * @param {number} params.auctionDuration - Duration of gnosis auction in seconds
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
@@ -134,7 +132,6 @@ function behavesLikeRibbonOptionsVault(params: {
   depositAmount: BigNumber;
   minimumSupply: string;
   expectedMintAmount: BigNumber;
-  auctionDuration: number;
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
@@ -185,7 +182,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
   // let expectedMintAmount = params.expectedMintAmount;
-  let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
 
   // Contracts
@@ -487,7 +483,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async function () {
         const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          "RibbonThetaVaultWithSwap",
           {
             libraries: {
               VaultLifecycleWithSwap: vaultLifecycleLib.address,
@@ -551,7 +547,6 @@ function behavesLikeRibbonOptionsVault(params: {
           optionsPremiumPricer.address
         );
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
-        assert.equal(await vault.auctionDuration(), auctionDuration);
       });
 
       it("cannot be initialized twice", async function () {
@@ -838,15 +833,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#auctionDuration", () => {
-      it("returns the auction duration", async function () {
-        assert.equal(
-          (await vault.auctionDuration()).toString(),
-          auctionDuration.toString()
-        );
-      });
-    });
-
     describe("#setFeeRecipient", () => {
       time.revertToSnapshotAfterTest();
 
@@ -918,27 +904,6 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.performanceFee()).toString(),
           BigNumber.from("1000000").toString()
         );
-      });
-    });
-
-    describe("#setAuctionDuration", () => {
-      time.revertToSnapshotAfterTest();
-
-      it("reverts when setting 10 seconds to setAuctionDuration", async function () {
-        await expect(
-          vault.connect(ownerSigner).setAuctionDuration("10")
-        ).to.be.revertedWith("Invalid auction duration");
-      });
-
-      it("reverts when not owner call", async function () {
-        await expect(
-          vault.setAuctionDuration(BigNumber.from("10").toString())
-        ).to.be.revertedWith("caller is not the owner");
-      });
-
-      it("changes the auction duration", async function () {
-        await vault.connect(ownerSigner).setAuctionDuration("1000000");
-        assert.equal((await vault.auctionDuration()).toString(), "1000000");
       });
     });
 
@@ -1862,7 +1827,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .withArgs(firstOptionAddress, depositAmount, keeper);
 
         await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + auctionDuration
+          (await provider.getBlock("latest")).timestamp
         );
 
         // We just settle the auction without any bids
