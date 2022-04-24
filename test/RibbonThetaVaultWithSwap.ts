@@ -72,7 +72,7 @@ describe("RibbonThetaVaultWithSwap", () => {
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101000,
+      depositWorstCase: 101500,
       depositBestCase: 90000,
     },
     mintConfig: {
