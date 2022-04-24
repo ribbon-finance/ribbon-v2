@@ -345,15 +345,18 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function _closeShort(address oldOption) private {
         uint256 lockedAmount = vaultState.lockedAmount;
-        
-        vaultState.lastLockedAmount = uint104(lockedAmount);
+        if (oldOption != address(0)) {
+            vaultState.lastLockedAmount = uint104(lockedAmount);
+        }
         vaultState.lockedAmount = 0;
 
         optionState.currentOption = address(0);
 
-        uint256 withdrawAmount =
-            VaultLifecycleWithSwap.settleShort(GAMMA_CONTROLLER);
-        emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        if (oldOption != address(0)) {
+            uint256 withdrawAmount =
+                VaultLifecycleWithSwap.settleShort(GAMMA_CONTROLLER);
+            emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        }
     }
 
     /**
