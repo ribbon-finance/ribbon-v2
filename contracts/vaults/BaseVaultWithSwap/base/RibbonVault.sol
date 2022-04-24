@@ -722,9 +722,11 @@ contract RibbonVault is
      */
     function totalBalance() public view returns (uint256) {
         return
-            uint256(vaultState.lockedAmount).add(
+        optionState.currentOption != address(0)
+            ? uint256(vaultState.lockedAmount).add(
                 IERC20(vaultParams.asset).balanceOf(address(this))
-            );
+            )
+            : IERC20(vaultParams.asset).balanceOf(address(this));
     }
 
     /**
