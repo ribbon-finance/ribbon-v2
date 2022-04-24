@@ -209,10 +209,11 @@ function behavesLikeRibbonOptionsVault(params: {
     let firstOption: Option;
     let secondOption: Option;
 
-    const rollToNextOption = async () => {
-      await vault.connect(ownerSigner).commitAndClose();
+    const rollToFirstOption = async () => {
+      await vault.connect(ownerSigner).closeRound();
       await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await strikeSelection.setDelta(params.deltaFirstOption);
+      await vault.connect(keeperSigner).commitNextOption();
       await vault.connect(keeperSigner).rollToNextOption();
     };
 
@@ -231,8 +232,9 @@ function behavesLikeRibbonOptionsVault(params: {
         settlementPrice
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
-      await vault.connect(ownerSigner).commitAndClose();
+      await vault.connect(ownerSigner).closeRound();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+      await vault.connect(keeperSigner).commitNextOption();
       await vault.connect(keeperSigner).rollToNextOption();
     };
 
@@ -1127,7 +1129,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount1, params.depositAmount);
         assert.bnEqual(unredeemedShares1, BigNumber.from(0));
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const {
           round: round2,
@@ -1304,7 +1306,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount1, params.depositAmount);
         assert.bnEqual(unredeemedShares1, BigNumber.from(0));
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const {
           round: round2,
@@ -1431,7 +1433,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1449,7 +1451,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const bidMultiplier = 2;
         const otoken = await ethers.getContractAt(
@@ -1517,11 +1519,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when not called with keeper", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-
-        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
-
-        await vault.connect(keeperSigner).rollToNextOption();
+        await rollToFirstOption()
 
         await expect(
           vault.connect(ownerSigner).burnRemainingOTokens()
@@ -1529,11 +1527,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-
-        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
-
-        await vault.connect(keeperSigner).rollToNextOption();
+        await rollToFirstOption()
 
         let bidMultiplier = 1;
 
@@ -1585,11 +1579,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns all remaining oTokens", async function () {
-        await vault.connect(ownerSigner).commitAndClose();
-
-        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
-
-        await vault.connect(keeperSigner).rollToNextOption();
+        await rollToFirstOption()
 
         let bidMultiplier = 2;
 
@@ -2208,7 +2198,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.depositAmount
         );
 
-        await rollToNextOption();
+        await rollToFirstOption();
       });
 
       it("returns the free balance - locked, if free > locked", async function () {
@@ -2241,7 +2231,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(params.depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const tx = await vault.maxRedeem();
 
@@ -2272,7 +2262,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(params.depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.maxRedeem();
 
@@ -2308,7 +2298,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, params.depositAmount.mul(2));
         await vault.deposit(params.depositAmount);
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.deposit(params.depositAmount);
 
@@ -2334,8 +2324,9 @@ function behavesLikeRibbonOptionsVault(params: {
           .transfer(owner, params.depositAmount);
         await vault.connect(ownerSigner).deposit(params.depositAmount);
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
         // Mid-week deposit in round 2
@@ -2369,15 +2360,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await strikeSelection.setDelta(params.deltaSecondOption);
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
         const expectedMintAmountAfterLoss = params.depositAmount
           .mul(BigNumber.from(10).pow(params.tokenDecimals))
           .div(afterPps);
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(keeperSigner).rollToNextOption();
 
         assert.bnGt(beforeBalance, afterBalance);
         assert.bnGt(beforePps, afterPps);
@@ -2430,7 +2418,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
-        await rollToNextOption();
+        await rollToFirstOption();
         await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
@@ -2440,7 +2428,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await expect(vault.redeem(depositAmount.add(1))).to.be.revertedWith(
           "Exceeds available"
@@ -2453,7 +2441,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const redeemAmount = BigNumber.from(1);
         const tx1 = await vault.redeem(redeemAmount);
@@ -2519,7 +2507,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.maxRedeem();
 
@@ -2534,7 +2522,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await expect(
           vault.withdrawInstantly(depositAmount.add(1))
@@ -2612,7 +2600,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await expect(
           vault.initiateWithdraw(depositAmount.add(1))
@@ -2625,7 +2613,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         // Move 1 share into account
         await vault.redeem(1);
@@ -2641,7 +2629,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.initiateWithdraw(depositAmount.div(2));
 
@@ -2652,8 +2640,9 @@ function behavesLikeRibbonOptionsVault(params: {
           firstOptionStrike
         );
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
@@ -2667,7 +2656,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const tx = await vault.initiateWithdraw(depositAmount);
 
@@ -2690,7 +2679,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.redeem(depositAmount.div(2));
 
@@ -2724,7 +2713,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const tx1 = await vault.initiateWithdraw(depositAmount.div(2));
         // We redeem the full amount on the first initiateWithdraw
@@ -2750,7 +2739,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.initiateWithdraw(depositAmount.div(2));
 
@@ -2765,7 +2754,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
@@ -2787,7 +2776,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.connect(ownerSigner).deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.initiateWithdraw(depositAmount);
       });
@@ -2915,7 +2904,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
-        await rollToNextOption();
+        await rollToFirstOption();
         await expect(vault.stake(depositAmount)).to.be.reverted;
       });
 
@@ -2927,7 +2916,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
-        await rollToNextOption();
+        await rollToFirstOption();
         await expect(vault.stake(0)).to.be.reverted;
       });
 
@@ -2941,7 +2930,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.connect(userSigner).deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await expect(
           vault.connect(userSigner).stake(depositAmount.add(1))
@@ -2958,7 +2947,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.connect(userSigner).deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         await vault.connect(userSigner).maxRedeem();
 
@@ -2979,7 +2968,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const userOldBalance = await vault.balanceOf(user);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const stakeAmount = BigNumber.from(1);
         const tx1 = await vault.connect(userSigner).stake(stakeAmount);
@@ -3043,7 +3032,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const userOldBalance = await vault.balanceOf(user);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const stakeAmount = depositAmount.div(2);
         const redeemAmount = depositAmount.div(3);
@@ -3188,7 +3177,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         assert.bnEqual(await vault.shares(user), depositAmount);
 
@@ -3218,7 +3207,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         const [heldByAccount1, heldByVault1] = await vault.shareBalances(user);
         assert.bnEqual(heldByAccount1, BigNumber.from(0));
@@ -3240,7 +3229,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        await rollToNextOption();
+        await rollToFirstOption();
 
         assert.bnEqual(await vault.shares(user), depositAmount);
 
@@ -3258,7 +3247,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
-        await rollToNextOption();
+        await rollToFirstOption();
 
         assert.bnEqual(
           await vault.accountVaultBalance(user),
