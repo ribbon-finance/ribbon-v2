@@ -406,7 +406,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         optionState.nextOption = address(0);
         uint256 lockedBalance = vaultState.lockedAmount;
         
-        emit OpenShort(optionState.nextOption, lockedBalance, msg.sender);
+        emit OpenShort(newOption, lockedBalance, msg.sender);
 
         VaultLifecycleWithSwap.createShort(
             GAMMA_CONTROLLER,
