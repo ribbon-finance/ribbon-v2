@@ -1443,7 +1443,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const receipt = await res.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 137969);
-        console.log("closeRound", receipt.gasUsed.toNumber());
+        // console.log("closeRound", receipt.gasUsed.toNumber());
       });
     });
 
@@ -1876,9 +1876,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
 
-        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
-
+        
         const firstCloseTx = await vault.connect(ownerSigner).closeRound();
+        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         const afterBalance = await assetContract.balanceOf(vault.address);
 
@@ -2005,9 +2005,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
 
-        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
-
         const firstCloseTx = await vault.connect(ownerSigner).closeRound();
+        await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         const afterBalance = await assetContract.balanceOf(vault.address);
         // test that the vault's balance decreased after closing short when ITM
