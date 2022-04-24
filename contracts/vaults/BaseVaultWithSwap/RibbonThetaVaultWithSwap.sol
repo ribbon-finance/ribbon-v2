@@ -12,7 +12,7 @@ import {
     RibbonThetaVaultStorage
 } from "../../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycleWithSwap.sol";
+import {VaultLifecycleWithSwap} from "../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
@@ -98,7 +98,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
        black-scholes premium calculation logic
      * @param _strikeSelection is the address of the contract with strike selection logic
      * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
      */
     struct InitParams {
         address _owner;
@@ -111,7 +110,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         address _optionsPremiumPricer;
         address _strikeSelection;
         uint32 _premiumDiscount;
-        uint256 _auctionDuration;
     }
 
     /************************************************
@@ -172,14 +170,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
         );
-        require(
-            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
-            "!_auctionDuration"
-        );
+
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
-        auctionDuration = _initParams._auctionDuration;
     }
 
     /************************************************
@@ -358,7 +352,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         optionState.currentOption = address(0);
 
         uint256 withdrawAmount =
-            VaultLifecycle.settleShort(GAMMA_CONTROLLER);
+            VaultLifecycleWithSwap.settleShort(GAMMA_CONTROLLER);
         emit CloseShort(oldOption, withdrawAmount, msg.sender);
     }
 
@@ -366,8 +360,8 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets the next option the vault will be shorting
      */
     function commitNextOption() external onlyKeeper nonReentrant {
-        VaultLifecycle.CommitParams memory commitParams =
-            VaultLifecycle.CommitParams({
+        VaultLifecycleWithSwap.CommitParams memory commitParams =
+            VaultLifecycleWithSwap.CommitParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: address(0),
@@ -382,7 +376,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             uint256 strikePrice,
             uint256 delta
         ) =
-            VaultLifecycle.commit(
+            VaultLifecycleWithSwap.commit(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
@@ -411,7 +405,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         
         emit OpenShort(optionState.nextOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
+        VaultLifecycleWithSwap.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -480,7 +474,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
-            VaultLifecycle.burnOtokens(
+            VaultLifecycleWithSwap.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );

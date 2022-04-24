@@ -14,10 +14,9 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 
-library VaultLifecycle {
+library VaultLifecycleWithSwap {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
 
@@ -216,8 +215,7 @@ library VaultLifecycle {
         }
 
         {
-            (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
-                .getVaultFees(
+            (performanceFeeInAsset, , totalVaultFee) = getVaultFees(
                 balanceForVaultFees,
                 vaultState.lastLockedAmount,
                 vaultState.totalPending,
@@ -655,65 +653,6 @@ library VaultLifecycle {
         );
 
         return otoken;
-    }
-
-    /**
-     * @notice Starts the gnosis auction
-     * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @return the auction id of the newly created auction
-     */
-    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
-        external
-        returns (uint256)
-    {
-        return GnosisAuction.startAuction(auctionDetails);
-    }
-
-    /**
-     * @notice Settles the gnosis auction
-     * @param gnosisEasyAuction is the contract address of Gnosis easy auction protocol
-     * @param auctionID is the auction ID of the gnosis easy auction
-     */
-    function settleAuction(address gnosisEasyAuction, uint256 auctionID)
-        internal
-    {
-        IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
-    }
-
-    /**
-     * @notice Places a bid in an auction
-     * @param bidDetails is the struct with all the details of the
-      bid including the auction's id and how much to bid
-     */
-    function placeBid(GnosisAuction.BidDetails calldata bidDetails)
-        external
-        returns (
-            uint256 sellAmount,
-            uint256 buyAmount,
-            uint64 userId
-        )
-    {
-        return GnosisAuction.placeBid(bidDetails);
-    }
-
-    /**
-     * @notice Claims the oTokens belonging to the vault
-     * @param auctionSellOrder is the sell order of the bid
-     * @param gnosisEasyAuction is the address of the gnosis auction contract
-     holding custody to the funds
-     * @param counterpartyThetaVault is the address of the counterparty theta
-     vault of this delta vault
-     */
-    function claimAuctionOtokens(
-        Vault.AuctionSellOrder calldata auctionSellOrder,
-        address gnosisEasyAuction,
-        address counterpartyThetaVault
-    ) external {
-        GnosisAuction.claimAuctionOtokens(
-            auctionSellOrder,
-            gnosisEasyAuction,
-            counterpartyThetaVault
-        );
     }
 
     /**
