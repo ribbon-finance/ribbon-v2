@@ -232,6 +232,7 @@ function behavesLikeRibbonOptionsVault(params: {
       await setOpynOracleExpiryPrice(
         params.asset,
         oracle,
+        params.chainlinkPricer,
         await getCurrentOptionExpiry(),
         settlementPrice
       );
@@ -1882,6 +1883,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
+          params.chainlinkPricer,
           await getCurrentOptionExpiry(),
           settlementPriceITM
         );
@@ -2008,6 +2010,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
+          params.chainlinkPricer,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
         );
@@ -2102,6 +2105,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
+          params.chainlinkPricer,
           await getCurrentOptionExpiry(),
           firstOptionStrike
         );
@@ -2150,6 +2154,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
+          params.chainlinkPricer,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
         );
@@ -2403,6 +2408,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
+          params.chainlinkPricer,
           await getCurrentOptionExpiry(),
           settlementPriceITM
         );
@@ -2688,6 +2694,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
+          params.chainlinkPricer,
           await getCurrentOptionExpiry(),
           firstOptionStrike
         );
