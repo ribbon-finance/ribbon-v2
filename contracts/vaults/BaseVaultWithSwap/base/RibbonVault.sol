@@ -720,6 +720,10 @@ contract RibbonVault is
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
+        // After calling closeRound, current option is set to none
+        // We also commit the lockedAmount but do not deposit into Opyn
+        // which results in double counting of asset balance and lockedAmount
+
         return
             optionState.currentOption != address(0)
                 ? uint256(vaultState.lockedAmount).add(
