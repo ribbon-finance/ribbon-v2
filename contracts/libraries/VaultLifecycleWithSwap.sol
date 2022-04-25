@@ -43,7 +43,7 @@ library VaultLifecycleWithSwap {
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
-    function commit(
+    function commitNextOption(
         address strikeSelection,
         address optionsPremiumPricer,
         uint256 premiumDiscount,
@@ -161,7 +161,7 @@ library VaultLifecycleWithSwap {
      * @return performanceFeeInAsset is the performance fee charged by vault
      * @return totalVaultFee is the total amount of fee charged by vault
      */
-    function close(
+    function closeRound(
         Vault.VaultState storage vaultState,
         CloseParams calldata params
     )

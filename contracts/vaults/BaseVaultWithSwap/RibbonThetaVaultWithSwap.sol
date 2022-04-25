@@ -382,7 +382,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             uint256 strikePrice,
             uint256 delta
         ) =
-            VaultLifecycleWithSwap.commit(
+            VaultLifecycleWithSwap.commitNextOption(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
