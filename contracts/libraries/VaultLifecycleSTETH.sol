@@ -21,6 +21,7 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 
 library VaultLifecycleSTETH {
     using SafeMath for uint256;
@@ -76,16 +77,13 @@ library VaultLifecycleSTETH {
             false
         );
 
-        // get the black scholes premium of the option and adjust premium based on
-        // steth <-> eth exchange rate
-        premium = DSMath.wmul(
-            VaultLifecycle.getOTokenPremium(
+        uint256 premium =
+            _getOTokenPremium(
                 otokenAddress,
                 closeParams.optionsPremiumPricer,
-                closeParams.premiumDiscount
-            ),
-            IWSTETH(collateralAsset).stEthPerToken()
-        );
+                closeParams.premiumDiscount,
+                collateralAsset
+            );
 
         return (otokenAddress, premium, strikePrice, delta);
     }
@@ -559,5 +557,62 @@ library VaultLifecycleSTETH {
     function transferAsset(address recipient, uint256 amount) public {
         (bool success, ) = payable(recipient).call{value: amount}("");
         require(success, "!success");
+    }
+
+    function getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount,
+        address collateralToken
+    ) external view returns (uint256) {
+        return
+            _getOTokenPremium(
+                oTokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount,
+                collateralToken
+            );
+    }
+
+    function _getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount,
+        address collateralToken
+    ) internal view returns (uint256) {
+        IOtoken newOToken = IOtoken(oTokenAddress);
+        IOptionsPremiumPricer premiumPricer =
+            IOptionsPremiumPricer(optionsPremiumPricer);
+
+        // Apply black-scholes formula (from rvol library) to option given its features
+        // and get price for 100 contracts denominated in the underlying asset for call option
+        // and USDC for put option
+        uint256 optionPremium =
+            premiumPricer.getPremium(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
+
+        // Apply a discount to incentivize arbitraguers
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
+        );
+
+        // get the black scholes premium of the option and adjust premium based on
+        // steth <-> eth exchange rate
+        uint256 adjustedPremium =
+            DSMath.wmul(
+                optionPremium,
+                IWSTETH(collateralToken).stEthPerToken()
+            );
+
+        require(
+            adjustedPremium <= type(uint96).max,
+            "adjustedPremium > type(uint96) max value!"
+        );
+        require(adjustedPremium > 0, "!adjustedPremium");
+
+        return adjustedPremium;
     }
 }

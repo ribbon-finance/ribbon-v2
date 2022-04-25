@@ -85,7 +85,7 @@ library VaultLifecycle {
         );
 
         // get the black scholes premium of the option
-        premium = getOTokenPremium(
+        premium = _getOTokenPremium(
             otokenAddress,
             closeParams.optionsPremiumPricer,
             closeParams.premiumDiscount
@@ -656,6 +656,19 @@ library VaultLifecycle {
     }
 
     function getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount
+    ) external view returns (uint256) {
+        return
+            _getOTokenPremium(
+                oTokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
+    }
+
+    function _getOTokenPremium(
         address oTokenAddress,
         address optionsPremiumPricer,
         uint256 premiumDiscount

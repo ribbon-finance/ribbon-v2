@@ -430,7 +430,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 optionsPremiumPricer,
                 premiumDiscount
             );
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
 
         auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
