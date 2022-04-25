@@ -3269,13 +3269,15 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when first auction fully sells out", async () => {
+        let tokenContract = premiumInStables ? premiumContract : assetContract;
+
         await bidForOToken(
           gnosisAuction,
-          assetContract,
+          tokenContract,
           userSigner.address,
           defaultOtokenAddress,
           firstOptionPremium,
-          tokenDecimals,
+          premiumInStables ? premiumDecimals : tokenDecimals,
           "1",
           auctionDuration
         );
