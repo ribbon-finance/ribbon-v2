@@ -77,13 +77,12 @@ library VaultLifecycleSTETH {
             false
         );
 
-        uint256 premium =
-            _getOTokenPremium(
-                otokenAddress,
-                closeParams.optionsPremiumPricer,
-                closeParams.premiumDiscount,
-                collateralAsset
-            );
+        premium = _getOTokenPremium(
+            otokenAddress,
+            closeParams.optionsPremiumPricer,
+            closeParams.premiumDiscount,
+            collateralAsset
+        );
 
         return (otokenAddress, premium, strikePrice, delta);
     }
