@@ -36,6 +36,7 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
+import { PERFORMANCE_FEE } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -1979,17 +1980,19 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
 
-        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
-
-        // Asset balance when auction closes only contains auction proceeds
-        // Remaining vault's balance is still in Opyn Gamma Controller
+        // Check that the vault receives the correct amount of proceeds from the swap
+        const tx = await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
         let auctionProceeds = await assetContract.balanceOf(vault.address);
 
-        // only the premium should be left over because the funds are locked into Opyn
-        assert.isAbove(
-          parseInt((await assetContract.balanceOf(vault.address)).toString()),
-          (parseInt(auctionProceeds.toString()) * 99) / 100
-        );
+        await expect(tx).to.emit(swapContract, "Swap").withArgs(
+          offerId.toString(),
+          1, 
+          userSigner.address,
+          auctionProceeds, // The sell amount from emitted event should equal to the vault's balance
+          buyAmount.toString(), 
+          constants.AddressZero,
+          0
+        )
 
         const settlementPriceOTM = isPut
           ? firstOptionStrike.add(1)
@@ -2003,35 +2006,40 @@ function behavesLikeRibbonOptionsVault(params: {
           settlementPriceOTM
         );
 
-        const beforeBalance = await assetContract.balanceOf(vault.address);
+        const beforeBalance = (await assetContract.balanceOf(vault.address));
+        const beforeBalanceAfterFees = beforeBalance
+          .sub(auctionProceeds.mul(await vault.performanceFee()).div(10**8))
+          .sub(auctionProceeds.add(depositAmount).mul(await vault.managementFee()).div(10**8))
+
+        const secondInitialTotalBalance = await vault.totalBalance();
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
+        let pendingAmount = (await vault.vaultState()).totalPending;
 
         const firstCloseTx = await vault.connect(ownerSigner).closeRound();
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         const afterBalance = await assetContract.balanceOf(vault.address);
-        // test that the vault's balance decreased after closing short when ITM
+
+        // test that the vault's balance does not decrease after expiring OTM
+        // we also need to adjust for fees
         assert.equal(
           parseInt(depositAmount.toString()),
-          parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
+          parseInt(afterBalance.sub(beforeBalanceAfterFees).toString())
         );
 
         await expect(firstCloseTx)
           .to.emit(vault, "CloseShort")
           .withArgs(
             firstOptionAddress,
-            BigNumber.from(afterBalance).sub(beforeBalance),
+            BigNumber.from(afterBalance.sub(beforeBalanceAfterFees)),
             owner
           );
 
         // Time increase to after next option available
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-        let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(vault);
-
-        const secondInitialTotalBalance = await vault.totalBalance();
-
+        await vault.connect(keeperSigner).commitNextOption();
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
@@ -2149,17 +2157,17 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         await vault.initiateWithdraw(params.depositAmount.div(2));
-
-        await vault.connect(ownerSigner).closeRound();
-
-        // Time increase to after next option available
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
+        
         let pendingAmount = (await vault.vaultState()).totalPending;
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
           await lockedBalanceForRollover(vault);
 
         const secondInitialBalance = await vault.totalBalance();
+
+        await vault.connect(ownerSigner).closeRound();
+
+        // Time increase to after next option available
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
