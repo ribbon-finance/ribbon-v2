@@ -133,9 +133,9 @@ library VaultLifecycleWithSwap {
     }
 
     /**
-     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
-     * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
+     * @param totalBalance is the vault's total asset balance
+     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
      * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
