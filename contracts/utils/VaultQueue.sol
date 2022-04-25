@@ -14,9 +14,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ISAVAX} from "../interfaces/ISAVAX.sol";
 import {IRibbonVault, IDepositContract} from "../interfaces/IRibbon.sol";
-import {ICRV} from "../interfaces/ICRV.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 
@@ -43,6 +41,7 @@ contract VaultQueue is
     uint256 public queueSize;
 
     event Disburse(address vault, Transfer txn, uint256 portion);
+    event SetQueueSize(uint256 queueSize);
 
     constructor(address _wethVault, address _stethVault) {
         require(_wethVault != address(0), "!_wethVault");
@@ -56,7 +55,6 @@ contract VaultQueue is
         __ReentrancyGuard_init();
         __Ownable_init();
 
-        transferOwnership(msg.sender);
         queueSize = 32;
     }
 
@@ -94,7 +92,7 @@ contract VaultQueue is
         } else {
             Vault.VaultParams memory vaultParams =
                 IRibbonVault(vault).vaultParams();
-            IERC20(vaultParams.asset).transfer(creditor, portion);
+            IERC20(vaultParams.asset).safeTransfer(creditor, portion);
         }
     }
 
@@ -194,6 +192,7 @@ contract VaultQueue is
 
     function setQueueSize(uint256 _queueSize) external onlyOwner {
         queueSize = _queueSize;
+        emit SetQueueSize(_queueSize);
     }
 
     function pop(Transfer[] storage array) private returns (Transfer memory) {
