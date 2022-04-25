@@ -17,7 +17,9 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import {Vault} from "../../../libraries/Vault.sol";
-import {VaultLifecycleWithSwap} from "../../../libraries/VaultLifecycleWithSwap.sol";
+import {
+    VaultLifecycleWithSwap
+} from "../../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
@@ -570,10 +572,7 @@ contract RibbonVault is
      */
     function _closeRound(uint256 lastQueuedWithdrawAmount)
         internal
-        returns (
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount
-        )
+        returns (uint256 lockedBalance, uint256 queuedWithdrawAmount)
     {
         address recipient = feeRecipient;
         uint256 mintShares;
@@ -722,11 +721,11 @@ contract RibbonVault is
      */
     function totalBalance() public view returns (uint256) {
         return
-        optionState.currentOption != address(0)
-            ? uint256(vaultState.lockedAmount).add(
-                IERC20(vaultParams.asset).balanceOf(address(this))
-            )
-            : IERC20(vaultParams.asset).balanceOf(address(this));
+            optionState.currentOption != address(0)
+                ? uint256(vaultState.lockedAmount).add(
+                    IERC20(vaultParams.asset).balanceOf(address(this))
+                )
+                : IERC20(vaultParams.asset).balanceOf(address(this));
     }
 
     /**
