@@ -420,16 +420,13 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         address currentOtoken = optionState.currentOption;
-        // get the black scholes premium of the option and adjust premium based on
-        // steth <-> eth exchange rate
-        uint currOtokenPremium = DSMath.wmul(
-            VaultLifecycle.getOTokenPremium(
+        uint256 currOtokenPremium =
+            VaultLifecycleSTETH.getOTokenPremium(
                 currentOtoken,
                 optionsPremiumPricer,
-                premiumDiscount
-            ),
-            IWSTETH(collateralToken).stEthPerToken()
-        );
+                premiumDiscount,
+                address(collateralToken)
+            );
 
         auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
