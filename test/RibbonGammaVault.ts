@@ -17,16 +17,20 @@ import {
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
+  SQUEETH_CONTROLLER,
+  SQUEETH_ORACLE,
+  UNISWAP_ROUTER,
+  UNISWAP_FACTORY,
+  USDC_WETH_POOL,
+  SQTH_WETH_POOL,
 } from "../constants/constants";
 import {
   deployProxy,
   whitelistProduct,
   mintToken,
   getDeltaStep,
-  getProtocolAddresses,
 } from "./helpers/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
@@ -152,11 +156,6 @@ function behavesLikeRibbonOptionsVault(params: {
     return;
   }
 
-  const [GAMMA_CONTROLLER, OTOKEN_FACTORY, MARGIN_POOL] = getProtocolAddresses(
-    params.protocol,
-    chainId
-  );
-
   // Addresses
   let owner: string, keeper: string, user: string, feeRecipient: string;
 
@@ -187,6 +186,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
   let vaultLifecycleLib: Contract;
+  let vaultLifecycleGammaLib: Contract;
   let vault: Contract;
   // let oTokenFactory: Contract;
   let assetContract: Contract;
@@ -313,6 +313,9 @@ function behavesLikeRibbonOptionsVault(params: {
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
+      const VaultLifecycleGamma = await ethers.getContractFactory("VaultLifecycleGamma");
+      vaultLifecycleGammaLib = await VaultLifecycleGamma.deploy();
+
       //   gnosisAuction = await getContractAt(
       //     "IGnosisAuction",
       //     GNOSIS_EASY_AUCTION[chainId]
@@ -345,10 +348,12 @@ function behavesLikeRibbonOptionsVault(params: {
       const deployArgs = [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        OTOKEN_FACTORY,
-        GAMMA_CONTROLLER,
-        MARGIN_POOL,
-        GNOSIS_EASY_AUCTION[chainId],
+        SQUEETH_CONTROLLER[chainId],
+        SQUEETH_ORACLE[chainId],
+        UNISWAP_ROUTER[chainId],
+        UNISWAP_FACTORY[chainId],
+        USDC_WETH_POOL[chainId],
+        SQTH_WETH_POOL[chainId],
       ];
 
       vault = (
@@ -360,6 +365,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleGamma: vaultLifecycleGammaLib.address,
             },
           }
         )
@@ -488,16 +494,19 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleGamma: vaultLifecycleGammaLib.address,
             },
           }
         );
         testVault = await RibbonGammaVault.deploy(
           WETH_ADDRESS[chainId],
           USDC_ADDRESS[chainId],
-          OTOKEN_FACTORY,
-          GAMMA_CONTROLLER,
-          MARGIN_POOL,
-          GNOSIS_EASY_AUCTION[chainId]
+          SQUEETH_CONTROLLER[chainId],
+          SQUEETH_ORACLE[chainId],
+          UNISWAP_ROUTER[chainId],
+          UNISWAP_FACTORY[chainId],
+          USDC_WETH_POOL[chainId],
+          SQTH_WETH_POOL[chainId]
         );
       });
 

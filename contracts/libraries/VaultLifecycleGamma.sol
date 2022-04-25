@@ -104,6 +104,10 @@ library VaultLifecycleGamma {
             );
     }
 
+    function withdrawQueuedShares(uint256 shares, uint256 totalShares) external returns (uint256) {
+
+    }
+
     function processCallback(
         address controller,
         address weth,
@@ -309,7 +313,7 @@ library VaultLifecycleGamma {
         address sqthWethPool,
         address sqth,
         address weth
-    ) internal view returns (uint256) {
+    ) external view returns (uint256) {
         return
             IOracle(oracle).getTwap(
                 sqthWethPool,
@@ -325,7 +329,7 @@ library VaultLifecycleGamma {
         address usdcWethPool,
         address weth,
         address usdc
-    ) internal view returns (uint256) {
+    ) external view returns (uint256) {
         return
             IOracle(oracle).getTwap(
                 usdcWethPool,
@@ -341,7 +345,7 @@ library VaultLifecycleGamma {
         address usdcWethPool,
         address weth,
         address usdc
-    ) internal view returns (uint256) {
+    ) external view returns (uint256) {
         uint256 twap =
             IOracle(oracle).getTwap(
                 usdcWethPool,
