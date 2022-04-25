@@ -36,7 +36,6 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
-import { PERFORMANCE_FEE } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
@@ -1342,7 +1341,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(unredeemedShares3, params.depositAmount);
       });
     });
-    
+
     describe("#closeRound", () => {
       time.revertToSnapshotAfterEach();
 
@@ -1350,7 +1349,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        const balance = await assetContract.balanceOf(vault.address)
+        const balance = await assetContract.balanceOf(vault.address);
         const res = await vault
           .connect(ownerSigner)
           .closeRound({ from: owner });
@@ -1478,7 +1477,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(keeperSigner).commitNextOption();
 
-        await vault.connect(keeperSigner).commitNextOption(); 
+        await vault.connect(keeperSigner).commitNextOption();
       });
 
       it("sets the correct strike when overriding strike price", async function () {
@@ -1557,7 +1556,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when not called with keeper", async function () {
-        await rollToFirstOption()
+        await rollToFirstOption();
 
         await expect(
           vault.connect(ownerSigner).burnRemainingOTokens()
@@ -1565,7 +1564,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
-        await rollToFirstOption()
+        await rollToFirstOption();
 
         let bidMultiplier = 1;
 
@@ -1617,7 +1616,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns all remaining oTokens", async function () {
-        await rollToFirstOption()
+        await rollToFirstOption();
 
         let bidMultiplier = 2;
 
@@ -1727,7 +1726,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).closeRound();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        
+
         await vault.connect(keeperSigner).commitNextOption();
         const res = await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1877,7 +1876,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
 
-        
+
         const firstCloseTx = await vault.connect(ownerSigner).closeRound();
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
@@ -1900,7 +1899,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         const currBalance = await assetContract.balanceOf(vault.address);
-        
+
         await vault.connect(keeperSigner).commitNextOption();
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
 
@@ -1986,13 +1985,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(tx).to.emit(swapContract, "Swap").withArgs(
           offerId.toString(),
-          1, 
+          1,
           userSigner.address,
           auctionProceeds, // The sell amount from emitted event should equal to the vault's balance
-          buyAmount.toString(), 
+          buyAmount.toString(),
           constants.AddressZero,
           0
-        )
+        );
 
         const settlementPriceOTM = isPut
           ? firstOptionStrike.add(1)
@@ -2008,8 +2007,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = (await assetContract.balanceOf(vault.address));
         const beforeBalanceAfterFees = beforeBalance
-          .sub(auctionProceeds.mul(await vault.performanceFee()).div(10**8))
-          .sub(auctionProceeds.add(depositAmount).mul(await vault.managementFee()).div(10**8))
+          .sub(auctionProceeds.mul(await vault.performanceFee()).div(10 ** 8))
+          .sub(auctionProceeds.add(depositAmount).mul(await vault.managementFee()).div(10 ** 8));
 
         const secondInitialTotalBalance = await vault.totalBalance();
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
@@ -2107,7 +2106,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        
+
         await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
@@ -2157,7 +2156,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         await vault.initiateWithdraw(params.depositAmount.div(2));
-        
+
         let pendingAmount = (await vault.vaultState()).totalPending;
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
           await lockedBalanceForRollover(vault);

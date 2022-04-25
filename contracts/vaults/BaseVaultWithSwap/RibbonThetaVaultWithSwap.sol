@@ -12,7 +12,9 @@ import {
     RibbonThetaVaultStorage
 } from "../../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycleWithSwap} from "../../libraries/VaultLifecycleWithSwap.sol";
+import {
+    VaultLifecycleWithSwap
+} from "../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
@@ -319,13 +321,14 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function closeRound() external nonReentrant {
         address oldOption = optionState.currentOption;
-        require(oldOption != address(0) || vaultState.round == 1, 'Round closed');
+        require(
+            oldOption != address(0) || vaultState.round == 1,
+            "Round closed"
+        );
         _closeShort(optionState.currentOption);
 
-        (
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount
-        ) = _closeRound(uint256(lastQueuedWithdrawAmount));
+        (uint256 lockedBalance, uint256 queuedWithdrawAmount) =
+            _closeRound(uint256(lastQueuedWithdrawAmount));
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
@@ -405,7 +408,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
         uint256 lockedBalance = vaultState.lockedAmount;
-        
+
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
         VaultLifecycleWithSwap.createShort(
