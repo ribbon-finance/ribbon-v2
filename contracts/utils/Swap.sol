@@ -193,23 +193,14 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         offer.totalSales += totalSales - (fullySettled ? 1 : 0);
 
         if (fullySettled) {
+            offer.seller = address(0);
+            offer.oToken = address(0);
+            offer.biddingToken = address(0);
+            offer.minBidSize = 0;
+            offer.minPrice = 0;
+
             emit SettleOffer(swapId);
         }
-    }
-
-    /**
-     * @notice Close offer
-     * @param swapId unique identifier of the swap offer
-     */
-    function closeOffer(uint256 swapId) external override {
-        require(
-            swapOffers[swapId].seller == msg.sender,
-            "Only seller can close or offer doesn't exist"
-        );
-
-        delete swapOffers[swapId];
-
-        emit CloseOffer(swapId);
     }
 
     /**
@@ -238,7 +229,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
      * @return tuple of error count and bytes32[] memory array of error messages
      */
     function check(Bid calldata bid)
-        public
+        external
         view
         override
         returns (uint256, bytes32[] memory)
@@ -329,13 +320,13 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
      * @param swapId unique identifier of the swap offer
      */
     function averagePriceForOffer(uint256 swapId)
-        public
+        external
         view
         override
         returns (uint256)
     {
         Offer storage offer = swapOffers[swapId];
-        require(offer.seller != address(0), "Offer does not exist");
+        require(offer.totalSize != 0, "Offer does not exist");
 
         uint256 availableSize = offer.availableSize;
 
