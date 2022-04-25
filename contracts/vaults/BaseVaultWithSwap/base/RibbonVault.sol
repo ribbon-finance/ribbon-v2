@@ -587,7 +587,7 @@ contract RibbonVault is
                 mintShares,
                 performanceFeeInAsset,
                 totalVaultFee
-            ) = VaultLifecycleWithSwap.close(
+            ) = VaultLifecycleWithSwap.closeRound(
                 vaultState,
                 VaultLifecycleWithSwap.CloseParams(
                     vaultParams.decimals,
