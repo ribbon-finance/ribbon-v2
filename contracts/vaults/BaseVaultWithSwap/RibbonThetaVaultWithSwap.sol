@@ -242,6 +242,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Optionality to set strike price manually
+     * Should be called after closeRound if we are setting current week's strike
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
     function setStrikePrice(uint128 strikePrice) external onlyOwner {
@@ -318,6 +319,9 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     /**
      * @notice Closes the existing short and calculate the shares to mint, new price per share &
       amount of funds to re-allocate as collateral for the new round
+     * Since we are incrementing the round here, the options are sold in the beginning of a round
+     * instead of at the end of the round. For example, at round 1, we don't sell any options. We
+     * start selling options at the beginning of round 2.
      */
     function closeRound() external nonReentrant {
         address oldOption = optionState.currentOption;
@@ -366,11 +370,14 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets the next option the vault will be shorting
      */
     function commitNextOption() external onlyKeeper nonReentrant {
+        address currentOption = optionState.currentOption;
+        require(currentOption == address(0) && vaultState.round != 1, "Round not closed");
+
         VaultLifecycleWithSwap.CommitParams memory commitParams =
             VaultLifecycleWithSwap.CommitParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
-                currentOption: address(0),
+                currentOption: currentOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice
