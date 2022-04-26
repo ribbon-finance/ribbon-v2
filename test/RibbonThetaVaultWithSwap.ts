@@ -1503,39 +1503,69 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when the currentOption is not closed", async function () {
+        // Ensure commitNextOption cannot be called if closeRound has not been called
         await expect(
-          vault.connect(ownerSigner).commitNextOption()
-        ).to.be.revertedWith("!keeper");
+          vault.connect(keeperSigner).commitNextOption()
+        ).to.be.revertedWith("Round not closed");
       });
 
       it("sets the option correctly on the first round", async function () {
-        await expect(
-          vault.connect(ownerSigner).commitNextOption()
-        ).to.be.revertedWith("!keeper");
-      });
-
-      it("sets the next option", async function () {
-        await assetContract.approve(vault.address, depositAmount);
-        await depositIntoVault(collateralAsset, vault, depositAmount);
-
         await vault
-          .connect(keeperSigner)
-          .commitNextOption();
+          .connect(ownerSigner)
+          .closeRound({ from: owner });
+        
+        await vault.connect(keeperSigner).commitNextOption()
 
         const optionState = await vault.optionState();
 
         assert.equal(optionState.currentOption, constants.AddressZero);
-        assert.equal(optionState.nextOption, defaultOtokenAddress);
-        assert.equal(optionState.currentOption, constants.AddressZero);
+        assert.equal(optionState.nextOption, firstOption.address);
       });
 
       it("should set the next option twice", async function () {
+        const WETH_STRIKE_PRICE = {
+          [CHAINID.ETH_MAINNET]: 250000000000, // WETH
+          [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+          [CHAINID.AURORA_MAINNET]: 250000000000, // WETH
+        };
+        const altStrikePrice =
+          chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
+
+        const newStrikePrice =
+          params.asset === WETH_ADDRESS[chainId]
+            ? WETH_STRIKE_PRICE[chainId]
+            : altStrikePrice;
+
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
+        await vault
+          .connect(ownerSigner)
+          .closeRound({ from: owner });
+        
+        await vault.connect(keeperSigner).commitNextOption();
+        let optionState = await vault.optionState();
+
+        assert.equal(optionState.currentOption, constants.AddressZero);
+        assert.equal(optionState.nextOption, firstOption.address);
+
+        await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
         await vault.connect(keeperSigner).commitNextOption();
 
-        await vault.connect(keeperSigner).commitNextOption();
+        const alternateOptionAddress = await oTokenFactory.getTargetOtokenAddress(
+          params.asset,
+          params.strikeAsset,
+          params.collateralAsset,
+          newStrikePrice,
+          firstOptionExpiry,
+          params.isPut
+        );
+
+        optionState = await vault.optionState();
+
+        assert.equal(optionState.currentOption, constants.AddressZero);
+        assert.equal(optionState.nextOption, alternateOptionAddress);
+        
       });
 
       it("sets the correct strike when overriding strike price", async function () {
@@ -1552,9 +1582,13 @@ function behavesLikeRibbonOptionsVault(params: {
             ? WETH_STRIKE_PRICE[chainId]
             : altStrikePrice;
 
+        await vault
+          .connect(ownerSigner)
+          .closeRound({ from: owner });
+
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
+        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "2");
         assert.equal(
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
@@ -1592,12 +1626,16 @@ function behavesLikeRibbonOptionsVault(params: {
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
+        await vault
+          .connect(ownerSigner)
+          .closeRound({ from: owner });
+
         const res = await vault
           .connect(keeperSigner)
           .commitNextOption();
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 932168);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 934518);
         // console.log("commitNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -1778,6 +1816,55 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(
           vault.connect(ownerSigner).rollToNextOption()
         ).to.be.revertedWith("!keeper");
+      });
+
+      it("reverts when round is not closed", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToFirstOption()
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await expect(
+          vault.connect(keeperSigner).rollToNextOption()
+        ).to.be.revertedWith("!nextOption");
+      });
+
+      it("reverts when next option is not commited", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToFirstOption()
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await vault
+          .connect(ownerSigner)
+          .closeRound({ from: owner });
+
+        await expect(
+          vault.connect(keeperSigner).rollToNextOption()
+        ).to.be.revertedWith("!nextOption");
+      });
+
+      it("allow rolling to the same option", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToFirstOption()
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await vault
+          .connect(ownerSigner)
+          .closeRound({ from: owner });
+
+        await vault
+          .connect(keeperSigner)
+          .commitNextOption();
+
+        await vault.connect(keeperSigner).rollToNextOption()
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
