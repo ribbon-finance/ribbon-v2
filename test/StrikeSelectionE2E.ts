@@ -194,6 +194,43 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
       );
     });
 
+    it("gets the correct strike price given delta for calls (with low vol)", async function () {
+      const isPut = false;
+      const targetDelta = await strikeSelection.delta();
+      const [strikePrice, delta] = await strikeSelection.getStrikePriceWithVol(
+        expiryTimestamp,
+        isPut,
+        1
+      );
+
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .add(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(1500)
+              .sub(1)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
+          )
+          .toString()
+      );
+      assert.isAbove(
+        parseInt(targetDelta.toString()),
+        parseInt(delta.toString())
+      );
+      assert.isBelow(
+        parseInt(targetDelta.toString()),
+        parseInt(
+          await optionsPremiumPricer["getOptionDelta(uint256,uint256)"](
+            strikePrice.add(await strikeSelection.step()),
+            expiryTimestamp
+          )
+        )
+      );
+    });
+
     it("gets the correct strike price given delta for puts", async function () {
       const isPut = true;
       const targetDelta = await strikeSelection.delta();
@@ -217,6 +254,48 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
       );
 
       assert.isBelow(
+        parseInt(targetDelta.toString()),
+        parseInt(BigNumber.from(10000).sub(delta).toString())
+      );
+      assert.isBelow(
+        parseInt(targetDelta.toString()),
+        parseInt(
+          BigNumber.from(10000)
+            .sub(
+              await optionsPremiumPricer["getOptionDelta(uint256,uint256)"](
+                strikePrice.add(await strikeSelection.step()),
+                expiryTimestamp
+              )
+            )
+            .toString()
+        )
+      );
+    });
+
+    it("gets the correct strike price given delta for puts (with low vol)", async function () {
+      const isPut = true;
+      const targetDelta = await strikeSelection.delta();
+      const [strikePrice, delta] = await strikeSelection.getStrikePriceWithVol(
+        expiryTimestamp,
+        isPut,
+        1
+      );
+
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .sub(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(800)
+              .sub(4)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
+          )
+          .toString()
+      );
+
+      assert.isAbove(
         parseInt(targetDelta.toString()),
         parseInt(BigNumber.from(10000).sub(delta).toString())
       );
