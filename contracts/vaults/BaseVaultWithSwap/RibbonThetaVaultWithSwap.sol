@@ -371,7 +371,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function commitNextOption() external onlyKeeper nonReentrant {
         address currentOption = optionState.currentOption;
-        require(currentOption == address(0) && vaultState.round != 1, "Round not closed");
+        require(
+            currentOption == address(0) && vaultState.round != 1,
+            "Round not closed"
+        );
 
         VaultLifecycleWithSwap.CommitParams memory commitParams =
             VaultLifecycleWithSwap.CommitParams({
@@ -449,15 +452,16 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             "oTokenBalance > type(uint128) max value!"
         );
 
-        // Use safeIncrease instead of safeApproval because safeApproval is only used for initial 
-        // approval and cannot be called again. Using safeIncrease allow us to call _createOffer 
-        // even when we are approving the same oTokens we have used before. This might happen if 
+        // Use safeIncrease instead of safeApproval because safeApproval is only used for initial
+        // approval and cannot be called again. Using safeIncrease allow us to call _createOffer
+        // even when we are approving the same oTokens we have used before. This might happen if
         // we accidentally burn the oTokens before settlement.
-        uint256 allowance = IERC20(oTokenAddress).allowance(address(this), SWAP_CONTRACT);
+        uint256 allowance =
+            IERC20(oTokenAddress).allowance(address(this), SWAP_CONTRACT);
 
         if (allowance < oTokenBalance) {
             IERC20(oTokenAddress).safeIncreaseAllowance(
-                SWAP_CONTRACT, 
+                SWAP_CONTRACT,
                 oTokenBalance.sub(allowance)
             );
         }
