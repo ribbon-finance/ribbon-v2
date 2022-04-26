@@ -383,19 +383,14 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 currentOption: currentOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
             });
 
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
+        (address otokenAddress, uint256 strikePrice, uint256 delta) =
             VaultLifecycleWithSwap.commitNextOption(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
                 commitParams,
                 vaultParams,
                 vaultState
@@ -403,8 +398,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
     }
 
@@ -439,14 +432,20 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     }
 
     function _createOffer() private {
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            VaultLifecycleWithSwap.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
         require(
-            currentOtokenPremium <= type(uint96).max,
+            currOtokenPremium <= type(uint96).max,
             "currentOtokenPremium > type(uint96) max value!"
         );
-        require(currentOtokenPremium > 0, "!currentOtokenPremium");
+        require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-        address oTokenAddress = optionState.currentOption;
-        uint256 oTokenBalance = IERC20(oTokenAddress).balanceOf(address(this));
+        uint256 oTokenBalance = IERC20(currentOtoken).balanceOf(address(this));
         require(
             oTokenBalance <= type(uint128).max,
             "oTokenBalance > type(uint128) max value!"
@@ -457,10 +456,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         // even when we are approving the same oTokens we have used before. This might happen if
         // we accidentally burn the oTokens before settlement.
         uint256 allowance =
-            IERC20(oTokenAddress).allowance(address(this), SWAP_CONTRACT);
+            IERC20(currentOtoken).allowance(address(this), SWAP_CONTRACT);
 
         if (allowance < oTokenBalance) {
-            IERC20(oTokenAddress).safeIncreaseAllowance(
+            IERC20(currentOtoken).safeIncreaseAllowance(
                 SWAP_CONTRACT,
                 oTokenBalance.sub(allowance)
             );
@@ -478,9 +477,9 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         );
 
         optionAuctionID = ISwap(SWAP_CONTRACT).createOffer(
-            oTokenAddress,
+            currentOtoken,
             vaultParams.asset,
-            uint96(currentOtokenPremium),
+            uint96(currOtokenPremium),
             uint96(minBidSize),
             uint128(oTokenBalance)
         );

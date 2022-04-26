@@ -15,6 +15,7 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
+import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 
 library VaultLifecycleWithSwap {
     using SafeMath for uint256;
@@ -27,26 +28,21 @@ library VaultLifecycleWithSwap {
         uint256 delay;
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
+        address strikeSelection;
+        address optionsPremiumPricer;
+        uint256 premiumDiscount;
     }
 
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
-     * @param strikeSelection is the address of the contract with strike selection logic
-     * @param optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param premiumDiscount is the vault's discount applied to the premium
      * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
      * @return otokenAddress is the address of the new option
-     * @return premium is the premium of the new option
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
     function commitNextOption(
-        address strikeSelection,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount,
         CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState
@@ -54,14 +50,14 @@ library VaultLifecycleWithSwap {
         external
         returns (
             address otokenAddress,
-            uint256 premium,
             uint256 strikePrice,
             uint256 delta
         )
     {
         uint256 expiry = getNextExpiry(commitParams.currentOption);
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IStrikeSelection selection =
+            IStrikeSelection(commitParams.strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
@@ -85,16 +81,7 @@ library VaultLifecycleWithSwap {
             isPut
         );
 
-        // get the black scholes premium of the option
-        premium = GnosisAuction.getOTokenPremium(
-            otokenAddress,
-            optionsPremiumPricer,
-            premiumDiscount
-        );
-
-        require(premium > 0, "!premium");
-
-        return (otokenAddress, premium, strikePrice, delta);
+        return (otokenAddress, strikePrice, delta);
     }
 
     /**
@@ -653,6 +640,52 @@ library VaultLifecycleWithSwap {
         );
 
         return otoken;
+    }
+
+    function getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount
+    ) external view returns (uint256) {
+        return
+            _getOTokenPremium(
+                oTokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
+    }
+
+    function _getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount
+    ) internal view returns (uint256) {
+        IOtoken newOToken = IOtoken(oTokenAddress);
+        IOptionsPremiumPricer premiumPricer =
+            IOptionsPremiumPricer(optionsPremiumPricer);
+
+        // Apply black-scholes formula (from rvol library) to option given its features
+        // and get price for 100 contracts denominated in the underlying asset for call option
+        // and USDC for put option
+        uint256 optionPremium =
+            premiumPricer.getPremium(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
+
+        // Apply a discount to incentivize arbitraguers
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
+        );
+
+        require(
+            optionPremium <= type(uint96).max,
+            "optionPremium > type(uint96) max value!"
+        );
+        require(optionPremium > 0, "!optionPremium");
+
+        return optionPremium;
     }
 
     /**
