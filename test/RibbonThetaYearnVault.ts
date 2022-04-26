@@ -38,6 +38,7 @@ import {
   bidForOToken,
   decodeOrder,
   lockedBalanceForRollover,
+  getAuctionMinPrice,
 } from "./helpers/utils";
 import { wmul, wdiv } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -2480,7 +2481,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1069548);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1124748);
 
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
@@ -3209,12 +3210,108 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 172788);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 172878);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
         //   receipt.gasUsed.toNumber()
         // );
+      });
+    });
+
+    describe("#startAuction", () => {
+      let otoken: Contract;
+      let initialOtokenBalance: BigNumber;
+      let startOtokenPrice: BigNumber;
+      const depositAmount = params.depositAmount;
+
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+        await setupOracle(
+          params.asset,
+          params.underlyingPricer,
+          ownerSigner,
+          OPTION_PROTOCOL.GAMMA
+        );
+
+        await vault.connect(ownerSigner).commitAndClose();
+        startOtokenPrice = await vault.currentOtokenPremium();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+        const { currentOption } = await vault.optionState();
+        otoken = await ethers.getContractAt("IERC20", currentOption);
+        initialOtokenBalance = await otoken.balanceOf(gnosisAuction.address);
+      });
+
+      it("restarts the auction process", async () => {
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        // we simulate settling the auction without any bids
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        const afterOtokenBalance = await otoken.balanceOf(vault.address);
+        assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
+
+        // We increase the discount so the otoken min price should go down
+        await vault
+          .connect(keeperSigner)
+          .setPremiumDiscount(BigNumber.from("800"));
+
+        await vault.connect(keeperSigner).startAuction();
+
+        assert.bnEqual(
+          await otoken.balanceOf(gnosisAuction.address),
+          initialOtokenBalance
+        );
+
+        // otoken price is decreased on the auction
+        const minPrice = await getAuctionMinPrice(gnosisAuction, tokenDecimals);
+        assert.bnLt(minPrice, startOtokenPrice);
+      });
+
+      it("reverts when first auction fully sells out", async () => {
+        await bidForOToken(
+          gnosisAuction,
+          assetContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          tokenDecimals,
+          "1",
+          auctionDuration
+        );
+
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        await expect(
+          vault.connect(keeperSigner).startAuction()
+        ).to.be.revertedWith("No otokens to sell");
+      });
+
+      it("reverts when not keeper", async () => {
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        // we simulate settling the auction without any bids
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        await expect(vault.startAuction()).to.be.revertedWith("!keeper");
       });
     });
 

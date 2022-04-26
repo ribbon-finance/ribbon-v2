@@ -648,3 +648,17 @@ export const getProtocolAddresses = (
       throw new Error("Protocol not found");
   }
 };
+
+export const getAuctionMinPrice = async (
+  gnosisAuction: Contract,
+  tokenDecimals: number
+) => {
+  const auctionDetails = await gnosisAuction.auctionData(
+    await gnosisAuction.auctionCounter()
+  );
+  const initialAuctionOrder = decodeOrder(auctionDetails.initialAuctionOrder);
+  const minPriceE18 = initialAuctionOrder.buyAmount
+    .mul(BigNumber.from(10).pow(36 - tokenDecimals))
+    .div(initialAuctionOrder.sellAmount.mul(BigNumber.from(10).pow(10)));
+  return minPriceE18;
+};

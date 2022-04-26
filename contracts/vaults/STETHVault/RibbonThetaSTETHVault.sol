@@ -3,10 +3,12 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {DSMath} from "../../vendor/DSMath.sol";
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {IWSTETH} from "../../interfaces/ISTETH.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleSTETH} from "../../libraries/VaultLifecycleSTETH.sol";
@@ -337,7 +339,10 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
             });
 
         (
@@ -347,9 +352,6 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             uint256 delta
         ) =
             VaultLifecycleSTETH.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
                 closeParams,
                 vaultParams,
                 vaultState,
@@ -442,11 +444,16 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium;
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            VaultLifecycleSTETH.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount,
+                address(collateralToken)
+            );
 
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
+        auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;

@@ -343,7 +343,10 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
             });
 
         (
@@ -353,9 +356,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
             uint256 delta
         ) =
             VaultLifecycleYearn.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
                 closeParams,
                 vaultParams,
                 vaultState,
@@ -468,11 +468,16 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium;
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            VaultLifecycleYearn.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount,
+                address(collateralToken)
+            );
 
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
+        auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;

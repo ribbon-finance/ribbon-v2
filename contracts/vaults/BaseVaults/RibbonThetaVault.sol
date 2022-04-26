@@ -349,7 +349,10 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
             });
 
         (
@@ -357,15 +360,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             uint256 premium,
             uint256 strikePrice,
             uint256 delta
-        ) =
-            VaultLifecycle.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
-                closeParams,
-                vaultParams,
-                vaultState
-            );
+        ) = VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
@@ -454,11 +449,15 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium;
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            VaultLifecycle.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
 
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
+        auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;

@@ -344,7 +344,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
             });
 
         (
@@ -352,15 +355,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             uint256 premium,
             uint256 strikePrice,
             uint256 delta
-        ) =
-            VaultLifecycle.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
-                closeParams,
-                vaultParams,
-                vaultState
-            );
+        ) = VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
