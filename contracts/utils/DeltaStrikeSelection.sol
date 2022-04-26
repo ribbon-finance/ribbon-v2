@@ -146,7 +146,7 @@ contract DeltaStrikeSelection is Ownable {
                 ? assetPrice.sub(assetPrice % step).sub(step)
                 : assetPrice.add(step - (assetPrice % step)).add(step);
         uint256 targetDelta = isPut ? DELTA_MULTIPLIER.sub(delta) : delta;
-        uint256 prevDelta = DELTA_MULTIPLIER;
+        uint256 prevDelta = isPut ? 0 : DELTA_MULTIPLIER;
 
         while (true) {
             uint256 currDelta =
