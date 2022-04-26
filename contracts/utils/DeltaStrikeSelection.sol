@@ -32,6 +32,9 @@ contract DeltaStrikeSelection is Ownable {
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
 
+    // min step
+    uint256 private immutable minStep;
+
     // Delta are in 4 decimal places. 1 * 10**4 = 1 delta.
     uint256 private constant DELTA_MULTIPLIER = 10**4;
 
@@ -49,7 +52,7 @@ contract DeltaStrikeSelection is Ownable {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(_delta > 0, "!_delta");
         require(_delta <= DELTA_MULTIPLIER, "newDelta cannot be more than 1");
-        require(_step > 0, "!_step");
+
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
         volatilityOracle = IManualVolatilityOracle(
             IOptionsPremiumPricer(_optionsPremiumPricer).volatilityOracle()
@@ -63,8 +66,11 @@ contract DeltaStrikeSelection is Ownable {
                 )
                     .decimals();
 
-        // ex: step = 1000
-        step = _step.mul(_assetOracleMultiplier);
+        // allow a maximum of 4 decimal places for the step size
+        uint256 _minStep = _assetOracleMultiplier.div(10**4);
+        require(_step > _minStep, "!_step");
+        minStep = _minStep;
+        step = _step;
 
         assetOracleMultiplier = _assetOracleMultiplier;
     }
@@ -258,9 +264,9 @@ contract DeltaStrikeSelection is Ownable {
      * @param newStep is the new step value
      */
     function setStep(uint256 newStep) external onlyOwner {
-        require(newStep > 0, "!newStep");
+        require(newStep > minStep, "!newStep");
         uint256 oldStep = step;
-        step = newStep.mul(assetOracleMultiplier);
+        step = newStep;
         emit StepSet(oldStep, newStep, msg.sender);
     }
 }
