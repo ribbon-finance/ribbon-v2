@@ -344,8 +344,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
-        params.deltaStep,
-        params.multiplier
+        params.multiplier,
+        params.deltaStep
       );
 
       const VaultLifecycleTreasury = await ethers.getContractFactory(
