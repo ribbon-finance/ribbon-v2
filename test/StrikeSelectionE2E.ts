@@ -74,7 +74,7 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
       1000,
-      100
+      BigNumber.from(100).mul(10**8)
     );
 
     wethPriceOracle = await ethers.getContractAt(
@@ -103,12 +103,18 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(50)
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10**8))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
+    it("reverts when smaller than min step", async function () {
+      await expect(
+        strikeSelection.connect(signer).setStep(BigNumber.from(50))
+      ).to.be.revertedWith("!newStep");
+    });
+
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(50);
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10**8))
       assert.equal(
         (await strikeSelection.step()).toString(),
         BigNumber.from(50)
@@ -292,8 +298,8 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
     multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
-      100 * 10 ** 8,
-      multiplier
+      multiplier,
+      BigNumber.from(100).mul(10**8)
     );
 
     wethPriceOracle = await ethers.getContractAt(
@@ -307,17 +313,21 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(50)
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10**8))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
+    it("reverts when smaller than min step", async function () {
+      await expect(
+        strikeSelection.connect(signer).setStep(BigNumber.from(50))
+      ).to.be.revertedWith("!newStep");
+    });
+
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(50);
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10**8))
       assert.equal(
         (await strikeSelection.step()).toString(),
-        BigNumber.from(50)
-          .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
-          .toString()
+        BigNumber.from(50).mul(10**8).toString()
       );
     });
   });
