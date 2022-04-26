@@ -36,6 +36,7 @@ import {
   decodeOrder,
   lockedBalanceForRollover,
   addMinter,
+  getAuctionMinPrice,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -343,8 +344,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
-        params.deltaStep,
-        params.multiplier
+        params.multiplier,
+        params.deltaStep
       );
 
       const VaultLifecycleTreasury = await ethers.getContractFactory(
@@ -2549,7 +2550,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        const withdrawAmount = depositAmount.sub(parseEther('0.5'));
+        const withdrawAmount = depositAmount.sub(parseEther("0.5"));
 
         await expect(
           vault.withdrawInstantly(withdrawAmount)
@@ -2843,11 +2844,17 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.depositorsArray(0), user);
         assert.equal(await vault.depositorsMap(user), true);
 
-        const tx2 = await vault.initiateWithdraw(depositAmount.sub(depositAmount.div(3)));
+        const tx2 = await vault.initiateWithdraw(
+          depositAmount.sub(depositAmount.div(3))
+        );
 
         await expect(tx2)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.sub(depositAmount.div(3)));
+          .withArgs(
+            user,
+            vault.address,
+            depositAmount.sub(depositAmount.div(3))
+          );
 
         await expect(vault.depositorsArray(0)).to.be.reverted;
         assert.equal(await vault.depositorsMap(user), false);
@@ -3229,10 +3236,7 @@ function behavesLikeRibbonOptionsVault(params: {
         userBalanceAfter = await premiumContract.balanceOf(user);
         ownerBalanceAfter = await premiumContract.balanceOf(owner);
 
-        assert.bnGte(
-          userBalanceAfter.sub(userBalanceBefore),
-          0
-        );
+        assert.bnGte(userBalanceAfter.sub(userBalanceBefore), 0);
         assert.bnGte(
           ownerBalanceAfter.sub(ownerBalanceBefore),
           auctionProceeds.sub(1)
@@ -3257,7 +3261,6 @@ function behavesLikeRibbonOptionsVault(params: {
             [owner],
             2
           );
-
       });
 
       it("charge the correct fees", async function () {
@@ -3402,6 +3405,104 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const receipt = await tx.wait();
         assert.isAtMost(receipt.gasUsed.toNumber(), 210000);
+      });
+    });
+
+    describe("#startAuction", () => {
+      let otoken: Contract;
+      let initialOtokenBalance: BigNumber;
+      let startOtokenPrice: BigNumber;
+      const depositAmount = params.depositAmount;
+
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+        await setupOracle(
+          params.asset,
+          params.chainlinkPricer,
+          ownerSigner,
+          OPTION_PROTOCOL.GAMMA
+        );
+
+        await vault.connect(ownerSigner).commitAndClose();
+        startOtokenPrice = await vault.currentOtokenPremium();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+        const { currentOption } = await vault.optionState();
+        otoken = await ethers.getContractAt("IERC20", currentOption);
+        initialOtokenBalance = await otoken.balanceOf(gnosisAuction.address);
+      });
+
+      it("restarts the auction process", async () => {
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        // we simulate settling the auction without any bids
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        const afterOtokenBalance = await otoken.balanceOf(vault.address);
+        assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
+
+        // We increase the discount so the otoken min price should go down
+        await vault
+          .connect(ownerSigner)
+          .setPremiumDiscount(BigNumber.from("800"));
+
+        await vault.connect(keeperSigner).startAuction();
+
+        assert.bnEqual(
+          await otoken.balanceOf(gnosisAuction.address),
+          initialOtokenBalance
+        );
+
+        // otoken price is decreased on the auction
+        const minPrice = await getAuctionMinPrice(gnosisAuction, tokenDecimals);
+        assert.bnLt(minPrice, startOtokenPrice);
+      });
+
+      it("reverts when first auction fully sells out", async () => {
+        let tokenContract = premiumInStables ? premiumContract : assetContract;
+
+        await bidForOToken(
+          gnosisAuction,
+          tokenContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          premiumInStables ? premiumDecimals : tokenDecimals,
+          "1",
+          auctionDuration
+        );
+
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        await expect(
+          vault.connect(keeperSigner).startAuction()
+        ).to.be.revertedWith("No otokens to sell");
+      });
+
+      it("reverts when not keeper", async () => {
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        // we simulate settling the auction without any bids
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        await expect(vault.startAuction()).to.be.revertedWith("!keeper");
       });
     });
 
@@ -3594,7 +3695,9 @@ function behavesLikeRibbonOptionsVault(params: {
         // is transferred to the user
         assert.bnEqual(await vault.shares(user), depositAmount);
 
-        await expect(vault.transfer(owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
+        await expect(vault.transfer(owner, redeemAmount)).to.be.revertedWith(
+          "Treasury rToken is not transferrable"
+        );
       });
     });
 
@@ -3618,7 +3721,9 @@ function behavesLikeRibbonOptionsVault(params: {
         // is transferred to the user
         assert.bnEqual(await vault.shares(user), depositAmount);
 
-        await expect(vault.transferFrom(user, owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
+        await expect(
+          vault.transferFrom(user, owner, redeemAmount)
+        ).to.be.revertedWith("Treasury rToken is not transferrable");
       });
     });
   });

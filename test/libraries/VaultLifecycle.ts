@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { Contract } from "ethers";
+import { Contract, BigNumber } from "ethers";
 import moment from "moment-timezone";
 import { assert } from "../helpers/assertions";
 import * as time from "../helpers/time";
@@ -8,10 +8,15 @@ import {
   OTOKEN_FACTORY,
   USDC_ADDRESS,
   WETH_ADDRESS,
+  GNOSIS_EASY_AUCTION,
 } from "../../constants/constants";
+import { decodeOrder } from "../helpers/utils";
 import { parseUnits } from "@ethersproject/units";
 
 moment.tz.setDefault("UTC");
+
+const AUCTION_ID = 146;
+const AUCTION_SETTLEMENT_PRICE = parseUnits("0.0032", 18);
 
 const provider = ethers.provider;
 
@@ -250,6 +255,45 @@ describe("VaultLifecycle", () => {
       const fridayDate = moment.unix(nextNextFriday);
       assert.equal(fridayDate.weekday(), 5);
       assert.isTrue(fridayDate.isSame(expectedFriday));
+    });
+  });
+
+  describe("getAuctionSettlementPrice", () => {
+    let gnosisAuction: Contract;
+
+    time.revertToSnapshotAfterEach(async () => {
+      gnosisAuction = await ethers.getContractAt(
+        "IGnosisAuction",
+        GNOSIS_EASY_AUCTION[CHAINID.ETH_MAINNET]
+      );
+    });
+
+    it("should get exact auction settlement price", async () => {
+      const settlementPrice = await lifecycle.getAuctionSettlementPrice(
+        GNOSIS_EASY_AUCTION[CHAINID.ETH_MAINNET],
+        AUCTION_ID
+      );
+
+      assert.bnEqual(settlementPrice, AUCTION_SETTLEMENT_PRICE);
+    });
+
+    it("should equal clearing price order", async () => {
+      const decimals = 8;
+
+      const auctionDetails = await gnosisAuction.auctionData(AUCTION_ID);
+      const clearingPriceOrder = decodeOrder(auctionDetails.clearingPriceOrder);
+
+      const expectedSettlementPrice = BigNumber.from(10)
+        .pow(decimals)
+        .mul(clearingPriceOrder.sellAmount)
+        .div(clearingPriceOrder.buyAmount);
+
+      const settlementPrice = await lifecycle.getAuctionSettlementPrice(
+        GNOSIS_EASY_AUCTION[CHAINID.ETH_MAINNET],
+        AUCTION_ID
+      );
+
+      assert.bnEqual(settlementPrice, expectedSettlementPrice);
     });
   });
 });
