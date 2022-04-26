@@ -74,7 +74,7 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
       1000,
-      BigNumber.from(100).mul(10**8)
+      BigNumber.from(100).mul(10 ** 8)
     );
 
     wethPriceOracle = await ethers.getContractAt(
@@ -103,7 +103,7 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10**8))
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10 ** 8))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -114,7 +114,7 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
     });
 
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10**8))
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10 ** 8));
       assert.equal(
         (await strikeSelection.step()).toString(),
         BigNumber.from(50)
@@ -243,7 +243,6 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
   let optionsPremiumPricer: Contract;
   let signer: SignerWithAddress;
   let signer2: SignerWithAddress;
-  let wethPriceOracle: Contract;
   let multiplier: number;
   let optionId: string;
 
@@ -299,12 +298,7 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
       multiplier,
-      BigNumber.from(100).mul(10**8)
-    );
-
-    wethPriceOracle = await ethers.getContractAt(
-      "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol:IPriceOracle",
-      await optionsPremiumPricer.priceOracle()
+      BigNumber.from(100).mul(10 ** 8)
     );
   });
 
@@ -313,7 +307,7 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10**8))
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10 ** 8))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -324,10 +318,10 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
     });
 
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10**8))
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10 ** 8));
       assert.equal(
         (await strikeSelection.step()).toString(),
-        BigNumber.from(50).mul(10**8).toString()
+        BigNumber.from(50).mul(10 ** 8).toString()
       );
     });
   });
