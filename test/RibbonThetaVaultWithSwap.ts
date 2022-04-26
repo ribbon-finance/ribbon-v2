@@ -1345,6 +1345,52 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#closeRound", () => {
       time.revertToSnapshotAfterEach();
 
+      it("reverts when previous option has not expired", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToFirstOption();
+
+        const bidMultiplier = 1;
+        const otoken = await ethers.getContractAt(
+          "IERC20",
+          firstOption.address
+        );
+        const initialOtokenBalance = await otoken.balanceOf(
+          vault.address
+        );
+
+        const offerId = await vault.optionAuctionID();
+        const offerDetails = await swapContract.swapOffers(offerId);
+        const totalSize = offerDetails.totalSize;
+        const minPrice = offerDetails.minPrice;
+        const buyAmount = totalSize.div(bidMultiplier);
+        const sellAmount = buyAmount.mul(minPrice).div(10 ** 8);
+
+        await assetContract.connect(userSigner).approve(swapContract.address, sellAmount);
+
+        const bid: Bid = {
+          swapId: offerId.toString(),
+          nonce: 1,
+          signerWallet: userSigner.address,
+          sellAmount: sellAmount.toString(), // > than the minimumPrice
+          buyAmount: buyAmount.toString(), // > than minimumBid
+          referrer: constants.AddressZero
+        };
+
+        const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
+
+        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
+
+        assert.bnLte(
+          await otoken.balanceOf(vault.address),
+          initialOtokenBalance.div(2)
+        );
+
+        await strikeSelection.setDelta(params.deltaSecondOption);
+        await expect(vault.connect(ownerSigner).closeRound()).to.be.revertedWith("C31");
+      });
+
       it("closes existing short", async function () {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
@@ -1451,6 +1497,18 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts when not called with keeper", async function () {
+        await expect(
+          vault.connect(ownerSigner).commitNextOption()
+        ).to.be.revertedWith("!keeper");
+      });
+
+      it("reverts when the currentOption is not closed", async function () {
+        await expect(
+          vault.connect(ownerSigner).commitNextOption()
+        ).to.be.revertedWith("!keeper");
+      });
+
+      it("sets the option correctly on the first round", async function () {
         await expect(
           vault.connect(ownerSigner).commitNextOption()
         ).to.be.revertedWith("!keeper");
