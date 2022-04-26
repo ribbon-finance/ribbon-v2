@@ -15,6 +15,7 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IRibbonVault, IDepositContract} from "../interfaces/IRibbon.sol";
+import {IWETH} from "../interfaces/IWETH.sol";
 import {Vault} from "../libraries/Vault.sol";
 import {DSMath} from "../vendor/DSMath.sol";
 
@@ -33,12 +34,14 @@ contract VaultQueue is
 
     using SafeERC20 for IERC20;
 
-    mapping(address => Transfer[]) public qTransfer;
-    mapping(address => uint256) public totalAmount;
-
     address public immutable WETH_VAULT;
     address public immutable STETH_VAULT;
+
+    mapping(address => Transfer[]) public qTransfer;
+    mapping(address => uint256) public totalAmount;
+    mapping(address => bool) public isDepositContract;
     uint256 public queueSize;
+    address public keeper;
 
     event Disburse(address vault, Transfer txn, uint256 portion);
     event SetQueueSize(uint256 queueSize);
@@ -87,8 +90,16 @@ contract VaultQueue is
             address steth = IRibbonVault(vault).STETH();
             IERC20(steth).transfer(creditor, portion);
         } else if (vault == WETH_VAULT) {
+            address asset = IRibbonVault(vault).vaultParams().asset;
+
             (bool sent, ) = creditor.call{value: portion}("");
-            require(sent, "Failed to withdraw to creditor");
+
+            // If the creditor is intentionally or unintentionally reverting the ETH transfer
+            // we send them WETH instead
+            if (!sent) {
+                IWETH(asset).deposit{value: portion}();
+                IWETH(asset).transfer(creditor, portion);
+            }
         } else {
             Vault.VaultParams memory vaultParams =
                 IRibbonVault(vault).vaultParams();
@@ -130,7 +141,7 @@ contract VaultQueue is
         }
     }
 
-    function transfer(address vault) external onlyOwner nonReentrant {
+    function transfer(address vault) external onlyKeeper nonReentrant {
         uint256 withdrawals =
             IRibbonVault(vault).withdrawals(address(this)).shares;
         if (withdrawals > 0) {
@@ -153,12 +164,15 @@ contract VaultQueue is
         require(qTransfer[srcVault].length < queueSize, "Transfer queue full");
 
         if (transferAction == TransferAction.INTERVAULT) {
-            require(depositContract != address(0), "No deposit contract");
-        } else if (transferAction == TransferAction.WITHDRAW) {
-            // depositContract is not used on withdraw, so let's set it to msg.sender
             require(
-                depositContract == msg.sender,
-                "On withdraw, depositContract must be msg.sender"
+                isDepositContract[depositContract],
+                "Not a deposit contract"
+            );
+        } else if (transferAction == TransferAction.WITHDRAW) {
+            // depositContract is not used on withdraw, so let's set it to address(0)
+            require(
+                depositContract == address(0),
+                "On withdraw, depositContract must be 0x0"
             );
         }
 
@@ -195,10 +209,21 @@ contract VaultQueue is
         emit SetQueueSize(_queueSize);
     }
 
+    function setDepositContract(
+        address depositContract,
+        bool setIsDepositContract
+    ) external onlyOwner {
+        isDepositContract[depositContract] = setIsDepositContract;
+    }
+
     function pop(Transfer[] storage array) private returns (Transfer memory) {
         Transfer memory item = array[array.length - 1];
         array.pop();
         return item;
+    }
+
+    function setKeeper(address newKeeper) external onlyOwner {
+        keeper = newKeeper;
     }
 
     modifier onlyVault {
@@ -206,6 +231,11 @@ contract VaultQueue is
             msg.sender == WETH_VAULT || msg.sender == STETH_VAULT,
             "Invalid sender"
         );
+        _;
+    }
+
+    modifier onlyKeeper {
+        require(msg.sender == keeper, "Only keeper");
         _;
     }
 
