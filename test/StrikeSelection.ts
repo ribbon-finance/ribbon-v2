@@ -50,7 +50,7 @@ describe("DeltaStrikeSelection", () => {
     await mockPriceOracle.setDecimals(8);
     await mockVolatilityOracle.setAnnualizedVol(parseUnits("1", 8));
 
-    mockOracleDecimals = await mockPriceOracle.decimals()
+    mockOracleDecimals = await mockPriceOracle.decimals();
     await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
       BigNumber.from(2500).mul(
         BigNumber.from(10).pow(mockOracleDecimals)
@@ -60,7 +60,7 @@ describe("DeltaStrikeSelection", () => {
     strikeSelection = await StrikeSelection.deploy(
       mockOptionsPremiumPricer.address,
       1000,
-      BigNumber.from(100).mul(10**mockOracleDecimals.toNumber())
+      BigNumber.from(100).mul(10 ** mockOracleDecimals.toNumber())
     );
   });
 
@@ -84,7 +84,7 @@ describe("DeltaStrikeSelection", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10**mockOracleDecimals.toNumber()))
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10 ** mockOracleDecimals.toNumber()))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -95,10 +95,10 @@ describe("DeltaStrikeSelection", () => {
     });
 
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10**mockOracleDecimals.toNumber()));
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10 ** mockOracleDecimals.toNumber()));
       assert.equal(
         (await strikeSelection.step()).toString(),
-        BigNumber.from(50).mul(10**mockOracleDecimals.toNumber()).toString()
+        BigNumber.from(50).mul(10 ** mockOracleDecimals.toNumber()).toString()
       );
     });
   });
@@ -353,8 +353,8 @@ describe("PercentStrikeSelection", () => {
     await mockOptionsPremiumPricer.setOptionId(mockOptionId);
     await mockPriceOracle.setDecimals(8);
     await mockVolatilityOracle.setAnnualizedVol(1);
-    
-    mockOracleDecimals = await mockPriceOracle.decimals()
+
+    mockOracleDecimals = await mockPriceOracle.decimals();
     await mockOptionsPremiumPricer.setOptionUnderlyingPrice(
       BigNumber.from(2500).mul(
         BigNumber.from(10).pow(mockOracleDecimals)
@@ -376,7 +376,7 @@ describe("PercentStrikeSelection", () => {
       await expect(
         strikeSelection
           .connect(signer2)
-          .setStep(BigNumber.from(50).mul(10**mockOracleDecimals.toNumber()))
+          .setStep(BigNumber.from(50).mul(10 ** mockOracleDecimals.toNumber()))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
@@ -389,10 +389,10 @@ describe("PercentStrikeSelection", () => {
     it("sets the step", async function () {
       await strikeSelection
         .connect(signer)
-        .setStep(BigNumber.from(50).mul(10**mockOracleDecimals.toNumber()));
+        .setStep(BigNumber.from(50).mul(10 ** mockOracleDecimals.toNumber()));
       assert.equal(
         (await strikeSelection.step()).toString(),
-        BigNumber.from(50).mul(10**mockOracleDecimals.toNumber()).toString()
+        BigNumber.from(50).mul(10 ** mockOracleDecimals.toNumber()).toString()
       );
     });
   });
