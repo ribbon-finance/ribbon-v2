@@ -449,7 +449,18 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             "oTokenBalance > type(uint128) max value!"
         );
 
-        IERC20(oTokenAddress).safeApprove(SWAP_CONTRACT, oTokenBalance);
+        // Use safeIncrease instead of safeApproval because safeApproval is only used for initial 
+        // approval and cannot be called again. Using safeIncrease allow us to call _createOffer 
+        // even when we are approving the same oTokens we have used before. This might happen if 
+        // we accidentally burn the oTokens before settlement.
+        uint256 allowance = IERC20(oTokenAddress).allowance(address(this), SWAP_CONTRACT);
+
+        if (allowance < oTokenBalance) {
+            IERC20(oTokenAddress).safeIncreaseAllowance(
+                SWAP_CONTRACT, 
+                oTokenBalance.sub(allowance)
+            );
+        }
 
         uint256 decimals = vaultParams.decimals;
 
