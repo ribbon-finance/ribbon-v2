@@ -1604,23 +1604,6 @@ function behavesLikeRibbonOptionsVault(params: {
           ).toString(),
           newStrikePrice.toString()
         );
-
-        const expiryTimestampOfNewOption = await (
-          await getContractAt("IOtoken", await vault.nextOption())
-        ).expiryTimestamp();
-
-        assert.bnEqual(
-          await vault.currentOtokenPremium(),
-          (
-            await optionsPremiumPricer.getPremium(
-              newStrikePrice,
-              expiryTimestampOfNewOption,
-              params.isPut
-            )
-          )
-            .mul(await vault.premiumDiscount())
-            .div(1000)
-        );
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
