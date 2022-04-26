@@ -46,8 +46,8 @@ contract PercentStrikeSelection is Ownable {
 
     constructor(
         address _optionsPremiumPricer,
-        uint256 _step,
-        uint256 _strikeMultiplier
+        uint256 _strikeMultiplier,
+        uint256 _step
     ) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
         require(
