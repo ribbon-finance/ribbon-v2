@@ -1513,8 +1513,8 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault
           .connect(ownerSigner)
           .closeRound({ from: owner });
-        
-        await vault.connect(keeperSigner).commitNextOption()
+
+        await vault.connect(keeperSigner).commitNextOption();
 
         const optionState = await vault.optionState();
 
@@ -1542,7 +1542,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault
           .connect(ownerSigner)
           .closeRound({ from: owner });
-        
+
         await vault.connect(keeperSigner).commitNextOption();
         let optionState = await vault.optionState();
 
@@ -1565,7 +1565,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.equal(optionState.currentOption, constants.AddressZero);
         assert.equal(optionState.nextOption, alternateOptionAddress);
-        
+
       });
 
       it("sets the correct strike when overriding strike price", async function () {
@@ -1822,7 +1822,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        await rollToFirstOption()
+        await rollToFirstOption();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1835,7 +1835,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        await rollToFirstOption()
+        await rollToFirstOption();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1852,7 +1852,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract.approve(vault.address, depositAmount);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
-        await rollToFirstOption()
+        await rollToFirstOption();
 
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1864,7 +1864,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(keeperSigner)
           .commitNextOption();
 
-        await vault.connect(keeperSigner).rollToNextOption()
+        await vault.connect(keeperSigner).rollToNextOption();
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
