@@ -30,9 +30,6 @@ contract PercentStrikeSelection is Ownable {
     // multiplier to shift asset prices
     uint256 private immutable assetOracleMultiplier;
 
-    // min step
-    uint256 private immutable minStep;
-
     // Delta are in 4 decimal places. 1 * 10**4 = 1 delta.
     uint256 private constant DELTA_MULTIPLIER = 10**4;
 
@@ -54,6 +51,8 @@ contract PercentStrikeSelection is Ownable {
             _strikeMultiplier > STRIKE_MULTIPLIER,
             "Multiplier must be bigger than 1!"
         );
+        require(_step > 0, "!_step");
+
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
 
         // ex: delta = 7500 (.75)
@@ -64,10 +63,6 @@ contract PercentStrikeSelection is Ownable {
                 )
                     .decimals();
 
-        // allow a maximum of 4 decimal places for the step size
-        uint256 _minStep = _assetOracleMultiplier.div(10**4);
-        require(_step > _minStep, "!_step");
-        minStep = _minStep;
         step = _step;
 
         strikeMultiplier = _strikeMultiplier;
@@ -127,7 +122,7 @@ contract PercentStrikeSelection is Ownable {
      * @param newStep is the new step value
      */
     function setStep(uint256 newStep) external onlyOwner {
-        require(newStep > minStep, "!newStep");
+        require(newStep > 0, "!newStep");
         uint256 oldStep = step;
         step = newStep;
         emit StepSet(oldStep, newStep, msg.sender);

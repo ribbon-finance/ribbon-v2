@@ -88,9 +88,9 @@ describe("DeltaStrikeSelection", () => {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("reverts when smaller than min step", async function () {
+    it("reverts when not bigger than 0", async function () {
       await expect(
-        strikeSelection.connect(signer).setStep(BigNumber.from(50))
+        strikeSelection.connect(signer).setStep(0)
       ).to.be.revertedWith("!newStep");
     });
 
@@ -380,9 +380,9 @@ describe("PercentStrikeSelection", () => {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("reverts when smaller than min step", async function () {
+    it("reverts when not bigger than 0", async function () {
       await expect(
-        strikeSelection.connect(signer).setStep(BigNumber.from(50))
+        strikeSelection.connect(signer).setStep(0)
       ).to.be.revertedWith("!newStep");
     });
 
