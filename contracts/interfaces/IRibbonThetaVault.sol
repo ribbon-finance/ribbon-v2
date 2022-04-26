@@ -15,4 +15,8 @@ interface IRibbonThetaVault {
     function optionState() external view returns (Vault.OptionState memory);
 
     function optionAuctionID() external view returns (uint256);
+
+    function pricePerShare() external view returns (uint256);
+
+    function roundPricePerShare(uint256) external view returns (uint256);
 }
