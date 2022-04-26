@@ -13,7 +13,6 @@ import {ShareMath} from "./ShareMath.sol";
 import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
-import {GnosisAuction} from "./GnosisAuction.sol";
 import {
     IOtokenFactory,
     IOtoken,
@@ -22,6 +21,7 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
+import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 
 library VaultLifecycleYearn {
     using SafeMath for uint256;
@@ -30,10 +30,6 @@ library VaultLifecycleYearn {
 
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
-     * @param strikeSelection is the address of the contract with strike selection logic
-     * @param optionsPremiumPricer is the address of the contract with the
-       black-scholes premium calculation logic
-     * @param premiumDiscount is the vault's discount applied to the premium
      * @param closeParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
@@ -44,9 +40,6 @@ library VaultLifecycleYearn {
      * @return delta is the delta of the new option
      */
     function commitAndClose(
-        address strikeSelection,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount,
         VaultLifecycle.CloseParams calldata closeParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState,
@@ -65,7 +58,8 @@ library VaultLifecycleYearn {
 
         bool isPut = vaultParams.isPut;
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
+        IStrikeSelection selection =
+            IStrikeSelection(closeParams.strikeSelection);
 
         // calculate strike and delta
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
@@ -86,20 +80,12 @@ library VaultLifecycleYearn {
             isPut
         );
 
-        // get the black scholes premium of the option and adjust premium based on
-        // collateral asset <-> asset exchange rate
-        premium = DSMath.wmul(
-            GnosisAuction.getOTokenPremium(
-                otokenAddress,
-                optionsPremiumPricer,
-                premiumDiscount
-            ),
-            IYearnVault(collateralAsset).pricePerShare().mul(
-                decimalShift(collateralAsset)
-            )
+        premium = _getOTokenPremium(
+            otokenAddress,
+            closeParams.optionsPremiumPricer,
+            closeParams.premiumDiscount,
+            collateralAsset
         );
-
-        require(premium > 0, "!premium");
 
         return (otokenAddress, premium, strikePrice, delta);
     }
@@ -356,5 +342,64 @@ library VaultLifecycleYearn {
     {
         return
             10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
+    }
+
+    function getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount,
+        address collateralAsset
+    ) external view returns (uint256) {
+        return
+            _getOTokenPremium(
+                oTokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount,
+                collateralAsset
+            );
+    }
+
+    function _getOTokenPremium(
+        address oTokenAddress,
+        address optionsPremiumPricer,
+        uint256 premiumDiscount,
+        address collateralAsset
+    ) internal view returns (uint256) {
+        IOtoken newOToken = IOtoken(oTokenAddress);
+        IOptionsPremiumPricer premiumPricer =
+            IOptionsPremiumPricer(optionsPremiumPricer);
+
+        // Apply black-scholes formula (from rvol library) to option given its features
+        // and get price for 100 contracts denominated in the underlying asset for call option
+        // and USDC for put option
+        uint256 optionPremium =
+            premiumPricer.getPremium(
+                newOToken.strikePrice(),
+                newOToken.expiryTimestamp(),
+                newOToken.isPut()
+            );
+
+        // Apply a discount to incentivize arbitraguers
+        optionPremium = optionPremium.mul(premiumDiscount).div(
+            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
+        );
+
+        // get the black scholes premium of the option and adjust premium based on
+        // collateral asset <-> asset exchange rate
+        uint256 adjustedPremium =
+            DSMath.wmul(
+                optionPremium,
+                IYearnVault(collateralAsset).pricePerShare().mul(
+                    decimalShift(collateralAsset)
+                )
+            );
+
+        require(
+            adjustedPremium <= type(uint96).max,
+            "adjustedPremium > type(uint96) max value!"
+        );
+        require(adjustedPremium > 0, "!adjustedPremium");
+
+        return adjustedPremium;
     }
 }

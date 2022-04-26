@@ -59,6 +59,7 @@ library GnosisAuction {
     {
         uint256 oTokenSellAmount =
             getOTokenSellAmount(auctionDetails.oTokenAddress);
+        require(oTokenSellAmount > 0, "No otokens to sell");
 
         IERC20(auctionDetails.oTokenAddress).safeApprove(
             auctionDetails.gnosisEasyAuction,
@@ -221,38 +222,6 @@ library GnosisAuction {
         );
 
         return oTokenSellAmount;
-    }
-
-    function getOTokenPremium(
-        address oTokenAddress,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) internal view returns (uint256) {
-        IOtoken newOToken = IOtoken(oTokenAddress);
-        IOptionsPremiumPricer premiumPricer =
-            IOptionsPremiumPricer(optionsPremiumPricer);
-
-        // Apply black-scholes formula (from rvol library) to option given its features
-        // and get price for 100 contracts denominated in the underlying asset for call option
-        // and USDC for put option
-        uint256 optionPremium =
-            premiumPricer.getPremium(
-                newOToken.strikePrice(),
-                newOToken.expiryTimestamp(),
-                newOToken.isPut()
-            );
-
-        // Apply a discount to incentivize arbitraguers
-        optionPremium = optionPremium.mul(premiumDiscount).div(
-            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
-        );
-
-        require(
-            optionPremium <= type(uint96).max,
-            "optionPremium > type(uint96) max value!"
-        );
-
-        return optionPremium;
     }
 
     function getOTokenPremiumInStables(
