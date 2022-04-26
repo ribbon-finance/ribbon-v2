@@ -377,27 +377,26 @@ export const isBridgeToken = (chainId: number, address: string) =>
   chainId === CHAINID.AVAX_MAINNET &&
   (address === WBTC_ADDRESS[chainId] || address === USDC_ADDRESS[chainId]);
 
-
 export interface Bid {
-  swapId: number,
-  nonce: number,
-  signerWallet: string,
-  sellAmount: BigNumberish,
-  buyAmount: BigNumberish,
-  referrer: string
+  swapId: number;
+  nonce: number;
+  signerWallet: string;
+  sellAmount: BigNumberish;
+  buyAmount: BigNumberish;
+  referrer: string;
 }
 
 export async function generateSignedBid(
   chainId: number,
   swapContractAddress: string,
   contractSigner: string,
-  bid: Bid,
+  bid: Bid
 ) {
   const domain = {
     name: "RIBBON SWAP", // This is set as a constant in the swap contract
     version: "1", // This is set as a constant in the swap contract
     chainId,
-    verifyingContract: swapContractAddress
+    verifyingContract: swapContractAddress,
   };
 
   const types = {
@@ -408,17 +407,13 @@ export async function generateSignedBid(
       { name: "sellAmount", type: "uint256" },
       { name: "buyAmount", type: "uint256" },
       { name: "referrer", type: "address" },
-    ]
+    ],
   };
 
   const userSigner = ethers.provider.getSigner(contractSigner);
 
   /* eslint no-underscore-dangle: 0 */
-  const signedMsg = await userSigner._signTypedData(
-    domain,
-    types,
-    bid
-  );
+  const signedMsg = await userSigner._signTypedData(domain, types, bid);
 
   const signature = signedMsg.substring(2);
 
