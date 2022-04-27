@@ -47,6 +47,7 @@
     "compile": "CHAINID=1 npx hardhat compile",
     "deploy": "npx hardhat deploy",
     "etherscan-verify": "npx hardhat etherscan-verify",
+    "export-deployments": "npx hardhat export-deployments",
     "prepare": "husky install",
     "prettier:sol": "yarn prettier --write contracts/*",
     "lint:ts": "eslint '**/*.ts'",
