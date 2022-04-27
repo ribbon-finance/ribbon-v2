@@ -3515,6 +3515,59 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#recoverTokens", () => {
+      let wrongToken: Contract;
+      let wrongSendAmount = ethers.utils.parseEther("100");
+
+      time.revertToSnapshotAfterEach(async () => {
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+        await vault.deposit(depositAmount);
+
+        const RBN_HOLDER = "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674";
+        await network.provider.request({
+          method: "hardhat_impersonateAccount",
+          params: [RBN_HOLDER],
+        });
+        const rbnHolder = ethers.provider.getSigner(RBN_HOLDER);
+
+        wrongToken = await ethers.getContractAt(
+          "IERC20",
+          "0x6123B0049F904d730dB3C36a31167D9d4121fA6B"
+        );
+        await wrongToken
+          .connect(rbnHolder)
+          .transfer(vault.address, wrongSendAmount);
+      });
+
+      it("reverts when non-owner calls the function", async () => {
+        await expect(
+          vault.connect(userSigner).recoverTokens(wrongToken.address, owner)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+
+      it("reverts when recovering the vault asset", async () => {
+        await expect(
+          vault.connect(ownerSigner).recoverTokens(collateralAsset, owner)
+        ).to.be.revertedWith("Vault asset not recoverable");
+      });
+
+      it("reverts when recovering the vault share", async () => {
+        await expect(
+          vault.connect(ownerSigner).recoverTokens(vault.address, owner)
+        ).to.be.revertedWith("Vault share not recoverable");
+      });
+
+      it("recovers the tokens", async () => {
+        assert.bnEqual(await wrongToken.balanceOf(owner), BigNumber.from(0));
+        await vault
+          .connect(ownerSigner)
+          .recoverTokens(wrongToken.address, owner);
+        assert.bnEqual(await wrongToken.balanceOf(owner), wrongSendAmount);
+      });
+    });
+
     describe("#shares", () => {
       time.revertToSnapshotAfterEach();
 

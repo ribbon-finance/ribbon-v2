@@ -485,4 +485,19 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
         );
     }
+
+    /**
+     * @notice Recovery function that returns an ERC20 token to the recipient
+     */
+    function recoverTokens(address token, address recipient)
+        external
+        onlyOwner
+    {
+        require(token != vaultParams.asset, "Vault asset not recoverable");
+        require(token != address(this), "Vault share not recoverable");
+        IERC20(token).safeTransfer(
+            recipient,
+            IERC20(token).balanceOf(address(this))
+        );
+    }
 }
