@@ -22,14 +22,14 @@ const main = async ({
     chainId === CHAINID.AVAX_FUJI
   ) {
     console.log(
-      `14 - Skipping deployment of Treasury Vault logic on ${network.name}`
+      `12 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );
     return;
   }
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`14 - Deploying Treasury Vault logic on ${network.name}`);
+  console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
 
   const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
     contract: "VaultLifecycleTreasury",

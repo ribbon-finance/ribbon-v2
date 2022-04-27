@@ -28,7 +28,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`16 - Deploying sAVAX Theta Vault on ${network.name}`);
+  console.log(`14 - Deploying sAVAX Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
 
