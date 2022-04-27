@@ -2723,8 +2723,6 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#completeWithdraw", () => {
-      let minETHOut: BigNumberish;
-
       time.revertToSnapshotAfterEach(async () => {
         await assetContract
           .connect(userSigner)
@@ -2745,12 +2743,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await vault.initiateWithdraw(depositAmount);
-
-        const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
-
-        minETHOut = (await crv.get_dy(1, 0, depositAmount))
-          .mul(BigNumber.from(100).sub(crvSlippage))
-          .div(100);
       });
 
       it("reverts when not initiated", async function () {
