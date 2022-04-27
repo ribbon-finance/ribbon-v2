@@ -37,6 +37,7 @@ const main = async ({
     contract: "VaultLifecycleTreasury",
     from: deployer,
   });
+  console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
 
   const vault = await deploy("RibbonTreasuryVaultLogic", {
     contract: "RibbonTreasuryVault",
@@ -55,6 +56,15 @@ const main = async ({
   });
 
   console.log(`RibbonTreasuryVaultLogic @ ${vault.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: lifecycleTreasury.address,
+      constructorArguments: [],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   try {
     await run("verify:verify", {
