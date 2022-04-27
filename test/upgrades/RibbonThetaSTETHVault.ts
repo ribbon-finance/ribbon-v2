@@ -14,6 +14,7 @@ import {
   WSTETH_PRICER,
   YEARN_PRICER_OWNER,
   STETH_ADDRESS,
+  OPTION_PROTOCOL,
 } from "../../constants/constants";
 import {
   objectEquals,
@@ -35,9 +36,9 @@ const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14268612;
+const FORK_BLOCK = 14665589;
 
-const TEST_USER = "0x79F1bc5c5ee691206Fc55C66402F938dd1E96421";
+const TEST_USER = "0xacf9e821c7099f5ba022a7cc5341b8a3b10f0c99";
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -216,8 +217,10 @@ New: ${JSON.stringify(newVariables, null, 4)}`
       );
 
       const oracle = await setupOracle(
+        WETH_ADDRESS[CHAINID],
         CHAINLINK_WETH_PRICER_STETH,
-        ownerSigner
+        ownerSigner,
+        OPTION_PROTOCOL.GAMMA
       );
 
       const vaultBalance = await vault.shares(TEST_USER);
