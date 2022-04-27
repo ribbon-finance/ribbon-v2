@@ -2,14 +2,14 @@
  * Vault params
  */
 export const STRIKE_STEP = {
-  "ETH": 100*1e18, // ETH strike prices move in increments of 100
-  "WBTC": 1000*1e18, // WBTC strike prices move in increments of 1000
-  "AVAX": 10*1e18,
-  "AAVE": 10*1e18,
-  "NEAR": 5*1e18,
-  "AURORA": 5*1e18,
-  "APE": 1*1e18,
-  "PERP": 0.1*1e18,
+  "ETH": 100*1e8, // ETH strike prices move in increments of 100
+  "WBTC": 1000*1e8, // WBTC strike prices move in increments of 1000
+  "AVAX": 10*1e8,
+  "AAVE": 10*1e8,
+  "NEAR": 5*1e8,
+  "AURORA": 5*1e8,
+  "APE": 1*1e8,
+  "PERP": 0.1*1e8,
 }
 
 export const STRIKE_DELTA = 1000; // 0.1d
