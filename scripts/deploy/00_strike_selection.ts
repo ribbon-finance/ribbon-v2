@@ -23,7 +23,7 @@ const ASSETS = {
     "AVAX Call",
     "AVAX Put"
   ]
-}
+};
 
 const main = async ({
   network,
@@ -34,31 +34,31 @@ const main = async ({
   const { deployer } =
     await getNamedAccounts();
   console.log(`00 - Deploying Strike Selection on ${network.name}`);
-  
+
   const chainId = network.config.chainId;
 
   for (let vault of ASSETS[chainId]) {
-    const [asset, optionType] = vault.split(" ")
-    const pricer = await deployments.get("OptionsPremiumPricer"+asset+optionType)
-    
-    let strikeSelection: DeployResult
+    const [asset, optionType] = vault.split(" ");
+    const pricer = await deployments.get("OptionsPremiumPricer" + asset + optionType);
+
+    let strikeSelection: DeployResult;
     if (asset === "PERP") {
-      strikeSelection = await deploy("StrikeSelection"+asset+optionType, {
+      strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
         contract: "PercentStrikeSelection",
         from: deployer,
         args: [pricer.address, PERP_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
       });
     } else {
-      strikeSelection = await deploy("StrikeSelection"+asset+optionType, {
+      strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
         contract: "DeltaStrikeSelection",
         from: deployer,
         args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[asset]],
       });
     }
-    
+
 
     console.log(
-      `strikeSelection${asset+optionType} @ ${strikeSelection.address}`
+      `strikeSelection${asset + optionType} @ ${strikeSelection.address}`
     );
 
     try {

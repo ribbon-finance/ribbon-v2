@@ -58,7 +58,7 @@ const main = async ({
   } catch (error) {
     console.log(error);
   }
-  
+
   try {
     await run("verify:verify", {
       address: vault.address,

@@ -80,7 +80,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionAVAX", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP["AVAX"]],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AVAX],
   });
 
   console.log(
@@ -90,7 +90,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP["AVAX"]],
+      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AVAX],
     });
   } catch (error) {
     console.log(error);
