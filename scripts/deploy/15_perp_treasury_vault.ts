@@ -14,7 +14,7 @@ import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  PERP_STRIKE_STEP,
+  STRIKE_STEP,
   PERP_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
@@ -62,7 +62,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionPERP", {
     contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, PERP_STRIKE_STEP, PERP_STRIKE_MULTIPLIER], //change this
+    args: [pricer.address, STRIKE_STEP["PERP"], PERP_STRIKE_MULTIPLIER], //change this
   });
 
   console.log(
@@ -74,7 +74,7 @@ const main = async ({
       address: strikeSelection.address,
       constructorArguments: [
         pricer.address,
-        PERP_STRIKE_STEP,
+        STRIKE_STEP["PERP"],
         PERP_STRIKE_MULTIPLIER,
       ], // change this
     });

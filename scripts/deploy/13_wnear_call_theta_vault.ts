@@ -14,7 +14,7 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-  NEAR_STRIKE_STEP,
+  STRIKE_STEP,
 } from "../utils/constants";
 
 const main = async ({
@@ -59,7 +59,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionWNEAR", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, NEAR_STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP["NEAR"]],
   });
 
   console.log(

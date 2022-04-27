@@ -14,7 +14,7 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-  SAVAX_STRIKE_STEP,
+  STRIKE_STEP,
 } from "../utils/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 
@@ -77,10 +77,10 @@ const main = async ({
 
   console.log(`RibbonThetaVaultSAVAXCall pricer @ ${pricer.address}`);
 
-  const strikeSelection = await deploy("StrikeSelectionSAVAX", {
+  const strikeSelection = await deploy("StrikeSelectionAVAX", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, SAVAX_STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP["AVAX"]],
   });
 
   console.log(
@@ -90,7 +90,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, SAVAX_STRIKE_STEP],
+      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP["AVAX"]],
     });
   } catch (error) {
     console.log(error);

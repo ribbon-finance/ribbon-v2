@@ -11,7 +11,7 @@ import {
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
-  APE_STRIKE_STEP,
+  STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
@@ -26,11 +26,6 @@ const TOKEN_NAME = {
 const TOKEN_SYMBOL = {
   [CHAINID.ETH_MAINNET]: "rAPE-THETA",
   [CHAINID.ETH_KOVAN]: "rAPE-THETA",
-};
-
-const STRIKE_STEP = {
-  [CHAINID.ETH_MAINNET]: APE_STRIKE_STEP,
-  [CHAINID.ETH_KOVAN]: APE_STRIKE_STEP,
 };
 
 const main = async ({
@@ -78,7 +73,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionAPE", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[chainId]],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP["APE"]],
   });
 
   console.log(
@@ -91,7 +86,7 @@ const main = async ({
       constructorArguments: [
         pricer.address,
         STRIKE_DELTA,
-        STRIKE_STEP[chainId],
+        STRIKE_STEP["APE"],
       ],
     });
   } catch (error) {
