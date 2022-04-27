@@ -73,7 +73,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionAPE", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP["APE"]],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.APE],
   });
 
   console.log(
@@ -86,7 +86,7 @@ const main = async ({
       constructorArguments: [
         pricer.address,
         STRIKE_DELTA,
-        STRIKE_STEP["APE"],
+        STRIKE_STEP.APE,
       ],
     });
   } catch (error) {

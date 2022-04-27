@@ -62,7 +62,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionPERP", {
     contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_STEP["PERP"], PERP_STRIKE_MULTIPLIER], //change this
+    args: [pricer.address, STRIKE_STEP.PERP, PERP_STRIKE_MULTIPLIER], //change this
   });
 
   console.log(
@@ -74,7 +74,7 @@ const main = async ({
       address: strikeSelection.address,
       constructorArguments: [
         pricer.address,
-        STRIKE_STEP["PERP"],
+        STRIKE_STEP.PERP,
         PERP_STRIKE_MULTIPLIER,
       ], // change this
     });
