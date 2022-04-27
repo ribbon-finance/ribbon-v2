@@ -3559,6 +3559,14 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("Vault share not recoverable");
       });
 
+      it("reverts when recovering to the vault itself", async () => {
+        await expect(
+          vault
+            .connect(ownerSigner)
+            .recoverTokens(wrongToken.address, vault.address)
+        ).to.be.revertedWith("Recipient cannot be vault");
+      });
+
       it("recovers the tokens", async () => {
         assert.bnEqual(await wrongToken.balanceOf(owner), BigNumber.from(0));
         await vault

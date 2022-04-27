@@ -495,6 +495,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     {
         require(token != vaultParams.asset, "Vault asset not recoverable");
         require(token != address(this), "Vault share not recoverable");
+        require(recipient != address(this), "Recipient cannot be vault");
+
         IERC20(token).safeTransfer(
             recipient,
             IERC20(token).balanceOf(address(this))
