@@ -52,7 +52,7 @@ const main = async ({
     args: [GAMMA_ORACLE[chainId], APE_ADDRESS[chainId]],
   });
 
-  const pricer = await deploy("OptionsPremiumPricerAPE", {
+  const pricer = await deploy("OptionsPremiumPricerAPECall", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
