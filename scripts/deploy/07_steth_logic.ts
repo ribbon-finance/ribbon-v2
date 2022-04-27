@@ -37,7 +37,7 @@ const main = async ({
     contract: "VaultLifecycleSTETH",
     from: deployer,
   });
-  console.log(`VaultLifeCycleSTETH @ ${lifecycle.address}`);
+  console.log(`VaultLifeCycleSTETH @ ${lifecycleSTETH.address}`);
 
   const args = [
     WETH_ADDRESS[chainId],
@@ -65,13 +65,13 @@ const main = async ({
 
   try {
     await run("verify:verify", {
-      address: lifecycle.address,
+      address: lifecycleSTETH.address,
       constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
   }
-  
+
   try {
     await run("verify:verify", {
       address: vault.address,
