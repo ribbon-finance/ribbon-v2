@@ -77,21 +77,6 @@ export default {
         mnemonic: process.env.FUJI_MNEMONIC,
       },
     },
-    aurora: {
-      url: process.env.AURORA_URI,
-      chainId: 1313161554,
-      gasPrice: 0,
-      accounts: {
-        mnemonic: process.env.AURORA_MNEMONIC,
-      },
-    },
-    "aurora-testnet": {
-      url: process.env.AURORA_TESTNET_URI,
-      chainId: 1313161555,
-      accounts: {
-        mnemonic: process.env.AURORA_TESTNET_MNEMONIC,
-      },
-    },
   },
   namedAccounts: {
     deployer: {
@@ -144,7 +129,7 @@ export default {
     timeout: 500000,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: process.env.SNOWTRACE_API_KEY,
   },
   gasReporter: {
     enabled: true,

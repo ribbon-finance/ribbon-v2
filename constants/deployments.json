@@ -1,19 +1,4 @@
 {
-    "aurora": {
-        "ManualVolOracle": "0x56Bfbc431fbB619D4D48dfc20732c4c35BcD0450",
-        "OptionsPremiumPricerAURORA": "0xCf7439DD23431Eab5cd807DAdA68EE08F2C9C39a",
-        "OptionsPremiumPricerETH": "0x5aA4e4e34100158E8b7D5CfA482533C515b2540e",
-        "OptionsPremiumPricerWNEAR": "0x5B1C28ccF4A8d178cee8E102Dcd02Dc21C20092b",
-        "RibbonThetaVaultAURORACall": "0xC5DB388DB490f88A81be75c32d60F28579556145",
-        "RibbonThetaVaultETHCall": "0xC1886Bec8EBbB8Ac8c5bb44e3e529a65e9207205",
-        "RibbonThetaVaultLogic": "0x68e7668A1c3ef2B3087aF97f789645ee3fa4A83e",
-        "RibbonThetaVaultWNEARCall": "0x7796d6B1706855303655EB12F54FaE294c468a66",
-        "StrikeSelectionAURORA": "0x2Fc4A27B8C08c3acae958C49A03eD611ae1c3ed0",
-        "StrikeSelectionETH": "0x3B7952609165A0Bc51ebB8C4002c4C4E76aaf93F",
-        "StrikeSelectionNEAR": "0xd458eCA9ed9f383dDcA806E6cF726771Ca1b71E0",
-        "StrikeSelectionWNEAR": "0x236ea45509d83B8073A81868B8be5eCD8b80E945",
-        "VaultLifecycle": "0xEC7F7061Bbac55fB21d031b950eE51D4f679Ac25"
-    },
     "avax": {
         "ManualVolOracle": "0x2f06005a18d5194D0230F1cD0aA68cd7c6Ca24bf",
         "OptionsPremiumPricerAVAXCall": "0x7fbc95bfd5e03750e780803d418f2c1d7c9ea5ba",

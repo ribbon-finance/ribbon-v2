@@ -19,9 +19,7 @@ const main = async ({
 
   if (
     chainId === CHAINID.AVAX_MAINNET ||
-    chainId === CHAINID.AVAX_FUJI ||
-    chainId === CHAINID.AURORA_MAINNET ||
-    chainId === CHAINID.AURORA_TESTNET
+    chainId === CHAINID.AVAX_FUJI
   ) {
     console.log(
       `14 - Skipping deployment of Treasury Vault logic on ${network.name}`
