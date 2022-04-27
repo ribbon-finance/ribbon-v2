@@ -240,7 +240,7 @@ New: ${JSON.stringify(newVariables, null, 4)}`
       await vault.connect(keeperSigner).rollToNextOption();
       const balance0 = await steth.balanceOf(TEST_USER);
       const totalBalance0 = await vault.totalBalance();
-      await vault.connect(userSigner).completeWithdraw(0);
+      await vault.connect(userSigner).completeWithdraw();
 
       const balance1 = await steth.balanceOf(TEST_USER);
       const totalBalance1 = await vault.totalBalance();
@@ -258,7 +258,7 @@ New: ${JSON.stringify(newVariables, null, 4)}`
       await vault.connect(keeperSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
       await vault.connect(keeperSigner).rollToNextOption();
-      await vault.connect(userSigner).completeWithdraw(0);
+      await vault.connect(userSigner).completeWithdraw();
 
       const balance2 = await steth.balanceOf(TEST_USER);
       const totalBalance2 = await vault.totalBalance();
