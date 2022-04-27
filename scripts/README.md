@@ -2,11 +2,10 @@
 
 ## Run
 
-Example to deploy to Aurora:
-- yarn deploy --network aurora --tags ManualVolOracle
-- yarn deploy --network aurora --tags RibbonThetaVaultLogic
-- yarn deploy --network aurora --tags RibbonThetaVaultETHCall
-- yarn deploy --network aurora --tags RibbonThetaVaultAurora
+Example to deploy to Mainnet:
+- yarn deploy --network mainnet --tags ManualVolOracle
+- yarn deploy --network mainnet --tags RibbonThetaVaultLogic
+- yarn deploy --network mainnet --tags RibbonThetaVaultETHCall
 
 ## Verifications
 - We can't verify the rvol contracts because they are compiled with 7.3.0.
