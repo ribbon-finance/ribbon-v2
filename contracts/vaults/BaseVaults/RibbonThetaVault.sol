@@ -488,6 +488,8 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Recovery function that returns an ERC20 token to the recipient
+     * @param token is the ERC20 token to recover from the vault
+     * @param recipient is the recipient of the recovered tokens
      */
     function recoverTokens(address token, address recipient)
         external
