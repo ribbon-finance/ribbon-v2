@@ -1,21 +1,22 @@
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
-  AURORA_ADDRESS,
+  SAVAX_ADDRESS,
+  SAVAX_USDC_POOL,
+  ETH_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  AURORA_PRICE_ORACLE,
-  AURORA_USDC_POOL,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
-import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_DELTA,
-  AURORA_STRIKE_STEP,
+  STRIKE_STEP,
 } from "../utils/constants";
+import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 
 const main = async ({
   network,
@@ -24,48 +25,76 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { BigNumber } = ethers;
-  const { parseEther } = ethers.utils;
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`12 - Deploying AURORA Call Theta Vault on ${network.name}`);
+  console.log(`14 - Deploying sAVAX Theta Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
 
-  if (chainId !== CHAINID.AURORA_MAINNET) {
+  if (!(chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI)) {
     console.log(`Error: chainId ${chainId} not supported`);
     return;
   }
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
-  const underlyingOracle = AURORA_PRICE_ORACLE[chainId];
+
+  const sAvaxOracle = await deploy("SAvaxOracle", {
+    contract: "SAvaxOracle",
+    from: deployer,
+    args: [
+      SAVAX_ADDRESS[chainId],
+      ETH_PRICE_ORACLE[chainId], // Really WAVAX, not ETH
+    ],
+  });
+
+  console.log(`SAvaxOracle @ ${sAvaxOracle.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: sAvaxOracle.address,
+      constructorArguments: [SAVAX_ADDRESS[chainId], ETH_PRICE_ORACLE[chainId]],
+    });
+  } catch (error) {
+    console.log(error);
+  }
+
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerAURORA", {
+  const pricer = await deploy("OptionsPremiumPricerSAVAX", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      AURORA_USDC_POOL[chainId],
+      SAVAX_USDC_POOL[chainId],
       manualVolOracle.address,
-      underlyingOracle,
+      sAvaxOracle.address,
       stablesOracle,
     ],
   });
 
-  console.log(`RibbonThetaVaultAURORACall pricer @ ${pricer.address}`);
+  console.log(`RibbonThetaVaultSAVAXCall pricer @ ${pricer.address}`);
 
-  const strikeSelection = await deploy("StrikeSelectionAURORA", {
+  const strikeSelection = await deploy("StrikeSelectionAVAX", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, AURORA_STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AVAX],
   });
 
   console.log(
-    `RibbonThetaVaultAURORACall strikeSelection @ ${strikeSelection.address}`
+    `RibbonThetaVaultSAVAXCall strikeSelection @ ${strikeSelection.address}`
   );
+
+  try {
+    await run("verify:verify", {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AVAX],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   // Assumes these contracts are already deployed
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -74,8 +103,8 @@ const main = async ({
     libraries: { VaultLifecycle: lifecycle.address },
   });
 
-  const TOKEN_NAME = "Ribbon AURORA Theta Vault";
-  const TOKEN_SYMBOL = "rAURORA-THETA";
+  const TOKEN_NAME = "Ribbon sAVAX Theta Vault";
+  const TOKEN_SYMBOL = "rsAVAX-THETA";
 
   const initArgs = [
     {
@@ -96,10 +125,10 @@ const main = async ({
     {
       isPut: false,
       decimals: 18,
-      asset: AURORA_ADDRESS[chainId],
-      underlying: AURORA_ADDRESS[chainId],
-      minimumSupply: BigNumber.from(10).pow(16),
-      cap: parseEther("50000"),
+      asset: SAVAX_ADDRESS[chainId],
+      underlying: SAVAX_ADDRESS[chainId],
+      minimumSupply: BigNumber.from(10).pow(10),
+      cap: ethers.utils.parseEther("1000"),
     },
   ];
 
@@ -108,12 +137,23 @@ const main = async ({
     initArgs
   );
 
-  const proxy = await deploy("RibbonThetaVaultAURORACall", {
+  const proxy = await deploy("RibbonThetaVaultSAVAXCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
-  console.log(`RibbonThetaVaultAURORACall @ ${proxy.address}`);
+
+  console.log(`RibbonThetaVaultSAVAXCall Proxy @ ${proxy.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: proxy.address,
+      constructorArguments: [logicDeployment.address, admin, initData],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
-main.tags = ["RibbonThetaVaultAurora"];
+main.tags = ["RibbonThetaVaultSAVAXCall"];
+
 export default main;

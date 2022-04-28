@@ -11,8 +11,7 @@ import {
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
-  AVAX_STRIKE_STEP,
-  ETH_STRIKE_STEP,
+  STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
@@ -24,7 +23,6 @@ const TOKEN_NAME = {
   [CHAINID.ETH_KOVAN]: "Ribbon ETH Theta Vault",
   [CHAINID.AVAX_MAINNET]: "Ribbon AVAX Theta Vault",
   [CHAINID.AVAX_FUJI]: "Ribbon AVAX Theta Vault",
-  [CHAINID.AURORA_MAINNET]: "Ribbon ETH Theta Vault",
 };
 
 const TOKEN_SYMBOL = {
@@ -32,15 +30,13 @@ const TOKEN_SYMBOL = {
   [CHAINID.ETH_KOVAN]: "rETH-THETA",
   [CHAINID.AVAX_MAINNET]: "rAVAX-THETA",
   [CHAINID.AVAX_FUJI]: "rAVAX-THETA",
-  [CHAINID.AURORA_MAINNET]: "rETH-THETA",
 };
 
-const STRIKE_STEP = {
-  [CHAINID.ETH_MAINNET]: ETH_STRIKE_STEP,
-  [CHAINID.ETH_KOVAN]: ETH_STRIKE_STEP,
-  [CHAINID.AVAX_MAINNET]: AVAX_STRIKE_STEP,
-  [CHAINID.AVAX_FUJI]: AVAX_STRIKE_STEP,
-  [CHAINID.AURORA_MAINNET]: ETH_STRIKE_STEP,
+const STRIKE_STEPS = {
+  [CHAINID.ETH_MAINNET]: STRIKE_STEP.ETH,
+  [CHAINID.ETH_KOVAN]: STRIKE_STEP.ETH,
+  [CHAINID.AVAX_MAINNET]: STRIKE_STEP.AVAX,
+  [CHAINID.AVAX_FUJI]: STRIKE_STEP.AVAX,
 };
 
 const main = async ({
@@ -83,7 +79,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionETH", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[chainId]],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEPS[chainId]],
   });
 
   console.log(
@@ -96,7 +92,7 @@ const main = async ({
       constructorArguments: [
         pricer.address,
         STRIKE_DELTA,
-        STRIKE_STEP[chainId],
+        STRIKE_STEPS[chainId],
       ],
     });
   } catch (error) {

@@ -1,14 +1,14 @@
 /**
  * Vault params
  */
-export const ETH_STRIKE_STEP = 100; // ETH strike prices move in increments of 100
-export const WBTC_STRIKE_STEP = 1000; // WBTC strike prices move in increments of 1000
-export const AVAX_STRIKE_STEP = 10;
-export const SAVAX_STRIKE_STEP = 10;
-export const AAVE_STRIKE_STEP = 10;
-export const NEAR_STRIKE_STEP = 5;
-export const AURORA_STRIKE_STEP = 5;
-export const APE_STRIKE_STEP = 1;
+export const STRIKE_STEP = {
+  "ETH": 100 * 1e8, // ETH strike prices move in increments of 100
+  "WBTC": 1000 * 1e8, // WBTC strike prices move in increments of 1000
+  "AVAX": 10 * 1e8,
+  "AAVE": 10 * 1e8,
+  "APE": 1 * 1e8,
+  "PERP": 0.1 * 1e8,
+};
 
 export const STRIKE_DELTA = 1000; // 0.1d
 export const PREMIUM_DISCOUNT = 200; // 0.20, 80% discount
@@ -19,5 +19,4 @@ export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result 
 /**
  * Treasury Vault Params
  */
-export const PERP_STRIKE_STEP = 10000000;
 export const PERP_STRIKE_MULTIPLIER = 150;
