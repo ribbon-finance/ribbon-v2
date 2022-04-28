@@ -1,6 +1,6 @@
 import { ethers, network } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, Contract } from "ethers";
+import { BigNumber, constants, Contract } from "ethers";
 import { JsonRpcSigner } from "@ethersproject/providers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "../helpers/assertions";
@@ -35,13 +35,12 @@ import ETH_RibbonThetaVaultETHCall from "../../deployments/mainnet/RibbonThetaVa
 import ETH_RibbonThetaVaultSTETHCall from "../../deployments/mainnet/RibbonThetaVaultSTETHCall.json";
 import ETH_RibbonThetaVaultWBTCCall from "../../deployments/mainnet/RibbonThetaVaultWBTCCall.json";
 
-import ETH_StrikeSelectionETH from "../../deployments/mainnet/StrikeSelectionETH.json";
-import ETH_StrikeSelectionWBTC from "../../deployments/mainnet/StrikeSelectionWBTC.json";
+import ETH_StrikeSelectionETH from "../../deployments/mainnet/StrikeSelectionETHCall.json";
+import ETH_StrikeSelectionWBTC from "../../deployments/mainnet/StrikeSelectionWBTCCall.json";
 
 import AVAX_RibbonThetaVaultLogic from "../../deployments/avax/RibbonThetaVaultLogic.json";
 import AVAX_RibbonThetaVaultETHCall from "../../deployments/avax/RibbonThetaVaultETHCall.json";
 import AVAX_RibbonThetaVaultSAVAXCall from "../../deployments/avax/RibbonThetaVaultSAVAXCall.json";
-import AVAX_StrikeSelectionETH from "../../deployments/avax/StrikeSelectionETH.json";
 import * as time from "../helpers/time";
 
 const { parseEther } = ethers.utils;
@@ -67,11 +66,11 @@ describe("VaultQueue", () => {
   let steth: Contract, wbtc: Contract;
 
   before(async () => {
-    await resetBlock(process.env.MAINNET_URI, 14319200);
+    await resetBlock(process.env.MAINNET_URI, 14671659);
 
     // Nothing special about this user other than he's a depositor that has not redeemed any shares.
     // Randomly selected a depositor from the vault transaction history to mock.
-    const MOCK_USER_1 = "0x39814E72Fbc713dad3314969758A223192B8aDc1"; // eth deposited in eth call vault
+    const MOCK_USER_1 = "0x267a3195ea57ad38E65993DBcB9FBebf8995621D"; // eth deposited in eth call vault
     const MOCK_USER_2 = "0xa13d074fe7f27a1a126892e636a22a12d19e6858"; // eth call vault
     const MOCK_USER_3 = "0x35bb7ab3956738e0b6e9e1cbc1732d357bee9793"; // stETH call vault
     const MOCK_USER_4 = "0x82738b0ebc1d667765cb9cdeb4a2a96da6e6a77a"; // wbtc call vault
@@ -120,8 +119,11 @@ describe("VaultQueue", () => {
     );
 
     const VaultQueue = await ethers.getContractFactory("VaultQueue");
-    vaultQueue = await VaultQueue.deploy(ethCallVault.address, stethCallVault.address);
-    await vaultQueue.initialize();
+    vaultQueue = await VaultQueue.deploy(
+      ethCallVault.address,
+      stethCallVault.address
+    );
+    await vaultQueue.connect(ownerSigner).initialize();
 
     ownerSigner = await impersonate(ORACLE_OWNER[CHAINID.ETH_MAINNET]);
     wethPriceSigner = await impersonate(
@@ -160,13 +162,6 @@ describe("VaultQueue", () => {
     await forceSend(await wstethPriceSigner.getAddress(), "10");
     await forceSend(await wbtcPriceSigner.getAddress(), "10");
     await sendEth(await ownerSigner.getAddress(), "10");
-  });
-
-  it("Queues up a vault transfer from ETH vault to stETH vault", async () => {
-    assert.equal(
-      (await ethCallVault.balanceOf(await signer1.getAddress())).toString(),
-      "0"
-    );
 
     await vaultQueue
       .connect(ownerSigner)
@@ -175,7 +170,7 @@ describe("VaultQueue", () => {
     await vaultQueue.connect(ownerSigner).setKeeper(keeperSigner.address);
   });
 
-  describe("functions", () => {
+  describe("VaultQueue - ETH -> stETH", () => {
     time.revertToSnapshotAfterEach();
 
     it("reverts when non-owner calls setDepositContract", async () => {
@@ -201,7 +196,7 @@ describe("VaultQueue", () => {
       const balance = (
         await ethCallVault.shares(await signer1.getAddress())
       ).toString();
-      assert.equal(balance, "9360711591524105194");
+      assert.equal(balance, "1006485810884633466");
 
       await setOpynOracleExpiryPrice(
         WETH_ADDRESS[CHAINID.ETH_MAINNET],
@@ -231,7 +226,7 @@ describe("VaultQueue", () => {
 
       await expect(queueTransferTx)
         .to.emit(ethCallVault, "InitiateWithdraw")
-        .withArgs(vaultQueue.address, balance, "27");
+        .withArgs(vaultQueue.address, balance, "35");
 
       assert.equal(
         (await ethers.provider.getBalance(vaultQueue.address)).toString(),
@@ -254,11 +249,11 @@ describe("VaultQueue", () => {
 
       await expect(interVaultTransferTx)
         .to.emit(ethCallVault, "Withdraw")
-        .withArgs(vaultQueue.address, "10072592725506459998", balance);
+        .withArgs(vaultQueue.address, "1108806555316160772", balance);
 
       await expect(interVaultTransferTx)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer1.getAddress(), "10072592725506459998", "16");
+        .withArgs(await signer1.getAddress(), "1108806555316160772", "24");
 
       assert.equal(
         (await ethers.provider.getBalance(vaultQueue.address)).toString(),
@@ -340,21 +335,21 @@ describe("VaultQueue", () => {
         .to.emit(ethCallVault, "Withdraw")
         .withArgs(
           vaultQueue.address,
-          "57738042189631111691",
-          "53657402371464636689"
+          "107140503169183205197",
+          "97253570240730797358"
         );
 
       await expect(interVaultTransferTx)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer1.getAddress(), "10072592725506459997", "16");
+        .withArgs(await signer1.getAddress(), "1108806555316160762", "24");
 
       await expect(interVaultTransferTx)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer2.getAddress(), "100411865008829239", "16");
+        .withArgs(await signer2.getAddress(), "102801807869008328", "24");
 
       await expect(interVaultTransferTx)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer5.getAddress(), "47565037599115822455", "16");
+        .withArgs(await signer5.getAddress(), "105928894805998036107", "24");
     });
 
     it("Queues up vault transfer from ETH vault to stETH vault 3x", async () => {
@@ -398,16 +393,16 @@ describe("VaultQueue", () => {
 
       await expect(interVaultTransferTx1)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer1.getAddress(), "10072592725506459998", "16");
+        .withArgs(await signer1.getAddress(), "1108806555316160772", "24");
 
       await expect(interVaultTransferTx2)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer2.getAddress(), "100411865008829227", "16");
+        .withArgs(await signer2.getAddress(), "102801807869008348", "24");
 
       // Appears extra shared were minted for signer5
       await expect(interVaultTransferTx3)
         .to.emit(stethCallVault, "Deposit")
-        .withArgs(await signer5.getAddress(), "67255786359115822465", "16");
+        .withArgs(await signer5.getAddress(), "107730971775998036075", "24");
     });
 
     //
@@ -467,71 +462,70 @@ describe("VaultQueue", () => {
         .connect(signer1)
         .queueTransfer(
           ethCallVault.address,
-          await signer1.getAddress(),
+          constants.AddressZero,
           "1",
           balance
         );
+    });
 
-  //
-  // Withdrawal
-  ///
-  it("Doesn't allow the same user to queue up multiple withdrawals", async () => {
-    await ethCallVault.connect(signer1).maxRedeem();
-    const balance = (
-      await ethCallVault.shares(await signer1.getAddress())
-    ).toString();
-    await ethCallVault.connect(signer1).approve(vaultQueue.address, balance);
+    //
+    // Withdrawal
+    ///
+    it("Doesn't allow the same user to queue up multiple withdrawals", async () => {
+      await ethCallVault.connect(signer1).maxRedeem();
+      const balance = (
+        await ethCallVault.shares(await signer1.getAddress())
+      ).toString();
+      await ethCallVault.connect(signer1).approve(vaultQueue.address, balance);
 
-    assert.isFalse(
-      await vaultQueue.hasWithdrawal(
-        ethCallVault.address,
-        await signer1.getAddress()
-      )
-    );
-
-    await vaultQueue
-      .connect(signer1)
-      .queueTransfer(
-        ethCallVault.address,
-        stethCallVault.address,
-        stethCallVault.address,
-        "0",
-        "1000"
+      assert.isFalse(
+        await vaultQueue.hasWithdrawal(
+          ethCallVault.address,
+          await signer1.getAddress()
+        )
       );
 
-    assert.isTrue(
-      await vaultQueue.hasWithdrawal(
-        ethCallVault.address,
-        await signer1.getAddress()
-      )
-    );
-
-    await expect(
-      vaultQueue
+      await vaultQueue
         .connect(signer1)
         .queueTransfer(
           ethCallVault.address,
           stethCallVault.address,
           stethCallVault.address,
-          "0",
           "1000"
+        );
+
+      assert.isTrue(
+        await vaultQueue.hasWithdrawal(
+          ethCallVault.address,
+          await signer1.getAddress()
         )
-    ).to.be.revertedWith("Withdraw already submitted");
-  });
+      );
 
-  it("Queues up a vault withdraw from ETH vault to creditor", async () => {
-    await ethCallVault.connect(signer1).maxRedeem();
-    const balance = (
-      await ethCallVault.shares(await signer1.getAddress())
-    ).toString();
+      await expect(
+        vaultQueue
+          .connect(signer1)
+          .queueTransfer(
+            ethCallVault.address,
+            stethCallVault.address,
+            stethCallVault.address,
+            "1000"
+          )
+      ).to.be.revertedWith("Withdraw already submitted");
+    });
 
-    await setOpynOracleExpiryPrice(
-      WETH_ADDRESS[CHAINID.ETH_MAINNET],
-      oracleContract,
-      await wethPriceSigner.getAddress(),
-      await getCurrentOptionExpiry(ethCallVault),
-      BigNumber.from("272655342834")
-    );
+    it("Queues up a vault withdraw from ETH vault to creditor", async () => {
+      await ethCallVault.connect(signer1).maxRedeem();
+      const balance = (
+        await ethCallVault.shares(await signer1.getAddress())
+      ).toString();
+
+      await setOpynOracleExpiryPrice(
+        WETH_ADDRESS[CHAINID.ETH_MAINNET],
+        oracleContract,
+        await wethPriceSigner.getAddress(),
+        await getCurrentOptionExpiry(ethCallVault),
+        BigNumber.from("272655342834")
+      );
 
       await rollToNextOption(ethCallVault, strikeSelectionETH);
 
@@ -551,16 +545,15 @@ describe("VaultQueue", () => {
         "0"
       );
 
-    assert.isAtLeast(
-      Number(
-        (
-          await ethers.provider.getBalance(await signer1.getAddress())
-        ).toString()
-      ),
-      Number("6335845527154759231")
-      Number((await ethers.provider.getBalance(await signer1.getAddress())).toString()),
-      Number("1640843000000000000")
-    );
+      assert.isAtLeast(
+        Number(
+          (
+            await ethers.provider.getBalance(await signer1.getAddress())
+          ).toString()
+        ),
+        Number("1640843000000000000")
+      );
+    });
 
     it("Queues up a vault withdraw from STETH vault to creditor", async () => {
       const setExpiryPrices = async () => {
@@ -588,18 +581,16 @@ describe("VaultQueue", () => {
             expiry,
             BigNumber.from("272655342834")
           );
+      };
 
-    assert.isAtLeast(
-      Number(
-        (
-          await ethers.provider.getBalance(await signer1.getAddress())
-        ).toString()
-      ),
-      Number("16408438252661219229")
-      Number((await ethers.provider.getBalance(await signer1.getAddress())).toString()),
-      Number("1640843000000000000")
-    );
-  });
+      assert.isAtLeast(
+        Number(
+          (
+            await ethers.provider.getBalance(await signer1.getAddress())
+          ).toString()
+        ),
+        Number("1640843000000000000")
+      );
 
       assert.equal(
         (await steth.balanceOf(await signer3.getAddress())).toString(),
@@ -639,19 +630,19 @@ describe("VaultQueue", () => {
         "0"
       );
 
-    await vaultQueue
-      .connect(signer3)
-      .queueTransfer(
-        stethCallVault.address,
-        await signer3.getAddress(),
-        "1",
-        balance
-      );
+      await vaultQueue
+        .connect(signer3)
+        .queueTransfer(
+          stethCallVault.address,
+          await signer3.getAddress(),
+          "1",
+          balance
+        );
 
-    assert.equal(
-      (await stethCallVault.balanceOf(await signer3.getAddress())).toString(),
-      "0"
-    );
+      assert.equal(
+        (await stethCallVault.balanceOf(await signer3.getAddress())).toString(),
+        "0"
+      );
 
       await vaultQueue.connect(keeperSigner).transfer(stethCallVault.address);
 
@@ -760,10 +751,10 @@ describe("VaultQueue", () => {
 
       await rollToNextOption(ethCallVault, strikeSelectionETH);
 
-    await vaultQueue.connect(keeperSigner).rescueETH(parseEther("1"));
-    const interVaultTransferTx1 = await vaultQueue
-      .connect(keeperSigner)
-      .transfer(ethCallVault.address);
+      await vaultQueue.connect(keeperSigner).rescueETH(parseEther("1"));
+      const interVaultTransferTx1 = await vaultQueue
+        .connect(keeperSigner)
+        .transfer(ethCallVault.address);
 
       await queueWithdrawal(signer5);
 
@@ -871,10 +862,10 @@ describe("VaultQueue", () => {
         CHAINLINK_WETH_PRICER[CHAINID.AVAX_MAINNET]
       );
 
-    ownerSigner = await impersonate(ORACLE_OWNER[CHAINID.AVAX_MAINNET]);
-    avaxPriceSigner = await impersonate(
-      CHAINLINK_WETH_PRICER[CHAINID.AVAX_MAINNET]
-    );
+      ownerSigner = await impersonate(ORACLE_OWNER[CHAINID.AVAX_MAINNET]);
+      avaxPriceSigner = await impersonate(
+        CHAINLINK_WETH_PRICER[CHAINID.AVAX_MAINNET]
+      );
 
       await forceSend(await avaxPriceSigner.getAddress(), "10");
       await sendEth(await ownerSigner.getAddress(), "10");
@@ -885,12 +876,13 @@ describe("VaultQueue", () => {
         (await avaxCallVault.balanceOf(await signer1.getAddress())).toString(),
         "0"
       );
+    });
 
-  it("Queues up a vault transfer from AVAX vault to SAVAX vault", async () => {
-    assert.equal(
-      (await avaxCallVault.balanceOf(await signer1.getAddress())).toString(),
-      "0"
-    );
+    it("Queues up a vault transfer from AVAX vault to SAVAX vault", async () => {
+      assert.equal(
+        (await avaxCallVault.balanceOf(await signer1.getAddress())).toString(),
+        "0"
+      );
 
       const balance = (
         await avaxCallVault.shares(await signer1.getAddress())
