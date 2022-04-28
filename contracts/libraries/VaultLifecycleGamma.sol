@@ -12,6 +12,7 @@ import {IWETH} from "../interfaces/IWETH.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {UniswapRouter} from "./UniswapRouter.sol";
 import {VaultLib} from "./PowerTokenVaultLib.sol";
+import {Vault} from "./Vault.sol";
 
 library VaultLifecycleGamma {
     using SafeMath for uint256;
@@ -38,6 +39,95 @@ library VaultLifecycleGamma {
 
     /// @notice The units the collateral ratio is demominated in
     uint256 internal constant COLLATERAL_UNITS = 1e18;
+
+    /************************************************
+     *  STRUCTS
+     ***********************************************/
+
+    /**
+     * @notice Initialization parameters for the vault.
+     * @param _owner is the owner of the vault with critical permissions
+     * @param _feeRecipient is the address to recieve vault performance and management fees
+     * @param _managementFee is the management fee pct.
+     * @param _performanceFee is the perfomance fee pct.
+     * @param _tokenName is the name of the token
+     * @param _tokenSymbol is the symbol of the token
+     * @param _ratioThreshold is the collateral ratio threshold at which the vault is eligible for a rebalancing
+     * @param _optionAllocation is the multiplier on the amount to allocate towards the long strangle
+     * @param _usdcWethSwapPath is the USDC -> WETH swap path
+     * @param _wethUsdcSwapPath is the WETH -> USDC swap path
+     */
+    struct InitParams {
+        address _owner;
+        address _keeper;
+        address _feeRecipient;
+        uint256 _managementFee;
+        uint256 _performanceFee;
+        string _tokenName;
+        string _tokenSymbol;
+        address _ribbonThetaCallVault;
+        address _ribbonThetaPutVault;
+        uint256 _ratioThreshold;
+        uint256 _optionAllocation;
+        bytes _usdcWethSwapPath;
+        bytes _wethUsdcSwapPath;
+    }
+
+    /**
+     * @notice Verify the constructor params satisfy requirements
+     * @param _initParams is the struct with vault initialization parameters
+     * @param _vaultParams is the struct with vault general data
+     */
+    function verifyInitializerParams(
+        address usdc,
+        address weth,
+        address uniswapFactory,
+        InitParams calldata _initParams,
+        Vault.VaultParams calldata _vaultParams
+    ) external view {
+        require(_initParams._owner != address(0), "!owner");
+        require(_initParams._keeper != address(0), "!keeper");
+        require(_initParams._feeRecipient != address(0), "!feeRecipient");
+        require(
+            _initParams._performanceFee < 100 * Vault.FEE_MULTIPLIER,
+            "performanceFee >= 100%"
+        );
+        require(
+            _initParams._managementFee < 100 * Vault.FEE_MULTIPLIER,
+            "managementFee >= 100%"
+        );
+        require(bytes(_initParams._tokenName).length > 0, "!tokenName");
+        require(bytes(_initParams._tokenSymbol).length > 0, "!tokenSymbol");
+
+        require(_vaultParams.asset != address(0), "!asset");
+        require(_vaultParams.underlying != address(0), "!underlying");
+        require(_vaultParams.minimumSupply > 0, "!minimumSupply");
+        require(_vaultParams.cap > 0, "!cap");
+        require(
+            _vaultParams.cap > _vaultParams.minimumSupply,
+            "cap has to be higher than minimumSupply"
+        );
+        require(
+            _initParams._ratioThreshold != 0 &&
+                _initParams._ratioThreshold <
+                VaultLifecycleGamma.COLLATERAL_UNITS,
+            "!_ratioThreshold"
+        );
+        require(
+            UniswapRouter.checkPath(
+                _initParams._usdcWethSwapPath,
+                usdc, weth, uniswapFactory
+            ),
+            "!_usdcWethSwapPath"
+        );
+        require(
+            UniswapRouter.checkPath(
+                _initParams._wethUsdcSwapPath,
+                weth, usdc, uniswapFactory
+            ),
+            "!_wethUsdcSwapPath"
+        );
+    }
 
     /**
      * @notice Swaps pending USDC deposits into WETH
@@ -295,6 +385,41 @@ library VaultLifecycleGamma {
                 .mul(wethUsdcPrice)
                 .div(ONE_ONE);
         return (vault.collateralAmount, debtValueInWeth);
+    }
+
+    function getCurrentSqthPosition(
+        address oracle,
+        address usdcWethPool,
+        address weth,
+        address usdc,
+        address controller,
+        uint256 vaultId
+    ) internal view returns (
+        uint256 wethUsdcPrice, 
+        uint256 collateralAmount, 
+        uint256 debtValueInWeth, 
+        uint256 collateralRatio
+    ) {
+        wethUsdcPrice =
+            VaultLifecycleGamma.getWethPrice(
+                oracle,
+                usdcWethPool,
+                weth,
+                usdc
+            );
+
+        (collateralAmount, debtValueInWeth) =
+            VaultLifecycleGamma.getVaultPosition(
+                controller,
+                vaultId,
+                wethUsdcPrice
+            );
+
+        collateralRatio =
+            VaultLifecycleGamma.getCollateralRatio(
+                collateralAmount,
+                debtValueInWeth
+            );
     }
 
     function getCollateralRatio(
