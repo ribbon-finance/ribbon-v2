@@ -248,6 +248,17 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         liquidityGauge = newLiquidityGauge;
     }
 
+    /**
+     * @notice Sets the new optionsPurchaseQueue contract for this vault
+     * @param newOptionsPurchaseQueue is the address of the new optionsPurchaseQueue contract
+     */
+    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
+        external
+        onlyOwner
+    {
+        optionsPurchaseQueue = newOptionsPurchaseQueue;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -332,7 +343,10 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                 currentOption: oldOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
             });
 
         (
@@ -342,9 +356,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
             uint256 delta
         ) =
             VaultLifecycleYearn.commitAndClose(
-                strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
                 closeParams,
                 vaultParams,
                 vaultState,
@@ -423,11 +434,19 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
+        uint256 optionsMintAmount =
+            VaultLifecycle.createShort(
+                GAMMA_CONTROLLER,
+                MARGIN_POOL,
+                newOption,
+                lockedBalance
+            );
+
+        VaultLifecycle.allocateOptions(
+            optionsPurchaseQueue,
             newOption,
-            lockedBalance
+            optionsMintAmount,
+            VaultLifecycle.QUEUE_OPTION_ALLOCATION
         );
 
         _startAuction();
@@ -443,11 +462,16 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium;
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            VaultLifecycleYearn.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount,
+                address(collateralToken)
+            );
 
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
+        auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
@@ -455,6 +479,17 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
+    }
+
+    /**
+     * @notice Sell the allocated options to the purchase queue post auction settlement
+     */
+    function sellOptionsToQueue() external onlyKeeper nonReentrant {
+        VaultLifecycle.sellOptionsToQueue(
+            optionsPurchaseQueue,
+            GNOSIS_EASY_AUCTION,
+            optionAuctionID
+        );
     }
 
     /**

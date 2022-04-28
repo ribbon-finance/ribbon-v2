@@ -36,6 +36,7 @@ import {
   bidForOToken,
   decodeOrder,
   lockedBalanceForRollover,
+  getAuctionMinPrice,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -330,7 +331,7 @@ function behavesLikeRibbonOptionsVault(params: {
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
         params.deltaFirstOption,
-        params.deltaStep
+        BigNumber.from(params.deltaStep).mul(10 ** 8)
       );
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
@@ -2722,8 +2723,6 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#completeWithdraw", () => {
-      let minETHOut: BigNumberish;
-
       time.revertToSnapshotAfterEach(async () => {
         await assetContract
           .connect(userSigner)
@@ -2744,22 +2743,16 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await vault.initiateWithdraw(depositAmount);
-
-        const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
-
-        minETHOut = (await crv.get_dy(1, 0, depositAmount))
-          .mul(BigNumber.from(100).sub(crvSlippage))
-          .div(100);
       });
 
       it("reverts when not initiated", async function () {
         await expect(
-          vault.connect(ownerSigner).completeWithdraw(0)
+          vault.connect(ownerSigner).completeWithdraw()
         ).to.be.revertedWith("Not initiated");
       });
 
       it("reverts when round not closed", async function () {
-        await expect(vault.completeWithdraw(0)).to.be.revertedWith(
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
           "Round not closed"
         );
       });
@@ -2767,9 +2760,9 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when calling completeWithdraw twice", async function () {
         await rollToSecondOption(firstOptionStrike);
 
-        await vault.completeWithdraw(minETHOut);
+        await vault.completeWithdraw();
 
-        await expect(vault.completeWithdraw(0)).to.be.revertedWith(
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
           "Not initiated"
         );
       });
@@ -2790,7 +2783,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const { queuedWithdrawShares: startQueuedShares } =
           await vault.vaultState();
 
-        const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
+        const tx = await vault.completeWithdraw({ gasPrice });
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
@@ -2831,7 +2824,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await rollToSecondOption(firstOption.strikePrice);
 
-        const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
+        const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
         assert.isAtMost(receipt.gasUsed.toNumber(), 277150);
@@ -2840,6 +2833,102 @@ function behavesLikeRibbonOptionsVault(params: {
         //   "completeWithdraw",
         //   receipt.gasUsed.toNumber()
         // );
+      });
+    });
+
+    describe("#startAuction", () => {
+      let otoken: Contract;
+      let initialOtokenBalance: BigNumber;
+      let startOtokenPrice: BigNumber;
+      const depositAmount = params.depositAmount;
+
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+        await setupOracle(
+          params.asset,
+          params.underlyingPricer,
+          ownerSigner,
+          OPTION_PROTOCOL.GAMMA
+        );
+
+        await vault.connect(ownerSigner).commitAndClose();
+        startOtokenPrice = await vault.currentOtokenPremium();
+
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+        const { currentOption } = await vault.optionState();
+        otoken = await ethers.getContractAt("IERC20", currentOption);
+        initialOtokenBalance = await otoken.balanceOf(gnosisAuction.address);
+      });
+
+      it("restarts the auction process", async () => {
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        // we simulate settling the auction without any bids
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        const afterOtokenBalance = await otoken.balanceOf(vault.address);
+        assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
+
+        // We increase the discount so the otoken min price should go down
+        await vault
+          .connect(keeperSigner)
+          .setPremiumDiscount(BigNumber.from("800"));
+
+        await vault.connect(keeperSigner).startAuction();
+
+        assert.bnEqual(
+          await otoken.balanceOf(gnosisAuction.address),
+          initialOtokenBalance
+        );
+
+        // otoken price is decreased on the auction
+        const minPrice = await getAuctionMinPrice(gnosisAuction, tokenDecimals);
+        assert.bnLt(minPrice, startOtokenPrice);
+      });
+
+      it("reverts when first auction fully sells out", async () => {
+        await bidForOToken(
+          gnosisAuction,
+          assetContract,
+          userSigner.address,
+          defaultOtokenAddress,
+          firstOptionPremium,
+          tokenDecimals,
+          "1",
+          auctionDuration
+        );
+
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        await expect(
+          vault.connect(keeperSigner).startAuction()
+        ).to.be.revertedWith("No otokens to sell");
+      });
+
+      it("reverts when not keeper", async () => {
+        await time.increaseTo(
+          (await provider.getBlock("latest")).timestamp + auctionDuration
+        );
+
+        // we simulate settling the auction without any bids
+        await gnosisAuction
+          .connect(userSigner)
+          .settleAuction(await gnosisAuction.auctionCounter());
+
+        await expect(vault.startAuction()).to.be.revertedWith("!keeper");
       });
     });
 

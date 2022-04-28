@@ -27,6 +27,7 @@ const main = async ({
     contract: "VaultLifecycleYearn",
     from: deployer,
   });
+  console.log(`VaultLifeCycleYearn @ ${lifecycleYearn.address}`);
 
   const args = [
     WETH_ADDRESS[chainId],
@@ -48,6 +49,15 @@ const main = async ({
     },
   });
   console.log(`RibbonThetaYearnVaultLogic @ ${vault.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: lifecycleYearn.address,
+      constructorArguments: [],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   try {
     await run("verify:verify", {
