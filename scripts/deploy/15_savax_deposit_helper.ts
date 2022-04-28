@@ -10,7 +10,7 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
-  console.log(`17 - Deploying sAVAX Deposit Helper on ${network.name}`);
+  console.log(`15 - Deploying sAVAX Deposit Helper on ${network.name}`);
 
   const chainId = network.config.chainId;
 
