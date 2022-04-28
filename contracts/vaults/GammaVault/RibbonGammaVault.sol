@@ -839,13 +839,14 @@ contract RibbonGammaVault is
         external
         onlyKeeper
         nonReentrant
+        returns (uint256 amountOut)
     {
         require(newRoundInProgress, "!newRoundInProgress");
 
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
         if (wethAmount > wethBalance) wethAmount = wethBalance;
 
-        VaultLifecycleGamma.depositTotalPending(
+        amountOut = VaultLifecycleGamma.depositTotalPending(
             CONTROLLER,
             ORACLE,
             SQTH_WETH_POOL,
@@ -1084,34 +1085,16 @@ contract RibbonGammaVault is
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        uint256 wethUsdcPrice =
-            VaultLifecycleGamma.getWethPrice(
+        return
+            VaultLifecycleGamma.getTotalBalance(
+                CONTROLLER,
                 ORACLE,
                 USDC_WETH_POOL,
+                SQTH_WETH_POOL,
+                SQTH,
                 WETH,
-                USDC
-            );
-        (uint256 collateralAmount, uint256 debtValueInWeth) =
-            VaultLifecycleGamma.getVaultPosition(
-                CONTROLLER,
-                VAULT_ID,
-                wethUsdcPrice
-            );
-        return
-            IERC20(USDC)
-                .balanceOf(address(this))
-                .add(
-                VaultLifecycleGamma.getWethUsdcValue(
-                    wethUsdcPrice,
-                    IERC20(WETH).balanceOf(address(this))
-                )
-            )
-                .add(
-                VaultLifecycleGamma.getVaultUsdcBalance(
-                    wethUsdcPrice,
-                    collateralAmount,
-                    debtValueInWeth
-                )
+                USDC,
+                VAULT_ID
             );
     }
 
