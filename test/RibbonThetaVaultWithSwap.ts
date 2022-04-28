@@ -1423,11 +1423,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
-          [CHAINID.AURORA_MAINNET]: 250000000000, // WETH
         };
 
-        const altStrikePrice =
-          chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
+        const altStrikePrice = "405000000000";
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
             ? WETH_STRIKE_PRICE[chainId]
@@ -2395,7 +2393,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
-          [CHAINID.AURORA_MAINNET]: "1000000000",
         };
 
         const settlementPriceITM = isPut
@@ -3323,7 +3320,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
-          [CHAINID.AURORA_MAINNET]: "1000000000",
         };
 
         const settlementPriceITM = isPut
