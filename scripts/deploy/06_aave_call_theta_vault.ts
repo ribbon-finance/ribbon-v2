@@ -10,7 +10,7 @@ import {
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
-  AAVE_STRIKE_STEP,
+  STRIKE_STEP,
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
@@ -63,12 +63,21 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionAAVE", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, AAVE_STRIKE_STEP],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AAVE],
   });
 
   console.log(
     `RibbonThetaVaultAAVECall strikeSelection @ ${strikeSelection.address}`
   );
+
+  try {
+    await run("verify:verify", {
+      address: strikeSelection.address,
+      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AAVE],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");

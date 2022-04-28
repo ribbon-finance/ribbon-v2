@@ -356,8 +356,7 @@ export async function mintToken(
   } else if (
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
-    contract.address === APE_ADDRESS[chainId] ||
-    chainId === CHAINID.AURORA_MAINNET
+    contract.address === APE_ADDRESS[chainId]
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
@@ -591,8 +590,6 @@ export const getDeltaStep = (asset: string) => {
     case "AAVE":
       return BigNumber.from("10");
     case "SAVAX":
-    case "NEAR":
-    case "AURORA":
     case "APE":
       return BigNumber.from("5");
     case "SUSHI":

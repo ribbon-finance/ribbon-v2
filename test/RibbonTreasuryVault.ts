@@ -44,7 +44,7 @@ import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
   PERP_STRIKE_MULTIPLIER,
-  PERP_STRIKE_STEP,
+  STRIKE_STEP
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
@@ -69,7 +69,7 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: PERP_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_PERP_PRICER[chainId],
-    deltaStep: BigNumber.from(PERP_STRIKE_STEP),
+    deltaStep: BigNumber.from(STRIKE_STEP.PERP),
     depositAmount: parseEther("20"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("2000000000"),
@@ -344,8 +344,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
-        params.deltaStep,
-        params.multiplier
+        params.multiplier,
+        params.deltaStep
       );
 
       const VaultLifecycleTreasury = await ethers.getContractFactory(

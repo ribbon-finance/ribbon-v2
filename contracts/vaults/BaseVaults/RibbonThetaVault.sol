@@ -267,6 +267,17 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         liquidityGauge = newLiquidityGauge;
     }
 
+    /**
+     * @notice Sets the new optionsPurchaseQueue contract for this vault
+     * @param newOptionsPurchaseQueue is the address of the new optionsPurchaseQueue contract
+     */
+    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
+        external
+        onlyOwner
+    {
+        optionsPurchaseQueue = newOptionsPurchaseQueue;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -429,11 +440,19 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
+        uint256 optionsMintAmount =
+            VaultLifecycle.createShort(
+                GAMMA_CONTROLLER,
+                MARGIN_POOL,
+                newOption,
+                lockedBalance
+            );
+
+        VaultLifecycle.allocateOptions(
+            optionsPurchaseQueue,
             newOption,
-            lockedBalance
+            optionsMintAmount,
+            VaultLifecycle.QUEUE_OPTION_ALLOCATION
         );
 
         _startAuction();
@@ -468,6 +487,17 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
+     * @notice Sell the allocated options to the purchase queue post auction settlement
+     */
+    function sellOptionsToQueue() external onlyKeeper nonReentrant {
+        VaultLifecycle.sellOptionsToQueue(
+            optionsPurchaseQueue,
+            GNOSIS_EASY_AUCTION,
+            optionAuctionID
+        );
+    }
+
+    /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
@@ -479,6 +509,25 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         vaultState.lockedAmount = uint104(
             uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+        );
+    }
+
+    /**
+     * @notice Recovery function that returns an ERC20 token to the recipient
+     * @param token is the ERC20 token to recover from the vault
+     * @param recipient is the recipient of the recovered tokens
+     */
+    function recoverTokens(address token, address recipient)
+        external
+        onlyOwner
+    {
+        require(token != vaultParams.asset, "Vault asset not recoverable");
+        require(token != address(this), "Vault share not recoverable");
+        require(recipient != address(this), "Recipient cannot be vault");
+
+        IERC20(token).safeTransfer(
+            recipient,
+            IERC20(token).balanceOf(address(this))
         );
     }
 }

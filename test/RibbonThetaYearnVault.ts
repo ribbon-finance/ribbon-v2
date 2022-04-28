@@ -319,7 +319,7 @@ function behavesLikeRibbonOptionsVault(params: {
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
         params.deltaFirstOption,
-        params.deltaStep
+        BigNumber.from(params.deltaStep).mul(10 ** 8)
       );
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
@@ -2481,7 +2481,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1127113);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1130494);
 
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });

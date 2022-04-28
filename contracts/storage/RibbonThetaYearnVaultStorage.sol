@@ -31,6 +31,9 @@ abstract contract RibbonThetaYearnVaultStorageV3 {
 }
 
 abstract contract RibbonThetaYearnVaultStorageV4 {
+    // OptionsPurchaseQueue contract for selling options
+    address public optionsPurchaseQueue;
+
     // Queued withdraw shares for the current round
     uint256 public currentQueuedWithdrawShares;
 }

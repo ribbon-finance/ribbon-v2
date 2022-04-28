@@ -331,7 +331,7 @@ function behavesLikeRibbonOptionsVault(params: {
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
         params.deltaFirstOption,
-        params.deltaStep
+        BigNumber.from(params.deltaStep).mul(10 ** 8)
       );
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
@@ -2723,8 +2723,6 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#completeWithdraw", () => {
-      let minETHOut: BigNumberish;
-
       time.revertToSnapshotAfterEach(async () => {
         await assetContract
           .connect(userSigner)
@@ -2745,22 +2743,16 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await vault.initiateWithdraw(depositAmount);
-
-        const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
-
-        minETHOut = (await crv.get_dy(1, 0, depositAmount))
-          .mul(BigNumber.from(100).sub(crvSlippage))
-          .div(100);
       });
 
       it("reverts when not initiated", async function () {
         await expect(
-          vault.connect(ownerSigner).completeWithdraw(0)
+          vault.connect(ownerSigner).completeWithdraw()
         ).to.be.revertedWith("Not initiated");
       });
 
       it("reverts when round not closed", async function () {
-        await expect(vault.completeWithdraw(0)).to.be.revertedWith(
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
           "Round not closed"
         );
       });
@@ -2768,9 +2760,9 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when calling completeWithdraw twice", async function () {
         await rollToSecondOption(firstOptionStrike);
 
-        await vault.completeWithdraw(minETHOut);
+        await vault.completeWithdraw();
 
-        await expect(vault.completeWithdraw(0)).to.be.revertedWith(
+        await expect(vault.completeWithdraw()).to.be.revertedWith(
           "Not initiated"
         );
       });
@@ -2791,7 +2783,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const { queuedWithdrawShares: startQueuedShares } =
           await vault.vaultState();
 
-        const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
+        const tx = await vault.completeWithdraw({ gasPrice });
 
         await expect(tx)
           .to.emit(vault, "Withdraw")
@@ -2832,7 +2824,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await rollToSecondOption(firstOption.strikePrice);
 
-        const tx = await vault.completeWithdraw(minETHOut, { gasPrice });
+        const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
         assert.isAtMost(receipt.gasUsed.toNumber(), 277150);
