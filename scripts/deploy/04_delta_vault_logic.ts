@@ -6,8 +6,6 @@ import {
   MARGIN_POOL,
   GNOSIS_EASY_AUCTION,
   WETH_ADDRESS,
-  DEX_ROUTER,
-  DEX_FACTORY,
 } from "../../constants/constants";
 
 const main = async ({
@@ -31,8 +29,6 @@ const main = async ({
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
-      DEX_ROUTER[chainId],
-      DEX_FACTORY[chainId],
     ],
     libraries: {
       VaultLifecycle: lifecycle.address,
@@ -50,8 +46,6 @@ const main = async ({
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
-        DEX_ROUTER[chainId],
-        DEX_FACTORY[chainId],
       ],
     });
   } catch (error) {
