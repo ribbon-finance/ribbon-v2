@@ -46,6 +46,12 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice OptionsPurchaseQueue contract for the vault
     address public optionsPurchaseQueue;
 
+    /// @notice Ribbon ETH Call Theta Vault to buy call options from
+    address public ribbonThetaCallVault;
+
+    /// @notice Ribbon ETH Put Theta Vault to buy call options from
+    address public ribbonThetaPutVault;
+
     /// @notice True if the vault is currently adding/withdrawing from the squeeth short position
     bool public newRoundInProgress;
 
