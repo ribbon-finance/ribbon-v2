@@ -7,8 +7,6 @@ import {
   OTOKEN_FACTORY,
   USDC_ADDRESS,
   WETH_ADDRESS,
-  DEX_ROUTER,
-  DEX_FACTORY,
 } from "../../constants/constants";
 import { objectEquals, parseLog, serializeMap } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
@@ -22,7 +20,7 @@ const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14253986;
+const FORK_BLOCK = 14666901;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -91,9 +89,7 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "overriddenStrikePrice",
     "auctionDuration",
     "optionAuctionID",
-    "lastQueuedWithdrawAmount",
-    "isUsdcAuction",
-    "swapPath",
+    "lastQueuedWithdrawAmount"
   ];
 
   let variables: Record<string, unknown> = {};
@@ -135,8 +131,6 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
         GAMMA_CONTROLLER[CHAINID],
         MARGIN_POOL[CHAINID],
         GNOSIS_EASY_AUCTION[CHAINID],
-        DEX_ROUTER[CHAINID],
-        DEX_FACTORY[CHAINID]
       );
       newImplementation = newImplementationContract.address;
     });

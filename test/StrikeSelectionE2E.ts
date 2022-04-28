@@ -74,7 +74,7 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
       1000,
-      100
+      BigNumber.from(100).mul(10 ** 8)
     );
 
     wethPriceOracle = await ethers.getContractAt(
@@ -103,12 +103,18 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(50)
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10 ** 8))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
+    it("reverts when not bigger than 0", async function () {
+      await expect(
+        strikeSelection.connect(signer).setStep(0)
+      ).to.be.revertedWith("!newStep");
+    });
+
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(50);
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10 ** 8));
       assert.equal(
         (await strikeSelection.step()).toString(),
         BigNumber.from(50)
@@ -188,6 +194,43 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
       );
     });
 
+    it("gets the correct strike price given delta for calls (with low vol)", async function () {
+      const isPut = false;
+      const targetDelta = await strikeSelection.delta();
+      const [strikePrice, delta] = await strikeSelection.getStrikePriceWithVol(
+        expiryTimestamp,
+        isPut,
+        1
+      );
+
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .add(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(1500)
+              .sub(1)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
+          )
+          .toString()
+      );
+      assert.isAbove(
+        parseInt(targetDelta.toString()),
+        parseInt(delta.toString())
+      );
+      assert.isBelow(
+        parseInt(targetDelta.toString()),
+        parseInt(
+          await optionsPremiumPricer["getOptionDelta(uint256,uint256)"](
+            strikePrice.add(await strikeSelection.step()),
+            expiryTimestamp
+          )
+        )
+      );
+    });
+
     it("gets the correct strike price given delta for puts", async function () {
       const isPut = true;
       const targetDelta = await strikeSelection.delta();
@@ -228,6 +271,48 @@ describe("DeltaStrikeSelectionE2E-ManualVolOracle", () => {
         )
       );
     });
+
+    it("gets the correct strike price given delta for puts (with low vol)", async function () {
+      const isPut = true;
+      const targetDelta = await strikeSelection.delta();
+      const [strikePrice, delta] = await strikeSelection.getStrikePriceWithVol(
+        expiryTimestamp,
+        isPut,
+        1
+      );
+
+      assert.equal(
+        strikePrice.toString(),
+        underlyingPrice
+          .sub(
+            deltaAtUnderlying
+              .sub(targetDelta)
+              .div(800)
+              .sub(4)
+              .mul(100)
+              .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
+          )
+          .toString()
+      );
+
+      assert.isAbove(
+        parseInt(targetDelta.toString()),
+        parseInt(BigNumber.from(10000).sub(delta).toString())
+      );
+      assert.isBelow(
+        parseInt(targetDelta.toString()),
+        parseInt(
+          BigNumber.from(10000)
+            .sub(
+              await optionsPremiumPricer["getOptionDelta(uint256,uint256)"](
+                strikePrice.add(await strikeSelection.step()),
+                expiryTimestamp
+              )
+            )
+            .toString()
+        )
+      );
+    });
   });
 });
 
@@ -237,7 +322,6 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
   let optionsPremiumPricer: Contract;
   let signer: SignerWithAddress;
   let signer2: SignerWithAddress;
-  let wethPriceOracle: Contract;
   let multiplier: number;
   let optionId: string;
 
@@ -292,13 +376,8 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
     multiplier = 150;
     strikeSelection = await StrikeSelection.deploy(
       optionsPremiumPricer.address,
-      100 * 10 ** 8,
-      multiplier
-    );
-
-    wethPriceOracle = await ethers.getContractAt(
-      "@ribbon-finance/rvol/contracts/interfaces/IPriceOracle.sol:IPriceOracle",
-      await optionsPremiumPricer.priceOracle()
+      multiplier,
+      BigNumber.from(100).mul(10 ** 8)
     );
   });
 
@@ -307,17 +386,21 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
 
     it("reverts when not owner call", async function () {
       await expect(
-        strikeSelection.connect(signer2).setStep(50)
+        strikeSelection.connect(signer2).setStep(BigNumber.from(50).mul(10 ** 8))
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
+    it("reverts when not bigger than 0", async function () {
+      await expect(
+        strikeSelection.connect(signer).setStep(0)
+      ).to.be.revertedWith("!newStep");
+    });
+
     it("sets the step", async function () {
-      await strikeSelection.connect(signer).setStep(50);
+      await strikeSelection.connect(signer).setStep(BigNumber.from(50).mul(10 ** 8));
       assert.equal(
         (await strikeSelection.step()).toString(),
-        BigNumber.from(50)
-          .mul(BigNumber.from(10).pow(await wethPriceOracle.decimals()))
-          .toString()
+        BigNumber.from(50).mul(10 ** 8).toString()
       );
     });
   });

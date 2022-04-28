@@ -19,24 +19,23 @@ const main = async ({
 
   if (
     chainId === CHAINID.AVAX_MAINNET ||
-    chainId === CHAINID.AVAX_FUJI ||
-    chainId === CHAINID.AURORA_MAINNET ||
-    chainId === CHAINID.AURORA_TESTNET
+    chainId === CHAINID.AVAX_FUJI
   ) {
     console.log(
-      `14 - Skipping deployment of Treasury Vault logic on ${network.name}`
+      `12 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );
     return;
   }
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`14 - Deploying Treasury Vault logic on ${network.name}`);
+  console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
 
   const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
     contract: "VaultLifecycleTreasury",
     from: deployer,
   });
+  console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
 
   const vault = await deploy("RibbonTreasuryVaultLogic", {
     contract: "RibbonTreasuryVault",
@@ -55,6 +54,15 @@ const main = async ({
   });
 
   console.log(`RibbonTreasuryVaultLogic @ ${vault.address}`);
+
+  try {
+    await run("verify:verify", {
+      address: lifecycleTreasury.address,
+      constructorArguments: [],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   try {
     await run("verify:verify", {
