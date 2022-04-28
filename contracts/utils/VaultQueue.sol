@@ -181,12 +181,7 @@ contract VaultQueue is
         IRibbonVault(srcVault).initiateWithdraw(amount);
 
         qTransfer[srcVault].push(
-            Transfer(
-                msg.sender,
-                depositContract,
-                amount,
-                transferAction
-            )
+            Transfer(msg.sender, depositContract, amount, transferAction)
         );
         totalAmount[srcVault] += amount;
     }
