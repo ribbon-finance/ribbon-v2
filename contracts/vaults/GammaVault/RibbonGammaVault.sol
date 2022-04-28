@@ -91,10 +91,13 @@ contract RibbonGammaVault is
     // oSQTH/WETH Uniswap V3 Pool
     address public immutable SQTH_WETH_POOL;
 
-    // Ribbon ETH Call Theta Vault to buy call options from
+    // OPTIONS_PURCHASE_QUEUE is the contract to reserve options purchase from Theta Vaults
+    address public immutable OPTIONS_PURCHASE_QUEUE;
+
+    // THETA_CALL_VAULT is Ribbon ETH Call Theta Vault to buy call options from
     address public immutable THETA_CALL_VAULT;
 
-    // Ribbon ETH Put Theta Vault to buy put options from
+    // THETA_PUT_VAULT is Ribbon ETH Put Theta Vault to buy put options from
     address public immutable THETA_PUT_VAULT;
 
     /************************************************
@@ -116,6 +119,14 @@ contract RibbonGammaVault is
     event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
 
     event CapSet(uint256 oldCap, uint256 newCap);
+
+    event RatioThresholdSet(uint256 oldRatioThreshold, uint256 newRatioThreshold);
+
+    event OptionAllocationSet(uint256 oldOptionAllocation, uint256 newOptionAllocation);
+
+    event UsdcWethSwapPathSet(bytes oldUsdcWethSwapPath, bytes newUsdcWethSwapPath);
+
+    event WethUsdcSwapPathSet(bytes oldWethUsdcSwapPath, bytes newWethUsdcSwapPath);
 
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
@@ -146,6 +157,7 @@ contract RibbonGammaVault is
      * @param _uniswapFactory is the contract address for Uniswap V3 factory
      * @param _usdcWethPool is the USDC/WETH Uniswap V3 pool
      * @param _sqthWethPool is the oSQTH/WETH Uniswap V3 pool
+     * @param _optionsPurchaseQueue is the contract address to reserve options purchase
      * @param _thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
      * @param _thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
      */
@@ -158,6 +170,7 @@ contract RibbonGammaVault is
         address _uniswapFactory,
         address _usdcWethPool,
         address _sqthWethPool,
+        address _optionsPurchaseQueue,
         address _thetaCallVault,
         address _thetaPutVault
     ) {
@@ -169,6 +182,7 @@ contract RibbonGammaVault is
         require(_uniswapFactory != address(0), "!_uniswapFactory");
         require(_usdcWethPool != address(0), "!_usdcWethPool");
         require(_sqthWethPool != address(0), "!_sqthWethPool");
+        require(_optionsPurchaseQueue != address(0), "!_optionsPurchaseQueue");
         require(_thetaCallVault != address(0), "!_thetaCallVault");
         require(_thetaPutVault != address(0), "!_thetaPutVault");
 
@@ -190,6 +204,7 @@ contract RibbonGammaVault is
         UNISWAP_FACTORY = _uniswapFactory;
         USDC_WETH_POOL = _usdcWethPool;
         SQTH_WETH_POOL = _sqthWethPool;
+        OPTIONS_PURCHASE_QUEUE = _optionsPurchaseQueue;
         THETA_CALL_VAULT = _thetaCallVault;
         THETA_PUT_VAULT = _thetaPutVault;
     }
@@ -330,21 +345,12 @@ contract RibbonGammaVault is
     }
 
     /**
-     * @notice Sets the new optionsPurchaseQueue contract for this vault
-     * @param newOptionsPurchaseQueue is the address of the new optionsPurchaseQueue contract
-     */
-    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
-        external
-        onlyOwner
-    {
-        optionsPurchaseQueue = newOptionsPurchaseQueue;
-    }
-
-    /**
      * @notice Sets the new ratioThreshold value for this vault
      * @param newRatioThreshold is the new ratioThreshold
      */
     function setRatioThreshold(uint256 newRatioThreshold) external onlyOwner {
+        require(newRatioThreshold > 0, "!newRatioThreshold");
+        emit RatioThresholdSet(ratioThreshold, newRatioThreshold);
         ratioThreshold = newRatioThreshold;
     }
 
@@ -355,7 +361,9 @@ contract RibbonGammaVault is
     function setOptionAllocation(uint256 newOptionAllocation)
         external
         onlyOwner
-    {
+    {   
+        require(newOptionAllocation > 0, "!newOptionAllocation");
+        emit OptionAllocationSet(optionAllocation, newOptionAllocation);
         optionAllocation = newOptionAllocation;
     }
 
@@ -366,7 +374,15 @@ contract RibbonGammaVault is
     function setUsdcWethSwapPath(bytes calldata newUsdcWethSwapPath)
         external
         onlyOwner
-    {
+    {   
+        require(
+            UniswapRouter.checkPath(
+                newUsdcWethSwapPath,
+                USDC, WETH, UNISWAP_FACTORY
+            ),
+            "!newUsdcWethSwapPath"
+        );
+        emit UsdcWethSwapPathSet(usdcWethSwapPath, newUsdcWethSwapPath);
         usdcWethSwapPath = newUsdcWethSwapPath;
     }
 
@@ -378,6 +394,13 @@ contract RibbonGammaVault is
         external
         onlyOwner
     {
+        require(
+            UniswapRouter.checkPath(
+                newWethUsdcSwapPath,
+                USDC, WETH, UNISWAP_FACTORY
+            ),
+            "!newWethUsdcSwapPath"
+        );
         wethUsdcSwapPath = newWethUsdcSwapPath;
     }
 
