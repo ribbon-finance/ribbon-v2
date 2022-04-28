@@ -894,31 +894,57 @@ contract RibbonGammaVault is
     }
 
     /**
-     * @notice Rebalances the squeeth position to target the collateral ratio
-     *         reverts if the collateral ratio threshold isn't triggered
+     * @notice Returns the current collateral ratio
      */
-    function rebalance() external onlyKeeper nonReentrant {
-        require(!newRoundInProgress, "!newRoundInProgress");
-
-        uint256 wethUsdcPrice =
+    function _getCurrentSqthPosition() internal view returns (
+        uint256 wethUsdcPrice, 
+        uint256 collateralAmount, 
+        uint256 debtValueInWeth, 
+        uint256 collateralRatio
+    ) {
+        wethUsdcPrice =
             VaultLifecycleGamma.getWethPrice(
                 ORACLE,
                 USDC_WETH_POOL,
                 WETH,
                 USDC
             );
-        (uint256 collateralAmount, uint256 debtValueInWeth) =
+
+        (collateralAmount, debtValueInWeth) =
             VaultLifecycleGamma.getVaultPosition(
                 CONTROLLER,
                 VAULT_ID,
                 wethUsdcPrice
             );
 
-        uint256 collateralRatio =
+        collateralRatio =
             VaultLifecycleGamma.getCollateralRatio(
                 collateralAmount,
                 debtValueInWeth
             );
+    }
+
+    /**
+     * @notice Public view function to get current collateral ratio
+     */
+    function getCollateralRatio() public view returns (uint256 collateralRatio) {
+        (, , , collateralRatio)  = _getCurrentSqthPosition();
+    }    
+
+    /**
+     * @notice Rebalances the squeeth position to target the collateral ratio
+     *         reverts if the collateral ratio threshold isn't triggered
+     */
+    function rebalance() external onlyKeeper nonReentrant {
+        require(!newRoundInProgress, "!newRoundInProgress");
+
+        (
+            uint256 wethUsdcPrice, 
+            uint256 collateralAmount, 
+            , 
+            uint256 collateralRatio
+        ) = _getCurrentSqthPosition();
+        
         uint256 _ratioThreshold = ratioThreshold;
 
         if (collateralRatio > COLLATERAL_RATIO.add(_ratioThreshold)) {
