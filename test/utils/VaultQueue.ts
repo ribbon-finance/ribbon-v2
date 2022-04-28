@@ -490,7 +490,7 @@ describe("VaultQueue", () => {
         .queueTransfer(
           ethCallVault.address,
           stethCallVault.address,
-          stethCallVault.address,
+          "0",
           "1000"
         );
 
@@ -507,7 +507,7 @@ describe("VaultQueue", () => {
           .queueTransfer(
             ethCallVault.address,
             stethCallVault.address,
-            stethCallVault.address,
+            "0",
             "1000"
           )
       ).to.be.revertedWith("Withdraw already submitted");
@@ -732,7 +732,7 @@ describe("VaultQueue", () => {
           .connect(signer)
           .queueTransfer(
             ethCallVault.address,
-            await signer.getAddress(),
+            constants.AddressZero,
             "1",
             amountToWithdraw
           );
