@@ -7,6 +7,9 @@ import {
   GAMMA_CONTROLLER_10D,
   MARGIN_POOL_10D,
   GNOSIS_EASY_AUCTION,
+  TD_OTOKEN_FACTORY,
+  TD_MARGIN_POOL,
+  TD_CONTROLLER,
 } from "../../constants/constants";
 
 const main = async ({
@@ -31,9 +34,9 @@ const main = async ({
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      OTOKEN_FACTORY_10D[chainId],
-      GAMMA_CONTROLLER_10D[chainId],
-      MARGIN_POOL_10D[chainId],
+      TD_OTOKEN_FACTORY[chainId],
+      TD_CONTROLLER[chainId],
+      TD_MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
     ],
     libraries: {
@@ -57,9 +60,9 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        OTOKEN_FACTORY_10D[chainId],
-        GAMMA_CONTROLLER_10D[chainId],
-        MARGIN_POOL_10D[chainId],
+        TD_OTOKEN_FACTORY[chainId],
+        TD_CONTROLLER[chainId],
+        TD_MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
       ],
     });
@@ -67,6 +70,6 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonThetaVaultLogic"];
+main.tags = ["RibbonThetaVaultLogic10D"];
 
 export default main;
