@@ -19,10 +19,15 @@ library VaultLifecycleGamma {
     using SafeERC20 for IERC20;
 
     /// @dev Enum for handling different types of flash swap callbacks
-    enum FlashCallback {DEPOSIT, WITHDRAW, INCREASE, DECREASE}
+    enum FlashCallback {Deposit, Withdraw, Buy, Sell}
 
     struct Deposit {
         uint256 depositAmount;
+    }
+
+    struct Withdraw {
+        uint256 collateralAmount;
+        uint256 shortAmount;
     }
 
     /// @notice 7 minute twap period for Uniswap V3 pools
@@ -189,8 +194,36 @@ library VaultLifecycleGamma {
                 sqthWethPool,
                 sqthMintAmount,
                 minAmountOut,
-                uint8(FlashCallback.DEPOSIT),
+                uint8(FlashCallback.Deposit),
                 abi.encode(Deposit(wethAmount.add(minAmountOut)))
+            );
+    }
+
+    function withdrawQueuedShares(
+        address controller,
+        address sqthWethPool,
+        address sqth,
+        address weth,
+        uint256 vaultId,
+        uint256 shares,
+        uint256 totalShares,
+        uint256 maxAmountIn
+    ) external returns (uint256) {
+        require(shares > 0, "!shares");
+        require(maxAmountIn > 0, "!maxAmountIn");
+
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getSqthBurnAmount(controller, vaultId, shares, totalShares);
+
+        return
+            UniswapRouter.exactOutputFlashSwap(
+                weth,
+                sqth,
+                sqthWethPool,
+                shortAmount,
+                maxAmountIn,
+                uint8(FlashCallback.Withdraw),
+                abi.encode(Withdraw(collateralAmount, shortAmount))
             );
     }
 
@@ -205,7 +238,7 @@ library VaultLifecycleGamma {
         UniswapRouter.SwapCallbackData memory callbackData =
             abi.decode(data, (UniswapRouter.SwapCallbackData));
 
-        if (FlashCallback(callbackData.callback) == FlashCallback.DEPOSIT) {
+        if (FlashCallback(callbackData.callback) == FlashCallback.Deposit) {
             Deposit memory depositData =
                 abi.decode(callbackData.data, (Deposit));
 
@@ -216,6 +249,21 @@ library VaultLifecycleGamma {
             }(vaultId, amountToPay, 0);
 
             IERC20(sqth).safeTransfer(msg.sender, amountToPay);
+        } else if (
+            FlashCallback(callbackData.callback) == FlashCallback.Withdraw
+        ) {
+            Withdraw memory withdrawData =
+                abi.decode(callbackData.data, (Withdraw));
+
+            IController(controller).burnWPowerPerpAmount(
+                vaultId,
+                withdrawData.shortAmount,
+                withdrawData.collateralAmount
+            );
+
+            IWETH(weth).deposit{value: amountToPay}();
+
+            IERC20(weth).safeTransfer(msg.sender, amountToPay);
         }
     }
 
@@ -231,6 +279,85 @@ library VaultLifecycleGamma {
     {
         VaultLib.Vault memory vault = IController(controller).vaults(vaultId);
         return (vault.collateralAmount, vault.shortAmount);
+    }
+
+    function getSqthRebalanceAmount(
+        address controller,
+        address oracle,
+        address sqthWethPool,
+        address sqth,
+        address weth,
+        uint256 vaultId,
+        uint256 collateralRatio
+    ) public view returns (bool, uint256) {
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+
+        uint256 sqthWethPrice;
+        uint256 feeRate;
+        {
+            sqthWethPrice = IOracle(oracle).getTwap(
+                sqthWethPool,
+                sqth,
+                weth,
+                TWAP_PERIOD,
+                true
+            );
+            feeRate = IController(controller).feeRate();
+        }
+
+        return
+            calculateSqthRebalanceAmount(
+                collateralAmount,
+                shortAmount,
+                collateralRatio,
+                sqthWethPrice,
+                feeRate
+            );
+    }
+
+    function calculateSqthRebalanceAmount(
+        uint256 collateralAmount,
+        uint256 shortAmount,
+        uint256 collateralRatio,
+        uint256 sqthWethPrice,
+        uint256 feeRate
+    ) public pure returns (bool, uint256) {
+        uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
+        uint256 wSqueethDelta =
+            DSMath.wmul(
+                DSMath.wmul(shortAmount, collateralRatio),
+                sqthWethPrice
+            );
+
+        if (wSqueethDelta > collateralAmount) {
+            return (
+                false,
+                DSMath.wdiv(wSqueethDelta.sub(collateralAmount), sqthWethPrice)
+            );
+        } else {
+            return (
+                true,
+                DSMath.wdiv(
+                    collateralAmount.sub(wSqueethDelta),
+                    sqthWethPrice.add(feeAdjustment)
+                )
+            );
+        }
+    }
+
+    function getSqthBurnAmount(
+        address controller,
+        uint256 vaultId,
+        uint256 shares,
+        uint256 totalShares
+    ) public view returns (uint256, uint256) {
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+        return (
+            collateralAmount.mul(shares).div(totalShares),
+            shortAmount.mul(shares).div(totalShares)
+        );
     }
 
     function getSqthMintAmount(
@@ -335,21 +462,52 @@ library VaultLifecycleGamma {
         return sqthWethPrice.mul(feeRate).div(10000);
     }
 
-    function getSqthMintAmount(
+    function getTotalBalance(
         address controller,
-        uint256 wethUsdcPrice,
-        uint256 collateralRatio,
-        uint256 wethAmount
-    ) internal view returns (uint256) {
-        uint256 normalizationFactor =
-            IController(controller).getExpectedNormalizationFactor();
-        uint256 debtValueInWeth =
-            wethAmount.mul(COLLATERAL_UNITS).div(collateralRatio);
+        address oracle,
+        address usdcWethPool,
+        address sqthWethPool,
+        address sqth,
+        address weth,
+        address usdc,
+        uint256 vaultId
+    ) public view returns (uint256) {
+        uint256 usdcWethPrice =
+            IOracle(oracle).getTwap(
+                usdcWethPool,
+                usdc,
+                weth,
+                TWAP_PERIOD,
+                true
+            );
+        uint256 sqthWethPrice =
+            IOracle(oracle).getTwap(
+                sqthWethPool,
+                sqth,
+                weth,
+                TWAP_PERIOD,
+                true
+            );
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+
+        uint256 shortAmountInWeth = DSMath.wmul(shortAmount, sqthWethPrice);
+        uint256 wethBalance =
+            IERC20(weth).balanceOf(address(this)).add(
+                (collateralAmount > shortAmountInWeth)
+                    ? collateralAmount.sub(shortAmountInWeth)
+                    : 0
+            );
+
         return
-            debtValueInWeth.mul(ONE_ONE).div(wethUsdcPrice).div(
-                normalizationFactor
+            IERC20(usdc).balanceOf(address(this)).add(
+                DSMath.wmul(wethBalance, usdcWethPrice)
             );
     }
+
+    /************************************************
+     *  UTILS
+     ***********************************************/
 
     function getVaultUsdcBalance(
         uint256 wethUsdcPrice,
