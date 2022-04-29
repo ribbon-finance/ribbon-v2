@@ -552,7 +552,7 @@ contract RibbonGammaVault is
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares) + withdrawalShares
+            uint256(vaultState.queuedWithdrawShares) - withdrawalShares
         );
 
         uint256 withdrawAmount =
@@ -790,13 +790,14 @@ contract RibbonGammaVault is
         external
         onlyKeeper
         nonReentrant
+        returns (uint256 amountOut)
     {
         require(newRoundInProgress, "!newRoundInProgress");
 
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
         if (wethAmount > wethBalance) wethAmount = wethBalance;
 
-        VaultLifecycleGamma.depositTotalPending(
+        amountOut = VaultLifecycleGamma.depositTotalPending(
             CONTROLLER,
             ORACLE,
             SQTH_WETH_POOL,
@@ -807,41 +808,6 @@ contract RibbonGammaVault is
             wethAmount,
             minAmountOut
         );
-    }
-
-    /**
-     * @notice Deposit WETH from the squeeth vault and swaps to USDC to process queued withdrawals
-     * @param wethAmount Amount of WETH to withdraw
-     * @param minAmountOut Minimum amount of USDC to receive from swapping WETH to USDC
-     */
-    function withdrawQueuedShares(uint256 wethAmount, uint256 minAmountOut)
-        external
-        onlyKeeper
-        nonReentrant
-    {
-        require(newRoundInProgress, "!newRoundInProgress");
-        require(wethAmount > 0, "!wethAmount");
-        require(minAmountOut > 0, "!minAmountOut");
-
-        // Withdraw ETH from squeeth vault
-        IController(CONTROLLER).withdraw(VAULT_ID, wethAmount);
-        IWETH(WETH).deposit{value: wethAmount}();
-
-        // Swap WETH to USDC
-        uint256 amountOut =
-            UniswapRouter.swap(
-                address(this),
-                WETH,
-                wethAmount,
-                minAmountOut,
-                UNISWAP_ROUTER,
-                usdcWethSwapPath
-            );
-
-        uint256 _lastQueuedWithdrawAmount = lastQueuedWithdrawAmount;
-        lastQueuedWithdrawAmount = _lastQueuedWithdrawAmount > amountOut
-            ? _lastQueuedWithdrawAmount - amountOut
-            : 0;
     }
 
     /**
@@ -863,56 +829,61 @@ contract RibbonGammaVault is
      * @notice Rebalances the squeeth position to target the collateral ratio
      *         reverts if the collateral ratio threshold isn't triggered
      */
-    function rebalance() external onlyKeeper nonReentrant {
-        require(!newRoundInProgress, "!newRoundInProgress");
+    // function rebalance() external onlyKeeper nonReentrant {
+    //     require(!newRoundInProgress, "!newRoundInProgress");
 
-        (
-            uint256 wethUsdcPrice, 
-            uint256 collateralAmount, 
-            , 
-            uint256 collateralRatio
-        ) = VaultLifecycleGamma.getCurrentSqthPosition(
-                ORACLE,
-                USDC_WETH_POOL,
-                WETH,
-                USDC,
-                CONTROLLER,
-                VAULT_ID
-            );
-        
-        uint256 _ratioThreshold = ratioThreshold;
+    //     uint256 wethUsdcPrice =
+    //         VaultLifecycleGamma.getWethPrice(
+    //             ORACLE,
+    //             USDC_WETH_POOL,
+    //             WETH,
+    //             USDC
+    //         );
+    //     (uint256 collateralAmount, uint256 debtValueInWeth) =
+    //         VaultLifecycleGamma.getVaultPosition(
+    //             CONTROLLER,
+    //             VAULT_ID,
+    //             wethUsdcPrice
+    //         );
 
-        if (collateralRatio > COLLATERAL_RATIO + _ratioThreshold) {
-            uint256 wethAmount =
-                VaultLifecycleGamma.getSqthMintAmount(
-                    CONTROLLER,
-                    wethUsdcPrice,
-                    COLLATERAL_RATIO,
-                    collateralAmount
-                );
+    //     uint256 collateralRatio =
+    //         VaultLifecycleGamma.getCollateralRatio(
+    //             collateralAmount,
+    //             debtValueInWeth
+    //         );
+    //     uint256 _ratioThreshold = ratioThreshold;
 
-            // Withdraw ETH from squeeth vault
-            IController(CONTROLLER).withdraw(VAULT_ID, wethAmount);
-            IWETH(WETH).deposit{value: wethAmount}();
-        } else if (collateralRatio < COLLATERAL_RATIO - _ratioThreshold) {
-            uint256 sqthMintAmount =
-                VaultLifecycleGamma.getSqthMintAmount(
-                    CONTROLLER,
-                    wethUsdcPrice,
-                    COLLATERAL_RATIO,
-                    collateralAmount
-                );
+    //     if (collateralRatio > COLLATERAL_RATIO.add(_ratioThreshold)) {
+    //         uint256 wethAmount =
+    //             VaultLifecycleGamma.getSqthMintAmount(
+    //                 CONTROLLER,
+    //                 wethUsdcPrice,
+    //                 COLLATERAL_RATIO,
+    //                 collateralAmount
+    //             );
 
-            // Increase position debt
-            IController(CONTROLLER).mintWPowerPerpAmount(
-                VAULT_ID,
-                sqthMintAmount,
-                0
-            );
-        } else {
-            revert("!_ratioThreshold");
-        }
-    }
+    //         // Withdraw ETH from squeeth vault
+    //         IController(CONTROLLER).withdraw(VAULT_ID, wethAmount);
+    //         IWETH(WETH).deposit{value: wethAmount}();
+    //     } else if (collateralRatio < COLLATERAL_RATIO.sub(_ratioThreshold)) {
+    //         uint256 sqthMintAmount =
+    //             VaultLifecycleGamma.getSqthMintAmount(
+    //                 CONTROLLER,
+    //                 wethUsdcPrice,
+    //                 COLLATERAL_RATIO,
+    //                 collateralAmount
+    //             );
+
+    //         // Increase position debt
+    //         IController(CONTROLLER).mintWPowerPerpAmount(
+    //             VAULT_ID,
+    //             sqthMintAmount,
+    //             0
+    //         );
+    //     } else {
+    //         revert("!_ratioThreshold");
+    //     }
+    // }
 
     /**
      * @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.
@@ -1045,34 +1016,16 @@ contract RibbonGammaVault is
      * @return total balance of the vault, including the amounts locked in third party protocols
      */
     function totalBalance() public view returns (uint256) {
-        uint256 wethUsdcPrice =
-            VaultLifecycleGamma.getWethPrice(
+        return
+            VaultLifecycleGamma.getTotalBalance(
+                CONTROLLER,
                 ORACLE,
                 USDC_WETH_POOL,
+                SQTH_WETH_POOL,
+                SQTH,
                 WETH,
-                USDC
-            );
-        (uint256 collateralAmount, uint256 debtValueInWeth) =
-            VaultLifecycleGamma.getVaultPosition(
-                CONTROLLER,
-                VAULT_ID,
-                wethUsdcPrice
-            );
-        return
-            IERC20(USDC)
-                .balanceOf(address(this))
-                +
-                VaultLifecycleGamma.getWethUsdcValue(
-                    wethUsdcPrice,
-                    IERC20(WETH).balanceOf(address(this))
-                
-            )
-                +
-                VaultLifecycleGamma.getVaultUsdcBalance(
-                    wethUsdcPrice,
-                    collateralAmount,
-                    debtValueInWeth
-                
+                USDC,
+                VAULT_ID
             );
     }
 
