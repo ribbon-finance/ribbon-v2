@@ -918,23 +918,6 @@ contract RibbonGammaVault is
         );
     }
 
-    /**
-     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
-     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
-     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
-     * @param numRounds is the number of rounds to initialize in the map
-     */
-    function initRounds(uint256 numRounds) external nonReentrant {
-        require(numRounds > 0, "!numRounds");
-
-        uint256 _round = vaultState.round;
-        for (uint256 i = 0; i < numRounds; i++) {
-            uint256 index = _round + i;
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
-        }
-    }
-
     /************************************************
      *  GETTERS
      ***********************************************/
