@@ -180,6 +180,21 @@ export const ORACLE_DISPUTE_PERIOD = 7200;
 export const ORACLE_LOCKING_PERIOD = 300;
 
 /**
+ * 10D Protocol
+ */
+ export const OTOKEN_FACTORY_10D = {
+  [CHAINID.ETH_MAINNET]: "0x4114b7C04bBbA682130cae2bA26FC5d2473B4Ddc",
+};
+
+export const MARGIN_POOL_10D = {
+  [CHAINID.ETH_MAINNET]: "0x3c212A044760DE5a529B3Ba59363ddeCcc2210bE",
+};
+
+export const GAMMA_CONTROLLER_10D = {
+  [CHAINID.ETH_MAINNET]: "0x4bec71A4Ac41eE9761440F6921DD17bA1C1213B1",
+};
+
+/**
  * Gamma Protocol
  */
 export const OTOKEN_FACTORY = {
