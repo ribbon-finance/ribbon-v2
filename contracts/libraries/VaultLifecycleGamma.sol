@@ -121,14 +121,18 @@ library VaultLifecycleGamma {
         require(
             UniswapRouter.checkPath(
                 _initParams._usdcWethSwapPath,
-                usdc, weth, uniswapFactory
+                usdc,
+                weth,
+                uniswapFactory
             ),
             "!_usdcWethSwapPath"
         );
         require(
             UniswapRouter.checkPath(
                 _initParams._wethUsdcSwapPath,
-                weth, usdc, uniswapFactory
+                weth,
+                usdc,
+                uniswapFactory
             ),
             "!_wethUsdcSwapPath"
         );
@@ -552,32 +556,30 @@ library VaultLifecycleGamma {
         address usdc,
         address controller,
         uint256 vaultId
-    ) internal view returns (
-        uint256 wethUsdcPrice, 
-        uint256 collateralAmount, 
-        uint256 debtValueInWeth, 
-        uint256 collateralRatio
-    ) {
-        wethUsdcPrice =
-            VaultLifecycleGamma.getWethPrice(
-                oracle,
-                usdcWethPool,
-                weth,
-                usdc
-            );
+    )
+        internal
+        view
+        returns (
+            uint256 wethUsdcPrice,
+            uint256 collateralAmount,
+            uint256 debtValueInWeth,
+            uint256 collateralRatio
+        )
+    {
+        wethUsdcPrice = VaultLifecycleGamma.getWethPrice(
+            oracle,
+            usdcWethPool,
+            weth,
+            usdc
+        );
 
-        (collateralAmount, debtValueInWeth) =
-            VaultLifecycleGamma.getVaultPosition(
-                controller,
-                vaultId,
-                wethUsdcPrice
-            );
+        (collateralAmount, debtValueInWeth) = VaultLifecycleGamma
+            .getVaultPosition(controller, vaultId, wethUsdcPrice);
 
-        collateralRatio =
-            VaultLifecycleGamma.getCollateralRatio(
-                collateralAmount,
-                debtValueInWeth
-            );
+        collateralRatio = VaultLifecycleGamma.getCollateralRatio(
+            collateralAmount,
+            debtValueInWeth
+        );
     }
 
     function getCollateralRatio(
@@ -617,22 +619,5 @@ library VaultLifecycleGamma {
                 TWAP_PERIOD,
                 true
             );
-    }
-
-    function getScaledWethPrice(
-        address oracle,
-        address usdcWethPool,
-        address weth,
-        address usdc
-    ) internal view returns (uint256) {
-        uint256 twap =
-            IOracle(oracle).getTwap(
-                usdcWethPool,
-                weth,
-                usdc,
-                TWAP_PERIOD,
-                true
-            );
-        return twap.div(INDEX_SCALE);
     }
 }
