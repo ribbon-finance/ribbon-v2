@@ -3,13 +3,10 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WETH_ADDRESS,
   USDC_ADDRESS,
-  OTOKEN_FACTORY_10D,
-  GAMMA_CONTROLLER_10D,
-  MARGIN_POOL_10D,
-  GNOSIS_EASY_AUCTION,
   TD_OTOKEN_FACTORY,
   TD_MARGIN_POOL,
   TD_CONTROLLER,
+  GNOSIS_EASY_AUCTION,
 } from "../../constants/constants";
 
 const main = async ({
