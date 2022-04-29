@@ -120,13 +120,25 @@ contract RibbonGammaVault is
 
     event CapSet(uint256 oldCap, uint256 newCap);
 
-    event RatioThresholdSet(uint256 oldRatioThreshold, uint256 newRatioThreshold);
+    event RatioThresholdSet(
+        uint256 oldRatioThreshold,
+        uint256 newRatioThreshold
+    );
 
-    event OptionAllocationSet(uint256 oldOptionAllocation, uint256 newOptionAllocation);
+    event OptionAllocationSet(
+        uint256 oldOptionAllocation,
+        uint256 newOptionAllocation
+    );
 
-    event UsdcWethSwapPathSet(bytes oldUsdcWethSwapPath, bytes newUsdcWethSwapPath);
+    event UsdcWethSwapPathSet(
+        bytes oldUsdcWethSwapPath,
+        bytes newUsdcWethSwapPath
+    );
 
-    event WethUsdcSwapPathSet(bytes oldWethUsdcSwapPath, bytes newWethUsdcSwapPath);
+    event WethUsdcSwapPathSet(
+        bytes oldWethUsdcSwapPath,
+        bytes newWethUsdcSwapPath
+    );
 
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
@@ -225,7 +237,7 @@ contract RibbonGammaVault is
 
         VaultLifecycleGamma.verifyInitializerParams(
             USDC,
-            WETH, 
+            WETH,
             UNISWAP_FACTORY,
             _initParams,
             _vaultParams
@@ -240,9 +252,9 @@ contract RibbonGammaVault is
 
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
-        managementFee = _initParams._managementFee
-            * Vault.FEE_MULTIPLIER
-            / WEEKS_PER_YEAR;
+        managementFee =
+            (_initParams._managementFee * Vault.FEE_MULTIPLIER) /
+            WEEKS_PER_YEAR;
         vaultParams = _vaultParams;
 
         uint256 assetBalance =
@@ -303,7 +315,7 @@ contract RibbonGammaVault is
 
         // We are dividing annualized management fee by num weeks in a year
         uint256 tmpManagementFee =
-            newManagementFee * Vault.FEE_MULTIPLIER / WEEKS_PER_YEAR;
+            (newManagementFee * Vault.FEE_MULTIPLIER) / WEEKS_PER_YEAR;
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
@@ -361,7 +373,7 @@ contract RibbonGammaVault is
     function setOptionAllocation(uint256 newOptionAllocation)
         external
         onlyOwner
-    {   
+    {
         require(newOptionAllocation > 0, "!newOptionAllocation");
         emit OptionAllocationSet(optionAllocation, newOptionAllocation);
         optionAllocation = newOptionAllocation;
@@ -374,11 +386,13 @@ contract RibbonGammaVault is
     function setUsdcWethSwapPath(bytes calldata newUsdcWethSwapPath)
         external
         onlyOwner
-    {   
+    {
         require(
             UniswapRouter.checkPath(
                 newUsdcWethSwapPath,
-                USDC, WETH, UNISWAP_FACTORY
+                USDC,
+                WETH,
+                UNISWAP_FACTORY
             ),
             "!newUsdcWethSwapPath"
         );
@@ -397,7 +411,9 @@ contract RibbonGammaVault is
         require(
             UniswapRouter.checkPath(
                 newWethUsdcSwapPath,
-                USDC, WETH, UNISWAP_FACTORY
+                USDC,
+                WETH,
+                UNISWAP_FACTORY
             ),
             "!newWethUsdcSwapPath"
         );
@@ -517,7 +533,7 @@ contract RibbonGammaVault is
 
         uint256 withdrawalShares;
         if (withdrawalIsSameRound) {
-            withdrawalShares = existingShares + numShares ;
+            withdrawalShares = existingShares + numShares;
         } else {
             require(existingShares == 0, "Existing withdraw");
             withdrawalShares = numShares;
@@ -813,77 +829,20 @@ contract RibbonGammaVault is
     /**
      * @notice Public view function to get current collateral ratio
      */
-    function getCollateralRatio() public view returns (uint256 collateralRatio) {
-        (, , , collateralRatio)  = VaultLifecycleGamma.getCurrentSqthPosition(
+    function getCollateralRatio()
+        public
+        view
+        returns (uint256 collateralRatio)
+    {
+        (, , , collateralRatio) = VaultLifecycleGamma.getCurrentSqthPosition(
             ORACLE,
             USDC_WETH_POOL,
             WETH,
             USDC,
             CONTROLLER,
             VAULT_ID
-
         );
-    }    
-
-    /**
-     * @notice Rebalances the squeeth position to target the collateral ratio
-     *         reverts if the collateral ratio threshold isn't triggered
-     */
-    // function rebalance() external onlyKeeper nonReentrant {
-    //     require(!newRoundInProgress, "!newRoundInProgress");
-
-    //     uint256 wethUsdcPrice =
-    //         VaultLifecycleGamma.getWethPrice(
-    //             ORACLE,
-    //             USDC_WETH_POOL,
-    //             WETH,
-    //             USDC
-    //         );
-    //     (uint256 collateralAmount, uint256 debtValueInWeth) =
-    //         VaultLifecycleGamma.getVaultPosition(
-    //             CONTROLLER,
-    //             VAULT_ID,
-    //             wethUsdcPrice
-    //         );
-
-    //     uint256 collateralRatio =
-    //         VaultLifecycleGamma.getCollateralRatio(
-    //             collateralAmount,
-    //             debtValueInWeth
-    //         );
-    //     uint256 _ratioThreshold = ratioThreshold;
-
-    //     if (collateralRatio > COLLATERAL_RATIO.add(_ratioThreshold)) {
-    //         uint256 wethAmount =
-    //             VaultLifecycleGamma.getSqthMintAmount(
-    //                 CONTROLLER,
-    //                 wethUsdcPrice,
-    //                 COLLATERAL_RATIO,
-    //                 collateralAmount
-    //             );
-
-    //         // Withdraw ETH from squeeth vault
-    //         IController(CONTROLLER).withdraw(VAULT_ID, wethAmount);
-    //         IWETH(WETH).deposit{value: wethAmount}();
-    //     } else if (collateralRatio < COLLATERAL_RATIO.sub(_ratioThreshold)) {
-    //         uint256 sqthMintAmount =
-    //             VaultLifecycleGamma.getSqthMintAmount(
-    //                 CONTROLLER,
-    //                 wethUsdcPrice,
-    //                 COLLATERAL_RATIO,
-    //                 collateralAmount
-    //             );
-
-    //         // Increase position debt
-    //         IController(CONTROLLER).mintWPowerPerpAmount(
-    //             VAULT_ID,
-    //             sqthMintAmount,
-    //             0
-    //         );
-    //     } else {
-    //         revert("!_ratioThreshold");
-    //     }
-    // }
+    }
 
     /**
      * @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.
