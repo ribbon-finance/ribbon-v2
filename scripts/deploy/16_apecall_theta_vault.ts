@@ -93,7 +93,7 @@ const main = async ({
     console.log(error);
   }
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
+  const logicDeployment = await deployments.get("RibbonThetaVaultLogic10D");
   const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVault");
 
   const initArgs = [
@@ -145,6 +145,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultAPECall"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic"];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultLogic10D"];
 
 export default main;
