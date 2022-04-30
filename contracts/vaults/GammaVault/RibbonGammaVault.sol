@@ -421,7 +421,7 @@ contract RibbonGammaVault is
     }
 
     /************************************************
-     *  DEPOSIT & WITHDRAWALS
+     *  DEPOSIT
      ***********************************************/
 
     /**
@@ -504,6 +504,10 @@ contract RibbonGammaVault is
 
         vaultState.totalPending = uint128(newTotalPending);
     }
+
+    /************************************************
+     *  WITHDRAWALS
+     ***********************************************/
 
     /**
      * @notice Initiates a withdrawal that can be processed once the round completes
@@ -674,6 +678,10 @@ contract RibbonGammaVault is
 
         _transfer(address(this), msg.sender, numShares);
     }
+
+    /************************************************
+     *  STAKING
+     ***********************************************/
 
     /**
      * @notice Stakes a users vault shares
