@@ -43,9 +43,6 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice LiquidityGauge contract for the vault
     address public liquidityGauge;
 
-    /// @notice OptionsPurchaseQueue contract for the vault
-    address public optionsPurchaseQueue;
-
     /// @notice Call options
     address public callOtokens;
 
