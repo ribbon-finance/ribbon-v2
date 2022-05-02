@@ -60,7 +60,6 @@ library VaultLifecycleGamma {
         uint256 _performanceFee;
         string _tokenName;
         string _tokenSymbol;
-        address _optionsPurchaseQueue;
         uint256 _ratioThreshold;
         uint256 _optionAllocation;
         bytes _usdcWethSwapPath;
@@ -68,35 +67,63 @@ library VaultLifecycleGamma {
     }
 
     /**
-     * @notice Parameters to run getReadyStateParams
+     * @notice Place purchase of options in the queue
+     * @param controller controller Squeeth controller
+     * @param sqthWethPool SQTH WETH Uniswap pool
+     * @param sqth SQTH address
+     * @param weth WETH address
+     * @param vaultId Vault ID of in the controller
+     * @param uniswapRouter is the Uniswap Router address
+     * @param wethUsdcSwapPath is the WETH -> USDC swap path
+     * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
+     * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
+     * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
+     * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
+     */
+    struct ReadyParams {
+        address controller;
+        address sqthWethPool;
+        address sqth;
+        address weth;
+        uint256 vaultId;
+        address uniswapRouter;
+        bytes wethUsdcSwapPath;
+        uint256 wethBalanceShortage;
+        uint256 usdcBalanceShortage;
+        uint256 usdcBalanceShortageInWETH;
+        uint256 maxAmountIn;
+    }
+
+    /**
+     * @notice Place purchase of options in the queue
      * @param controller controller Squeeth controller
      * @param oracle Squeeth oracle
      * @param sqthWethPool SQTH WETH Uniswap pool
-     * @param usdcWethPool USDC WETH Uniswap pool
      * @param sqth SQTH address
      * @param weth WETH address
      * @param usdc USDC address
      * @param vaultId Vault ID of in the controller
-     * @param optionsPurchaseQueue is the options purchase queue contract
-     * @param thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
-     * @param thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
-     * @param optionAllocation Option allocation ratio
-     * @param lastQueuedWithdrawAmount is amount of withdrawals from the previous round in USDC
+     * @param lastQueuedWithdrawAmount is amount of pending withdrawal
+     * @param totalPending is amount of pending deposit
+     * @param uniswapRouter is the Uniswap Router address
+     * @param usdcWethSwapPath is the USDC -> WETH swap path
+     * @param collateralRatio Target collateral ratio
+     * @param minWethAmountOut is the minimum amount of WETH acceptable when swapping the USDC balance
      */
-    struct ReadyParams {
+    struct AllocateParams {
         address controller;
         address oracle;
         address sqthWethPool;
-        address usdcWethPool;
         address sqth;
         address weth;
         address usdc;
         uint256 vaultId;
-        address optionsPurchaseQueue;
-        address thetaCallVault;
-        address thetaPutVault;
-        uint256 optionAllocation;
         uint256 lastQueuedWithdrawAmount;
+        uint256 totalPending;
+        address uniswapRouter;
+        bytes usdcWethSwapPath;
+        uint256 collateralRatio;
+        uint256 minWethAmountOut;
     }
 
     /// @dev Enum for handling different types of flash swap callbacks
@@ -154,10 +181,6 @@ library VaultLifecycleGamma {
         require(bytes(_initParams._tokenName).length > 0, "!tokenName");
         require(bytes(_initParams._tokenSymbol).length > 0, "!tokenSymbol");
 
-        require(
-            _initParams._optionsPurchaseQueue != address(0),
-            "!optionsPurchaseQueue"
-        );
         require(_vaultParams.asset != address(0), "!asset");
         require(_vaultParams.underlying != address(0), "!underlying");
         require(_vaultParams.minimumSupply > 0, "!minimumSupply");
@@ -211,7 +234,7 @@ library VaultLifecycleGamma {
         uint256 minAmountOut,
         address uniswapRouter,
         bytes memory swapPath
-    ) external returns (uint256 amountOut) {
+    ) public returns (uint256 amountOut) {
         require(amountIn > 0, "!amountIn");
         require(minAmountOut > 0, "!minAmountOut");
 
@@ -240,7 +263,7 @@ library VaultLifecycleGamma {
         uint256 maxAmountIn,
         address uniswapRouter,
         bytes memory swapPath
-    ) external returns (uint256 amountIn) {
+    ) public returns (uint256 amountIn) {
         require(amountIn > 0, "!amountIn");
         require(maxAmountIn > 0, "!maxAmountIn");
 
@@ -276,7 +299,7 @@ library VaultLifecycleGamma {
         uint256 sqthMintAmount,
         uint256 minAmountOut,
         uint256 wethAmount
-    ) external returns (uint256) {
+    ) public returns (uint256) {
         return
             UniswapRouter.exactInputFlashSwap(
                 sqth,
@@ -307,7 +330,7 @@ library VaultLifecycleGamma {
         uint256 sqthBurnAmount,
         uint256 maxAmountIn,
         uint256 wethAmount
-    ) external returns (uint256) {
+    ) public returns (uint256) {
         return
             UniswapRouter.exactOutputFlashSwap(
                 weth,
@@ -453,83 +476,99 @@ library VaultLifecycleGamma {
     }
 
     /**
-     * @notice View function to get necessary params to run prepareReadyState function
-     * roll to its next position
-     * @param readyParams Struct containing necessary parameters to run the function
-     * @return wethBalanceShortage Shortage in WETH balance
-     * @return usdcBalanceShortage Shortage in USDC balance
-     * @return usdcBalanceShortageInWETH Shortage in USDC balance denominated in WETH
+     * @notice Place purchase of options in the queue
+     * @param readyParams is the struct containing necessary parameters for this function
+     * @return wethAmountOut is the amount of WETH received from withdrawing from the controller
+     * @return wethAmountIn is the amount of WETH received from swapping USDC
      */
-    function getReadyStateParams(ReadyParams calldata readyParams)
+    function prepareReadyState(ReadyParams calldata readyParams)
         external
-        view
-        returns (
-            uint256 wethBalanceShortage,
-            uint256 usdcBalanceShortage,
-            uint256 usdcBalanceShortageInWETH
-        )
+        returns (uint256 wethAmountOut, uint256 wethAmountIn)
     {
-        uint256 currentWethBalance =
-            IERC20(readyParams.weth).balanceOf(address(this));
-        uint256 currentUsdcBalance =
-            IERC20(readyParams.usdc).balanceOf(address(this));
-
-        (uint256 vaultBalanceInUSDC, uint256 vaultBalanceInWETH) =
-            getAssetBalances(
+        uint256 wethAmount =
+            readyParams.wethBalanceShortage +
+                readyParams.usdcBalanceShortageInWETH;
+        uint256 sqthAmount =
+            calculateSqthBurnAmount(
                 readyParams.controller,
-                readyParams.oracle,
-                readyParams.sqthWethPool,
-                readyParams.sqth,
-                readyParams.weth,
-                readyParams.usdc,
-                readyParams.vaultId
+                readyParams.vaultId,
+                wethAmount
             );
 
-        uint256 wethPriceInUSDC =
-            getWethPriceInUSDC(
-                readyParams.oracle,
-                readyParams.usdcWethPool,
-                readyParams.weth,
-                readyParams.usdc
-            );
+        wethAmountOut = withdrawCollateral(
+            readyParams.weth,
+            readyParams.sqth,
+            readyParams.sqthWethPool,
+            sqthAmount,
+            readyParams.maxAmountIn,
+            wethAmount
+        );
 
-        uint256 optionsQuantity =
-            calculateOptionsQuantity(
-                vaultBalanceInWETH +
-                    ((vaultBalanceInUSDC * 10**6) / wethPriceInUSDC),
-                readyParams.optionAllocation
-            );
+        IWETH(readyParams.weth).deposit{value: wethAmountOut}();
 
-        uint256 callPriceCeiling =
-            IOptionsPurchaseQueue(readyParams.optionsPurchaseQueue)
-                .ceilingPrice(readyParams.thetaCallVault);
-        require(callPriceCeiling > 0, "Price ceiling for call vault not set");
-        uint256 putPriceCeiling =
-            IOptionsPurchaseQueue(readyParams.optionsPurchaseQueue)
-                .ceilingPrice(readyParams.thetaPutVault);
-        require(putPriceCeiling > 0, "Price ceiling for put vault not set");
-
-        uint256 requiredWethBalance =
-            (callPriceCeiling * optionsQuantity) / 1e18;
-
-        uint256 requiredUsdcBalance =
-            (putPriceCeiling * optionsQuantity) /
-                1e18 +
-                readyParams.lastQueuedWithdrawAmount;
-
-        wethBalanceShortage = requiredWethBalance > currentWethBalance
-            ? requiredWethBalance - currentWethBalance
-            : 0;
-        usdcBalanceShortage = requiredUsdcBalance > currentUsdcBalance
-            ? requiredUsdcBalance - currentUsdcBalance
-            : 0;
-        usdcBalanceShortageInWETH = usdcBalanceShortage > 0
-            ? (usdcBalanceShortage * 10**6) / wethPriceInUSDC
-            : 0;
+        wethAmountIn = swapExactOutput(
+            readyParams.weth,
+            readyParams.usdcBalanceShortage,
+            readyParams.usdcBalanceShortageInWETH,
+            readyParams.uniswapRouter,
+            readyParams.wethUsdcSwapPath
+        );
     }
 
     /**
-     * @notice Retrieve rebalance status
+     * @notice Place purchase of options in the queue
+     * @param allocateParams is the struct containing necessary parameters for this function
+     */
+    function allocateLeftoverBalance(AllocateParams memory allocateParams)
+        external
+        returns (uint256)
+    {
+        uint256 currentWethBalance =
+            IERC20(allocateParams.weth).balanceOf(address(this));
+        uint256 currentUsdcBalance =
+            IERC20(allocateParams.usdc).balanceOf(address(this)) -
+                allocateParams.lastQueuedWithdrawAmount -
+                allocateParams.totalPending;
+        require(currentWethBalance != 0 || currentUsdcBalance != 0);
+
+        uint256 wethReceived;
+        if (currentUsdcBalance > 0) {
+            wethReceived = swapExactInput(
+                allocateParams.usdc,
+                currentUsdcBalance,
+                allocateParams.minWethAmountOut,
+                allocateParams.uniswapRouter,
+                allocateParams.usdcWethSwapPath
+            );
+        }
+
+        uint256 sqthMintAmount =
+            getSqthMintAmount(
+                allocateParams.controller,
+                allocateParams.oracle,
+                allocateParams.sqthWethPool,
+                allocateParams.sqth,
+                allocateParams.weth,
+                allocateParams.vaultId,
+                allocateParams.collateralRatio,
+                currentWethBalance +
+                    wethReceived +
+                    allocateParams.minWethAmountOut
+            );
+
+        return
+            depositCollateral(
+                allocateParams.sqth,
+                allocateParams.weth,
+                allocateParams.sqthWethPool,
+                sqthMintAmount,
+                allocateParams.minWethAmountOut,
+                currentWethBalance + wethReceived
+            );
+    }
+
+    /**
+     * @notice Rebalance the vault's position
      * @param controller controller Squeeth controller
      * @param oracle Squeeth oracle
      * @param sqthWethPool SQTH WETH Uniswap pool
@@ -537,44 +576,52 @@ library VaultLifecycleGamma {
      * @param weth WETH address
      * @param vaultId Vault ID of in the controller
      * @param collateralRatio Target collateral ratio
-     * @return boolean true if rebalance is required
-     * @return uint256 amount of SQTH to mint or burn
+     * @param maxInOrMinOut Maximum in or minimim out depending on the rebalance action
      */
-    function getRebalanceStatus(
+    function rebalance(
         address controller,
         address oracle,
         address sqthWethPool,
         address sqth,
         address weth,
         uint256 vaultId,
-        uint256 collateralRatio
-    ) external view returns (bool, uint256) {
-        (uint256 collateralAmount, uint256 shortAmount) =
-            getPositionState(controller, vaultId);
+        uint256 collateralRatio,
+        uint256 maxInOrMinOut
+    )
+        external
+        returns (
+            bool isAboveThreshold,
+            uint256 sqthAmount,
+            uint256 resultAmount
+        )
+    {
+        (isAboveThreshold, sqthAmount) = getRebalanceStatus(
+            controller,
+            oracle,
+            sqthWethPool,
+            sqth,
+            weth,
+            vaultId,
+            collateralRatio
+        );
 
-        uint256 sqthWethPrice =
-            getSqueethPriceInWETH(oracle, sqthWethPool, sqth, weth);
-        uint256 feeRate = IPowerPerpController(controller).feeRate();
-
-        uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
-        uint256 wSqueethDelta =
-            DSMath.wmul(
-                DSMath.wmul(shortAmount, collateralRatio),
-                sqthWethPrice
-            );
-
-        if (wSqueethDelta > collateralAmount) {
-            return (
-                false,
-                DSMath.wdiv(wSqueethDelta.sub(collateralAmount), sqthWethPrice)
+        if (isAboveThreshold) {
+            resultAmount = withdrawCollateral(
+                weth,
+                sqth,
+                sqthWethPool,
+                sqthAmount,
+                maxInOrMinOut,
+                0
             );
         } else {
-            return (
-                true,
-                DSMath.wdiv(
-                    collateralAmount.sub(wSqueethDelta),
-                    sqthWethPrice.add(feeAdjustment)
-                )
+            resultAmount = depositCollateral(
+                sqth,
+                weth,
+                sqthWethPool,
+                sqthAmount,
+                maxInOrMinOut,
+                0
             );
         }
     }
@@ -598,6 +645,57 @@ library VaultLifecycleGamma {
         VaultLib.Vault memory vault =
             IPowerPerpController(controller).vaults(vaultId);
         return (vault.collateralAmount, vault.shortAmount);
+    }
+
+    /**
+     * @notice Retrieve rebalance status
+     * @param controller controller Squeeth controller
+     * @param oracle Squeeth oracle
+     * @param sqthWethPool SQTH WETH Uniswap pool
+     * @param sqth SQTH address
+     * @param weth WETH address
+     * @param vaultId Vault ID of in the controller
+     * @param collateralRatio Target collateral ratio
+     * @return boolean true if rebalance is required
+     * @return uint256 amount of SQTH to mint or burn
+     */
+    function getRebalanceStatus(
+        address controller,
+        address oracle,
+        address sqthWethPool,
+        address sqth,
+        address weth,
+        uint256 vaultId,
+        uint256 collateralRatio
+    ) public view returns (bool, uint256) {
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+
+        uint256 sqthWethPrice =
+            getSqthPriceInWETH(oracle, sqthWethPool, sqth, weth);
+        uint256 feeRate = IPowerPerpController(controller).feeRate();
+
+        uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
+        uint256 wSqthDelta =
+            DSMath.wmul(
+                DSMath.wmul(shortAmount, collateralRatio),
+                sqthWethPrice
+            );
+
+        if (wSqthDelta > collateralAmount) {
+            return (
+                false,
+                DSMath.wdiv(wSqthDelta.sub(collateralAmount), sqthWethPrice)
+            );
+        } else {
+            return (
+                true,
+                DSMath.wdiv(
+                    collateralAmount.sub(wSqthDelta),
+                    sqthWethPrice.add(feeAdjustment)
+                )
+            );
+        }
     }
 
     /**
@@ -693,7 +791,7 @@ library VaultLifecycleGamma {
      * @param sqth SQTH address
      * @param weth WETH address
      */
-    function getSqueethPriceInWETH(
+    function getSqthPriceInWETH(
         address oracle,
         address sqthWethPool,
         address sqth,
@@ -772,5 +870,84 @@ library VaultLifecycleGamma {
     ) internal pure returns (uint256) {
         return
             balanceInWeth.mul(optionAllocation).div(OPTIONS_ALLOCATION_UNITS);
+    }
+
+    /**
+     * @notice Calculate SQTH amount to burn for a given amount of WETH
+     * @param controller controller Squeeth controller
+     * @param vaultId Vault ID
+     * @param wethAmount Amount of WETH
+     */
+    function calculateSqthBurnAmount(
+        address controller,
+        uint256 vaultId,
+        uint256 wethAmount
+    ) internal view returns (uint256) {
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+
+        return shortAmount.mul(collateralAmount).div(wethAmount);
+    }
+
+    /**
+     * @notice Get the amount of Squeeth to mint
+     * @param controller controller Squeeth controller
+     * @param oracle Squeeth oracle
+     * @param sqthWethPool SQTH WETH Uniswap pool
+     * @param sqth SQTH address
+     * @param weth WETH address
+     * @param vaultId Vault ID
+     * @param collateralRatio Squeeth controller collateral ratio
+     * @param depositAmount Amount of WETH to deposit
+     */
+    function getSqthMintAmount(
+        address controller,
+        address oracle,
+        address sqthWethPool,
+        address sqth,
+        address weth,
+        uint256 vaultId,
+        uint256 collateralRatio,
+        uint256 depositAmount
+    ) public view returns (uint256) {
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+
+        uint256 sqthWethPrice;
+        uint256 feeRate;
+        {
+            sqthWethPrice = IOracle(oracle).getTwap(
+                sqthWethPool,
+                sqth,
+                weth,
+                TWAP_PERIOD,
+                false
+            );
+            feeRate = IPowerPerpController(controller).feeRate();
+        }
+
+        uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
+
+        if (shortAmount == 0) {
+            // Handles situations where the squeeth position has no debt
+            // sqthMintAmount = depositAmount * 1e8 / ((sqthWethPrice * collateralRatio / 1e18) + feeAdjustment)
+            return
+                DSMath.wdiv(
+                    depositAmount,
+                    DSMath.wmul(sqthWethPrice, collateralRatio).add(
+                        feeAdjustment
+                    )
+                );
+        } else {
+            // sqthMintAmount = (depositAmount * shortAmount / 1e18) * 1e18
+            //                  / (collateralAmount + (shortAmount * feeAdjustment / 1e18))
+            return
+                DSMath.wdiv(
+                    DSMath.wmul(depositAmount, shortAmount),
+                    collateralAmount.add(
+                        DSMath.wmul(shortAmount, feeAdjustment)
+                    )
+                );
+        }
     }
 }

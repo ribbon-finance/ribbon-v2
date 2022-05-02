@@ -91,6 +91,9 @@ contract RibbonGammaVault is
     // Squeeth short position vault ID
     uint256 public immutable VAULT_ID;
 
+    // OptionsPurchaseQueue contract for the vault
+    address public immutable OPTIONS_PURCHASE_QUEUE;
+
     // UNISWAP_ROUTER is the contract address of Uniswap V3 Router which handles swaps
     // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
     address public immutable UNISWAP_ROUTER;
@@ -118,7 +121,7 @@ contract RibbonGammaVault is
     address public immutable YEARN_REGISTRY;
 
     /************************************************
-     *  EVENTS
+     *  EVENTS & STRUCT
      ***********************************************/
 
     event Deposit(address indexed account, uint256 amount, uint256 round);
@@ -136,11 +139,6 @@ contract RibbonGammaVault is
     event PerformanceFeeSet(uint256 performanceFee, uint256 newPerformanceFee);
 
     event CapSet(uint256 oldCap, uint256 newCap);
-
-    event OptionsPurchaseQueueSet(
-        address oldOptionsPurchaseQueue,
-        address newOptionsPurchaseQueue
-    );
 
     event RatioThresholdSet(
         uint256 oldRatioThreshold,
@@ -183,10 +181,6 @@ contract RibbonGammaVault is
         uint256 round
     );
 
-    /************************************************
-     *  CONSTRUCTOR & INITIALIZATION
-     ***********************************************/
-
     /**
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
@@ -200,54 +194,76 @@ contract RibbonGammaVault is
      * @param _thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
      * @param _thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
      * @param _gammaController is the contract address for opyn actions
+     * @param _yearnRegistry is the contract address for yearn registry
      */
-    constructor(
-        address _weth,
-        address _usdc,
-        address _squeethController,
-        address _oracle,
-        address _uniswapRouter,
-        address _uniswapFactory,
-        address _usdcWethPool,
-        address _sqthWethPool,
-        address _thetaCallVault,
-        address _thetaPutVault,
-        address _gammaController,
-        address _yearnRegistry
-    ) {
-        require(_weth != address(0), "!_weth");
-        require(_usdc != address(0), "!_usdc");
-        require(_squeethController != address(0), "!_squeethController");
-        require(_oracle != address(0), "!_oracle");
-        require(_uniswapRouter != address(0), "!_uniswapRouter");
-        require(_uniswapFactory != address(0), "!_uniswapFactory");
-        require(_usdcWethPool != address(0), "!_usdcWethPool");
-        require(_sqthWethPool != address(0), "!_sqthWethPool");
-        require(_thetaCallVault != address(0), "!_thetaCallVault");
-        require(_thetaPutVault != address(0), "!_thetaPutVault");
-        require(_gammaController != address(0), "!_gammaController");
-        require(_yearnRegistry != address(0), "!_yearnRegistry");
+    struct AddressBook {
+        address _weth;
+        address _usdc;
+        address _squeethController;
+        address _oracle;
+        address _uniswapRouter;
+        address _uniswapFactory;
+        address _usdcWethPool;
+        address _sqthWethPool;
+        address _optionsPurchaseQueue;
+        address _thetaCallVault;
+        address _thetaPutVault;
+        address _gammaController;
+        address _yearnRegistry;
+    }
 
-        USDC = _usdc;
-        WETH = _weth;
+    /************************************************
+     *  CONSTRUCTOR & INITIALIZATION
+     ***********************************************/
 
-        CONTROLLER = _squeethController;
+    constructor(AddressBook memory addressBook) {
+        require(addressBook._weth != address(0), "!_weth");
+        require(addressBook._usdc != address(0), "!_usdc");
+        require(
+            addressBook._squeethController != address(0),
+            "!_squeethController"
+        );
+        require(addressBook._oracle != address(0), "!_oracle");
+        require(addressBook._uniswapRouter != address(0), "!_uniswapRouter");
+        require(addressBook._uniswapFactory != address(0), "!_uniswapFactory");
+        require(addressBook._usdcWethPool != address(0), "!_usdcWethPool");
+        require(addressBook._sqthWethPool != address(0), "!_sqthWethPool");
+        require(
+            addressBook._optionsPurchaseQueue != address(0),
+            "!_optionsPurchaseQueue;"
+        );
+        require(addressBook._thetaCallVault != address(0), "!_thetaCallVault");
+        require(addressBook._thetaPutVault != address(0), "!_thetaPutVault");
+        require(
+            addressBook._gammaController != address(0),
+            "!_gammaController"
+        );
+        require(addressBook._yearnRegistry != address(0), "!_yearnRegistry");
+
+        USDC = addressBook._usdc;
+        WETH = addressBook._weth;
+
+        CONTROLLER = addressBook._squeethController;
         address _sqth =
-            address(IPowerPerpController(_squeethController).wPowerPerp());
+            address(
+                IPowerPerpController(addressBook._squeethController)
+                    .wPowerPerp()
+            );
         SQTH = _sqth;
-        ORACLE = _oracle;
+        ORACLE = addressBook._oracle;
         // Creates a vault for this contract and saves the vault ID
-        VAULT_ID = IPowerPerpController(_squeethController)
+        VAULT_ID = IPowerPerpController(addressBook._squeethController)
             .mintWPowerPerpAmount(0, 0, 0);
 
-        UNISWAP_ROUTER = _uniswapRouter;
-        UNISWAP_FACTORY = _uniswapFactory;
-        USDC_WETH_POOL = _usdcWethPool;
-        SQTH_WETH_POOL = _sqthWethPool;
-        THETA_CALL_VAULT = _thetaCallVault;
-        THETA_PUT_VAULT = _thetaPutVault;
-        GAMMA_CONTROLLER = _gammaController;
-        YEARN_REGISTRY = _yearnRegistry;
+        UNISWAP_ROUTER = addressBook._uniswapRouter;
+        UNISWAP_FACTORY = addressBook._uniswapFactory;
+        USDC_WETH_POOL = addressBook._usdcWethPool;
+        SQTH_WETH_POOL = addressBook._sqthWethPool;
+        OPTIONS_PURCHASE_QUEUE = addressBook._optionsPurchaseQueue;
+        THETA_CALL_VAULT = addressBook._thetaCallVault;
+        THETA_PUT_VAULT = addressBook._thetaPutVault;
+        GAMMA_CONTROLLER = addressBook._gammaController;
+        YEARN_REGISTRY = addressBook._yearnRegistry;
     }
 
     /**
@@ -293,7 +309,6 @@ contract RibbonGammaVault is
 
         vaultState.round = 1;
 
-        optionsPurchaseQueue = _initParams._optionsPurchaseQueue;
         ratioThreshold = _initParams._ratioThreshold;
         optionAllocation = _initParams._optionAllocation;
         usdcWethSwapPath = _initParams._usdcWethSwapPath;
@@ -409,25 +424,6 @@ contract RibbonGammaVault is
     }
 
     /**
-     * @notice Sets the new options purchase queue address
-     * @param newOptionsPurchaseQueue is the new options purchase queue contract
-     */
-    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
-        external
-        onlyOwner
-    {
-        require(
-            newOptionsPurchaseQueue != address(0),
-            "!newOptionsPurchaseQueue"
-        );
-        emit OptionsPurchaseQueueSet(
-            optionsPurchaseQueue,
-            newOptionsPurchaseQueue
-        );
-        optionsPurchaseQueue = newOptionsPurchaseQueue;
-    }
-
-    /**
      * @notice Sets the new ratioThreshold value for this vault
      * @param newRatioThreshold is the new ratioThreshold
      */
@@ -482,12 +478,13 @@ contract RibbonGammaVault is
         require(
             UniswapRouter.checkPath(
                 newWethUsdcSwapPath,
-                USDC,
                 WETH,
+                USDC,
                 UNISWAP_FACTORY
             ),
             "!newWethUsdcSwapPath"
         );
+        emit WethUsdcSwapPathSet(wethUsdcSwapPath, newWethUsdcSwapPath);
         wethUsdcSwapPath = newWethUsdcSwapPath;
     }
 
@@ -866,68 +863,40 @@ contract RibbonGammaVault is
         newRoundInProgress = true;
     }
 
-    // /**
-    //  * @notice View function to get necessary params to run prepareReadyState function
-    //  * @dev This function is for view purposes only. It's gas inefficient and should not be called on-chain
-    //  */
-    // function getReadyStateParams()
-    //     public
-    //     view
-    //     returns (
-    //         uint256 wethBalanceShortage,
-    //         uint256 usdcBalanceShortage,
-    //         uint256 usdcBalanceShortageInWETH
-    //     )
-    // {
-    //     return
-    //         VaultLifecycleGamma.getReadyStateParams(
-    //             VaultLifecycleGamma.ReadyParams(
-    //                 CONTROLLER,
-    //                 ORACLE,
-    //                 SQTH_WETH_POOL,
-    //                 USDC_WETH_POOL,
-    //                 SQTH,
-    //                 WETH,
-    //                 USDC,
-    //                 VAULT_ID,
-    //                 optionsPurchaseQueue,
-    //                 THETA_CALL_VAULT,
-    //                 THETA_PUT_VAULT,
-    //                 optionAllocation,
-    //                 lastQueuedWithdrawAmount
-    //             )
-    //         );
-    // }
-
     /**
      * @notice Prepare balance to queue for purchase
      * @dev To run this function, keeper is suggested to get the params from getReadyStateParams
      * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
      * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
      * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
+     * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
      */
     function prepareReadyState(
         uint256 wethBalanceShortage,
         uint256 usdcBalanceShortage,
-        uint256 usdcBalanceShortageInWETH
-    ) external onlyKeeper isClosingRound nonReentrant returns (uint256 amountIn) {
-        uint256 wethAmount = wethBalanceShortage + usdcBalanceShortageInWETH;
-
-        // Need this function to maintain collateral ratio
-        IPowerPerpController(CONTROLLER).burnWPowerPerpAmount(
-            VAULT_ID,
-            wethAmount,
-            0
-        );
-
-        IWETH(WETH).deposit{value: wethAmount}();
-
-        return VaultLifecycleGamma.swapExactOutput(
-            WETH,
-            usdcBalanceShortage,
-            usdcBalanceShortageInWETH,
-            UNISWAP_ROUTER,
-            wethUsdcSwapPath
+        uint256 usdcBalanceShortageInWETH,
+        uint256 maxAmountIn
+    )
+        external
+        onlyKeeper
+        isClosingRound
+        nonReentrant
+        returns (uint256 wethAmountOut, uint256 wethAmountIn)
+    {
+        (wethAmountOut, wethAmountIn) = VaultLifecycleGamma.prepareReadyState(
+            VaultLifecycleGamma.ReadyParams(
+                CONTROLLER,
+                SQTH_WETH_POOL,
+                SQTH,
+                WETH,
+                VAULT_ID,
+                UNISWAP_ROUTER,
+                usdcWethSwapPath,
+                wethBalanceShortage,
+                usdcBalanceShortage,
+                usdcBalanceShortageInWETH,
+                maxAmountIn
+            )
         );
     }
 
@@ -946,7 +915,7 @@ contract RibbonGammaVault is
             WETH,
             USDC,
             VAULT_ID,
-            optionsPurchaseQueue,
+            OPTIONS_PURCHASE_QUEUE,
             THETA_CALL_VAULT,
             THETA_PUT_VAULT,
             optionAllocation
@@ -977,81 +946,56 @@ contract RibbonGammaVault is
         external
         onlyKeeper
         nonReentrant
+        returns (uint256)
     {
-        uint256 currentWethBalance = IERC20(WETH).balanceOf(address(this));
-        uint256 currentUsdcBalance =
-            IERC20(USDC).balanceOf(address(this)) -
-                lastQueuedWithdrawAmount -
-                vaultState.totalPending;
-        require(currentWethBalance != 0 || currentUsdcBalance != 0);
-
-        if (currentUsdcBalance > 0) {
-            uint256 wethReceived =
-                VaultLifecycleGamma.swapExactInput(
+        return
+            VaultLifecycleGamma.allocateLeftoverBalance(
+                VaultLifecycleGamma.AllocateParams(
+                    CONTROLLER,
+                    ORACLE,
+                    SQTH_WETH_POOL,
+                    SQTH,
+                    WETH,
                     USDC,
-                    currentUsdcBalance,
-                    minWethAmountOut,
+                    VAULT_ID,
+                    lastQueuedWithdrawAmount,
+                    vaultState.totalPending,
                     UNISWAP_ROUTER,
-                    usdcWethSwapPath
-                );
-        }
-
-        // Deposit collateral into controller
+                    usdcWethSwapPath,
+                    COLLATERAL_RATIO,
+                    minWethAmountOut
+                )
+            );
     }
 
     /************************************************
      *  BALANCING FUNCTIONS
      ***********************************************/
 
-    // /**
-    //  * @notice Get rebalance status
-    //  */
-    // function getRebalanceStatus() public
-    //     view returns (bool isAboveThreshold, uint256 sqthAmount){
-    //     (isAboveThreshold, sqthAmount) =
-    //     VaultLifecycleGamma.getRebalanceStatus(
-    //         CONTROLLER,
-    //         ORACLE,
-    //         SQTH_WETH_POOL,
-    //         SQTH,
-    //         WETH,
-    //         VAULT_ID,
-    //         COLLATERAL_RATIO
-    //     );
-    // }
-
     /**
      * @notice Rebalance the vault's position
+     * @param maxInOrMinOut Maximum in or minimim out depending on the rebalance action
      */
-    function rebalance(uint256 maxAmountIn) external onlyKeeper {
-        (bool isAboveThreshold, uint256 sqthAmount) =
-            VaultLifecycleGamma.getRebalanceStatus(
+    function rebalance(uint256 maxInOrMinOut)
+        external
+        onlyKeeper
+        returns (
+            bool isAboveThreshold,
+            uint256 sqthAmount,
+            uint256 resultAmount
+        )
+    {
+        (isAboveThreshold, sqthAmount, resultAmount) = VaultLifecycleGamma
+            .rebalance(
                 CONTROLLER,
                 ORACLE,
                 SQTH_WETH_POOL,
                 SQTH,
                 WETH,
                 VAULT_ID,
-                COLLATERAL_RATIO
-            );
-
-        if (isAboveThreshold) {
-            VaultLifecycleGamma.withdrawCollateral(
-                WETH,
-                SQTH,
-                SQTH_WETH_POOL,
-                sqthAmount,
-                maxAmountIn,
-                0
-            );
-        } else {
-            // Mint SQTH
-            IPowerPerpController(CONTROLLER).mintWPowerPerpAmount(
-                VAULT_ID,
-                sqthAmount,
-                0
-            );
-        }
+                COLLATERAL_RATIO,
+                maxInOrMinOut
+        );
     }
 
     /************************************************
