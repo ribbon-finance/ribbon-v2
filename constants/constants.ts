@@ -9,6 +9,13 @@ export enum CHAINID {
   AVAX_FUJI = 43113, // eslint-disable-line no-unused-vars
 }
 
+export const CHAIN_NAME = {
+  [CHAINID.ETH_MAINNET]: "mainnet",
+  [CHAINID.ETH_KOVAN]: "kovan",
+  [CHAINID.AVAX_MAINNET]: "avax",
+  [CHAINID.AVAX_FUJI]: "fuji"
+}
+
 // Make the block number on Thursday 12pm UTC
 // Must be 1 day from current time
 export const BLOCK_NUMBER = {
@@ -386,6 +393,9 @@ export const SQUEETH_CONTROLLER = {
 };
 export const SQUEETH_ORACLE = {
   [CHAINID.ETH_MAINNET]: "0x65D66c76447ccB45dAf1e8044e918fA786A483A1",
+};
+export const SHORT_POWER_PERP = {
+  [CHAINID.ETH_MAINNET]: "0xa653e22A963ff0026292Cc8B67941c0ba7863a38",
 };
 export const SQTH_ADDRESS = {
   [CHAINID.ETH_MAINNET]: "0xf1B99e3E573A1a9C5E6B2Ce818b617F0E664E86B",

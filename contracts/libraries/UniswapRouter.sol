@@ -124,30 +124,62 @@ library UniswapRouter {
      * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
      * @return amountOut is the amount of tokenOut received from the swap
      */
-    function swap(
+    function swapExactInput(
         address recipient,
         address tokenIn,
         uint256 amountIn,
         uint256 minAmountOut,
         address router,
         bytes memory swapPath
-    ) internal returns (uint256 amountOut) {
+    ) internal returns (uint256) {
         // Approve router to spend tokenIn
         IERC20(tokenIn).safeApprove(router, amountIn);
 
         // Swap assets using UniswapV3 router
         ISwapRouter.ExactInputParams memory swapParams =
             ISwapRouter.ExactInputParams({
-                recipient: recipient,
                 path: swapPath,
+                recipient: recipient,
                 deadline: block.timestamp,
                 amountIn: amountIn,
                 amountOutMinimum: minAmountOut
             });
 
-        amountOut = ISwapRouter(router).exactInput(swapParams);
+        return ISwapRouter(router).exactInput(swapParams);
+    }
 
-        return amountOut;
+    /**
+     * @notice Swaps assets by calling UniswapV3 router
+     * @param recipient is the address of recipient of the tokenOut
+     * @param tokenIn is the address of the token given to the router
+     * @param amountOut is the amount of tokenIn given to the router
+     * @param maxAmountIn is the minimum acceptable amount of tokenOut received from swap
+     * @param router is the contract address of UniswapV3 router
+     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
+     * @return amountOut is the amount of tokenOut received from the swap
+     */
+    function swapExactOutput(
+        address recipient,
+        address tokenIn,
+        uint256 amountOut,
+        uint256 maxAmountIn,
+        address router,
+        bytes memory swapPath
+    ) internal returns (uint256) {
+        // Approve router to spend tokenIn
+        IERC20(tokenIn).safeApprove(router, maxAmountIn);
+
+        // Swap assets using UniswapV3 router
+        ISwapRouter.ExactOutputParams memory swapParams =
+            ISwapRouter.ExactOutputParams({
+                path: swapPath,
+                recipient: recipient,
+                deadline: block.timestamp,
+                amountOut: amountOut,
+                amountInMaximum: maxAmountIn
+            });
+
+        return ISwapRouter(router).exactOutput(swapParams);
     }
 
     /**

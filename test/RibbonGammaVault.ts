@@ -17,11 +17,16 @@ import {
   UNISWAP_FACTORY,
   USDC_WETH_POOL,
   SQTH_WETH_POOL,
+  YEARN_REGISTRY_ADDRESS,
+  GAMMA_CONTROLLER,
+  CHAIN_NAME,
+  SHORT_POWER_PERP,
 } from "../constants/constants";
 import {
   deployProxy,
   mintToken,
   lockedBalanceForRollover,
+  encodePath,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -30,21 +35,25 @@ import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
 
+// Set timezone
 moment.tz.setDefault("UTC");
 
+// Set global constants
 const OPTION_DELAY = 0;
 const DELAY_INCREMENT = 100;
 const gasPrice = parseUnits("30", "gwei");
 const FEE_SCALING = BigNumber.from(10).pow(6);
 const WEEKS_PER_YEAR = 52142857;
 
+// Get chainId
 const chainId = network.config.chainId;
+const chainName = CHAIN_NAME[chainId];
 
 describe("RibbonGammaVault", () => {
-  // Addresses
+  // Wallets
   let owner: string, keeper: string, user: string, feeRecipient: string;
 
-  // Signers
+  // Signers instances for each wallet
   let adminSigner: SignerWithAddress,
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
@@ -56,12 +65,13 @@ describe("RibbonGammaVault", () => {
   const tokenSymbol = "rUSDC-GAMMA";
   const tokenDecimals = 6;
   const minimumSupply = BigNumber.from("10").pow("3").toString();
-  const asset = USDC_ADDRESS[chainId];
+  const asset = WETH_ADDRESS[chainId];
   const collateralAsset = USDC_ADDRESS[chainId];
   const depositAmount = BigNumber.from("100000000000");
   const managementFee = BigNumber.from("2000000");
   const performanceFee = BigNumber.from("20000000");
 
+  // Gas Limits
   const gasLimits = {
     depositWorstCase: 101000,
     depositBestCase: 90000,
@@ -69,12 +79,21 @@ describe("RibbonGammaVault", () => {
 
   // Contracts
   let vaultLifecycleLib: Contract;
+  let vaultLifecycleYearnLib: Contract;
   let vaultLifecycleGammaLib: Contract;
+  let squeethController: Contract;
+  let shortPowerPerp: Contract;
+  let optionsPurchaseQueue: Contract;
+  let callVault: Contract;
+  let putVault: Contract;
+  let firstCallOption: Contract;
+  let firstPutOption: Contract;
   let vault: Contract;
   let assetContract: Contract;
 
   describe(`${tokenName}`, () => {
     let initSnapshotId: string;
+    let deployArgs: any[];
 
     before(async function () {
       // Reset block
@@ -90,8 +109,10 @@ describe("RibbonGammaVault", () => {
         ],
       });
 
+      // Take snapshot of block
       initSnapshotId = await time.takeSnapshot();
 
+      // Initiate the wallet signers
       [adminSigner, ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
         await ethers.getSigners();
       owner = ownerSigner.address;
@@ -99,49 +120,106 @@ describe("RibbonGammaVault", () => {
       user = userSigner.address;
       feeRecipient = feeRecipientSigner.address;
 
+      // Initate VaultlifeCycle
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
+      // Initate VaultlifeCycleGamma
+      const VaultLifecycleYearn = await ethers.getContractFactory(
+        "VaultLifecycleYearn"
+      );
+      vaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
+
+      // Initate VaultlifeCycleGamma
       const VaultLifecycleGamma = await ethers.getContractFactory(
         "VaultLifecycleGamma"
       );
       vaultLifecycleGammaLib = await VaultLifecycleGamma.deploy();
+      
+      // Options purchase queue
+      const OptionsPurchaseQueue = await getContractFactory(
+        "OptionsPurchaseQueue"
+      );
+      optionsPurchaseQueue = await OptionsPurchaseQueue.deploy();
 
+      // Mock options
+      const MockERC20 = await getContractFactory("MockERC20");
+      firstCallOption = await MockERC20.deploy("CALL OTOKEN", "CALL OTOKEN");
+      firstPutOption = await MockERC20.deploy("PUT OTOKEN", "PUT OTOKEN");
+
+      // Mock theta vaults
+      const MockRibbonVault = await getContractFactory(
+        "MockRibbonVault"
+      );
+  
+      callVault = await MockRibbonVault.deploy();
+      await callVault.setAsset(WETH_ADDRESS[chainId]);
+      await callVault.setCurrentOption(firstCallOption.address);
+
+      putVault = await MockRibbonVault.deploy();
+      await putVault.setAsset(USDC_ADDRESS[chainId]);
+      await putVault.setCurrentOption(firstPutOption.address);
+      
+      // PowerPerp
+      squeethController = await getContractAt("IPowerPerpController", SQUEETH_CONTROLLER[chainId])
+      shortPowerPerp = await getContractAt("IShortPowerPerp", SHORT_POWER_PERP[chainId])
+
+      // Set swap paths
+      const usdcWethSwapPath = encodePath(
+        [USDC_ADDRESS[chainId], WETH_ADDRESS[chainId]],
+        [3000]
+      );
+
+      const wethUsdcSwapPath = encodePath(
+        [WETH_ADDRESS[chainId], USDC_ADDRESS[chainId]],
+        [3000]
+      );
+
+      // Set initialize args
       const initializeArgs = [
         [
-          owner,
-          keeper,
-          feeRecipient,
-          managementFee,
-          performanceFee,
-          tokenName,
-          tokenSymbol,
-          BigNumber.from(0),
-          BigNumber.from(0),
-          "0x",
-          "0x",
+          owner, // owner address
+          keeper, // keeper address
+          feeRecipient, // fee recipient address
+          managementFee, // annual management fee in percent
+          performanceFee, // performance fee in percent
+          tokenName, // token name e.g. Ribbon USDC Gamma Vault
+          tokenSymbol, // token symbol e.g. rUSDC-GAMMA
+          ethers.utils.parseEther("0.2"), // collateral ratio threshold
+          BigNumber.from(0), // option allocation ratio
+          usdcWethSwapPath, // usdc -> weth swap path
+          wethUsdcSwapPath, // weth -> usdc swap path
         ],
         [
-          false,
-          tokenDecimals,
-          USDC_ADDRESS[chainId],
-          asset,
-          minimumSupply,
-          parseUnits("50000000", 6),
+          false, // true: put selling, false: covered call, irrelevant for gamma vault
+          tokenDecimals, // vault's asset decimals, USDC -> 6 decimals
+          USDC_ADDRESS[chainId], // vault's asset
+          asset, // underlying asset of the options
+          minimumSupply, // minimum supply of vault shares issued
+          parseEther("50000000"), // vault cap
         ],
       ];
 
-      const deployArgs = [
-        WETH_ADDRESS[chainId],
-        USDC_ADDRESS[chainId],
-        SQUEETH_CONTROLLER[chainId],
-        SQUEETH_ORACLE[chainId],
-        UNISWAP_ROUTER[chainId],
-        UNISWAP_FACTORY[chainId],
-        USDC_WETH_POOL[chainId],
-        SQTH_WETH_POOL[chainId],
+      // Set deployment args
+      deployArgs = [
+        [
+          WETH_ADDRESS[chainId], // weth  
+          USDC_ADDRESS[chainId], // usdc  
+          SQUEETH_CONTROLLER[chainId], // squeeth controller  
+          SQUEETH_ORACLE[chainId], // oracle  
+          UNISWAP_ROUTER[chainId], // uniswap router  
+          UNISWAP_FACTORY[chainId], // uniswap factory  
+          USDC_WETH_POOL[chainId], // usdc:weth pool  
+          SQTH_WETH_POOL[chainId], // sqth:weth pool  
+          optionsPurchaseQueue.address,
+          callVault.address, // ribbon t-eth-c theta vault  
+          putVault.address, // ribbon t-yvusdc-p-eth theta vault  
+          GAMMA_CONTROLLER[chainId], // opyn gamma controller  
+          YEARN_REGISTRY_ADDRESS, // yearn registry  
+        ],
       ];
-
+      
+      // Deploy vault
       vault = (
         await deployProxy(
           "RibbonGammaVault",
@@ -151,17 +229,18 @@ describe("RibbonGammaVault", () => {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
               VaultLifecycleGamma: vaultLifecycleGammaLib.address,
             },
           }
         )
       ).connect(userSigner);
 
-      await vault.initRounds(50);
-
-      assetContract = await getContractAt("IWBTC", collateralAsset);
+      // Mint assets for the wallets
+      assetContract = await getContractAt("IERC20", collateralAsset);
 
       const addressToDeposit = [userSigner, ownerSigner, adminSigner];
+
       for (let i = 0; i < addressToDeposit.length; i++) {
         await mintToken(
           assetContract,
@@ -186,26 +265,18 @@ describe("RibbonGammaVault", () => {
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
+              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
               VaultLifecycleGamma: vaultLifecycleGammaLib.address,
             },
           }
         );
-        testVault = await RibbonGammaVault.deploy(
-          WETH_ADDRESS[chainId],
-          USDC_ADDRESS[chainId],
-          SQUEETH_CONTROLLER[chainId],
-          SQUEETH_ORACLE[chainId],
-          UNISWAP_ROUTER[chainId],
-          UNISWAP_FACTORY[chainId],
-          USDC_WETH_POOL[chainId],
-          SQTH_WETH_POOL[chainId]
-        );
+        testVault = await RibbonGammaVault.deploy(...deployArgs);
       });
 
-      it.skip("initializes with correct values", async function () {
+      it("initializes with correct values", async function () {
         assert.equal(
           (await vault.cap()).toString(),
-          parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18)
+          parseUnits("50000000", tokenDecimals > 18 ? tokenDecimals : 18).toString()
         );
         assert.equal(await vault.owner(), owner);
         assert.equal(await vault.keeper(), keeper);
@@ -240,7 +311,7 @@ describe("RibbonGammaVault", () => {
         //   (await vault.premiumDiscount()).toString(),
         //   params.premiumDiscount.toString()
         // );
-        assert.bnEqual(cap, parseUnits("500", 6));
+        assert.bnEqual(cap, parseUnits("50000000", tokenDecimals > 18 ? tokenDecimals : 18));
         // assert.equal(
         //   await vault.optionsPremiumPricer(),
         //   optionsPremiumPricer.address
@@ -1945,15 +2016,12 @@ describe("RibbonGammaVault", () => {
         //   .connect(userSigner)
         //   .approve(vault.address, depositAmount);
         // await vault.deposit(depositAmount);
-
         // await assetContract.connect(userSigner).transfer(owner, depositAmount);
         // await assetContract
         //   .connect(ownerSigner)
         //   .approve(vault.address, depositAmount);
         // await vault.connect(ownerSigner).deposit(depositAmount);
-
         // await rollToNextOption();
-
         // await vault.initiateWithdraw(depositAmount);
       });
 
@@ -2258,6 +2326,39 @@ describe("RibbonGammaVault", () => {
         // assert.bnEqual(unredeemedShares2, BigNumber.from(0));
       });
     });
+
+    describe("#allocateAvailableBalance", () => {
+      let testVault: Contract;
+
+      time.revertToSnapshotAfterEach(async function () {
+        await vault.connect(userSigner).deposit(parseUnits("60000", 6))
+        // await vault.connect(ownerSigner).setOperator(keeper)
+        console.log("Deployed vault", vault.address)
+      });
+
+      it("testing", async function () {
+        console.log((await assetContract.balanceOf(vault.address)).toString())
+        await vault.connect(keeperSigner).closeCurrentRound();
+        await vault.connect(keeperSigner).startNextRound();
+        const vaultId = await vault.vaultId()
+        console.log("Admin", adminSigner.address)
+        console.log("Owner", owner)
+        console.log("Keeper", keeper)
+        console.log("User", user)
+        console.log("Vault ID", vaultId.toString())
+        // await vault.connect(ownerSigner).setOptionAllocation("0")
+        console.log("Vault Info", await squeethController.vaults(vaultId))
+        console.log("Vault Owner", await shortPowerPerp.ownerOf(vaultId))
+        console.log((await vault.connect(keeperSigner).allocateAvailableBalance(parseEther("19"))).toString())
+        console.log((await assetContract.balanceOf(vault.address)).toString())
+        console.log("Vault Info", (await squeethController.vaults(vaultId)).map((value) => value.toString()))
+        await vault.connect(userSigner).deposit(parseUnits("30000", 6))
+        await vault.connect(keeperSigner).closeCurrentRound();
+        await vault.connect(keeperSigner).startNextRound();
+        console.log((await vault.connect(keeperSigner).allocateAvailableBalance(parseEther("9"))).toString())
+        console.log("Vault Info", (await squeethController.vaults(vaultId)).map((value) => value.toString()))
+      })
+    })
 
     describe("#setCap", () => {
       time.revertToSnapshotAfterEach();
