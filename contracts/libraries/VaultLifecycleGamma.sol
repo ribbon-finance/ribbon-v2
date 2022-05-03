@@ -216,8 +216,32 @@ library VaultLifecycleGamma {
     }
 
     /************************************************
-     *  SWAPS
+     *  ROUTER FUNCTIONS
      ***********************************************/
+
+    /**
+     * @notice Check if the path set for swap is valid
+     * @param swapPath is the swap path e.g. encodePacked(tokenIn, poolFee, tokenOut)
+     * @param validTokenIn is the contract address of the correct tokenIn
+     * @param validTokenOut is the contract address of the correct tokenOut
+     * @param uniswapFactory is the contract address of UniswapV3 factory
+     * @return isValidPath is whether the path is valid
+     */
+    function checkPath(
+        bytes memory swapPath,
+        address validTokenIn,
+        address validTokenOut,
+        address uniswapFactory
+    ) external view returns (bool isValidPath) {
+        isValidPath = UniswapRouter.checkPath(
+            swapPath,
+            validTokenIn,
+            validTokenOut,
+            uniswapFactory
+        );
+
+        require(isValidPath, "Invalid path");
+    }
 
     /**
      * @notice Swaps using Uniswap router
@@ -488,6 +512,8 @@ library VaultLifecycleGamma {
         uint256 wethAmount =
             readyParams.wethBalanceShortage +
                 readyParams.usdcBalanceShortageInWETH;
+
+        // Need to check here if we should withdraw from SQTH or swap USDC 
         uint256 sqthAmount =
             calculateSqthBurnAmount(
                 readyParams.controller,
@@ -519,7 +545,7 @@ library VaultLifecycleGamma {
      * @notice Place purchase of options in the queue
      * @param allocateParams is the struct containing necessary parameters for this function
      */
-    function allocateLeftoverBalance(AllocateParams memory allocateParams)
+    function allocateAvailableBalance(AllocateParams memory allocateParams)
         external
         returns (uint256)
     {
