@@ -18,6 +18,7 @@ import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -184,7 +185,11 @@ library VaultLifecycle {
         uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
 
         uint256 balanceForVaultFees;
-        {
+        {   
+            console.log(params.currentShareSupply);
+            console.log(currentBalance);
+            console.log(pendingAmount);
+            console.log(params.decimals);
             uint256 pricePerShareBeforeFee =
                 ShareMath.pricePerShare(
                     params.currentShareSupply,

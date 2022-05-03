@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {VaultLib} from "../libraries/PowerTokenVaultLib.sol";
 
-interface IController {
+interface IPowerPerpController {
     function ethQuoteCurrencyPool() external view returns (address);
 
     function feeRate() external view returns (uint256);
