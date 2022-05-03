@@ -91,6 +91,9 @@ contract RibbonGammaVault is
     // OptionsPurchaseQueue contract for the vault
     address public immutable OPTIONS_PURCHASE_QUEUE;
 
+    // OptionsPurchaseQueue contract for the vault
+    address public immutable OPTIONS_PURCHASE_QUEUE;
+
     // UNISWAP_ROUTER is the contract address of Uniswap V3 Router which handles swaps
     // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
     address public immutable UNISWAP_ROUTER;
