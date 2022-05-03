@@ -510,37 +510,67 @@ library VaultLifecycleGamma {
         external
         returns (uint256 wethAmountOut, uint256 wethAmountIn)
     {   
+
+        uint256 currentUsdcBalance =
+            IERC20(readyParams.usdc).balanceOf(address(this));
+
+        (uint256 vaultBalanceInUSDC, uint256 vaultBalanceInWETH) =
+            getAssetBalances(
+                readyParams.controller,
+                readyParams.oracle,
+                readyParams.sqthWethPool,
+                readyParams.sqth,
+                readyParams.weth,
+                readyParams.usdc,
+                readyParams.vaultId
+            );
+
+        uint256 wethPriceInUSDC =
+            getWethPriceInUSDC(
+                readyParams.oracle,
+                readyParams.usdcWethPool,
+                readyParams.weth,
+                readyParams.usdc
+            );
+
+        uint256 optionsQuantity =
+            calculateOptionsQuantity(
+                vaultBalanceInWETH +
+                    ((vaultBalanceInUSDC * 10**6) / wethPriceInUSDC),
+                readyParams.optionAllocation
+            );
+        uint256 putPriceCeiling =
+            IOptionsPurchaseQueue(readyParams.optionsPurchaseQueue)
+                .ceilingPrice(readyParams.thetaPutVault);
+        require(putPriceCeiling > 0, "Price ceiling for put vault not set");
+        uint256 requiredUsdcBalance =
+            (putPriceCeiling * optionsQuantity) /
+                1e18 +
+                readyParams.lastQueuedWithdrawAmount;
+
+        if (currentUsdcBalance > requiredUsdcBalance) {
+            // swapexactinput
+        }
+
+        // include remaining required usdc balance
+
+        uint256 currentWethBalance =
+            IERC20(readyParams.weth).balanceOf(address(this));
+
+        uint256 callPriceCeiling =
+            IOptionsPurchaseQueue(readyParams.optionsPurchaseQueue)
+                .ceilingPrice(readyParams.thetaCallVault);
+        require(callPriceCeiling > 0, "Price ceiling for call vault not set");
         
-        // uint256 wethAmount =
-        //     readyParams.wethBalanceShortage +
-        //         readyParams.usdcBalanceShortageInWETH;
+        uint256 requiredWethBalance =
+            (callPriceCeiling * optionsQuantity) / 1e18; // add remaining required usdc balance
 
-        // // Need to check here if we should withdraw from SQTH or swap USDC
-        // uint256 sqthAmount =
-        //     calculateSqthBurnAmount(
-        //         readyParams.controller,
-        //         readyParams.vaultId,
-        //         wethAmount
-        //     );
+        if (currentWethBalance > requiredWethBalance) {
+            // withdraw collateral to cover + buffer
+        }
 
-        // wethAmountOut = withdrawCollateral(
-        //     readyParams.weth,
-        //     readyParams.sqth,
-        //     readyParams.sqthWethPool,
-        //     sqthAmount,
-        //     readyParams.maxAmountIn,
-        //     wethAmount
-        // );
-
-        // IWETH(readyParams.weth).deposit{value: wethAmountOut}();
-
-        // wethAmountIn = swapExactOutput(
-        //     readyParams.weth,
-        //     readyParams.usdcBalanceShortage,
-        //     readyParams.usdcBalanceShortageInWETH,
-        //     readyParams.uniswapRouter,
-        //     readyParams.wethUsdcSwapPath
-        // );
+        // if remaining USDC > 0
+        // swap WETH to USDC
     }
 
     /**
