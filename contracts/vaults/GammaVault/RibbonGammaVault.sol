@@ -91,9 +91,6 @@ contract RibbonGammaVault is
     // OptionsPurchaseQueue contract for the vault
     address public immutable OPTIONS_PURCHASE_QUEUE;
 
-    // OptionsPurchaseQueue contract for the vault
-    address public immutable OPTIONS_PURCHASE_QUEUE;
-
     // UNISWAP_ROUTER is the contract address of Uniswap V3 Router which handles swaps
     // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
     address public immutable UNISWAP_ROUTER;
@@ -377,8 +374,11 @@ contract RibbonGammaVault is
         require(collateralToken != address(0), "C16");
 
         // Creates a vault for this contract and saves the vault ID
-        vaultId = IPowerPerpController(CONTROLLER)
-                .mintWPowerPerpAmount(0, 0, 0);
+        vaultId = IPowerPerpController(CONTROLLER).mintWPowerPerpAmount(
+            0,
+            0,
+            0
+        );
     }
 
     /************************************************
@@ -883,41 +883,78 @@ contract RibbonGammaVault is
         newRoundInProgress = true;
     }
 
-    /**
-     * @notice Prepare balance to queue for purchase
-     * @dev To run this function, keeper is suggested to get the params from getReadyStateParams
-     * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
-     * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
-     * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
-     * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
-     */
-    function prepareReadyState(
-        uint256 wethBalanceShortage,
-        uint256 usdcBalanceShortage,
-        uint256 usdcBalanceShortageInWETH,
-        uint256 maxAmountIn
-    )
+    // /**
+    //  * @notice Prepare balance to queue for purchase
+    //  * @dev To run this function, keeper is suggested to get the params from getReadyStateParams
+    //  * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
+    //  * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
+    //  * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
+    //  * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
+    //  */
+    function prepareReadyState(uint256 minAmountOut)
         external
         onlyKeeper
         isClosingRound
         nonReentrant
-        returns (uint256 wethAmountOut, uint256 wethAmountIn)
     {
-        (wethAmountOut, wethAmountIn) = VaultLifecycleGamma.prepareReadyState(
-            VaultLifecycleGamma.ReadyParams(
-                CONTROLLER,
-                SQTH_WETH_POOL,
-                SQTH,
-                WETH,
-                vaultId,
-                UNISWAP_ROUTER,
-                usdcWethSwapPath,
-                wethBalanceShortage,
-                usdcBalanceShortage,
-                usdcBalanceShortageInWETH,
-                maxAmountIn
-            )
+        // Cached vars
+        address controller = CONTROLLER;
+        address oracle = ORACLE;
+        address sqthWethPool = SQTH_WETH_POOL;
+        address usdcWethPool = USDC_WETH_POOL;
+        address sqth = SQTH;
+        address weth = WETH;
+        address usdc = USDC;
+        uint256 wethPrice = VaultLifecycleGamma.getWethPriceInUSDC(
+            oracle,
+            usdcWethPool,
+            weth,
+            usdc
         );
+
+        (uint256 vaultBalanceInUSDC, uint256 vaultBalanceInWETH) =
+            VaultLifecycleGamma.getAssetBalances(
+                controller,
+                oracle,
+                sqthWethPool,
+                sqth,
+                weth,
+                usdc,
+                vaultId
+            );
+
+        // (
+        //     ,
+        //     uint256 putCollateralAmount,
+        //     uint256 callCollateralAmount
+        // ) = VaultLifecycleGamma.getOptionsQuantity(
+        //     wethPrice,
+        //     vaultBalanceInWETH,
+        //     vaultBalanceInUSDC,
+        //     optionAllocation,
+        //     OPTIONS_PURCHASE_QUEUE,
+        //     THETA_PUT_VAULT,
+        //     THETA_CALL_VAULT
+        // );
+
+        // VaultLifecycleGamma.prepareReadyState(
+        //     VaultLifecycleGamma.ReadyParams(
+        //         controller,
+        //         oracle,
+        //         sqthWethPool,
+        //         usdcWethPool,
+        //         sqth,
+        //         weth,
+        //         usdc,
+        //         UNISWAP_ROUTER,
+        //         wethUsdcSwapPath,
+        //         usdcWethSwapPath,
+        //         0, //putCollateralAmount, 
+        //         0, //callCollateralAmount,
+        //         lastQueuedWithdrawAmount,
+        //         0
+        //     )
+        // );
     }
 
     /**
