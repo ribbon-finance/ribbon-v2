@@ -185,7 +185,7 @@ library VaultLifecycle {
         uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
 
         uint256 balanceForVaultFees;
-        {   
+        {
             console.log(params.currentShareSupply);
             console.log(currentBalance);
             console.log(pendingAmount);
