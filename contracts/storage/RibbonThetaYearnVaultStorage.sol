@@ -48,7 +48,8 @@ abstract contract RibbonThetaYearnVaultStorage is
     RibbonThetaYearnVaultStorageV1,
     RibbonThetaYearnVaultStorageV2,
     RibbonThetaYearnVaultStorageV3,
-    RibbonThetaYearnVaultStorageV4
+    RibbonThetaYearnVaultStorageV4,
+    RibbonThetaYearnVaultStorageV5
 {
 
 }
