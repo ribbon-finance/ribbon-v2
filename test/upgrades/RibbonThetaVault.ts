@@ -1,4 +1,3 @@
-import { assert } from "chai";
 import { ethers, network } from "hardhat";
 import {
   GAMMA_CONTROLLER,
@@ -12,6 +11,8 @@ import { objectEquals, parseLog, serializeMap } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
 import { BigNumberish, Contract } from "ethers";
 import * as time from "../helpers/time";
+import { assert } from "../helpers/assertions";
+import { BigNumber } from "ethereum-waffle/node_modules/ethers";
 
 const { parseEther } = ethers.utils;
 
@@ -20,7 +21,7 @@ const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14666901;
+const FORK_BLOCK = 14709786;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -59,6 +60,7 @@ describe("RibbonThetaVault upgrade", () => {
       "RibbonThetaVaultETHCall",
       "RibbonThetaVaultWBTCCall",
       "RibbonThetaVaultAAVECall",
+      "RibbonThetaVaultAPECall",
     ];
     deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
   });
@@ -66,6 +68,7 @@ describe("RibbonThetaVault upgrade", () => {
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultETHCall);
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultWBTCCall);
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultAAVECall);
+  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultAPECall);
 });
 
 function checkIfStorageNotCorrupted(vaultAddress: string) {
@@ -89,8 +92,12 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "overriddenStrikePrice",
     "auctionDuration",
     "optionAuctionID",
-    "lastQueuedWithdrawAmount"
+    "lastQueuedWithdrawAmount",
+    "liquidityGauge",
+    "optionsPurchaseQueue",
   ];
+
+  const newVariables = ["currentQueuedWithdrawShares"];
 
   let variables: Record<string, unknown> = {};
 
@@ -130,7 +137,7 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
         OTOKEN_FACTORY[CHAINID],
         GAMMA_CONTROLLER[CHAINID],
         MARGIN_POOL[CHAINID],
-        GNOSIS_EASY_AUCTION[CHAINID],
+        GNOSIS_EASY_AUCTION[CHAINID]
       );
       newImplementation = newImplementationContract.address;
     });
@@ -157,6 +164,18 @@ New: ${JSON.stringify(newVariables, null, 4)}`
         await getVaultStorage(IMPLEMENTATION_SLOT),
         "0x000000000000000000000000" + newImplementation.slice(2).toLowerCase()
       );
+    });
+
+    it("shows the new variables correctly after an upgrade", async () => {
+      const res = await vaultProxy.upgradeTo(newImplementation);
+      await res.wait();
+
+      const variableReturns = await Promise.all(
+        newVariables.map((varName) => vault[varName]())
+      );
+      for (let returnVal of variableReturns) {
+        assert.bnEqual(returnVal, BigNumber.from(0));
+      }
     });
 
     const getVariablesFromContract = async (vault: Contract) => {
