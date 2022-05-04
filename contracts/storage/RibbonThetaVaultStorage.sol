@@ -56,7 +56,8 @@ abstract contract RibbonThetaVaultStorage is
     RibbonThetaVaultStorageV2,
     RibbonThetaVaultStorageV3,
     RibbonThetaVaultStorageV4,
-    RibbonThetaVaultStorageV5
+    RibbonThetaVaultStorageV5,
+    RibbonThetaVaultStorageV6
 {
 
 }
