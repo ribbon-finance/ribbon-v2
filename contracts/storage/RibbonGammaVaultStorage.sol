@@ -43,8 +43,14 @@ abstract contract RibbonGammaVaultStorageV1 {
     /// @notice LiquidityGauge contract for the vault
     address public liquidityGauge;
 
-    /// @notice OptionsPurchaseQueue contract for the vault
-    address public optionsPurchaseQueue;
+    /// @notice Squeeth short position Vault Id
+    uint256 public vaultId;
+
+    /// @notice Call options
+    address public callOtokens;
+
+    /// @notice Put options
+    address public putOtokens;
 
     /// @notice True if the vault is currently adding/withdrawing from the squeeth short position
     bool public newRoundInProgress;
@@ -60,6 +66,9 @@ abstract contract RibbonGammaVaultStorageV1 {
 
     /// @notice WETH -> USDC swap path
     bytes public wethUsdcSwapPath;
+
+    /// @notice Yearn vault contract
+    address public collateralToken;
 }
 
 // We are following Compound's method of upgrading new contract implementations

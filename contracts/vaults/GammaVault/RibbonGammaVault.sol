@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
@@ -16,19 +15,26 @@ import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {
     RibbonGammaVaultStorage
 } from "../../storage/RibbonGammaVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleGamma} from "../../libraries/VaultLifecycleGamma.sol";
+import {VaultLifecycleYearn} from "../../libraries/VaultLifecycleYearn.sol";
+import {IYearnRegistry, IYearnVault} from "../../interfaces/IYearn.sol";
 import {UniswapRouter} from "../../libraries/UniswapRouter.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
 import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
-import {IController, IOracle} from "../../interfaces/PowerTokenInterface.sol";
+import {
+    IPowerPerpController,
+    IOracle
+} from "../../interfaces/PowerTokenInterface.sol";
+import {
+    IOptionsPurchaseQueue
+} from "../../interfaces/IOptionsPurchaseQueue.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -43,7 +49,6 @@ contract RibbonGammaVault is
     RibbonGammaVaultStorage
 {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
     /************************************************
@@ -62,6 +67,12 @@ contract RibbonGammaVault is
     /// @notice The collateral ratio targeted by the vault (200%)
     uint256 public constant COLLATERAL_RATIO = 2e18;
 
+    /// @notice Withdrawal buffer for yearn vault
+    uint256 public constant YEARN_WITHDRAWAL_BUFFER = 5; // 0.05%
+
+    /// @notice Slippage incurred during withdrawal
+    uint256 public constant YEARN_WITHDRAWAL_SLIPPAGE = 5; // 0.05%
+
     // Number of weeks per year = 52.142857 weeks * FEE_MULTIPLIER = 52142857
     // Dividing by weeks per year requires doing num.mul(FEE_MULTIPLIER).div(WEEKS_PER_YEAR)
     uint256 private constant WEEKS_PER_YEAR = 52142857;
@@ -77,8 +88,8 @@ contract RibbonGammaVault is
     // Squeeth Oracle
     address public immutable ORACLE;
 
-    // Squeeth short position vault ID
-    uint256 public immutable VAULT_ID;
+    // OptionsPurchaseQueue contract for the vault
+    address public immutable OPTIONS_PURCHASE_QUEUE;
 
     // UNISWAP_ROUTER is the contract address of Uniswap V3 Router which handles swaps
     // https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/ISwapRouter.sol
@@ -94,8 +105,20 @@ contract RibbonGammaVault is
     // oSQTH/WETH Uniswap V3 Pool
     address public immutable SQTH_WETH_POOL;
 
+    // THETA_CALL_VAULT is Ribbon ETH Call Theta Vault to buy call options from
+    address public immutable THETA_CALL_VAULT;
+
+    // THETA_PUT_VAULT is Ribbon ETH Put Theta Vault to buy put options from
+    address public immutable THETA_PUT_VAULT;
+
+    // GAMMA_CONTROLLER is the contract address for opyn actions
+    address public immutable GAMMA_CONTROLLER;
+
+    // Yearn registry contract
+    address public immutable YEARN_REGISTRY;
+
     /************************************************
-     *  EVENTS
+     *  EVENTS & STRUCT
      ***********************************************/
 
     event Deposit(address indexed account, uint256 amount, uint256 round);
@@ -114,6 +137,32 @@ contract RibbonGammaVault is
 
     event CapSet(uint256 oldCap, uint256 newCap);
 
+    event RatioThresholdSet(
+        uint256 oldRatioThreshold,
+        uint256 newRatioThreshold
+    );
+
+    event OptionAllocationSet(
+        uint256 oldOptionAllocation,
+        uint256 newOptionAllocation
+    );
+
+    event UsdcWethSwapPathSet(
+        bytes oldUsdcWethSwapPath,
+        bytes newUsdcWethSwapPath
+    );
+
+    event WethUsdcSwapPathSet(
+        bytes oldWethUsdcSwapPath,
+        bytes newWethUsdcSwapPath
+    );
+
+    event OptionPurchaseRequested(
+        address callOtokens,
+        address putOtokens,
+        uint256 optionsQuantity
+    );
+
     event Withdraw(address indexed account, uint256 amount, uint256 shares);
 
     event CollectVaultFees(
@@ -123,58 +172,11 @@ contract RibbonGammaVault is
         address indexed feeRecipient
     );
 
-    event OpenShort(
-        address indexed options,
-        uint256 depositAmount,
-        address indexed manager
-    );
-
-    event CloseShort(
-        address indexed options,
-        uint256 withdrawAmount,
-        address indexed manager
-    );
-
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
         uint256 round
     );
-
-    /************************************************
-     *  STRUCTS
-     ***********************************************/
-
-    /**
-     * @notice Initialization parameters for the vault.
-     * @param _owner is the owner of the vault with critical permissions
-     * @param _feeRecipient is the address to recieve vault performance and management fees
-     * @param _managementFee is the management fee pct.
-     * @param _performanceFee is the perfomance fee pct.
-     * @param _tokenName is the name of the token
-     * @param _tokenSymbol is the symbol of the token
-     * @param _ratioThreshold is the collateral ratio threshold at which the vault is eligible for a rebalancing
-     * @param _optionAllocation is the multiplier on the amount to allocate towards the long strangle
-     * @param _usdcWethSwapPath is the USDC -> WETH swap path
-     * @param _wethUsdcSwapPath is the WETH -> USDC swap path
-     */
-    struct InitParams {
-        address _owner;
-        address _keeper;
-        address _feeRecipient;
-        uint256 _managementFee;
-        uint256 _performanceFee;
-        string _tokenName;
-        string _tokenSymbol;
-        uint256 _ratioThreshold;
-        uint256 _optionAllocation;
-        bytes _usdcWethSwapPath;
-        bytes _wethUsdcSwapPath;
-    }
-
-    /************************************************
-     *  CONSTRUCTOR & INITIALIZATION
-     ***********************************************/
 
     /**
      * @notice Initializes the contract with immutable variables
@@ -186,63 +188,137 @@ contract RibbonGammaVault is
      * @param _uniswapFactory is the contract address for Uniswap V3 factory
      * @param _usdcWethPool is the USDC/WETH Uniswap V3 pool
      * @param _sqthWethPool is the oSQTH/WETH Uniswap V3 pool
+     * @param _thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
+     * @param _thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
+     * @param _gammaController is the contract address for opyn actions
+     * @param _yearnRegistry is the contract address for yearn registry
      */
-    constructor(
-        address _weth,
-        address _usdc,
-        address _squeethController,
-        address _oracle,
-        address _uniswapRouter,
-        address _uniswapFactory,
-        address _usdcWethPool,
-        address _sqthWethPool
-    ) {
-        require(_weth != address(0), "!_weth");
-        require(_usdc != address(0), "!_usdc");
-        require(_squeethController != address(0), "!_squeethController");
-        require(_oracle != address(0), "!_oracle");
-        require(_uniswapRouter != address(0), "!_uniswapRouter");
-        require(_uniswapFactory != address(0), "!_uniswapFactory");
-        require(_usdcWethPool != address(0), "!_usdcWethPool");
-        require(_sqthWethPool != address(0), "!_sqthWethPool");
+    struct AddressBook {
+        address _weth;
+        address _usdc;
+        address _squeethController;
+        address _oracle;
+        address _uniswapRouter;
+        address _uniswapFactory;
+        address _usdcWethPool;
+        address _sqthWethPool;
+        address _optionsPurchaseQueue;
+        address _thetaCallVault;
+        address _thetaPutVault;
+        address _gammaController;
+        address _yearnRegistry;
+    }
 
-        USDC = _usdc;
-        WETH = _weth;
+    /**
+     *
+     * Error
+     * C0: Caller is not keeper
+     * C1: Closing round not in progress
+     * C2: Closing round in progress
+     * C3: Invalid weth address
+     * C4: Invalid usdc address
+     * C5: Invalid squeethController address
+     * C6: Invalid oracleaddress
+     * C7: Invalid uniswapRouter address
+     * C8: Invalid uniswapFactory currency address
+     * C9: Invalid used:weth pool address
+     * C10: Invalid sqth:weth pool address
+     * C11: Invalid optionsPurchaseQueue address
+     * C12: Invalid thetaCallVault address
+     * C13: Invalid thetaPutVault address
+     * C14: Invalid gammaController address
+     * C15: Invalid yearnRegistry address
+     * C16: Invalid collateralToken address
+     * C17: New keeper cannot be address zero
+     * C18: New fee recipient cannot be address zero
+     * C19: New fee recipient must be a new address
+     * C20: New management fee exceeds maximum
+     * C21: New performance fee exceeds maximum
+     * C22: New cap must be larger than 0
+     * C23: New ratio threshold must be larger than 0
+     * C24: Deposit must be larger than 0
+     * C25: Creditor cannot be address zero
+     * C26: Cap exceeded
+     * C27: Insufficient balance
+     * C28: Number of shares must be larger than 0
+     * C29: Existing withdrawal
+     * C30: Withdrawal not initiated
+     * C31: Round is not closed
+     * C32: Withdrawal amount must be larger than 0
+     * C33: No deposit to withdraw in the current round
+     * C34: Withdrawal amount exceeds deposit
+     * C35: Withdrawal amount must be larger than 0
+     * C36: Redeem number of shares exceeds available shares
+     * C37: Callback sender must be the sqth:weth pool
+     */
 
-        CONTROLLER = _squeethController;
-        address _sqth = address(IController(_squeethController).wPowerPerp());
+    /************************************************
+     *  MODIFIERS
+     ***********************************************/
+
+    /**
+     * @dev Throws if called by any account other than the keeper.
+     */
+    modifier onlyKeeper() {
+        require(msg.sender == keeper, "C0");
+        _;
+    }
+
+    /**
+     * @dev Throws if called when new round not in progress.
+     */
+    modifier isClosingRound() {
+        require(newRoundInProgress, "C1");
+        _;
+    }
+
+    /**
+     * @dev Throws if called when new round is in progress.
+     */
+    modifier notClosingRound() {
+        require(!newRoundInProgress, "C2");
+        _;
+    }
+
+    /************************************************
+     *  CONSTRUCTOR & INITIALIZATION
+     ***********************************************/
+
+    constructor(AddressBook memory addressBook) {
+        require(addressBook._weth != address(0), "C3");
+        require(addressBook._usdc != address(0), "C4");
+        require(addressBook._squeethController != address(0), "C5");
+        require(addressBook._oracle != address(0), "C6");
+        require(addressBook._uniswapRouter != address(0), "C7");
+        require(addressBook._uniswapFactory != address(0), "C8");
+        require(addressBook._usdcWethPool != address(0), "C9");
+        require(addressBook._sqthWethPool != address(0), "C10");
+        require(addressBook._optionsPurchaseQueue != address(0), "C11");
+        require(addressBook._thetaCallVault != address(0), "C12");
+        require(addressBook._thetaPutVault != address(0), "C13");
+        require(addressBook._gammaController != address(0), "C14");
+        require(addressBook._yearnRegistry != address(0), "C15");
+
+        USDC = addressBook._usdc;
+        WETH = addressBook._weth;
+
+        CONTROLLER = addressBook._squeethController;
+        address _sqth =
+            address(
+                IPowerPerpController(addressBook._squeethController)
+                    .wPowerPerp()
+            );
         SQTH = _sqth;
-        ORACLE = _oracle;
-        // Creates a vault for this contract and saves the vault ID
-        VAULT_ID = IController(_squeethController).mintWPowerPerpAmount(
-            0,
-            0,
-            0
-        );
-
-        // require(
-        //     UniswapRouter.checkPool(
-        //         _usdc,
-        //         _weth,
-        //         _usdcWethPool,
-        //         _uniswapFactory
-        //     ),
-        //     "Invalid _usdcWethPool"
-        // );
-        // require(
-        //     UniswapRouter.checkPool(
-        //         _sqth,
-        //         _weth,
-        //         _sqthWethPool,
-        //         _uniswapFactory
-        //     ),
-        //     "Invalid _sqthWethPool"
-        // );
-
-        UNISWAP_ROUTER = _uniswapRouter;
-        UNISWAP_FACTORY = _uniswapFactory;
-        USDC_WETH_POOL = _usdcWethPool;
-        SQTH_WETH_POOL = _sqthWethPool;
+        ORACLE = addressBook._oracle;
+        UNISWAP_ROUTER = addressBook._uniswapRouter;
+        UNISWAP_FACTORY = addressBook._uniswapFactory;
+        USDC_WETH_POOL = addressBook._usdcWethPool;
+        SQTH_WETH_POOL = addressBook._sqthWethPool;
+        OPTIONS_PURCHASE_QUEUE = addressBook._optionsPurchaseQueue;
+        THETA_CALL_VAULT = addressBook._thetaCallVault;
+        THETA_PUT_VAULT = addressBook._thetaPutVault;
+        GAMMA_CONTROLLER = addressBook._gammaController;
+        YEARN_REGISTRY = addressBook._yearnRegistry;
     }
 
     /**
@@ -251,7 +327,7 @@ contract RibbonGammaVault is
      * @param _vaultParams is the struct with vault general data
      */
     function initialize(
-        InitParams calldata _initParams,
+        VaultLifecycleGamma.InitParams calldata _initParams,
         Vault.VaultParams memory _vaultParams
     ) external initializer {
         _vaultParams.isPut = false;
@@ -259,14 +335,11 @@ contract RibbonGammaVault is
         _vaultParams.asset = USDC;
         _vaultParams.underlying = WETH;
 
-        VaultLifecycle.verifyInitializerParams(
-            _initParams._owner,
-            _initParams._keeper,
-            _initParams._feeRecipient,
-            _initParams._performanceFee,
-            _initParams._managementFee,
-            _initParams._tokenName,
-            _initParams._tokenSymbol,
+        VaultLifecycleGamma.verifyInitializerParams(
+            USDC,
+            WETH,
+            UNISWAP_FACTORY,
+            _initParams,
             _vaultParams
         );
 
@@ -279,10 +352,9 @@ contract RibbonGammaVault is
 
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
-        managementFee = _initParams
-            ._managementFee
-            .mul(Vault.FEE_MULTIPLIER)
-            .div(WEEKS_PER_YEAR);
+        managementFee =
+            (_initParams._managementFee * Vault.FEE_MULTIPLIER) /
+            WEEKS_PER_YEAR;
         vaultParams = _vaultParams;
 
         uint256 assetBalance =
@@ -292,43 +364,21 @@ contract RibbonGammaVault is
 
         vaultState.round = 1;
 
-        // require(
-        //     _initParams._ratioThreshold != 0 &&
-        //         _initParams._ratioThreshold <
-        //         VaultLifecycleGamma.COLLATERAL_UNITS,
-        //     "!_ratioThreshold"
-        // );
-        // require(
-        //     UniswapRouter.checkPath(
-        //         _initParams._usdcWethSwapPath,
-        //         USDC,
-        //         WETH,
-        //         UNISWAP_FACTORY
-        //     ),
-        //     "!_usdcWethSwapPath"
-        // );
-        // require(
-        //     UniswapRouter.checkPath(
-        //         _initParams._wethUsdcSwapPath,
-        //         WETH,
-        //         USDC,
-        //         UNISWAP_FACTORY
-        //     ),
-        //     "!_wethUsdcSwapPath"
-        // );
-
         ratioThreshold = _initParams._ratioThreshold;
         optionAllocation = _initParams._optionAllocation;
         usdcWethSwapPath = _initParams._usdcWethSwapPath;
         wethUsdcSwapPath = _initParams._wethUsdcSwapPath;
-    }
 
-    /**
-     * @dev Throws if called by any account other than the keeper.
-     */
-    modifier onlyKeeper() {
-        require(msg.sender == keeper, "!keeper");
-        _;
+        address collateralToken =
+            IYearnRegistry(YEARN_REGISTRY).latestVault(vaultParams.asset);
+        require(collateralToken != address(0), "C16");
+
+        // Creates a vault for this contract and saves the vault ID
+        vaultId = IPowerPerpController(CONTROLLER).mintWPowerPerpAmount(
+            0,
+            0,
+            0
+        );
     }
 
     /************************************************
@@ -340,7 +390,7 @@ contract RibbonGammaVault is
      * @param newKeeper is the address of the new keeper
      */
     function setNewKeeper(address newKeeper) external onlyOwner {
-        require(newKeeper != address(0), "!newKeeper");
+        require(newKeeper != address(0), "C17");
         keeper = newKeeper;
     }
 
@@ -349,8 +399,8 @@ contract RibbonGammaVault is
      * @param newFeeRecipient is the address of the new fee recipient
      */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
-        require(newFeeRecipient != address(0), "!newFeeRecipient");
-        require(newFeeRecipient != feeRecipient, "Must be new feeRecipient");
+        require(newFeeRecipient != address(0), "C18");
+        require(newFeeRecipient != feeRecipient, "C19");
         feeRecipient = newFeeRecipient;
     }
 
@@ -359,14 +409,11 @@ contract RibbonGammaVault is
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(
-            newManagementFee < 100 * Vault.FEE_MULTIPLIER,
-            "Invalid management fee"
-        );
+        require(newManagementFee < 100 * Vault.FEE_MULTIPLIER, "C20");
 
         // We are dividing annualized management fee by num weeks in a year
         uint256 tmpManagementFee =
-            newManagementFee.mul(Vault.FEE_MULTIPLIER).div(WEEKS_PER_YEAR);
+            (newManagementFee * Vault.FEE_MULTIPLIER) / WEEKS_PER_YEAR;
 
         emit ManagementFeeSet(managementFee, newManagementFee);
 
@@ -378,10 +425,7 @@ contract RibbonGammaVault is
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(
-            newPerformanceFee < 100 * Vault.FEE_MULTIPLIER,
-            "Invalid performance fee"
-        );
+        require(newPerformanceFee < 100 * Vault.FEE_MULTIPLIER, "C21");
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
 
@@ -393,7 +437,7 @@ contract RibbonGammaVault is
      * @param newCap is the new cap for deposits
      */
     function setCap(uint256 newCap) external onlyOwner {
-        require(newCap > 0, "!newCap");
+        require(newCap > 0, "C22");
         ShareMath.assertUint104(newCap);
         emit CapSet(vaultParams.cap, newCap);
         vaultParams.cap = uint104(newCap);
@@ -408,21 +452,12 @@ contract RibbonGammaVault is
     }
 
     /**
-     * @notice Sets the new optionsPurchaseQueue contract for this vault
-     * @param newOptionsPurchaseQueue is the address of the new optionsPurchaseQueue contract
-     */
-    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
-        external
-        onlyOwner
-    {
-        optionsPurchaseQueue = newOptionsPurchaseQueue;
-    }
-
-    /**
      * @notice Sets the new ratioThreshold value for this vault
      * @param newRatioThreshold is the new ratioThreshold
      */
     function setRatioThreshold(uint256 newRatioThreshold) external onlyOwner {
+        require(newRatioThreshold > 0, "C23");
+        emit RatioThresholdSet(ratioThreshold, newRatioThreshold);
         ratioThreshold = newRatioThreshold;
     }
 
@@ -434,6 +469,7 @@ contract RibbonGammaVault is
         external
         onlyOwner
     {
+        emit OptionAllocationSet(optionAllocation, newOptionAllocation);
         optionAllocation = newOptionAllocation;
     }
 
@@ -445,6 +481,14 @@ contract RibbonGammaVault is
         external
         onlyOwner
     {
+        VaultLifecycleGamma.checkPath(
+            newUsdcWethSwapPath,
+            USDC,
+            WETH,
+            UNISWAP_FACTORY
+        );
+
+        emit UsdcWethSwapPathSet(usdcWethSwapPath, newUsdcWethSwapPath);
         usdcWethSwapPath = newUsdcWethSwapPath;
     }
 
@@ -456,19 +500,27 @@ contract RibbonGammaVault is
         external
         onlyOwner
     {
+        VaultLifecycleGamma.checkPath(
+            newWethUsdcSwapPath,
+            WETH,
+            USDC,
+            UNISWAP_FACTORY
+        );
+
+        emit WethUsdcSwapPathSet(wethUsdcSwapPath, newWethUsdcSwapPath);
         wethUsdcSwapPath = newWethUsdcSwapPath;
     }
 
     /************************************************
-     *  DEPOSIT & WITHDRAWALS
+     *  DEPOSIT
      ***********************************************/
 
     /**
      * @notice Deposits the `asset` from msg.sender.
      * @param amount is the amount of `asset` to deposit
      */
-    function deposit(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
+    function deposit(uint256 amount) external notClosingRound nonReentrant {
+        require(amount > 0, "C24");
 
         _depositFor(amount, msg.sender);
 
@@ -484,10 +536,11 @@ contract RibbonGammaVault is
      */
     function depositFor(uint256 amount, address creditor)
         external
+        notClosingRound
         nonReentrant
     {
-        require(amount > 0, "!amount");
-        require(creditor != address(0));
+        require(amount > 0, "C24");
+        require(creditor != address(0), "C25");
 
         _depositFor(amount, creditor);
 
@@ -502,13 +555,10 @@ contract RibbonGammaVault is
      */
     function _depositFor(uint256 amount, address creditor) private {
         uint256 currentRound = vaultState.round;
-        uint256 totalWithDepositedAmount = totalBalance().add(amount);
+        uint256 totalWithDepositedAmount = totalBalance() + amount;
 
-        require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
-        require(
-            totalWithDepositedAmount >= vaultParams.minimumSupply,
-            "Insufficient balance"
-        );
+        require(totalWithDepositedAmount <= vaultParams.cap, "C26");
+        require(totalWithDepositedAmount >= vaultParams.minimumSupply, "C27");
 
         emit Deposit(creditor, amount, currentRound);
 
@@ -526,7 +576,7 @@ contract RibbonGammaVault is
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
-            uint256 newAmount = uint256(depositReceipt.amount).add(amount);
+            uint256 newAmount = uint256(depositReceipt.amount) + amount;
             depositAmount = newAmount;
         }
 
@@ -538,18 +588,26 @@ contract RibbonGammaVault is
             unredeemedShares: uint128(unredeemedShares)
         });
 
-        uint256 newTotalPending = uint256(vaultState.totalPending).add(amount);
+        uint256 newTotalPending = uint256(vaultState.totalPending) + amount;
         ShareMath.assertUint128(newTotalPending);
 
         vaultState.totalPending = uint128(newTotalPending);
     }
 
+    /************************************************
+     *  WITHDRAWALS
+     ***********************************************/
+
     /**
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares) external nonReentrant {
-        require(numShares > 0, "!numShares");
+    function initiateWithdraw(uint256 numShares)
+        external
+        notClosingRound
+        nonReentrant
+    {
+        require(numShares > 0, "C28");
 
         // We do a max redeem before initiating a withdrawal
         // But we check if they must first have unredeemed shares
@@ -572,9 +630,9 @@ contract RibbonGammaVault is
 
         uint256 withdrawalShares;
         if (withdrawalIsSameRound) {
-            withdrawalShares = existingShares.add(numShares);
+            withdrawalShares = existingShares + numShares;
         } else {
-            require(existingShares == 0, "Existing withdraw");
+            require(existingShares == 0, "C29");
             withdrawalShares = numShares;
             withdrawals[msg.sender].round = uint16(currentRound);
         }
@@ -583,7 +641,7 @@ contract RibbonGammaVault is
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
         uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(numShares);
+            uint256(vaultState.queuedWithdrawShares) + numShares;
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
@@ -593,21 +651,21 @@ contract RibbonGammaVault is
     /**
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      */
-    function completeWithdraw() external nonReentrant {
+    function completeWithdraw() external notClosingRound nonReentrant {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
         uint256 withdrawalRound = withdrawal.round;
 
         // This checks if there is a withdrawal
-        require(withdrawalShares > 0, "Not initiated");
+        require(withdrawalShares > 0, "C30");
 
-        require(withdrawalRound < vaultState.round, "Round not closed");
+        require(withdrawalRound < vaultState.round, "C31");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
+            uint256(vaultState.queuedWithdrawShares) - withdrawalShares
         );
 
         uint256 withdrawAmount =
@@ -621,11 +679,11 @@ contract RibbonGammaVault is
 
         _burn(address(this), withdrawalShares);
 
-        require(withdrawAmount > 0, "!withdrawAmount");
+        require(withdrawAmount > 0, "C32");
         IERC20(USDC).safeTransfer(msg.sender, withdrawAmount);
 
         lastQueuedWithdrawAmount = uint128(
-            uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
+            uint256(lastQueuedWithdrawAmount) - withdrawAmount
         );
     }
 
@@ -633,21 +691,25 @@ contract RibbonGammaVault is
      * @notice Withdraws the assets on the vault using the outstanding `DepositReceipt.amount`
      * @param amount is the amount to withdraw
      */
-    function withdrawInstantly(uint256 amount) external nonReentrant {
+    function withdrawInstantly(uint256 amount)
+        external
+        notClosingRound
+        nonReentrant
+    {
         Vault.DepositReceipt storage depositReceipt =
             depositReceipts[msg.sender];
 
         uint256 currentRound = vaultState.round;
-        require(amount > 0, "!amount");
-        require(depositReceipt.round == currentRound, "Invalid round");
+        require(amount > 0, "C32");
+        require(depositReceipt.round == currentRound, "C33");
 
         uint256 receiptAmount = depositReceipt.amount;
-        require(receiptAmount >= amount, "Exceed amount");
+        require(receiptAmount >= amount, "C34");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(receiptAmount.sub(amount));
+        depositReceipt.amount = uint104(receiptAmount - amount);
         vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).sub(amount)
+            uint256(vaultState.totalPending) - amount
         );
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
@@ -660,7 +722,7 @@ contract RibbonGammaVault is
      * @param numShares is the number of shares to redeem
      */
     function redeem(uint256 numShares) external nonReentrant {
-        require(numShares > 0, "!numShares");
+        require(numShares > 0, "C28");
         _redeem(numShares, false);
     }
 
@@ -695,7 +757,7 @@ contract RibbonGammaVault is
         if (numShares == 0) {
             return;
         }
-        require(numShares <= unredeemedShares, "Exceeds available");
+        require(numShares <= unredeemedShares, "C36");
 
         // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
         // we debit from the unredeemedShares, but leave the amount field intact
@@ -706,13 +768,17 @@ contract RibbonGammaVault is
 
         ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            unredeemedShares.sub(numShares)
+            unredeemedShares - numShares
         );
 
         emit Redeem(msg.sender, numShares, depositReceipt.round);
 
         _transfer(address(this), msg.sender, numShares);
     }
+
+    /************************************************
+     *  STAKING
+     ***********************************************/
 
     /**
      * @notice Stakes a users vault shares
@@ -724,7 +790,7 @@ contract RibbonGammaVault is
         require(numShares > 0);
         uint256 heldByAccount = balanceOf(msg.sender);
         if (heldByAccount < numShares) {
-            _redeem(numShares.sub(heldByAccount), false);
+            _redeem(numShares - heldByAccount, false);
         }
         _transfer(msg.sender, address(this), numShares);
         _approve(address(this), _liquidityGauge, numShares);
@@ -732,13 +798,26 @@ contract RibbonGammaVault is
     }
 
     /************************************************
-     *  VAULT OPERATIONS
+     *  VAULT ROUTINES
      ***********************************************/
 
     /**
      * @notice Mints vault shares for new depositors
      */
-    function rollToNextRound() external onlyKeeper nonReentrant {
+    function closeCurrentRound() external onlyKeeper nonReentrant {
+        // Exercise the options if there are tokens bought from last week
+        VaultLifecycleGamma.settleOptionsPosition(
+            GAMMA_CONTROLLER,
+            callOtokens,
+            putOtokens,
+            WETH,
+            USDC,
+            collateralToken,
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
+
+        // Update vault states and calculate fees
         vaultState.lastLockedAmount = uint104(vaultState.lockedAmount);
         vaultState.lockedAmount = 0;
 
@@ -800,159 +879,140 @@ contract RibbonGammaVault is
     }
 
     /**
-     * @notice Swaps pending USDC deposits into WETH
-     * @param amountIn Amount of USDC to swap into WETH
-     * @param minAmountOut Minimum amount of WETH to receive
-     * @return amountOut Amount of WETH received from the swap
+     * @notice Prepare balance to queue for purchase
+     * @param minAmountOut is the max. amount of WETH allowed when withdrawing from the controller
      */
-    function swapTotalPending(uint256 amountIn, uint256 minAmountOut)
+    function prepareReadyState(uint256 minAmountOut)
         external
         onlyKeeper
+        isClosingRound
         nonReentrant
-        returns (uint256 amountOut)
     {
-        require(newRoundInProgress, "!newRoundInProgress");
-
-        uint256 _pendingDeposits = pendingDeposits;
-        if (amountIn > _pendingDeposits) amountIn = _pendingDeposits;
-
-        amountOut = VaultLifecycleGamma.swapTotalPending(
-            USDC,
-            UNISWAP_ROUTER,
-            usdcWethSwapPath,
-            amountIn,
-            minAmountOut
+        VaultLifecycleGamma.prepareReadyState(
+            VaultLifecycleGamma.ReadyParams(
+                CONTROLLER,
+                ORACLE,
+                SQTH_WETH_POOL,
+                USDC_WETH_POOL,
+                SQTH,
+                WETH,
+                USDC,
+                vaultId,
+                UNISWAP_ROUTER,
+                wethUsdcSwapPath,
+                usdcWethSwapPath,
+                minAmountOut,
+                optionAllocation,
+                OPTIONS_PURCHASE_QUEUE,
+                THETA_PUT_VAULT,
+                THETA_CALL_VAULT,
+                lastQueuedWithdrawAmount
+            )
         );
-
-        _pendingDeposits = _pendingDeposits.sub(amountIn);
-        ShareMath.assertUint128(_pendingDeposits);
-
-        pendingDeposits = uint128(_pendingDeposits);
     }
 
     /**
-     * @notice Deposit WETH into the squeeth vault as collateral to mint SQTH
-     * @param wethAmount Amount of WETH to deposit
-     * @param minAmountOut Minimum amount of WETH to receive from swapping minted SQTH to WETH
+     * @notice Place purchase of options in the queue and start a new round
      */
-    function depositTotalPending(uint256 wethAmount, uint256 minAmountOut)
+    function startNextRound() external onlyKeeper isClosingRound nonReentrant {
+        if (optionAllocation > 0) {
+            uint256 optionsQuantity;
+
+            (callOtokens, putOtokens, optionsQuantity) = VaultLifecycleGamma
+                .requestPurchase(
+                CONTROLLER,
+                ORACLE,
+                SQTH_WETH_POOL,
+                SQTH,
+                WETH,
+                USDC,
+                vaultId,
+                OPTIONS_PURCHASE_QUEUE,
+                THETA_CALL_VAULT,
+                THETA_PUT_VAULT,
+                optionAllocation
+            );
+
+            if (callOtokens != address(0) || putOtokens != address(0)) {
+                emit OptionPurchaseRequested(
+                    callOtokens,
+                    putOtokens,
+                    optionsQuantity
+                );
+            }
+        }
+
+        // Ensure there is sufficient balance for users to withdraw
+        require(
+            IERC20(USDC).balanceOf(address(this)) >= lastQueuedWithdrawAmount
+        );
+
+        newRoundInProgress = false;
+    }
+
+    /**
+     * @notice Allocate available WETH and USDC balance to Squeeth
+     * @param minWethAmountOut is the minimum amount of WETH acceptable when swapping the USDC balance
+     */
+    function allocateAvailableBalance(uint256 minWethAmountOut)
         external
         onlyKeeper
         nonReentrant
-        returns (uint256 amountOut)
+        returns (uint256)
     {
-        require(newRoundInProgress, "!newRoundInProgress");
+        return
+            VaultLifecycleGamma.allocateAvailableBalance(
+                VaultLifecycleGamma.AllocateParams(
+                    CONTROLLER,
+                    ORACLE,
+                    SQTH_WETH_POOL,
+                    SQTH,
+                    WETH,
+                    USDC,
+                    vaultId,
+                    lastQueuedWithdrawAmount,
+                    vaultState.totalPending,
+                    UNISWAP_ROUTER,
+                    usdcWethSwapPath,
+                    COLLATERAL_RATIO,
+                    minWethAmountOut
+                )
+            );
+    }
 
-        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
-        if (wethAmount > wethBalance) wethAmount = wethBalance;
+    /************************************************
+     *  BALANCING FUNCTIONS
+     ***********************************************/
 
-        amountOut = VaultLifecycleGamma.depositTotalPending(
+    /**
+     * @notice Rebalance the vault's position
+     * @param maxInOrMinOut Maximum in or minimim out depending on the rebalance action
+     */
+    function rebalance(uint256 maxInOrMinOut)
+        external
+        onlyKeeper
+        returns (
+            bool isAboveThreshold,
+            uint256 sqthAmount,
+            uint256 resultAmount
+        )
+    {
+        (isAboveThreshold, sqthAmount, resultAmount) = VaultLifecycleGamma
+            .rebalance(
             CONTROLLER,
             ORACLE,
             SQTH_WETH_POOL,
             SQTH,
             WETH,
-            VAULT_ID,
+            vaultId,
             COLLATERAL_RATIO,
-            wethAmount,
-            minAmountOut
+            maxInOrMinOut
         );
     }
 
-    /**
-     * @notice Deposit WETH from the squeeth vault and swaps to USDC to process queued withdrawals
-     * @param wethAmount Amount of WETH to withdraw
-     * @param minAmountOut Minimum amount of USDC to receive from swapping WETH to USDC
-     */
-    // function withdrawQueuedShares(uint256 wethAmount, uint256 minAmountOut)
-    //     external
-    //     onlyKeeper
-    //     nonReentrant
-    // {
-    //     require(newRoundInProgress, "!newRoundInProgress");
-    //     require(wethAmount > 0, "!wethAmount");
-    //     require(minAmountOut > 0, "!minAmountOut");
-
-    //     // Withdraw ETH from squeeth vault
-    //     IController(CONTROLLER).withdraw(VAULT_ID, wethAmount);
-    //     IWETH(WETH).deposit{value: wethAmount}();
-
-    //     // Swap WETH to USDC
-    //     uint256 amountOut =
-    //         UniswapRouter.swap(
-    //             address(this),
-    //             WETH,
-    //             wethAmount,
-    //             minAmountOut,
-    //             UNISWAP_ROUTER,
-    //             usdcWethSwapPath
-    //         );
-
-    //     uint256 _lastQueuedWithdrawAmount = lastQueuedWithdrawAmount;
-    //     lastQueuedWithdrawAmount = _lastQueuedWithdrawAmount > amountOut
-    //         ? _lastQueuedWithdrawAmount.sub(amountOut)
-    //         : 0;
-    // }
-
-    /**
-     * @notice Rebalances the squeeth position to target the collateral ratio
-     *         reverts if the collateral ratio threshold isn't triggered
-     */
-    // function rebalance() external onlyKeeper nonReentrant {
-    //     require(!newRoundInProgress, "!newRoundInProgress");
-
-    //     uint256 wethUsdcPrice =
-    //         VaultLifecycleGamma.getWethPrice(
-    //             ORACLE,
-    //             USDC_WETH_POOL,
-    //             WETH,
-    //             USDC
-    //         );
-    //     (uint256 collateralAmount, uint256 debtValueInWeth) =
-    //         VaultLifecycleGamma.getVaultPosition(
-    //             CONTROLLER,
-    //             VAULT_ID,
-    //             wethUsdcPrice
-    //         );
-
-    //     uint256 collateralRatio =
-    //         VaultLifecycleGamma.getCollateralRatio(
-    //             collateralAmount,
-    //             debtValueInWeth
-    //         );
-    //     uint256 _ratioThreshold = ratioThreshold;
-
-    //     if (collateralRatio > COLLATERAL_RATIO.add(_ratioThreshold)) {
-    //         uint256 wethAmount =
-    //             VaultLifecycleGamma.getSqthMintAmount(
-    //                 CONTROLLER,
-    //                 wethUsdcPrice,
-    //                 COLLATERAL_RATIO,
-    //                 collateralAmount
-    //             );
-
-    //         // Withdraw ETH from squeeth vault
-    //         IController(CONTROLLER).withdraw(VAULT_ID, wethAmount);
-    //         IWETH(WETH).deposit{value: wethAmount}();
-    //     } else if (collateralRatio < COLLATERAL_RATIO.sub(_ratioThreshold)) {
-    //         uint256 sqthMintAmount =
-    //             VaultLifecycleGamma.getSqthMintAmount(
-    //                 CONTROLLER,
-    //                 wethUsdcPrice,
-    //                 COLLATERAL_RATIO,
-    //                 collateralAmount
-    //             );
-
-    //         // Increase position debt
-    //         IController(CONTROLLER).mintWPowerPerpAmount(
-    //             VAULT_ID,
-    //             sqthMintAmount,
-    //             0
-    //         );
-    //     } else {
-    //         revert("!_ratioThreshold");
-    //     }
-    // }
+    /************************************************
+     *  UNISWAP CALLBACK OVERRIDE
+     ***********************************************/
 
     /**
      * @notice Called to `msg.sender` after executing a swap via IUniswapV3Pool#swap.
@@ -970,38 +1030,24 @@ contract RibbonGammaVault is
         int256 amount1Delta,
         bytes calldata data
     ) external {
-        require(msg.sender == SQTH_WETH_POOL, "!SQTH_WETH_POOL"); // Only allow callbacks from the oSQTH/WETH pool
+        require(msg.sender == SQTH_WETH_POOL, "C37");
         require(amount0Delta > 0 || amount1Delta > 0); // Swaps entirely within 0-liquidity regions are not supported
 
-        // Determine the amount that needs to be repaid as part of the flash swap
-        uint256 amountToPay =
-            amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
+        // Determine the amount that needs to be repaid as part of the flash swap and the amount received
+        (uint256 amountToPay, uint256 amountReceived) =
+            amount0Delta > 0
+                ? (uint256(amount0Delta), uint256(-amount1Delta))
+                : (uint256(amount1Delta), uint256(-amount0Delta));
 
-        VaultLifecycleGamma.processCallback(
+        VaultLifecycleGamma.handleCallback(
             CONTROLLER,
             WETH,
             SQTH,
-            VAULT_ID,
+            vaultId,
             amountToPay,
+            amountReceived,
             data
         );
-    }
-
-    /**
-     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
-     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
-     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
-     * @param numRounds is the number of rounds to initialize in the map
-     */
-    function initRounds(uint256 numRounds) external nonReentrant {
-        require(numRounds > 0, "!numRounds");
-
-        uint256 _round = vaultState.round;
-        for (uint256 i = 0; i < numRounds; i++) {
-            uint256 index = _round + i;
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
-        }
     }
 
     /************************************************
@@ -1037,7 +1083,7 @@ contract RibbonGammaVault is
      */
     function shares(address account) public view returns (uint256) {
         (uint256 heldByAccount, uint256 heldByVault) = shareBalances(account);
-        return heldByAccount.add(heldByVault);
+        return heldByAccount + heldByVault;
     }
 
     /**
@@ -1094,7 +1140,7 @@ contract RibbonGammaVault is
                 SQTH,
                 WETH,
                 USDC,
-                VAULT_ID
+                vaultId
             );
     }
 
@@ -1105,10 +1151,16 @@ contract RibbonGammaVault is
         return vaultParams.decimals;
     }
 
+    /**
+     * @notice Returns the vault cap
+     */
     function cap() external view returns (uint256) {
         return vaultParams.cap;
     }
 
+    /**
+     * @notice Returns the total pending deposit
+     */
     function totalPending() external view returns (uint256) {
         return vaultState.totalPending;
     }
