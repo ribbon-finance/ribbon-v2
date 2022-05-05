@@ -31,13 +31,23 @@ library VaultLifecycleGamma {
      *  STRUCTS & ENUMS
      ***********************************************/
 
+    /// @dev Deposit callback data
+    /// @param depositAmount Amount of ETH to deposit as collateral for minting SQTH
     struct Deposit {
         uint256 depositAmount;
     }
 
+    /// @dev Withdraw callback data
+    /// @param collateralAmount Amount of ETH collateral to withdraw
     struct Withdraw {
         uint256 collateralAmount;
         uint256 shortAmount;
+    }
+
+    /// @dev Rebalance callback data
+    /// @param amount Amount of ETH or SQTH to sell or buy, respectively
+    struct Rebalance {
+        uint256 amount;
     }
 
     /**
@@ -417,6 +427,7 @@ library VaultLifecycleGamma {
      * @param sqth SQTH address
      * @param vaultId Vault ID of in the controller
      * @param amountToPay Borrowed amount to pay back
+     * @param amountReceived Amount received in the swap
      * @param data Callback data
      */
     function handleCallback(
@@ -425,43 +436,76 @@ library VaultLifecycleGamma {
         address sqth,
         uint256 vaultId,
         uint256 amountToPay,
+        uint256 amountReceived,
         bytes calldata data
     ) external {
         UniswapRouter.SwapCallbackData memory callbackData =
             abi.decode(data, (UniswapRouter.SwapCallbackData));
 
+        // Flash callback dispatcher
         if (FlashCallback(callbackData.callback) == FlashCallback.Deposit) {
-            // Handle deposit
+            // Handle the callback from depositTotalPending()
             Deposit memory depositData =
                 abi.decode(callbackData.data, (Deposit));
 
-            // Unwrap WETH
+            // Convert pending WETH deposits into ETH so we can deposit it into the Squeeth controller
             IWETH(weth).withdraw(depositData.depositAmount);
-            // Mint SQTH
+
+            // Deposit the ETH collateral and mint SQTH to repay the flash swap
             IPowerPerpController(controller).mintWPowerPerpAmount{
                 value: depositData.depositAmount
             }(vaultId, amountToPay, 0);
 
-            // Send SQTH to Uniswap Pool
+            // Repay SQTH to the Uniswap pool
             IERC20(sqth).safeTransfer(msg.sender, amountToPay);
         } else if (
             FlashCallback(callbackData.callback) == FlashCallback.Withdraw
         ) {
-            // Handle withdrawal
+            // Handle the callback from withdrawQueuedShares()
             Withdraw memory withdrawData =
                 abi.decode(callbackData.data, (Withdraw));
 
-            // Burn SQTH
+            // Burn the received SQTH (shortAmount) and withdraw the ETH collateral
             IPowerPerpController(controller).burnWPowerPerpAmount(
                 vaultId,
                 withdrawData.shortAmount,
                 withdrawData.collateralAmount
             );
 
-            // Wrap ETH
+            // Convert some of the withdrawn ETH collateral to repay the flash swap
             IWETH(weth).deposit{value: amountToPay}();
 
-            // Send WETH to Uniswap Pool
+            // Repay the flash swap
+            IERC20(weth).safeTransfer(msg.sender, amountToPay);
+        } else if (FlashCallback(callbackData.callback) == FlashCallback.Sell) {
+            // Handle the sell callback from rebalance()
+
+            // Convert the received WETH into ETH so we can deposit it into the Squeeth controller
+            IWETH(weth).withdraw(amountReceived);
+
+            // Deposit the ETH as collateral and mint SQTH
+            IPowerPerpController(controller).mintWPowerPerpAmount{
+                value: amountReceived
+            }(vaultId, amountToPay, 0);
+
+            // Repay the flash swap with the minted SQTH
+            IERC20(sqth).safeTransfer(msg.sender, amountToPay);
+        } else if (FlashCallback(callbackData.callback) == FlashCallback.Buy) {
+            // Handle the buy callback from rebalance()
+            Rebalance memory rebalanceData =
+                abi.decode(callbackData.data, (Rebalance));
+
+            // Burn the received SQTH and withdraw ETH collateral
+            IPowerPerpController(controller).burnWPowerPerpAmount(
+                vaultId,
+                rebalanceData.amount,
+                amountToPay
+            );
+
+            // Convert the withdrawn ETH collateral into WETH to repay the flash swap
+            IWETH(weth).deposit{value: amountToPay}();
+
+            // Repay the flash swap
             IERC20(weth).safeTransfer(msg.sender, amountToPay);
         }
     }
@@ -838,12 +882,14 @@ library VaultLifecycleGamma {
     )
         external
         returns (
-            bool isAboveThreshold,
+            bool isSell,
             uint256 sqthAmount,
             uint256 resultAmount
         )
     {
-        (isAboveThreshold, sqthAmount) = getRebalanceStatus(
+        // Check if we need to add to our short position (sell SQTH) or remove from our short (buy SQTH)
+        // sqthAmoun is the amount of SQTH we either sell or buy
+        (isSell, sqthAmount) = getRebalanceStatus(
             controller,
             oracle,
             sqthWethPool,
@@ -853,23 +899,27 @@ library VaultLifecycleGamma {
             collateralRatio
         );
 
-        if (isAboveThreshold) {
-            resultAmount = withdrawCollateral(
-                weth,
+        if (isSell) {
+            // If we are selling SQTH, we flash swap the WETH expected to be received from selling the minted SQTH
+            resultAmount = UniswapRouter.exactInputFlashSwap(
                 sqth,
+                weth,
                 sqthWethPool,
                 sqthAmount,
                 maxInOrMinOut,
-                0
+                uint8(FlashCallback.Sell),
+                abi.encode(Rebalance(maxInOrMinOut))
             );
         } else {
-            resultAmount = depositCollateral(
-                sqth,
+            // If we are buying SQTH, we flash swap the SQTH and repay it with the withdrawn WETH collateral
+            resultAmount = UniswapRouter.exactOutputFlashSwap(
                 weth,
+                sqth,
                 sqthWethPool,
                 sqthAmount,
                 maxInOrMinOut,
-                0
+                uint8(FlashCallback.Buy),
+                abi.encode(Rebalance(sqthAmount))
             );
         }
     }
@@ -904,7 +954,7 @@ library VaultLifecycleGamma {
      * @param weth WETH address
      * @param vaultId Vault ID of in the controller
      * @param collateralRatio Target collateral ratio
-     * @return boolean true if rebalance is required
+     * @return boolean true if we are buying Squeeth, false if we are selling Squeeth
      * @return uint256 amount of SQTH to mint or burn
      */
     function getRebalanceStatus(
@@ -924,6 +974,7 @@ library VaultLifecycleGamma {
         uint256 feeRate = IPowerPerpController(controller).feeRate();
 
         uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
+        // sqthDelta = ((shortAmount * collateralRatio) / 1e18) * sqthWethPrice / 1e18
         uint256 wSqthDelta =
             DSMath.wmul(
                 DSMath.wmul(shortAmount, collateralRatio),
@@ -931,11 +982,15 @@ library VaultLifecycleGamma {
             );
 
         if (wSqthDelta > collateralAmount) {
+            // Sell SQTH
+            // sqthAmount = (sqthDelta - collateralAmount) * 1e18 / sqthWethPrice
             return (
                 false,
                 DSMath.wdiv(wSqthDelta.sub(collateralAmount), sqthWethPrice)
             );
         } else {
+            // Buy SQTH
+            // sqthAmount = (collateralAmount - sqthDelta) * 1e18 / (sqthWethPrice + feeAdjustment)
             return (
                 true,
                 DSMath.wdiv(
@@ -944,6 +999,64 @@ library VaultLifecycleGamma {
                 )
             );
         }
+    }
+
+    /**
+     * @notice Checks if we should rebalance the short
+     * @param controller controller Squeeth controller
+     * @param oracle Squeeth oracle
+     * @param sqthWethPool SQTH WETH Uniswap pool
+     * @param sqth SQTH address
+     * @param weth WETH address
+     * @param vaultId Vault ID of in the controller
+     * @param collateralRatio Target collateral ratio
+     * @param ratioThreshold The rebalance threshold
+     * @return boolean true if we are rebalancing, false if not
+     */
+    function shouldRebalance(
+        address controller,
+        address oracle,
+        address sqthWethPool,
+        address sqth,
+        address weth,
+        uint256 vaultId,
+        uint256 collateralRatio,
+        uint256 ratioThreshold
+    ) public view returns (bool) {
+        (uint256 collateralAmount, uint256 shortAmount) =
+            getPositionState(controller, vaultId);
+        uint256 sqthWethPrice =
+            getSqthPriceInWETH(oracle, sqthWethPool, sqth, weth);
+
+        uint256 currentRatio =
+            getCollateralRatio(collateralAmount, shortAmount, sqthWethPrice);
+
+        // ratioDifference = abs(currentRatio - collateralRatio)
+        uint256 ratioDifference =
+            (currentRatio > collateralRatio)
+                ? currentRatio.sub(collateralRatio)
+                : collateralRatio.sub(currentRatio);
+
+        // Rebalance if ratioDifference > ratioThreshold
+        return ratioDifference > ratioThreshold;
+    }
+
+    /**
+     * @notice Calculates the collateral ratio
+     * @param collateralAmount Amount of collateral
+     * @param shortAmount Amount of SQTH debt
+     * @param sqthWethPrice SQTH/WETH price
+     * @return collateralRatio The collateral ratio
+     */
+    function getCollateralRatio(
+        uint256 collateralAmount,
+        uint256 shortAmount,
+        uint256 sqthWethPrice
+    ) public pure returns (uint256) {
+        // sqthDebtInEth = shortAmount * sqthWethPrice / 1e18
+        uint256 sqthDebtInEth = DSMath.wmul(shortAmount, sqthWethPrice);
+        // collateralRatio = collateralAmount * 1e18 / sqthDebtInEth
+        return DSMath.wdiv(collateralAmount, sqthDebtInEth);
     }
 
     /**
@@ -1216,8 +1329,8 @@ library VaultLifecycleGamma {
         uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
 
         if (shortAmount == 0) {
-            // Handles situations where the squeeth position has no debt
-            // sqthMintAmount = depositAmount * 1e8 / ((sqthWethPrice * collateralRatio / 1e18) + feeAdjustment)
+            // Handles situations where we don't have a Squeeth short position, e.g. when opening the first one
+            // sqthAmount = depositAmount * 1e18 / ((sqthWethPrice * collateralRatio / 1e18) + feeAdjustment)
             return
                 DSMath.wdiv(
                     depositAmount,
@@ -1226,8 +1339,9 @@ library VaultLifecycleGamma {
                     )
                 );
         } else {
-            // sqthMintAmount = (depositAmount * shortAmount / 1e18) * 1e18
-            //                  / (collateralAmount + (shortAmount * feeAdjustment / 1e18))
+            // If we already have a Squeeth short position, add to it
+            // sqthAmount = (depositAmount * shortAmount / 1e18) * 1e18
+            //              / (collateralAmount + (shortAmount * feeAdjustment / 1e18))
             return
                 DSMath.wdiv(
                     DSMath.wmul(depositAmount, shortAmount),
