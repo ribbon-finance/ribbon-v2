@@ -905,12 +905,13 @@ contract RibbonGammaVault is
         address sqth = SQTH;
         address weth = WETH;
         address usdc = USDC;
-        uint256 wethPrice = VaultLifecycleGamma.getWethPriceInUSDC(
-            oracle,
-            usdcWethPool,
-            weth,
-            usdc
-        );
+        uint256 wethPrice =
+            VaultLifecycleGamma.getWethPriceInUSDC(
+                oracle,
+                usdcWethPool,
+                weth,
+                usdc
+            );
 
         (uint256 vaultBalanceInUSDC, uint256 vaultBalanceInWETH) =
             VaultLifecycleGamma.getAssetBalances(
@@ -949,7 +950,7 @@ contract RibbonGammaVault is
         //         UNISWAP_ROUTER,
         //         wethUsdcSwapPath,
         //         usdcWethSwapPath,
-        //         0, //putCollateralAmount, 
+        //         0, //putCollateralAmount,
         //         0, //callCollateralAmount,
         //         lastQueuedWithdrawAmount,
         //         0
@@ -1079,9 +1080,11 @@ contract RibbonGammaVault is
         require(msg.sender == SQTH_WETH_POOL, "C37");
         require(amount0Delta > 0 || amount1Delta > 0); // Swaps entirely within 0-liquidity regions are not supported
 
-        // Determine the amount that needs to be repaid as part of the flash swap
-        uint256 amountToPay =
-            amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
+        // Determine the amount that needs to be repaid as part of the flash swap and the amount received
+        (uint256 amountToPay, uint256 amountReceived) =
+            amount0Delta > 0
+                ? (uint256(amount0Delta), uint256(-amount1Delta))
+                : (uint256(amount1Delta), uint256(-amount0Delta));
 
         VaultLifecycleGamma.handleCallback(
             CONTROLLER,
@@ -1089,6 +1092,7 @@ contract RibbonGammaVault is
             SQTH,
             vaultId,
             amountToPay,
+            amountReceived,
             data
         );
     }
