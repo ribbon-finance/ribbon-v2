@@ -11,6 +11,7 @@ import {
     IPowerPerpController,
     IOracle
 } from "../interfaces/PowerTokenInterface.sol";
+import {IYearnVault} from "../interfaces/IYearn.sol";
 import {IController} from "../interfaces/GammaInterface.sol";
 import {IWETH} from "../interfaces/IWETH.sol";
 import {ShareMath} from "./ShareMath.sol";
@@ -20,7 +21,7 @@ import {Vault} from "./Vault.sol";
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
-import "hardhat/console.sol";
+import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
 library VaultLifecycleGamma {
     using SafeMath for uint256;
@@ -70,15 +71,21 @@ library VaultLifecycleGamma {
     /**
      * @notice Place purchase of options in the queue
      * @param controller controller Squeeth controller
+     * @param oracle Squeeth oracle
      * @param sqthWethPool SQTH WETH Uniswap pool
+     * @param usdcWethPool USDC WETH Uniswap pool
      * @param sqth SQTH address
      * @param weth WETH address
+     * @param usdc USDC address
+     * @param vaultId Vault ID of in the controller
      * @param uniswapRouter is the Uniswap Router address
      * @param wethUsdcSwapPath is the WETH -> USDC swap path
-     * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
-     * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
-     * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
-     * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
+     * @param usdcWethSwapPath is the USDC -> WETH swap path
+     * @param optionAllocation is A multiplier on the amount to allocate towards the long strangle
+     * @param optionsPurchaseQueue is the options purchase queue contract
+     * @param thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
+     * @param thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
+     * @param lastQueuedWithdrawAmount is amount locked for scheduled withdrawals last week
      */
     struct ReadyParams {
         address controller;
@@ -88,28 +95,32 @@ library VaultLifecycleGamma {
         address sqth;
         address weth;
         address usdc;
+        uint256 vaultId;
         address uniswapRouter;
         bytes wethUsdcSwapPath;
         bytes usdcWethSwapPath;
-        uint256 putCollateralAmount;
-        uint256 callCollateralAmount;
-        uint256 lastQueuedWithdrawAmount;
         uint256 minAmountOut;
+        uint256 optionAllocation;
+        address optionsPurchaseQueue;
+        address thetaPutVault;
+        address thetaCallVault;
+        uint256 lastQueuedWithdrawAmount;
     }
 
     /**
      * @notice Place purchase of options in the queue
      * @param controller controller Squeeth controller
+     * @param oracle Squeeth oracle
      * @param sqthWethPool SQTH WETH Uniswap pool
+     * @param usdcWethPool USDC WETH Uniswap pool
      * @param sqth SQTH address
      * @param weth WETH address
+     * @param usdc USDC address
      * @param vaultId Vault ID of in the controller
-     * @param uniswapRouter is the Uniswap Router address
-     * @param wethUsdcSwapPath is the WETH -> USDC swap path
-     * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
-     * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
-     * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
-     * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
+     * @param optionAllocation is A multiplier on the amount to allocate towards the long strangle
+     * @param optionsPurchaseQueue is the options purchase queue contract
+     * @param thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
+     * @param thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
      */
     struct OptionsQuantityParams {
         address controller;
@@ -426,7 +437,6 @@ library VaultLifecycleGamma {
 
             // Unwrap WETH
             IWETH(weth).withdraw(depositData.depositAmount);
-            console.log(amountToPay);
             // Mint SQTH
             IPowerPerpController(controller).mintWPowerPerpAmount{
                 value: depositData.depositAmount
@@ -461,6 +471,125 @@ library VaultLifecycleGamma {
      ***********************************************/
 
     /**
+     * @notice Unwraps the necessary amount of the yield-bearing yearn token
+     *         and transfers amount to vault
+     * @param amount is the amount of `asset` to withdraw
+     * @param asset is the vault asset address
+     * @param collateralToken is the address of the collateral token
+     * @param yearnWithdrawalBuffer is the buffer for withdrawals from yearn vault
+     * @param yearnWithdrawalSlippage is the slippage for withdrawals from yearn vault
+     */
+    function unwrapYieldToken(
+        uint256 amount,
+        address asset,
+        address collateralToken,
+        uint256 yearnWithdrawalBuffer,
+        uint256 yearnWithdrawalSlippage
+    ) public {
+        uint256 assetBalance = IERC20(asset).balanceOf(address(this));
+        IYearnVault collateral = IYearnVault(collateralToken);
+
+        uint256 amountToUnwrap =
+            DSMath.wdiv(
+                DSMath.max(assetBalance, amount).sub(assetBalance),
+                collateral.pricePerShare().mul(decimalShift(collateralToken))
+            );
+
+        if (amountToUnwrap > 0) {
+            amountToUnwrap = amountToUnwrap
+                .add(amountToUnwrap.mul(yearnWithdrawalBuffer).div(10000))
+                .sub(1);
+
+            collateral.withdraw(
+                amountToUnwrap,
+                address(this),
+                yearnWithdrawalSlippage
+            );
+        }
+    }
+
+    /**
+     * @notice Exercises the ITM option using existing long otoken position. Currently this implementation is simple.
+     * It calls the `Redeem` action to claim the payout.
+     * @param gammaController is the address of the opyn controller contract
+     * @param oldOption is the address of the old option
+     * @param asset is the address of the vault's asset
+     * @return amount of asset received by exercising the option
+     */
+    function settleLong(
+        address gammaController,
+        address oldOption,
+        address asset
+    ) public returns (uint256) {
+        IController controller = IController(gammaController);
+
+        uint256 oldOptionBalance = IERC20(oldOption).balanceOf(address(this));
+
+        if (controller.getPayout(oldOption, oldOptionBalance) == 0) {
+            return 0;
+        }
+
+        uint256 startAssetBalance = IERC20(asset).balanceOf(address(this));
+
+        // If it is after expiry, we need to redeem the profits
+        IController.ActionArgs[] memory actions =
+            new IController.ActionArgs[](1);
+
+        actions[0] = IController.ActionArgs(
+            IController.ActionType.Redeem,
+            address(0), // not used
+            address(this), // address to send profits to
+            oldOption, // address of otoken
+            0, // not used
+            oldOptionBalance, // otoken balance
+            0, // not used
+            "" // not used
+        );
+
+        controller.operate(actions);
+
+        uint256 endAssetBalance = IERC20(asset).balanceOf(address(this));
+
+        return endAssetBalance.sub(startAssetBalance);
+    }
+
+    // /**
+    //  * @notice Unwraps the necessary amount of the yield-bearing yearn token
+    //  *         and transfers amount to vault
+    //  * @param amount is the amount of `asset` to withdraw
+    //  * @param asset is the vault asset address
+    //  * @param collateralToken is the address of the collateral token
+    //  * @param yearnWithdrawalBuffer is the buffer for withdrawals from yearn vault
+    //  * @param yearnWithdrawalSlippage is the slippage for withdrawals from yearn vault
+    //  */
+    function settleOptionsPosition(
+        address gammaController,
+        address callOtokens,
+        address putOtokens,
+        address weth,
+        address usdc,
+        address collateralToken,
+        uint256 buffer,
+        uint256 slippage
+    ) external {
+        if (callOtokens != address(0)) {
+            settleLong(gammaController, callOtokens, weth);
+        }
+
+        if (putOtokens != address(0)) {
+            uint256 earnedAmount =
+                settleLong(gammaController, putOtokens, usdc);
+            unwrapYieldToken(
+                earnedAmount,
+                usdc,
+                collateralToken,
+                buffer,
+                slippage
+            );
+        }
+    }
+
+    /**
      * @notice Place purchase of options in the queue
      * @param controller controller Squeeth controller
      * @param oracle Squeeth oracle
@@ -472,6 +601,7 @@ library VaultLifecycleGamma {
      * @param optionsPurchaseQueue is the options purchase queue contract
      * @param thetaCallVault is Ribbon ETH Call Theta Vault to buy call options from
      * @param thetaPutVault is Ribbon ETH Put Theta Vault to buy put options from
+     * @param optionAllocation is the ratio between the vault's ETH balance and the options quantity
      * @return callOtokens Call options
      * @return putOtokens Put options
      * @return optionsQuantity Quantity of options requested
@@ -535,22 +665,38 @@ library VaultLifecycleGamma {
     //  * @notice Place purchase of options in the queue
     //  * @param readyParams is the struct containing necessary parameters for this function
     //  */
-    function prepareReadyState(
-        ReadyParams calldata readyParams
-    ) external {
-        uint256 wethPriceInUSDC =
-            getWethPriceInUSDC(
+    function prepareReadyState(ReadyParams calldata readyParams) external {
+        uint256 wethPrice =
+            VaultLifecycleGamma.getWethPriceInUSDC(
                 readyParams.oracle,
                 readyParams.usdcWethPool,
                 readyParams.weth,
                 readyParams.usdc
             );
 
-        uint256 currentUsdcBalance =
-            IERC20(readyParams.usdc).balanceOf(address(this));
+        (uint256 currentUsdcBalance, uint256 vaultBalanceInWETH) =
+            getAssetBalances(
+                readyParams.controller,
+                readyParams.oracle,
+                readyParams.sqthWethPool,
+                readyParams.sqth,
+                readyParams.weth,
+                readyParams.usdc,
+                readyParams.vaultId
+            );
 
-        uint256 targetUsdcBalance =
-            readyParams.putCollateralAmount + readyParams.lastQueuedWithdrawAmount;
+        (, uint256 targetUsdcBalance, uint256 targetWethAmount) =
+            getOptionsQuantity(
+                wethPrice,
+                vaultBalanceInWETH,
+                currentUsdcBalance,
+                readyParams.optionAllocation,
+                readyParams.optionsPurchaseQueue,
+                readyParams.thetaPutVault,
+                readyParams.thetaCallVault
+            );
+
+        targetUsdcBalance += readyParams.lastQueuedWithdrawAmount;
 
         // Swap USDC to WETH if we have more than required
         if (currentUsdcBalance > targetUsdcBalance) {
@@ -571,9 +717,8 @@ library VaultLifecycleGamma {
             IERC20(readyParams.weth).balanceOf(address(this));
 
         uint256 targetWethBalancewithBuffer =
-            readyParams.callCollateralAmount +
-                (((requiredUsdcBalance * 1e12 * 1e18) / wethPriceInUSDC) *
-                    1010) /
+            targetWethAmount +
+                (((requiredUsdcBalance * 1e12 * 1e18) / wethPrice) * 1010) /
                 1000; // need to add buffer for slippage
 
         uint256 wethWithdrawed;
@@ -599,12 +744,11 @@ library VaultLifecycleGamma {
         }
 
         // Get USDC by swapping WETH if there is insufficient USDC
-        uint256 usdcReceived;
         if (requiredUsdcBalance > 0) {
-            usdcReceived = swapExactOutput(
+            swapExactOutput(
                 readyParams.usdc,
                 requiredUsdcBalance,
-                wethWithdrawed - readyParams.callCollateralAmount, // maxIn
+                wethWithdrawed - targetWethAmount, // maxIn
                 readyParams.uniswapRouter,
                 readyParams.wethUsdcSwapPath
             );
@@ -615,7 +759,7 @@ library VaultLifecycleGamma {
                 targetUsdcBalance
         );
         require(
-            IERC20(readyParams.weth).balanceOf(address(this)) > readyParams.callCollateralAmount
+            IERC20(readyParams.weth).balanceOf(address(this)) > targetWethAmount
         );
     }
 
@@ -637,7 +781,6 @@ library VaultLifecycleGamma {
 
         uint256 wethReceived;
         if (currentUsdcBalance > 0) {
-            console.log(currentUsdcBalance);
             wethReceived = swapExactInput(
                 allocateParams.usdc,
                 currentUsdcBalance,
@@ -645,7 +788,6 @@ library VaultLifecycleGamma {
                 allocateParams.uniswapRouter,
                 allocateParams.usdcWethSwapPath
             );
-            console.log(wethReceived);
         }
 
         uint256 sqthMintAmount =
@@ -661,7 +803,6 @@ library VaultLifecycleGamma {
                     wethReceived +
                     allocateParams.minWethAmountOut
             );
-        console.log(sqthMintAmount);
 
         return
             depositCollateral(
@@ -882,17 +1023,15 @@ library VaultLifecycleGamma {
 
         (uint256 collateralAmount, uint256 shortAmount) =
             getPositionState(controller, vaultId);
-        console.log("c", collateralAmount);
-        console.log("s", shortAmount);
+
         uint256 shortAmountInWeth = DSMath.wmul(shortAmount, sqthWethPrice);
-        console.log("p", sqthWethPrice);
-        console.log("sa", shortAmountInWeth);
+
         wethBalance = IERC20(weth).balanceOf(address(this)).add(
             (collateralAmount > shortAmountInWeth)
                 ? collateralAmount.sub(shortAmountInWeth)
                 : 0
         );
-        console.log("wethBalance", wethBalance);
+
         usdcBalance = IERC20(usdc).balanceOf(address(this));
     }
 
@@ -951,7 +1090,7 @@ library VaultLifecycleGamma {
         address thetaPutVault,
         address thetaCallVault
     )
-        external
+        public
         view
         returns (
             uint256 optionsQuantity,
@@ -960,18 +1099,19 @@ library VaultLifecycleGamma {
         )
     {
         optionsQuantity = calculateOptionsQuantity(
-            vaultBalanceInWETH +
-                ((vaultBalanceInUSDC * 10**18) / wethPrice),
+            vaultBalanceInWETH + ((vaultBalanceInUSDC * 10**18) / wethPrice),
             optionAllocation
         );
 
         uint256 putPriceCeiling =
-            IOptionsPurchaseQueue(optionsPurchaseQueue)
-                .ceilingPrice(thetaPutVault);
+            IOptionsPurchaseQueue(optionsPurchaseQueue).ceilingPrice(
+                thetaPutVault
+            );
 
         uint256 callPriceCeiling =
-            IOptionsPurchaseQueue(optionsPurchaseQueue)
-                .ceilingPrice(thetaCallVault);
+            IOptionsPurchaseQueue(optionsPurchaseQueue).ceilingPrice(
+                thetaCallVault
+            );
 
         putCollateralAmount = (putPriceCeiling * optionsQuantity) / 1e18;
         callCollateralAmount = (callPriceCeiling * optionsQuantity) / 1e18;
@@ -1072,7 +1212,6 @@ library VaultLifecycleGamma {
             );
             feeRate = IPowerPerpController(controller).feeRate();
         }
-        console.log(sqthWethPrice);
 
         uint256 feeAdjustment = calculateFeeAdjustment(sqthWethPrice, feeRate);
 
@@ -1097,5 +1236,22 @@ library VaultLifecycleGamma {
                     )
                 );
         }
+    }
+
+    /************************************************
+     *  UTILS
+     ***********************************************/
+
+    /**
+     * @notice Returns the decimal shift between 18 decimals and asset tokens
+     * @param collateralToken is the address of the collateral token
+     */
+    function decimalShift(address collateralToken)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            10**(uint256(18).sub(IERC20Detailed(collateralToken).decimals()));
     }
 }

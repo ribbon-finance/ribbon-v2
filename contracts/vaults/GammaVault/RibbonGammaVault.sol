@@ -806,21 +806,16 @@ contract RibbonGammaVault is
      */
     function closeCurrentRound() external onlyKeeper nonReentrant {
         // Exercise the options if there are tokens bought from last week
-        if (callOtokens != address(0)) {
-            VaultLifecycle.settleLong(GAMMA_CONTROLLER, callOtokens, WETH);
-        }
-
-        if (putOtokens != address(0)) {
-            uint256 earnedAmount =
-                VaultLifecycle.settleLong(GAMMA_CONTROLLER, putOtokens, USDC);
-            VaultLifecycleYearn.unwrapYieldToken(
-                earnedAmount,
-                USDC,
-                collateralToken,
-                YEARN_WITHDRAWAL_BUFFER,
-                YEARN_WITHDRAWAL_SLIPPAGE
-            );
-        }
+        VaultLifecycleGamma.settleOptionsPosition(
+            GAMMA_CONTROLLER,
+            callOtokens,
+            putOtokens,
+            WETH,
+            USDC,
+            collateralToken,
+            YEARN_WITHDRAWAL_BUFFER,
+            YEARN_WITHDRAWAL_SLIPPAGE
+        );
 
         // Update vault states and calculate fees
         vaultState.lastLockedAmount = uint104(vaultState.lockedAmount);
@@ -883,78 +878,37 @@ contract RibbonGammaVault is
         newRoundInProgress = true;
     }
 
-    // /**
-    //  * @notice Prepare balance to queue for purchase
-    //  * @dev To run this function, keeper is suggested to get the params from getReadyStateParams
-    //  * @param wethBalanceShortage is the amount of WETH shortage to get the vault ready
-    //  * @param usdcBalanceShortage is the amount of USDC shortage to get the vault ready
-    //  * @param usdcBalanceShortageInWETH is the amount of USDC shortage to get the vault ready in WETH terms
-    //  * @param maxAmountIn is the max. amount of WETH allowed when withdrawing from the controller
-    //  */
+    /**
+     * @notice Prepare balance to queue for purchase
+     * @param minAmountOut is the max. amount of WETH allowed when withdrawing from the controller
+     */
     function prepareReadyState(uint256 minAmountOut)
         external
         onlyKeeper
         isClosingRound
         nonReentrant
     {
-        // Cached vars
-        address controller = CONTROLLER;
-        address oracle = ORACLE;
-        address sqthWethPool = SQTH_WETH_POOL;
-        address usdcWethPool = USDC_WETH_POOL;
-        address sqth = SQTH;
-        address weth = WETH;
-        address usdc = USDC;
-        uint256 wethPrice = VaultLifecycleGamma.getWethPriceInUSDC(
-            oracle,
-            usdcWethPool,
-            weth,
-            usdc
+        VaultLifecycleGamma.prepareReadyState(
+            VaultLifecycleGamma.ReadyParams(
+                CONTROLLER,
+                ORACLE,
+                SQTH_WETH_POOL,
+                USDC_WETH_POOL,
+                SQTH,
+                WETH,
+                USDC,
+                vaultId,
+                UNISWAP_ROUTER,
+                wethUsdcSwapPath,
+                usdcWethSwapPath,
+                minAmountOut,
+                optionAllocation,
+                OPTIONS_PURCHASE_QUEUE,
+                THETA_PUT_VAULT,
+                THETA_CALL_VAULT,
+                lastQueuedWithdrawAmount
+            )
         );
-
-        (uint256 vaultBalanceInUSDC, uint256 vaultBalanceInWETH) =
-            VaultLifecycleGamma.getAssetBalances(
-                controller,
-                oracle,
-                sqthWethPool,
-                sqth,
-                weth,
-                usdc,
-                vaultId
-            );
-
-        // (
-        //     ,
-        //     uint256 putCollateralAmount,
-        //     uint256 callCollateralAmount
-        // ) = VaultLifecycleGamma.getOptionsQuantity(
-        //     wethPrice,
-        //     vaultBalanceInWETH,
-        //     vaultBalanceInUSDC,
-        //     optionAllocation,
-        //     OPTIONS_PURCHASE_QUEUE,
-        //     THETA_PUT_VAULT,
-        //     THETA_CALL_VAULT
-        // );
-
-        // VaultLifecycleGamma.prepareReadyState(
-        //     VaultLifecycleGamma.ReadyParams(
-        //         controller,
-        //         oracle,
-        //         sqthWethPool,
-        //         usdcWethPool,
-        //         sqth,
-        //         weth,
-        //         usdc,
-        //         UNISWAP_ROUTER,
-        //         wethUsdcSwapPath,
-        //         usdcWethSwapPath,
-        //         0, //putCollateralAmount, 
-        //         0, //callCollateralAmount,
-        //         lastQueuedWithdrawAmount,
-        //         0
-        //     )
-        // );
     }
 
     /**
