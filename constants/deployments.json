@@ -55,6 +55,7 @@
         "StrikeSelectionETH": "0xa3Bd562C7315B6f1C5FDf573cBfd4Ab6C8af1D07",
         "StrikeSelectionPERP": "0x449C85f1D86c1Af7750C1f1333d4456C7EFA88C0",
         "StrikeSelectionWBTC": "0x2Cd6e166Fb9DABC50d0b07DdE12e08dDC7a9D5DC",
+        "Swap": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
         "VaultLifecycle": "0x0D58b7dF4Ebd4B61Db85b5fF89D02220130C6642",
         "VaultLifecycleTreasury": "0x5Ed981E32b32548968DC8a722D8D4a559859cc45"
     },
@@ -84,6 +85,7 @@
         "StrikeSelectionETHCall": "0xfbff9B1043C4998212FB7969a05C307539042B97",
         "StrikeSelectionETHPut": "0x33450Fb9C34065caD6E7e0444bFBefb69Ec48931",
         "StrikeSelectionWBTCCall": "0x5f14b546E8aCFce9fd8C72aB049363a981768700",
+        "Swap": "0xF0E5c92cEdd66C7985C354C35e2bC37E685b99Da",
         "VaultLifecycle": "0xE6342509ae61b63F015f268953FCA0dE71e61128",
         "VaultLifecycleSTETH": "0xa0025d92bEaEAB39495237A162590D200cDCdc82",
         "VaultLifecycleTreasury": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
