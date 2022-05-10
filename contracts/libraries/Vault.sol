@@ -58,7 +58,7 @@ library Vault {
         // Stores the total tally of how much of `asset` there is
         // to be used to mint rTHETA tokens
         uint128 totalPending;
-        // Amount locked for scheduled withdrawals;
+        // Total amount of queued withdrawal shares from previous rounds (doesn't include the current round)
         uint128 queuedWithdrawShares;
     }
 

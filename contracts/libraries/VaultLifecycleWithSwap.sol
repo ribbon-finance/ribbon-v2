@@ -3,6 +3,9 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
@@ -14,16 +17,17 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
+import {ISwap} from "../interfaces/ISwap.sol";
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 
-library VaultLifecycle {
+library VaultLifecycleWithSwap {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
-    struct CloseParams {
+    struct CommitParams {
         address OTOKEN_FACTORY;
         address USDC;
         address currentOption;
@@ -35,12 +39,9 @@ library VaultLifecycle {
         uint256 premiumDiscount;
     }
 
-    /// @notice Default maximum option allocation for the queue (50%)
-    uint256 internal constant QUEUE_OPTION_ALLOCATION = 5000;
-
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
-     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
      * @return otokenAddress is the address of the new option
@@ -48,8 +49,8 @@ library VaultLifecycle {
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
-    function commitAndClose(
-        CloseParams calldata closeParams,
+    function commitNextOption(
+        CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState
     )
@@ -61,25 +62,25 @@ library VaultLifecycle {
             uint256 delta
         )
     {
-        uint256 expiry = getNextExpiry(closeParams.currentOption);
+        uint256 expiry = getNextExpiry(commitParams.currentOption);
 
         IStrikeSelection selection =
-            IStrikeSelection(closeParams.strikeSelection);
+            IStrikeSelection(commitParams.strikeSelection);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
         address asset = vaultParams.asset;
 
-        (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
+        (strikePrice, delta) = commitParams.lastStrikeOverrideRound ==
             vaultState.round
-            ? (closeParams.overriddenStrikePrice, selection.delta())
+            ? (commitParams.overriddenStrikePrice, selection.delta())
             : selection.getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
         // retrieve address if option already exists, or deploy it
         otokenAddress = getOrDeployOtoken(
-            closeParams,
+            commitParams,
             vaultParams,
             underlying,
             asset,
@@ -91,8 +92,8 @@ library VaultLifecycle {
         // get the black scholes premium of the option
         premium = _getOTokenPremium(
             otokenAddress,
-            closeParams.optionsPremiumPricer,
-            closeParams.premiumDiscount
+            commitParams.optionsPremiumPricer,
+            commitParams.premiumDiscount
         );
 
         require(premium > 0, "!premium");
@@ -137,14 +138,13 @@ library VaultLifecycle {
 
     /**
      * @param decimals is the decimals of the asset
-     * @param totalBalance is the vaults total balance of the asset
+     * @param totalBalance is the vault's total asset balance
      * @param currentShareSupply is the supply of the shares invoked with totalSupply()
-     * @param lastQueuedWithdrawAmount is the total amount queued for withdrawals
+     * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
-     * @param currentQueuedWithdrawShares is amount of queued withdrawals from the current round
      */
-    struct RolloverParams {
+    struct CloseParams {
         uint256 decimals;
         uint256 totalBalance;
         uint256 currentShareSupply;
@@ -166,9 +166,9 @@ library VaultLifecycle {
      * @return performanceFeeInAsset is the performance fee charged by vault
      * @return totalVaultFee is the total amount of fee charged by vault
      */
-    function rollover(
+    function closeRound(
         Vault.VaultState storage vaultState,
-        RolloverParams calldata params
+        CloseParams calldata params
     )
         external
         view
@@ -191,8 +191,7 @@ library VaultLifecycle {
             currentBalance.sub(params.lastQueuedWithdrawAmount);
 
         {
-            (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
-                .getVaultFees(
+            (performanceFeeInAsset, , totalVaultFee) = getVaultFees(
                 balanceForVaultFees,
                 vaultState.lastLockedAmount,
                 vaultState.totalPending,
@@ -575,7 +574,7 @@ library VaultLifecycle {
 
     /**
      * @notice Either retrieves the option token if it already exists, or deploy it
-     * @param closeParams is the struct with details on previous option and strike selection details
+     * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param underlying is the address of the underlying asset of the option
      * @param collateralAsset is the address of the collateral asset of the option
@@ -585,7 +584,7 @@ library VaultLifecycle {
      * @return the address of the option
      */
     function getOrDeployOtoken(
-        CloseParams calldata closeParams,
+        CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         address underlying,
         address collateralAsset,
@@ -593,12 +592,12 @@ library VaultLifecycle {
         uint256 expiry,
         bool isPut
     ) internal returns (address) {
-        IOtokenFactory factory = IOtokenFactory(closeParams.OTOKEN_FACTORY);
+        IOtokenFactory factory = IOtokenFactory(commitParams.OTOKEN_FACTORY);
 
         address otokenFromFactory =
             factory.getOtoken(
                 underlying,
-                closeParams.USDC,
+                commitParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -612,7 +611,7 @@ library VaultLifecycle {
         address otoken =
             factory.createOtoken(
                 underlying,
-                closeParams.USDC,
+                commitParams.USDC,
                 collateralAsset,
                 strikePrice,
                 expiry,
@@ -623,8 +622,8 @@ library VaultLifecycle {
             otoken,
             vaultParams,
             collateralAsset,
-            closeParams.USDC,
-            closeParams.delay
+            commitParams.USDC,
+            commitParams.delay
         );
 
         return otoken;
@@ -677,61 +676,63 @@ library VaultLifecycle {
     }
 
     /**
-     * @notice Starts the gnosis auction
-     * @param auctionDetails is the struct with all the custom parameters of the auction
-     * @return the auction id of the newly created auction
+     * @notice Creates an offer in the Swap Contract
+     * @param currentOtoken is the current otoken address
+     * @param currOtokenPremium is premium for each otoken
+     * @param swapContract the address of the swap contract
+     * @param vaultParams is the struct with vault general data
+     * @return optionAuctionID auction id of the newly created offer
      */
-    function startAuction(GnosisAuction.AuctionDetails calldata auctionDetails)
-        external
-        returns (uint256)
-    {
-        return GnosisAuction.startAuction(auctionDetails);
-    }
+    function createOffer(
+        address currentOtoken,
+        uint256 currOtokenPremium,
+        address swapContract,
+        Vault.VaultParams storage vaultParams
+    ) external returns (uint256 optionAuctionID) {
+        require(
+            currOtokenPremium <= type(uint96).max,
+            "currentOtokenPremium > type(uint96) max value!"
+        );
+        require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-    /**
-     * @notice Settles the gnosis auction
-     * @param gnosisEasyAuction is the contract address of Gnosis easy auction protocol
-     * @param auctionID is the auction ID of the gnosis easy auction
-     */
-    function settleAuction(address gnosisEasyAuction, uint256 auctionID)
-        internal
-    {
-        IGnosisAuction(gnosisEasyAuction).settleAuction(auctionID);
-    }
+        uint256 oTokenBalance = IERC20(currentOtoken).balanceOf(address(this));
+        require(
+            oTokenBalance <= type(uint128).max,
+            "oTokenBalance > type(uint128) max value!"
+        );
 
-    /**
-     * @notice Places a bid in an auction
-     * @param bidDetails is the struct with all the details of the
-      bid including the auction's id and how much to bid
-     */
-    function placeBid(GnosisAuction.BidDetails calldata bidDetails)
-        external
-        returns (
-            uint256 sellAmount,
-            uint256 buyAmount,
-            uint64 userId
-        )
-    {
-        return GnosisAuction.placeBid(bidDetails);
-    }
+        // Use safeIncrease instead of safeApproval because safeApproval is only used for initial
+        // approval and cannot be called again. Using safeIncrease allow us to call _createOffer
+        // even when we are approving the same oTokens we have used before. This might happen if
+        // we accidentally burn the oTokens before settlement.
+        uint256 allowance =
+            IERC20(currentOtoken).allowance(address(this), swapContract);
 
-    /**
-     * @notice Claims the oTokens belonging to the vault
-     * @param auctionSellOrder is the sell order of the bid
-     * @param gnosisEasyAuction is the address of the gnosis auction contract
-     holding custody to the funds
-     * @param counterpartyThetaVault is the address of the counterparty theta
-     vault of this delta vault
-     */
-    function claimAuctionOtokens(
-        Vault.AuctionSellOrder calldata auctionSellOrder,
-        address gnosisEasyAuction,
-        address counterpartyThetaVault
-    ) external {
-        GnosisAuction.claimAuctionOtokens(
-            auctionSellOrder,
-            gnosisEasyAuction,
-            counterpartyThetaVault
+        if (allowance < oTokenBalance) {
+            IERC20(currentOtoken).safeIncreaseAllowance(
+                swapContract,
+                oTokenBalance.sub(allowance)
+            );
+        }
+
+        uint256 decimals = vaultParams.decimals;
+
+        // If total size is larger than 1, set minimum bid as 1
+        // Otherwise, set minimum bid to one tenth the total size
+        uint256 minBidSize =
+            oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
+
+        require(
+            minBidSize <= type(uint96).max,
+            "minBidSize > type(uint96) max value!"
+        );
+
+        optionAuctionID = ISwap(swapContract).createOffer(
+            currentOtoken,
+            vaultParams.asset,
+            uint96(currOtokenPremium),
+            uint96(minBidSize),
+            uint128(oTokenBalance)
         );
     }
 
@@ -774,16 +775,16 @@ library VaultLifecycle {
      * @notice Sell the allocated options to the purchase queue post auction settlement
      * @dev Reverts if the auction hasn't settled yet
      * @param optionsPurchaseQueue is the OptionsPurchaseQueue contract
-     * @param gnosisEasyAuction The address of the Gnosis Easy Auction contract
+     * @param swapContract The address of the swap settlement contract
      * @return totalPremiums Total premiums earnt by the vault
      */
     function sellOptionsToQueue(
         address optionsPurchaseQueue,
-        address gnosisEasyAuction,
+        address swapContract,
         uint256 optionAuctionID
     ) external returns (uint256) {
         uint256 settlementPrice =
-            getAuctionSettlementPrice(gnosisEasyAuction, optionAuctionID);
+            getAuctionSettlementPrice(swapContract, optionAuctionID);
         require(settlementPrice != 0, "!settlementPrice");
 
         return
@@ -794,33 +795,15 @@ library VaultLifecycle {
 
     /**
      * @notice Gets the settlement price of a settled auction
-     * @param gnosisEasyAuction The address of the Gnosis Easy Auction contract
+     * @param swapContract The address of the swap settlement contract
+     * @param optionAuctionID is the offer ID
      * @return settlementPrice Auction settlement price
      */
     function getAuctionSettlementPrice(
-        address gnosisEasyAuction,
+        address swapContract,
         uint256 optionAuctionID
     ) public view returns (uint256) {
-        bytes32 clearingPriceOrder =
-            IGnosisAuction(gnosisEasyAuction)
-                .auctionData(optionAuctionID)
-                .clearingPriceOrder;
-
-        if (clearingPriceOrder == bytes32(0)) {
-            // Current auction hasn't settled yet
-            return 0;
-        } else {
-            // We decode the clearingPriceOrder to find the auction settlement price
-            // settlementPrice = clearingPriceOrder.sellAmount / clearingPriceOrder.buyAmount
-            return
-                (10**Vault.OTOKEN_DECIMALS)
-                    .mul(
-                    uint96(uint256(clearingPriceOrder)) // sellAmount
-                )
-                    .div(
-                    uint96(uint256(clearingPriceOrder) >> 96) // buyAmount
-                );
-        }
+        return ISwap(swapContract).averagePriceForOffer(optionAuctionID);
     }
 
     /**
