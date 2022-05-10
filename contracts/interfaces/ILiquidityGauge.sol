@@ -9,4 +9,6 @@ interface ILiquidityGauge {
         address _addr,
         bool _claim_rewards
     ) external;
+
+    function withdraw(uint256 _value) external;
 }
