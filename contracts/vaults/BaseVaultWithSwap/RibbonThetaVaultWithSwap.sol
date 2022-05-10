@@ -12,7 +12,9 @@ import {
     RibbonThetaVaultStorage
 } from "../../storage/RibbonThetaVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
+import {
+    VaultLifecycleWithSwap
+} from "../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
@@ -98,7 +100,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
        black-scholes premium calculation logic
      * @param _strikeSelection is the address of the contract with strike selection logic
      * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
      */
     struct InitParams {
         address _owner;
@@ -111,7 +112,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         address _optionsPremiumPricer;
         address _strikeSelection;
         uint32 _premiumDiscount;
-        uint256 _auctionDuration;
     }
 
     /************************************************
@@ -172,14 +172,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
             "!_premiumDiscount"
         );
-        require(
-            _initParams._auctionDuration >= MIN_AUCTION_DURATION,
-            "!_auctionDuration"
-        );
+
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
-        auctionDuration = _initParams._auctionDuration;
     }
 
     /************************************************
@@ -246,6 +242,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Optionality to set strike price manually
+     * Should be called after closeRound if we are setting current week's strike
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
     function setStrikePrice(uint128 strikePrice) external onlyOwner {
@@ -331,80 +328,24 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     }
 
     /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short.
-     *         This allows all the users to withdraw if the next option is malicious.
+     * @notice Closes the existing short and calculate the shares to mint, new price per share &
+      amount of funds to re-allocate as collateral for the new round
+     * Since we are incrementing the round here, the options are sold in the beginning of a round
+     * instead of at the end of the round. For example, at round 1, we don't sell any options. We
+     * start selling options at the beginning of round 2.
      */
-    function commitAndClose() external nonReentrant {
+    function closeRound() external nonReentrant {
         address oldOption = optionState.currentOption;
-
-        VaultLifecycle.CloseParams memory closeParams =
-            VaultLifecycle.CloseParams({
-                OTOKEN_FACTORY: OTOKEN_FACTORY,
-                USDC: USDC,
-                currentOption: oldOption,
-                delay: DELAY,
-                lastStrikeOverrideRound: lastStrikeOverrideRound,
-                overriddenStrikePrice: overriddenStrikePrice,
-                strikeSelection: strikeSelection,
-                optionsPremiumPricer: optionsPremiumPricer,
-                premiumDiscount: premiumDiscount
-            });
-
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) = VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
-
-        emit NewOptionStrikeSelected(strikePrice, delta);
-
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
-        optionState.nextOption = otokenAddress;
-
-        uint256 nextOptionReady = block.timestamp.add(DELAY);
         require(
-            nextOptionReady <= type(uint32).max,
-            "Overflow nextOptionReady"
+            oldOption != address(0) || vaultState.round == 1,
+            "Round closed"
         );
-        optionState.nextOptionReadyAt = uint32(nextOptionReady);
+        _closeShort(optionState.currentOption);
 
-        _closeShort(oldOption);
-    }
-
-    /**
-     * @notice Closes the existing short position for the vault.
-     */
-    function _closeShort(address oldOption) private {
-        uint256 lockedAmount = vaultState.lockedAmount;
-        if (oldOption != address(0)) {
-            vaultState.lastLockedAmount = uint104(lockedAmount);
-        }
-        vaultState.lockedAmount = 0;
-
-        optionState.currentOption = address(0);
-
-        if (oldOption != address(0)) {
-            uint256 withdrawAmount =
-                VaultLifecycle.settleShort(GAMMA_CONTROLLER);
-            emit CloseShort(oldOption, withdrawAmount, msg.sender);
-        }
-    }
-
-    /**
-     * @notice Rolls the vault's funds into a new short position.
-     */
-    function rollToNextOption() external onlyKeeper nonReentrant {
         uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
-
-        (
-            address newOption,
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount
-        ) =
-            _rollToNextOption(
-                lastQueuedWithdrawAmount,
+        (uint256 lockedBalance, uint256 queuedWithdrawAmount) =
+            _closeRound(
+                uint256(lastQueuedWithdrawAmount),
                 currQueuedWithdrawShares
             );
 
@@ -422,9 +363,88 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         ShareMath.assertUint104(lockedBalance);
         vaultState.lockedAmount = uint104(lockedBalance);
 
+        uint256 nextOptionReady = block.timestamp.add(DELAY);
+        require(
+            nextOptionReady <= type(uint32).max,
+            "Overflow nextOptionReady"
+        );
+        optionState.nextOptionReadyAt = uint32(nextOptionReady);
+    }
+
+    /**
+     * @notice Closes the existing short position for the vault.
+     */
+    function _closeShort(address oldOption) private {
+        uint256 lockedAmount = vaultState.lockedAmount;
+        if (oldOption != address(0)) {
+            vaultState.lastLockedAmount = uint104(lockedAmount);
+        }
+        vaultState.lockedAmount = 0;
+
+        optionState.currentOption = address(0);
+
+        if (oldOption != address(0)) {
+            uint256 withdrawAmount =
+                VaultLifecycleWithSwap.settleShort(GAMMA_CONTROLLER);
+            emit CloseShort(oldOption, withdrawAmount, msg.sender);
+        }
+    }
+
+    /**
+     * @notice Sets the next option the vault will be shorting
+     */
+    function commitNextOption() external onlyKeeper nonReentrant {
+        address currentOption = optionState.currentOption;
+        require(
+            currentOption == address(0) && vaultState.round != 1,
+            "Round not closed"
+        );
+
+        VaultLifecycleWithSwap.CommitParams memory commitParams =
+            VaultLifecycleWithSwap.CommitParams({
+                OTOKEN_FACTORY: OTOKEN_FACTORY,
+                USDC: USDC,
+                currentOption: currentOption,
+                delay: DELAY,
+                lastStrikeOverrideRound: lastStrikeOverrideRound,
+                overriddenStrikePrice: overriddenStrikePrice,
+                strikeSelection: strikeSelection,
+                optionsPremiumPricer: optionsPremiumPricer,
+                premiumDiscount: premiumDiscount
+            });
+
+        (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        ) =
+            VaultLifecycleWithSwap.commitNextOption(
+                commitParams,
+                vaultParams,
+                vaultState
+            );
+
+        emit NewOptionStrikeSelected(strikePrice, delta);
+
+        optionState.nextOption = otokenAddress;
+        currentOtokenPremium = uint104(premium);
+    }
+
+    /**
+     * @notice Rolls the vault's funds into a new short position and create a new offer.
+     */
+    function rollToNextOption() external onlyKeeper nonReentrant {
+        address newOption = optionState.nextOption;
+        require(newOption != address(0), "!nextOption");
+
+        optionState.currentOption = newOption;
+        optionState.nextOption = address(0);
+        uint256 lockedBalance = vaultState.lockedAmount;
+
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycle.createShort(
+        VaultLifecycleWithSwap.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -442,38 +462,19 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     }
 
     function _createOffer() private {
-        require(
-            currentOtokenPremium <= type(uint96).max,
-            "currentOtokenPremium > type(uint96) max value!"
-        );
-        require(currentOtokenPremium > 0, "!currentOtokenPremium");
+        address currentOtoken = optionState.currentOption;
+        uint256 currOtokenPremium =
+            VaultLifecycleWithSwap.getOTokenPremium(
+                currentOtoken,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
 
-        address oTokenAddress = optionState.currentOption;
-        uint256 oTokenBalance = IERC20(oTokenAddress).balanceOf(address(this));
-        require(
-            oTokenBalance <= type(uint128).max,
-            "oTokenBalance > type(uint128) max value!"
-        );
-
-        IERC20(oTokenAddress).safeApprove(SWAP_CONTRACT, oTokenBalance);
-
-        uint256 decimals = vaultParams.decimals;
-
-        // If total size is larger than 1, set minimum bid as 1
-        // Otherwise, set minimum bid to one tenth the total size
-        uint256 minBidSize =
-            oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
-        require(
-            minBidSize <= type(uint96).max,
-            "minBidSize > type(uint96) max value!"
-        );
-
-        optionAuctionID = ISwap(SWAP_CONTRACT).createOffer(
-            oTokenAddress,
-            vaultParams.asset,
-            uint96(currentOtokenPremium),
-            uint96(minBidSize),
-            uint128(oTokenBalance)
+        optionAuctionID = VaultLifecycleWithSwap.createOffer(
+            currentOtoken,
+            currOtokenPremium,
+            SWAP_CONTRACT,
+            vaultParams
         );
     }
 
@@ -493,7 +494,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
-            VaultLifecycle.burnOtokens(
+            VaultLifecycleWithSwap.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
