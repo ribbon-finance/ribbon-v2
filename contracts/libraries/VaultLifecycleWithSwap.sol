@@ -3,6 +3,9 @@ pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Vault} from "./Vault.sol";
 import {ShareMath} from "./ShareMath.sol";
 import {IStrikeSelection} from "../interfaces/IRibbon.sol";
@@ -22,6 +25,7 @@ import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 library VaultLifecycleWithSwap {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
     struct CommitParams {
         address OTOKEN_FACTORY;
@@ -37,6 +41,7 @@ library VaultLifecycleWithSwap {
 
     /// @notice Default maximum option allocation for the queue (50%)
     uint256 internal constant QUEUE_OPTION_ALLOCATION = 5000;
+
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
      * @param commitParams is the struct with details on previous option and strike selection details
@@ -674,6 +679,67 @@ library VaultLifecycleWithSwap {
     }
 
     /**
+     * @notice Creates an offer in the Swap Contract
+     * @param currentOtoken is the current otoken address
+     * @param currOtokenPremium is premium for each otoken
+     * @param swapContract the address of the swap contract
+     * @param vaultParams is the struct with vault general data
+     * @return optionAuctionID auction id of the newly created offer
+     */
+    function createOffer(
+        address currentOtoken,
+        uint256 currOtokenPremium,
+        address swapContract,
+        Vault.VaultParams storage vaultParams
+    ) external returns (uint256 optionAuctionID) {
+        require(
+            currOtokenPremium <= type(uint96).max,
+            "currentOtokenPremium > type(uint96) max value!"
+        );
+        require(currOtokenPremium > 0, "!currentOtokenPremium");
+
+        uint256 oTokenBalance = IERC20(currentOtoken).balanceOf(address(this));
+        require(
+            oTokenBalance <= type(uint128).max,
+            "oTokenBalance > type(uint128) max value!"
+        );
+
+        // Use safeIncrease instead of safeApproval because safeApproval is only used for initial
+        // approval and cannot be called again. Using safeIncrease allow us to call _createOffer
+        // even when we are approving the same oTokens we have used before. This might happen if
+        // we accidentally burn the oTokens before settlement.
+        uint256 allowance =
+            IERC20(currentOtoken).allowance(address(this), swapContract);
+
+        if (allowance < oTokenBalance) {
+            IERC20(currentOtoken).safeIncreaseAllowance(
+                swapContract,
+                oTokenBalance.sub(allowance)
+            );
+        }
+
+        uint256 decimals = vaultParams.decimals;
+
+        // If total size is larger than 1, set minimum bid as 1
+        // Otherwise, set minimum bid to one tenth the total size
+        uint256 minBidSize =
+            oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
+
+        require(
+            minBidSize <= type(uint96).max,
+            "minBidSize > type(uint96) max value!"
+        );
+
+        optionAuctionID = ISwap(swapContract).createOffer(
+            currentOtoken,
+            vaultParams.asset,
+            uint96(currOtokenPremium),
+            uint96(minBidSize),
+            uint128(oTokenBalance)
+        );
+    }
+
+    /**
      * @notice Allocates the vault's minted options to the OptionsPurchaseQueue contract
      * @dev Skipped if the optionsPurchaseQueue doesn't exist
      * @param optionsPurchaseQueue is the OptionsPurchaseQueue contract
@@ -733,14 +799,14 @@ library VaultLifecycleWithSwap {
     /**
      * @notice Gets the settlement price of a settled auction
      * @param swapContract The address of the swap settlement contract
-     * @param optionAuctionId is the offer ID
+     * @param optionAuctionID is the offer ID
      * @return settlementPrice Auction settlement price
      */
     function getAuctionSettlementPrice(
         address swapContract,
-        uint256 optionAuctionId
+        uint256 optionAuctionID
     ) public view returns (uint256) {
-        return ISwap(swapContract).averagePriceForOffer(optionAuctionId);
+        return ISwap(swapContract).averagePriceForOffer(optionAuctionID);
     }
 
     /**

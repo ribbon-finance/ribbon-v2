@@ -568,10 +568,8 @@ contract RibbonVault is
      */
     function _closeRound(
         uint256 lastQueuedWithdrawAmount,
-        uint256 currentQueuedWithdrawShares)
-        internal
-        returns (uint256 lockedBalance, uint256 queuedWithdrawAmount)
-    {
+        uint256 currentQueuedWithdrawShares
+    ) internal returns (uint256 lockedBalance, uint256 queuedWithdrawAmount) {
         address recipient = feeRecipient;
         uint256 mintShares;
         uint256 performanceFeeInAsset;

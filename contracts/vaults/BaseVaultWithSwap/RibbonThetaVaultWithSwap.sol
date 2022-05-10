@@ -259,6 +259,17 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         liquidityGauge = newLiquidityGauge;
     }
 
+    /**
+     * @notice Sets the new optionsPurchaseQueue contract for this vault
+     * @param newOptionsPurchaseQueue is the address of the new optionsPurchaseQueue contract
+     */
+    function setOptionsPurchaseQueue(address newOptionsPurchaseQueue)
+        external
+        onlyOwner
+    {
+        optionsPurchaseQueue = newOptionsPurchaseQueue;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -344,7 +355,10 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
         uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
         (uint256 lockedBalance, uint256 queuedWithdrawAmount) =
-            _closeRound(uint256(lastQueuedWithdrawAmount), currQueuedWithdrawShares);
+            _closeRound(
+                uint256(lastQueuedWithdrawAmount),
+                currQueuedWithdrawShares
+            );
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
@@ -410,7 +424,12 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 premiumDiscount: premiumDiscount
             });
 
-        (address otokenAddress, uint256 premium, uint256 strikePrice, uint256 delta) =
+        (
+            address otokenAddress,
+            uint256 premium,
+            uint256 strikePrice,
+            uint256 delta
+        ) =
             VaultLifecycleWithSwap.commitNextOption(
                 commitParams,
                 vaultParams,
@@ -436,12 +455,13 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        uint256 optionsMintAmount = VaultLifecycleWithSwap.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
+        uint256 optionsMintAmount =
+            VaultLifecycleWithSwap.createShort(
+                GAMMA_CONTROLLER,
+                MARGIN_POOL,
+                newOption,
+                lockedBalance
+            );
 
         VaultLifecycleWithSwap.allocateOptions(
             optionsPurchaseQueue,
@@ -468,49 +488,12 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 optionsPremiumPricer,
                 premiumDiscount
             );
-        require(
-            currOtokenPremium <= type(uint96).max,
-            "currentOtokenPremium > type(uint96) max value!"
-        );
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
 
-        uint256 oTokenBalance = IERC20(currentOtoken).balanceOf(address(this));
-        require(
-            oTokenBalance <= type(uint128).max,
-            "oTokenBalance > type(uint128) max value!"
-        );
-
-        // Use safeIncrease instead of safeApproval because safeApproval is only used for initial
-        // approval and cannot be called again. Using safeIncrease allow us to call _createOffer
-        // even when we are approving the same oTokens we have used before. This might happen if
-        // we accidentally burn the oTokens before settlement.
-        uint256 allowance =
-            IERC20(currentOtoken).allowance(address(this), SWAP_CONTRACT);
-
-        if (allowance < oTokenBalance) {
-            IERC20(currentOtoken).safeIncreaseAllowance(
-                SWAP_CONTRACT,
-                oTokenBalance.sub(allowance)
-            );
-        }
-
-        uint256 decimals = vaultParams.decimals;
-
-        // If total size is larger than 1, set minimum bid as 1
-        // Otherwise, set minimum bid to one tenth the total size
-        uint256 minBidSize =
-            oTokenBalance > 10**decimals ? 10**decimals : oTokenBalance.div(10);
-        require(
-            minBidSize <= type(uint96).max,
-            "minBidSize > type(uint96) max value!"
-        );
-
-        optionAuctionID = ISwap(SWAP_CONTRACT).createOffer(
+        optionAuctionID = VaultLifecycleWithSwap.createOffer(
             currentOtoken,
-            vaultParams.asset,
-            uint96(currOtokenPremium),
-            uint96(minBidSize),
-            uint128(oTokenBalance)
+            currOtokenPremium,
+            SWAP_CONTRACT,
+            vaultParams
         );
     }
 
