@@ -217,7 +217,7 @@ function checkWithdrawal(vaultAddress: string) {
         // Ensure the correct balance is withdrawn
         const currentRound = (await vault.vaultState()).round;
         const pps = await vault.roundPricePerShare(currentRound - 1);
-        
+
         // Complete withdrawal
         const gasPrice = parseUnits("30", "gwei");
 
