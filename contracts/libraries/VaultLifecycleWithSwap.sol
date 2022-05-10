@@ -14,6 +14,8 @@ import {
     GammaTypes
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {ISwap} from "../interfaces/ISwap.sol";
+import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 
@@ -33,12 +35,15 @@ library VaultLifecycleWithSwap {
         uint256 premiumDiscount;
     }
 
+    /// @notice Default maximum option allocation for the queue (50%)
+    uint256 internal constant QUEUE_OPTION_ALLOCATION = 5000;
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
      * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
      * @return otokenAddress is the address of the new option
+     * @return premium is the premium of the new option
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
@@ -50,6 +55,7 @@ library VaultLifecycleWithSwap {
         external
         returns (
             address otokenAddress,
+            uint256 premium,
             uint256 strikePrice,
             uint256 delta
         )
@@ -81,7 +87,16 @@ library VaultLifecycleWithSwap {
             isPut
         );
 
-        return (otokenAddress, strikePrice, delta);
+        // get the black scholes premium of the option
+        premium = _getOTokenPremium(
+            otokenAddress,
+            commitParams.optionsPremiumPricer,
+            commitParams.premiumDiscount
+        );
+
+        require(premium > 0, "!premium");
+
+        return (otokenAddress, premium, strikePrice, delta);
     }
 
     /**
@@ -134,6 +149,7 @@ library VaultLifecycleWithSwap {
         uint256 lastQueuedWithdrawAmount;
         uint256 performanceFee;
         uint256 managementFee;
+        uint256 currentQueuedWithdrawShares;
     }
 
     /**
@@ -165,41 +181,12 @@ library VaultLifecycleWithSwap {
     {
         uint256 currentBalance = params.totalBalance;
         uint256 pendingAmount = vaultState.totalPending;
-        uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
+        // Total amount of queued withdrawal shares from previous rounds (doesn't include the current round)
+        uint256 lastQueuedWithdrawShares = vaultState.queuedWithdrawShares;
 
-        uint256 balanceForVaultFees;
-        {
-            uint256 pricePerShareBeforeFee =
-                ShareMath.pricePerShare(
-                    params.currentShareSupply,
-                    currentBalance,
-                    pendingAmount,
-                    params.decimals
-                );
-
-            uint256 queuedWithdrawBeforeFee =
-                params.currentShareSupply > 0
-                    ? ShareMath.sharesToAsset(
-                        queuedWithdrawShares,
-                        pricePerShareBeforeFee,
-                        params.decimals
-                    )
-                    : 0;
-
-            // Deduct the difference between the newly scheduled withdrawals
-            // and the older withdrawals
-            // so we can charge them fees before they leave
-            uint256 withdrawAmountDiff =
-                queuedWithdrawBeforeFee > params.lastQueuedWithdrawAmount
-                    ? queuedWithdrawBeforeFee.sub(
-                        params.lastQueuedWithdrawAmount
-                    )
-                    : 0;
-
-            balanceForVaultFees = currentBalance
-                .sub(queuedWithdrawBeforeFee)
-                .add(withdrawAmountDiff);
-        }
+        // Deduct older queued withdraws so we don't charge fees on them
+        uint256 balanceForVaultFees =
+            currentBalance.sub(params.lastQueuedWithdrawAmount);
 
         {
             (performanceFeeInAsset, , totalVaultFee) = getVaultFees(
@@ -217,10 +204,18 @@ library VaultLifecycleWithSwap {
 
         {
             newPricePerShare = ShareMath.pricePerShare(
-                params.currentShareSupply,
-                currentBalance,
+                params.currentShareSupply.sub(lastQueuedWithdrawShares),
+                currentBalance.sub(params.lastQueuedWithdrawAmount),
                 pendingAmount,
                 params.decimals
+            );
+
+            queuedWithdrawAmount = params.lastQueuedWithdrawAmount.add(
+                ShareMath.sharesToAsset(
+                    params.currentQueuedWithdrawShares,
+                    newPricePerShare,
+                    params.decimals
+                )
             );
 
             // After closing the short, if the options expire in-the-money
@@ -231,16 +226,6 @@ library VaultLifecycleWithSwap {
                 newPricePerShare,
                 params.decimals
             );
-
-            uint256 newSupply = params.currentShareSupply.add(mintShares);
-
-            queuedWithdrawAmount = newSupply > 0
-                ? ShareMath.sharesToAsset(
-                    queuedWithdrawShares,
-                    newPricePerShare,
-                    params.decimals
-                )
-                : 0;
         }
 
         return (
@@ -686,6 +671,76 @@ library VaultLifecycleWithSwap {
         require(optionPremium > 0, "!optionPremium");
 
         return optionPremium;
+    }
+
+    /**
+     * @notice Allocates the vault's minted options to the OptionsPurchaseQueue contract
+     * @dev Skipped if the optionsPurchaseQueue doesn't exist
+     * @param optionsPurchaseQueue is the OptionsPurchaseQueue contract
+     * @param option is the minted option
+     * @param optionsAmount is the amount of options minted
+     * @param optionAllocation is the maximum % of options to allocate towards the purchase queue (will only allocate
+     *  up to the amount that is on the queue)
+     * @return allocatedOptions is the amount of options that ended up getting allocated to the OptionsPurchaseQueue
+     */
+    function allocateOptions(
+        address optionsPurchaseQueue,
+        address option,
+        uint256 optionsAmount,
+        uint256 optionAllocation
+    ) external returns (uint256 allocatedOptions) {
+        // Skip if optionsPurchaseQueue is address(0)
+        if (optionsPurchaseQueue != address(0)) {
+            allocatedOptions = optionsAmount.mul(optionAllocation).div(
+                100 * Vault.OPTION_ALLOCATION_MULTIPLIER
+            );
+            allocatedOptions = IOptionsPurchaseQueue(optionsPurchaseQueue)
+                .getOptionsAllocation(address(this), allocatedOptions);
+
+            if (allocatedOptions != 0) {
+                IERC20(option).approve(optionsPurchaseQueue, allocatedOptions);
+                IOptionsPurchaseQueue(optionsPurchaseQueue).allocateOptions(
+                    allocatedOptions
+                );
+            }
+        }
+
+        return allocatedOptions;
+    }
+
+    /**
+     * @notice Sell the allocated options to the purchase queue post auction settlement
+     * @dev Reverts if the auction hasn't settled yet
+     * @param optionsPurchaseQueue is the OptionsPurchaseQueue contract
+     * @param swapContract The address of the swap settlement contract
+     * @return totalPremiums Total premiums earnt by the vault
+     */
+    function sellOptionsToQueue(
+        address optionsPurchaseQueue,
+        address swapContract,
+        uint256 optionAuctionID
+    ) external returns (uint256) {
+        uint256 settlementPrice =
+            getAuctionSettlementPrice(swapContract, optionAuctionID);
+        require(settlementPrice != 0, "!settlementPrice");
+
+        return
+            IOptionsPurchaseQueue(optionsPurchaseQueue).sellToBuyers(
+                settlementPrice
+            );
+    }
+
+    /**
+     * @notice Gets the settlement price of a settled auction
+     * @param swapContract The address of the swap settlement contract
+     * @param optionAuctionId is the offer ID
+     * @return settlementPrice Auction settlement price
+     */
+    function getAuctionSettlementPrice(
+        address swapContract,
+        uint256 optionAuctionId
+    ) public view returns (uint256) {
+        return ISwap(swapContract).averagePriceForOffer(optionAuctionId);
     }
 
     /**
