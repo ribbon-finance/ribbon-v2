@@ -1492,7 +1492,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .closeRound({ from: owner });
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 137969);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 140500);
         // console.log("closeRound", receipt.gasUsed.toNumber());
       });
     });
@@ -1618,7 +1618,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .commitNextOption();
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 934518);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 935100);
         // console.log("commitNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -3502,6 +3502,200 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
     });
+
+    if (
+      chainId === CHAINID.ETH_MAINNET &&
+      params.protocol === OPTION_PROTOCOL.GAMMA &&
+      params.mintConfig
+    ) {
+      describe("pricePerShare checks", () => {
+        // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
+        const totalDepositAmount = parseUnits("10000", params.tokenDecimals);
+        const depositAmount = totalDepositAmount.div(2); // 5000
+
+        time.revertToSnapshotAfterEach(async () => {
+          // Increase vault cap if it's <10000
+          if ((await vault.cap()).lt(totalDepositAmount)) {
+            await vault.connect(ownerSigner).setCap(totalDepositAmount);
+          }
+
+          await mintToken(
+            assetContract,
+            params.mintConfig.contractOwnerAddress,
+            ownerSigner.address, // User 0
+            vault.address,
+            totalDepositAmount
+          ); // Mint 10000 tokens to user 0
+
+          await assetContract.connect(ownerSigner).transfer(
+            userSigner.address, // User 1
+            depositAmount
+          ); // Transfer 5000 tokens to user 1
+
+          await assetContract
+            .connect(ownerSigner)
+            .approve(vault.address, depositAmount);
+          await vault.connect(ownerSigner).deposit(depositAmount); // User 0 deposits 5000 tokens
+
+          await assetContract
+            .connect(userSigner)
+            .approve(vault.address, depositAmount);
+          await vault.connect(userSigner).deposit(depositAmount); // User 1 deposits 5000 tokens
+
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount); // 10000 tokens
+          await rollToFirstOption(); // Process deposits
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
+        });
+
+        it("initiated withdraw is completed in a later round", async function () {
+          /* ===== ROUND 2 ===== */
+
+          await vault.connect(userSigner).initiateWithdraw(depositAmount); // User 1 initiates 5000 shares withdraw
+
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount); // 10000 tokens
+          await rollToSecondOption(firstOptionStrike); // Process withdraws
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
+
+          /* ===== ROUND 3 ===== */
+
+          assert.bnEqual(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare == 1
+
+          // Transfer 50 tokens in premiums to vault
+          const premiumAmount = parseUnits("50", params.tokenDecimals);
+          await mintToken(
+            assetContract,
+            params.mintConfig.contractOwnerAddress,
+            adminSigner.address,
+            vault.address,
+            premiumAmount
+          ); // Mint 50 tokens
+          await assetContract
+            .connect(adminSigner)
+            .transfer(vault.address, premiumAmount); // Transfer 50 tokens to vault
+
+          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
+
+          assert.bnEqual(
+            await vault.totalBalance(),
+            totalDepositAmount.add(premiumAmount)
+          ); // 10050 tokens
+          await rollToSecondOption(firstOptionStrike); // Process premiums/withdraws
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
+
+          /* ===== ROUND 4 ===== */
+
+          // pricePerShare is ~1.0038063
+          // console.log((await vault.pricePerShare()).toString());
+          assert.bnGt(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare > 1
+
+          const oneToken = parseUnits("1", params.tokenDecimals); // 1 token
+          const tenTokens = parseUnits("10", params.tokenDecimals); // 10 tokens
+
+          let withdrawnTokens0 = await assetContract.balanceOf(
+            ownerSigner.address
+          );
+          await vault.connect(ownerSigner).completeWithdraw();
+          withdrawnTokens0 = (
+            await assetContract.balanceOf(ownerSigner.address)
+          ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
+          // User 0 receives ~5038.063 tokens (5000 tokens + 38.063 premiums)
+          // console.log(withdrawnTokens0.toString());
+          assert.bnGt(withdrawnTokens0, depositAmount.add(tenTokens.mul(3))); // withdrawnTokens0 > 5030 tokens
+
+          let withdrawnTokens1 = await assetContract.balanceOf(
+            userSigner.address
+          );
+          await vault.connect(userSigner).completeWithdraw();
+          withdrawnTokens1 = (
+            await assetContract.balanceOf(userSigner.address)
+          ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
+          assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
+
+          // Vault has ~0.000022 in tokens leftover
+          // console.log((await vault.totalBalance()).toString());
+          assert.bnLt(await vault.totalBalance(), oneToken); // totalBalance < 1 tokens
+          assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
+        });
+
+        it("vault losses locking up withdraws", async function () {
+          /* ===== ROUND 2 ===== */
+
+          await vault.connect(userSigner).initiateWithdraw(depositAmount); // User 1 initiates 5000 shares withdraw
+
+          await rollToSecondOption(firstOptionStrike);
+
+          /* ===== ROUND 3 ===== */
+
+          assert.bnEqual(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare == 1
+
+          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
+
+          const newStrike = isPut
+            ? firstOptionStrike.mul(9).div(11)
+            : firstOptionStrike.mul(11).div(10); // Set current option to expire ITM
+
+          assert.bnEqual(await vault.totalBalance(), totalDepositAmount); // 10000 tokens
+          await rollToSecondOption(newStrike); // Process ITM expiry
+          // Vault has ~9090.9090909 tokens
+          // console.log((await vault.totalBalance()).toString());
+          assert.bnLt(await vault.totalBalance(), totalDepositAmount); // totalBalance < 10000 tokens
+          assert.bnEqual(await vault.totalSupply(), totalDepositAmount); // 10000 shares
+
+          /* ===== ROUND 4 ===== */
+
+          // pricePerShare is ~0.90909090
+          // console.log((await vault.pricePerShare()).toString());
+          assert.bnLt(
+            await vault.pricePerShare(),
+            parseUnits("1", params.tokenDecimals)
+          ); // pricePerShare < 1
+
+          const oneToken = parseUnits("1", params.tokenDecimals); // 1 token
+
+          let withdrawnTokens0 = await assetContract.balanceOf(
+            ownerSigner.address
+          );
+          await vault.connect(ownerSigner).completeWithdraw();
+          withdrawnTokens0 = (
+            await assetContract.balanceOf(ownerSigner.address)
+          ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
+          // User 0 receives ~4545.4545 tokens
+          // console.log(withdrawnTokens0.toString());
+          assert.bnLt(withdrawnTokens0, depositAmount); // withdrawnTokens0 < 5000 tokens
+
+          const { round, shares } = await vault.withdrawals(userSigner.address);
+          const roundPricePerShare = await vault.roundPricePerShare(round);
+          const withdrawAmount = shares
+            .mul(roundPricePerShare)
+            .div(parseUnits("1", params.tokenDecimals));
+          // User 1 is expected to receive 5000 tokens when they complete withdraw 5000 shares
+          assert.bnEqual(withdrawAmount, depositAmount); // 5000 tokens
+
+          let withdrawnTokens1 = await assetContract.balanceOf(
+            userSigner.address
+          );
+          await vault.connect(userSigner).completeWithdraw();
+          withdrawnTokens1 = (
+            await assetContract.balanceOf(userSigner.address)
+          ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
+          assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
+
+          // Vault has ~0.00004545 in tokens leftover
+          // console.log((await vault.totalBalance()).toString());
+          assert.bnLt(await vault.totalBalance(), oneToken); // totalBalance < 1 tokens
+          assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
+        });
+      });
+    }
   });
 }
 
