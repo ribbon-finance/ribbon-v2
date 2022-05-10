@@ -10,8 +10,6 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`17 - Deploying Swap Contract on ${network.name}`);
 
-  const chainId = network.config.chainId;
-
   const swap = await deploy("Swap", {
     contract: "Swap",
     from: deployer,
