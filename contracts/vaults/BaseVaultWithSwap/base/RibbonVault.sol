@@ -403,7 +403,7 @@ contract RibbonVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares) external nonReentrant {
+    function _initiateWithdraw(uint256 numShares) internal {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -436,11 +436,6 @@ contract RibbonVault is
 
         ShareMath.assertUint128(withdrawalShares);
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
-
-        uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(numShares);
-        ShareMath.assertUint128(newQueuedWithdrawShares);
-        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
         _transfer(msg.sender, address(this), numShares);
     }
@@ -563,7 +558,7 @@ contract RibbonVault is
         }
     }
 
-    /*
+    /**
      * @notice Helper function that performs most administrative tasks
      * such as minting new shares, getting vault fees, etc.
      * @param lastQueuedWithdrawAmount is old queued withdraw amount
@@ -595,7 +590,8 @@ contract RibbonVault is
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,
-                    managementFee
+                    managementFee,
+                    currentQueuedWithdrawShares
                 )
             );
 

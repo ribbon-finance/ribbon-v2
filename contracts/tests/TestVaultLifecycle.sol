@@ -49,4 +49,15 @@ contract TestVaultLifecycle {
     {
         return VaultLifecycle.rollover(vaultState, params);
     }
+
+    function getAuctionSettlementPrice(
+        address gnosisEasyAuction,
+        uint256 optionAuctionID
+    ) external view returns (uint256) {
+        return
+            VaultLifecycle.getAuctionSettlementPrice(
+                gnosisEasyAuction,
+                optionAuctionID
+            );
+    }
 }

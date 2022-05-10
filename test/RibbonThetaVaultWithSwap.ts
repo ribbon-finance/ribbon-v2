@@ -315,16 +315,13 @@ function behavesLikeRibbonOptionsVault(params: {
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
         params.deltaFirstOption,
-        params.deltaStep
+        BigNumber.from(params.deltaStep).mul(10 ** 8)
       );
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycleWithSwap");
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
-      const SwapContract = await getContractFactory(
-        "Swap",
-        ownerSigner
-      );
+      const SwapContract = await getContractFactory("Swap", ownerSigner);
 
       swapContract = await SwapContract.deploy();
 
@@ -1444,9 +1441,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "IERC20",
           firstOption.address
         );
-        const initialOtokenBalance = await otoken.balanceOf(
-          vault.address
-        );
+        const initialOtokenBalance = await otoken.balanceOf(vault.address);
 
         const offerId = await vault.optionAuctionID();
         const offerDetails = await swapContract.swapOffers(offerId);
@@ -1455,7 +1450,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const buyAmount = totalSize.div(bidMultiplier);
         const sellAmount = buyAmount.mul(minPrice).div(10 ** 8);
 
-        await assetContract.connect(userSigner).approve(swapContract.address, sellAmount);
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
 
         const bid: Bid = {
           swapId: offerId.toString(),
@@ -1463,12 +1460,19 @@ function behavesLikeRibbonOptionsVault(params: {
           signerWallet: userSigner.address,
           sellAmount: sellAmount.toString(), // > than the minimumPrice
           buyAmount: buyAmount.toString(), // > than minimumBid
-          referrer: constants.AddressZero
+          referrer: constants.AddressZero,
         };
 
-        const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
+          userSigner.address,
+          bid
+        );
 
-        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
+        await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
 
         assert.bnLte(
           await otoken.balanceOf(vault.address),
@@ -1526,10 +1530,8 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
-          [CHAINID.AURORA_MAINNET]: 250000000000, // WETH
         };
-        const altStrikePrice =
-          chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
+        const altStrikePrice = "405000000000";
 
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
@@ -1572,11 +1574,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
-          [CHAINID.AURORA_MAINNET]: 250000000000, // WETH
         };
 
-        const altStrikePrice =
-          chainId === CHAINID.AURORA_MAINNET ? "800000000" : "405000000000";
+        const altStrikePrice = "405000000000";
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
             ? WETH_STRIKE_PRICE[chainId]
@@ -1654,7 +1654,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const buyAmount = totalSize.div(bidMultiplier);
         const sellAmount = buyAmount.mul(minPrice).div(10 ** 8);
 
-        await assetContract.connect(userSigner).approve(swapContract.address, sellAmount);
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
 
         const bid: Bid = {
           swapId: offerId.toString(),
@@ -1662,16 +1664,23 @@ function behavesLikeRibbonOptionsVault(params: {
           signerWallet: userSigner.address,
           sellAmount: sellAmount.toString(), // > than the minimumPrice
           buyAmount: buyAmount.toString(), // > than minimumBid
-          referrer: constants.AddressZero
+          referrer: constants.AddressZero,
         };
 
-        const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
+          userSigner.address,
+          bid
+        );
 
         let assetBalanceBeforeSettle;
 
         assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 
-        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
+        await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
@@ -1684,9 +1693,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.equal(
           assetBalanceAfterSettle.toString(),
-          assetBalanceBeforeSettle
-            .add(BigNumber.from(sellAmount))
-            .toString()
+          assetBalanceBeforeSettle.add(BigNumber.from(sellAmount)).toString()
         );
 
         await expect(
@@ -1706,7 +1713,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const buyAmount = totalSize.div(bidMultiplier);
         const sellAmount = buyAmount.mul(minPrice).div(10 ** 8);
 
-        await assetContract.connect(userSigner).approve(swapContract.address, sellAmount);
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
 
         const bid: Bid = {
           swapId: offerId.toString(),
@@ -1714,10 +1723,15 @@ function behavesLikeRibbonOptionsVault(params: {
           signerWallet: userSigner.address,
           sellAmount: sellAmount.toString(), // > than the minimumPrice
           buyAmount: buyAmount.toString(), // > than minimumBid
-          referrer: constants.AddressZero
+          referrer: constants.AddressZero,
         };
 
-        const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
+          userSigner.address,
+          bid
+        );
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
@@ -1728,7 +1742,9 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.address
         );
 
-        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
+        await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
@@ -1898,7 +1914,9 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault.connect(keeperSigner).rollToNextOption();
-        const initialOtokenBalance = await defaultOtoken.balanceOf(vault.address);
+        const initialOtokenBalance = await defaultOtoken.balanceOf(
+          vault.address
+        );
 
         const offerId = await vault.optionAuctionID();
         const offerDetails = await swapContract.swapOffers(offerId);
@@ -1908,13 +1926,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(offerDetails.oToken, defaultOtokenAddress);
         assert.equal(offerDetails.biddingToken, collateralAsset);
 
-        const minBidSize = totalSize > 10 ** tokenDecimals
-          ? 10 ** tokenDecimals
-          : totalSize / 10;
-        assert.equal(
-          offerDetails.minBidSize.toString(),
-          minBidSize
-        );
+        const minBidSize =
+          totalSize > 10 ** tokenDecimals
+            ? 10 ** tokenDecimals
+            : totalSize / 10;
+        assert.equal(offerDetails.minBidSize.toString(), minBidSize);
 
         const oTokenPremium = (
           await optionsPremiumPricer.getPremium(
@@ -1925,18 +1941,12 @@ function behavesLikeRibbonOptionsVault(params: {
         )
           .mul(await vault.premiumDiscount())
           .div(1000);
-        assert.equal(
-          initialOtokenBalance.toString(),
-          totalSize.toString()
-        );
+        assert.equal(initialOtokenBalance.toString(), totalSize.toString());
         assert.equal(
           initialOtokenBalance.toString(),
           offerDetails.availableSize.toString()
         );
-        assert.equal(
-          oTokenPremium.toString(),
-          minPrice.toString()
-        );
+        assert.equal(oTokenPremium.toString(), minPrice.toString());
       });
 
       it("reverts when calling before expiry", async function () {
@@ -2094,7 +2104,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const buyAmount = totalSize.div(bidMultiplier);
         const sellAmount = buyAmount.mul(minPrice).div(10 ** 8);
 
-        await assetContract.connect(userSigner).approve(swapContract.address, sellAmount);
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
 
         const bid: Bid = {
           swapId: offerId.toString(),
@@ -2102,10 +2114,15 @@ function behavesLikeRibbonOptionsVault(params: {
           signerWallet: userSigner.address,
           sellAmount: sellAmount.toString(), // > than the minimumPrice
           buyAmount: buyAmount.toString(), // > than minimumBid
-          referrer: constants.AddressZero
+          referrer: constants.AddressZero,
         };
 
-        const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
+          userSigner.address,
+          bid
+        );
 
         // Check that the vault receives the correct amount of proceeds from the swap
         const tx = await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
@@ -2251,7 +2268,9 @@ function behavesLikeRibbonOptionsVault(params: {
         const buyAmount = totalSize.div(bidMultiplier);
         const sellAmount = buyAmount.mul(minPrice).div(10 ** 8);
 
-        await assetContract.connect(userSigner).approve(swapContract.address, sellAmount);
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
 
         const bid: Bid = {
           swapId: offerId.toString(),
@@ -2259,12 +2278,19 @@ function behavesLikeRibbonOptionsVault(params: {
           signerWallet: userSigner.address,
           sellAmount: sellAmount.toString(), // > than the minimumPrice
           buyAmount: buyAmount.toString(), // > than minimumBid
-          referrer: constants.AddressZero
+          referrer: constants.AddressZero,
         };
 
-        const signedBid = await generateSignedBid(chainId, swapContract.address, userSigner.address, bid);
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
+          userSigner.address,
+          bid
+        );
 
-        await vault.connect(keeperSigner).settleOffer([Object.values(signedBid)]);
+        await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
 
         let newOptionStrike = await (
           await getContractAt("IOtoken", await vault.currentOption())
@@ -2525,7 +2551,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
-          [CHAINID.AURORA_MAINNET]: "1000000000",
         };
 
         const settlementPriceITM = isPut
@@ -3451,7 +3476,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
-          [CHAINID.AURORA_MAINNET]: "1000000000",
         };
 
         const settlementPriceITM = isPut

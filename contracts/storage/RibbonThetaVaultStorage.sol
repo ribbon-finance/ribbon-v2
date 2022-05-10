@@ -37,6 +37,16 @@ abstract contract RibbonThetaVaultStorageV4 {
     address public liquidityGauge;
 }
 
+abstract contract RibbonThetaVaultStorageV5 {
+    // OptionsPurchaseQueue contract for selling options
+    address public optionsPurchaseQueue;
+}
+
+abstract contract RibbonThetaVaultStorageV6 {
+    // Queued withdraw shares for the current round
+    uint256 public currentQueuedWithdrawShares;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
@@ -45,7 +55,9 @@ abstract contract RibbonThetaVaultStorage is
     RibbonThetaVaultStorageV1,
     RibbonThetaVaultStorageV2,
     RibbonThetaVaultStorageV3,
-    RibbonThetaVaultStorageV4
+    RibbonThetaVaultStorageV4,
+    RibbonThetaVaultStorageV5,
+    RibbonThetaVaultStorageV6
 {
 
 }

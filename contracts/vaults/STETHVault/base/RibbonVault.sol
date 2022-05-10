@@ -409,7 +409,7 @@ contract RibbonVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares) external nonReentrant {
+    function _initiateWithdraw(uint256 numShares) internal {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -443,11 +443,6 @@ contract RibbonVault is
         ShareMath.assertUint128(withdrawalShares);
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
-        uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(numShares);
-        ShareMath.assertUint128(newQueuedWithdrawShares);
-        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
-
         _transfer(msg.sender, address(this), numShares);
     }
 
@@ -455,7 +450,7 @@ contract RibbonVault is
      * @notice Completes a scheduled withdrawal from a past round. Uses finalized pps for the round
      * @return amountETHOut the current withdrawal amount
      */
-    function _completeWithdraw(uint256) internal returns (uint256) {
+    function _completeWithdraw() internal returns (uint256) {
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
 
         uint256 withdrawalShares = withdrawal.shares;
@@ -558,7 +553,7 @@ contract RibbonVault is
      *  VAULT OPERATIONS
      ***********************************************/
 
-    /*
+    /**
      * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
      *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
      *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
@@ -575,17 +570,18 @@ contract RibbonVault is
         }
     }
 
-    /*
+    /**
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
      * @param lastQueuedWithdrawAmount is old queued withdraw amount
+     * @param currentQueuedWithdrawShares is the queued withdraw shares for the current round
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
-    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
-        internal
-        returns (address, uint256)
-    {
+    function _rollToNextOption(
+        uint256 lastQueuedWithdrawAmount,
+        uint256 currentQueuedWithdrawShares
+    ) internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
@@ -607,7 +603,8 @@ contract RibbonVault is
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,
-                    managementFee
+                    managementFee,
+                    currentQueuedWithdrawShares
                 )
             );
 

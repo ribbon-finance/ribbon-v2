@@ -43,15 +43,16 @@ contract PercentStrikeSelection is Ownable {
 
     constructor(
         address _optionsPremiumPricer,
-        uint256 _step,
-        uint256 _strikeMultiplier
+        uint256 _strikeMultiplier,
+        uint256 _step
     ) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
-        require(_step > 0, "!_step");
         require(
             _strikeMultiplier > STRIKE_MULTIPLIER,
             "Multiplier must be bigger than 1!"
         );
+        require(_step > 0, "!_step");
+
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
 
         // ex: delta = 7500 (.75)
@@ -123,7 +124,7 @@ contract PercentStrikeSelection is Ownable {
     function setStep(uint256 newStep) external onlyOwner {
         require(newStep > 0, "!newStep");
         uint256 oldStep = step;
-        step = newStep.mul(assetOracleMultiplier);
+        step = newStep;
         emit StepSet(oldStep, newStep, msg.sender);
     }
 }
