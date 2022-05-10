@@ -44,7 +44,7 @@ import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
   PERP_STRIKE_MULTIPLIER,
-  PERP_STRIKE_STEP,
+  STRIKE_STEP
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
@@ -69,7 +69,7 @@ describe("RibbonTreasuryVault", () => {
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: PERP_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_PERP_PRICER[chainId],
-    deltaStep: BigNumber.from(PERP_STRIKE_STEP),
+    deltaStep: BigNumber.from(STRIKE_STEP.PERP),
     depositAmount: parseEther("20"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("2000000000"),
@@ -344,8 +344,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       strikeSelection = await StrikeSelection.deploy(
         optionsPremiumPricer.address,
-        params.deltaStep,
-        params.multiplier
+        params.multiplier,
+        params.deltaStep
       );
 
       const VaultLifecycleTreasury = await ethers.getContractFactory(
@@ -2550,7 +2550,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, depositAmount);
         await vault.deposit(depositAmount);
 
-        const withdrawAmount = depositAmount.sub(parseEther('0.5'));
+        const withdrawAmount = depositAmount.sub(parseEther("0.5"));
 
         await expect(
           vault.withdrawInstantly(withdrawAmount)
@@ -2844,11 +2844,17 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await vault.depositorsArray(0), user);
         assert.equal(await vault.depositorsMap(user), true);
 
-        const tx2 = await vault.initiateWithdraw(depositAmount.sub(depositAmount.div(3)));
+        const tx2 = await vault.initiateWithdraw(
+          depositAmount.sub(depositAmount.div(3))
+        );
 
         await expect(tx2)
           .to.emit(vault, "Transfer")
-          .withArgs(user, vault.address, depositAmount.sub(depositAmount.div(3)));
+          .withArgs(
+            user,
+            vault.address,
+            depositAmount.sub(depositAmount.div(3))
+          );
 
         await expect(vault.depositorsArray(0)).to.be.reverted;
         assert.equal(await vault.depositorsMap(user), false);
@@ -3230,10 +3236,7 @@ function behavesLikeRibbonOptionsVault(params: {
         userBalanceAfter = await premiumContract.balanceOf(user);
         ownerBalanceAfter = await premiumContract.balanceOf(owner);
 
-        assert.bnGte(
-          userBalanceAfter.sub(userBalanceBefore),
-          0
-        );
+        assert.bnGte(userBalanceAfter.sub(userBalanceBefore), 0);
         assert.bnGte(
           ownerBalanceAfter.sub(ownerBalanceBefore),
           auctionProceeds.sub(1)
@@ -3258,7 +3261,6 @@ function behavesLikeRibbonOptionsVault(params: {
             [owner],
             2
           );
-
       });
 
       it("charge the correct fees", async function () {
@@ -3693,7 +3695,9 @@ function behavesLikeRibbonOptionsVault(params: {
         // is transferred to the user
         assert.bnEqual(await vault.shares(user), depositAmount);
 
-        await expect(vault.transfer(owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
+        await expect(vault.transfer(owner, redeemAmount)).to.be.revertedWith(
+          "Treasury rToken is not transferrable"
+        );
       });
     });
 
@@ -3717,7 +3721,9 @@ function behavesLikeRibbonOptionsVault(params: {
         // is transferred to the user
         assert.bnEqual(await vault.shares(user), depositAmount);
 
-        await expect(vault.transferFrom(user, owner, redeemAmount)).to.be.revertedWith("Treasury rToken is not transferrable");
+        await expect(
+          vault.transferFrom(user, owner, redeemAmount)
+        ).to.be.revertedWith("Treasury rToken is not transferrable");
       });
     });
   });

@@ -3,9 +3,9 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   WETH_ADDRESS,
   USDC_ADDRESS,
-  OTOKEN_FACTORY,
-  GAMMA_CONTROLLER,
-  MARGIN_POOL,
+  TD_OTOKEN_FACTORY,
+  TD_MARGIN_POOL,
+  TD_CONTROLLER,
   GNOSIS_EASY_AUCTION,
 } from "../../constants/constants";
 
@@ -16,7 +16,7 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`01 - Deploying Theta Vault logic on ${network.name}`);
+  console.log(`01 - Deploying Theta Vault with 10D logic on ${network.name}`);
 
   const chainId = network.config.chainId;
 
@@ -24,17 +24,16 @@ const main = async ({
     contract: "VaultLifecycle",
     from: deployer,
   });
-  console.log(`VaultLifeCycle @ ${lifecycle.address}`);
 
-  const vault = await deploy("RibbonThetaVaultLogic", {
+  const vault = await deploy("RibbonThetaVaultLogic10D", {
     contract: "RibbonThetaVault",
     from: deployer,
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      OTOKEN_FACTORY[chainId],
-      GAMMA_CONTROLLER[chainId],
-      MARGIN_POOL[chainId],
+      TD_OTOKEN_FACTORY[chainId],
+      TD_CONTROLLER[chainId],
+      TD_MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
     ],
     libraries: {
@@ -58,9 +57,9 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        OTOKEN_FACTORY[chainId],
-        GAMMA_CONTROLLER[chainId],
-        MARGIN_POOL[chainId],
+        TD_OTOKEN_FACTORY[chainId],
+        TD_CONTROLLER[chainId],
+        TD_MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
       ],
     });
@@ -68,6 +67,6 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonThetaVaultLogic"];
+main.tags = ["RibbonThetaVaultLogic10D"];
 
 export default main;

@@ -15,6 +15,7 @@ import {
 } from "../interfaces/GammaInterface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
+import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
 
@@ -33,6 +34,9 @@ library VaultLifecycle {
         address optionsPremiumPricer;
         uint256 premiumDiscount;
     }
+
+    /// @notice Default maximum option allocation for the queue (50%)
+    uint256 internal constant QUEUE_OPTION_ALLOCATION = 5000;
 
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
@@ -132,12 +136,13 @@ library VaultLifecycle {
     }
 
     /**
-     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
-     * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
-     * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
+     * @param totalBalance is the vaults total balance of the asset
+     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
+     * @param lastQueuedWithdrawAmount is the total amount queued for withdrawals
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
+     * @param currentQueuedWithdrawShares is amount of queued withdrawals from the current round
      */
     struct RolloverParams {
         uint256 decimals;
@@ -146,6 +151,7 @@ library VaultLifecycle {
         uint256 lastQueuedWithdrawAmount;
         uint256 performanceFee;
         uint256 managementFee;
+        uint256 currentQueuedWithdrawShares;
     }
 
     /**
@@ -177,41 +183,12 @@ library VaultLifecycle {
     {
         uint256 currentBalance = params.totalBalance;
         uint256 pendingAmount = vaultState.totalPending;
-        uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
+        // Total amount of queued withdrawal shares from previous rounds (doesn't include the current round)
+        uint256 lastQueuedWithdrawShares = vaultState.queuedWithdrawShares;
 
-        uint256 balanceForVaultFees;
-        {
-            uint256 pricePerShareBeforeFee =
-                ShareMath.pricePerShare(
-                    params.currentShareSupply,
-                    currentBalance,
-                    pendingAmount,
-                    params.decimals
-                );
-
-            uint256 queuedWithdrawBeforeFee =
-                params.currentShareSupply > 0
-                    ? ShareMath.sharesToAsset(
-                        queuedWithdrawShares,
-                        pricePerShareBeforeFee,
-                        params.decimals
-                    )
-                    : 0;
-
-            // Deduct the difference between the newly scheduled withdrawals
-            // and the older withdrawals
-            // so we can charge them fees before they leave
-            uint256 withdrawAmountDiff =
-                queuedWithdrawBeforeFee > params.lastQueuedWithdrawAmount
-                    ? queuedWithdrawBeforeFee.sub(
-                        params.lastQueuedWithdrawAmount
-                    )
-                    : 0;
-
-            balanceForVaultFees = currentBalance
-                .sub(queuedWithdrawBeforeFee)
-                .add(withdrawAmountDiff);
-        }
+        // Deduct older queued withdraws so we don't charge fees on them
+        uint256 balanceForVaultFees =
+            currentBalance.sub(params.lastQueuedWithdrawAmount);
 
         {
             (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
@@ -230,10 +207,18 @@ library VaultLifecycle {
 
         {
             newPricePerShare = ShareMath.pricePerShare(
-                params.currentShareSupply,
-                currentBalance,
+                params.currentShareSupply.sub(lastQueuedWithdrawShares),
+                currentBalance.sub(params.lastQueuedWithdrawAmount),
                 pendingAmount,
                 params.decimals
+            );
+
+            queuedWithdrawAmount = params.lastQueuedWithdrawAmount.add(
+                ShareMath.sharesToAsset(
+                    params.currentQueuedWithdrawShares,
+                    newPricePerShare,
+                    params.decimals
+                )
             );
 
             // After closing the short, if the options expire in-the-money
@@ -244,16 +229,6 @@ library VaultLifecycle {
                 newPricePerShare,
                 params.decimals
             );
-
-            uint256 newSupply = params.currentShareSupply.add(mintShares);
-
-            queuedWithdrawAmount = newSupply > 0
-                ? ShareMath.sharesToAsset(
-                    queuedWithdrawShares,
-                    newPricePerShare,
-                    params.decimals
-                )
-                : 0;
         }
 
         return (
@@ -758,6 +733,94 @@ library VaultLifecycle {
             gnosisEasyAuction,
             counterpartyThetaVault
         );
+    }
+
+    /**
+     * @notice Allocates the vault's minted options to the OptionsPurchaseQueue contract
+     * @dev Skipped if the optionsPurchaseQueue doesn't exist
+     * @param optionsPurchaseQueue is the OptionsPurchaseQueue contract
+     * @param option is the minted option
+     * @param optionsAmount is the amount of options minted
+     * @param optionAllocation is the maximum % of options to allocate towards the purchase queue (will only allocate
+     *  up to the amount that is on the queue)
+     * @return allocatedOptions is the amount of options that ended up getting allocated to the OptionsPurchaseQueue
+     */
+    function allocateOptions(
+        address optionsPurchaseQueue,
+        address option,
+        uint256 optionsAmount,
+        uint256 optionAllocation
+    ) external returns (uint256 allocatedOptions) {
+        // Skip if optionsPurchaseQueue is address(0)
+        if (optionsPurchaseQueue != address(0)) {
+            allocatedOptions = optionsAmount.mul(optionAllocation).div(
+                100 * Vault.OPTION_ALLOCATION_MULTIPLIER
+            );
+            allocatedOptions = IOptionsPurchaseQueue(optionsPurchaseQueue)
+                .getOptionsAllocation(address(this), allocatedOptions);
+
+            if (allocatedOptions != 0) {
+                IERC20(option).approve(optionsPurchaseQueue, allocatedOptions);
+                IOptionsPurchaseQueue(optionsPurchaseQueue).allocateOptions(
+                    allocatedOptions
+                );
+            }
+        }
+
+        return allocatedOptions;
+    }
+
+    /**
+     * @notice Sell the allocated options to the purchase queue post auction settlement
+     * @dev Reverts if the auction hasn't settled yet
+     * @param optionsPurchaseQueue is the OptionsPurchaseQueue contract
+     * @param gnosisEasyAuction The address of the Gnosis Easy Auction contract
+     * @return totalPremiums Total premiums earnt by the vault
+     */
+    function sellOptionsToQueue(
+        address optionsPurchaseQueue,
+        address gnosisEasyAuction,
+        uint256 optionAuctionID
+    ) external returns (uint256) {
+        uint256 settlementPrice =
+            getAuctionSettlementPrice(gnosisEasyAuction, optionAuctionID);
+        require(settlementPrice != 0, "!settlementPrice");
+
+        return
+            IOptionsPurchaseQueue(optionsPurchaseQueue).sellToBuyers(
+                settlementPrice
+            );
+    }
+
+    /**
+     * @notice Gets the settlement price of a settled auction
+     * @param gnosisEasyAuction The address of the Gnosis Easy Auction contract
+     * @return settlementPrice Auction settlement price
+     */
+    function getAuctionSettlementPrice(
+        address gnosisEasyAuction,
+        uint256 optionAuctionID
+    ) public view returns (uint256) {
+        bytes32 clearingPriceOrder =
+            IGnosisAuction(gnosisEasyAuction)
+                .auctionData(optionAuctionID)
+                .clearingPriceOrder;
+
+        if (clearingPriceOrder == bytes32(0)) {
+            // Current auction hasn't settled yet
+            return 0;
+        } else {
+            // We decode the clearingPriceOrder to find the auction settlement price
+            // settlementPrice = clearingPriceOrder.sellAmount / clearingPriceOrder.buyAmount
+            return
+                (10**Vault.OTOKEN_DECIMALS)
+                    .mul(
+                    uint96(uint256(clearingPriceOrder)) // sellAmount
+                )
+                    .div(
+                    uint96(uint256(clearingPriceOrder) >> 96) // buyAmount
+                );
+        }
     }
 
     /**
