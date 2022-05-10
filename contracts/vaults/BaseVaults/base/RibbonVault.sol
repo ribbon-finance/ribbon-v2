@@ -401,7 +401,7 @@ contract RibbonVault is
      * @notice Initiates a withdrawal that can be processed once the round completes
      * @param numShares is the number of shares to withdraw
      */
-    function initiateWithdraw(uint256 numShares) external nonReentrant {
+    function _initiateWithdraw(uint256 numShares) internal {
         require(numShares > 0, "!numShares");
 
         // We do a max redeem before initiating a withdrawal
@@ -434,11 +434,6 @@ contract RibbonVault is
 
         ShareMath.assertUint128(withdrawalShares);
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
-
-        uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(numShares);
-        ShareMath.assertUint128(newQueuedWithdrawShares);
-        vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
         _transfer(msg.sender, address(this), numShares);
     }
@@ -544,7 +539,7 @@ contract RibbonVault is
      *  VAULT OPERATIONS
      ***********************************************/
 
-    /*
+    /**
      * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
      *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
      *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
@@ -561,15 +556,19 @@ contract RibbonVault is
         }
     }
 
-    /*
+    /**
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
      * @param lastQueuedWithdrawAmount is old queued withdraw amount
+     * @param currentQueuedWithdrawShares is the queued withdraw shares for the current round
      * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      * @return queuedWithdrawAmount is the new queued withdraw amount for this round
      */
-    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
+    function _rollToNextOption(
+        uint256 lastQueuedWithdrawAmount,
+        uint256 currentQueuedWithdrawShares
+    )
         internal
         returns (
             address newOption,
@@ -603,7 +602,8 @@ contract RibbonVault is
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,
-                    managementFee
+                    managementFee,
+                    currentQueuedWithdrawShares
                 )
             );
 

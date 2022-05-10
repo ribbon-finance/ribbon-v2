@@ -2450,13 +2450,15 @@ function behavesLikeRibbonOptionsVault(params: {
           secondInitialBalance
             .sub(await vault.totalBalance())
             .add(dustForWithdraw)
+            .mul(110)
+            .div(100)
         );
         assert.bnGt(
           vaultFees,
           secondInitialBalance
             .sub(await vault.totalBalance())
             .add(dustForWithdraw)
-            .mul(99)
+            .mul(90)
             .div(100)
         );
       });
@@ -2479,7 +2481,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1128128);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1131000);
 
         //console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });

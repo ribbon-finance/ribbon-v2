@@ -136,12 +136,13 @@ library VaultLifecycle {
     }
 
     /**
-     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
-     * @param asset is the address of the vault's asset
      * @param decimals is the decimals of the asset
-     * @param lastQueuedWithdrawAmount is the amount queued for withdrawals from last round
+     * @param totalBalance is the vaults total balance of the asset
+     * @param currentShareSupply is the supply of the shares invoked with totalSupply()
+     * @param lastQueuedWithdrawAmount is the total amount queued for withdrawals
      * @param performanceFee is the perf fee percent to charge on premiums
      * @param managementFee is the management fee percent to charge on the AUM
+     * @param currentQueuedWithdrawShares is amount of queued withdrawals from the current round
      */
     struct RolloverParams {
         uint256 decimals;
@@ -150,6 +151,7 @@ library VaultLifecycle {
         uint256 lastQueuedWithdrawAmount;
         uint256 performanceFee;
         uint256 managementFee;
+        uint256 currentQueuedWithdrawShares;
     }
 
     /**
@@ -181,41 +183,12 @@ library VaultLifecycle {
     {
         uint256 currentBalance = params.totalBalance;
         uint256 pendingAmount = vaultState.totalPending;
-        uint256 queuedWithdrawShares = vaultState.queuedWithdrawShares;
+        // Total amount of queued withdrawal shares from previous rounds (doesn't include the current round)
+        uint256 lastQueuedWithdrawShares = vaultState.queuedWithdrawShares;
 
-        uint256 balanceForVaultFees;
-        {
-            uint256 pricePerShareBeforeFee =
-                ShareMath.pricePerShare(
-                    params.currentShareSupply,
-                    currentBalance,
-                    pendingAmount,
-                    params.decimals
-                );
-
-            uint256 queuedWithdrawBeforeFee =
-                params.currentShareSupply > 0
-                    ? ShareMath.sharesToAsset(
-                        queuedWithdrawShares,
-                        pricePerShareBeforeFee,
-                        params.decimals
-                    )
-                    : 0;
-
-            // Deduct the difference between the newly scheduled withdrawals
-            // and the older withdrawals
-            // so we can charge them fees before they leave
-            uint256 withdrawAmountDiff =
-                queuedWithdrawBeforeFee > params.lastQueuedWithdrawAmount
-                    ? queuedWithdrawBeforeFee.sub(
-                        params.lastQueuedWithdrawAmount
-                    )
-                    : 0;
-
-            balanceForVaultFees = currentBalance
-                .sub(queuedWithdrawBeforeFee)
-                .add(withdrawAmountDiff);
-        }
+        // Deduct older queued withdraws so we don't charge fees on them
+        uint256 balanceForVaultFees =
+            currentBalance.sub(params.lastQueuedWithdrawAmount);
 
         {
             (performanceFeeInAsset, , totalVaultFee) = VaultLifecycle
@@ -234,10 +207,18 @@ library VaultLifecycle {
 
         {
             newPricePerShare = ShareMath.pricePerShare(
-                params.currentShareSupply,
-                currentBalance,
+                params.currentShareSupply.sub(lastQueuedWithdrawShares),
+                currentBalance.sub(params.lastQueuedWithdrawAmount),
                 pendingAmount,
                 params.decimals
+            );
+
+            queuedWithdrawAmount = params.lastQueuedWithdrawAmount.add(
+                ShareMath.sharesToAsset(
+                    params.currentQueuedWithdrawShares,
+                    newPricePerShare,
+                    params.decimals
+                )
             );
 
             // After closing the short, if the options expire in-the-money
@@ -248,16 +229,6 @@ library VaultLifecycle {
                 newPricePerShare,
                 params.decimals
             );
-
-            uint256 newSupply = params.currentShareSupply.add(mintShares);
-
-            queuedWithdrawAmount = newSupply > 0
-                ? ShareMath.sharesToAsset(
-                    queuedWithdrawShares,
-                    newPricePerShare,
-                    params.decimals
-                )
-                : 0;
         }
 
         return (
