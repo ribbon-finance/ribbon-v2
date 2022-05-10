@@ -17,6 +17,7 @@ import { assert } from "../helpers/assertions";
 import { BigNumber } from "ethereum-waffle/node_modules/ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { expect } from "chai";
+import { parseUnits } from "ethers/lib/utils";
 
 const { parseEther } = ethers.utils;
 
@@ -216,15 +217,25 @@ function checkWithdrawal(vaultAddress: string) {
         // Ensure the correct balance is withdrawn
         const currentRound = (await vault.vaultState()).round;
         const pps = await vault.roundPricePerShare(currentRound - 1);
-
+        
         // Complete withdrawal
-        await expect(vault.connect(account1).completeWithdraw()).to.emit(vault, "Withdraw").withArgs(
+        const gasPrice = parseUnits("30", "gwei");
+
+        const acc1Tx = await vault.connect(account1).completeWithdraw({ gasPrice });
+        const acc1Receipt = await acc1Tx.wait();
+        const acc1GasFee = acc1Receipt.gasUsed.mul(gasPrice);
+
+        const acc2Tx = await vault.connect(account2).completeWithdraw({ gasPrice });
+        const acc2Receipt = await acc2Tx.wait();
+        const acc2GasFee = acc2Receipt.gasUsed.mul(gasPrice);
+
+        await expect(acc1Tx).to.emit(vault, "Withdraw").withArgs(
           account1.address,
           initialAcc1ShareBalance.mul(pps).div(parseEther("1")),
           initialAcc1ShareBalance
         );
 
-        await expect(vault.connect(account2).completeWithdraw()).to.emit(vault, "Withdraw").withArgs(
+        await expect(acc2Tx).to.emit(vault, "Withdraw").withArgs(
           account2.address,
           initialAcc2ShareBalance.mul(pps).div(parseEther("1")),
           initialAcc2ShareBalance
@@ -234,9 +245,8 @@ function checkWithdrawal(vaultAddress: string) {
         const acc1AssetBalanceAfter = await account1.getBalance();
         const acc2AssetBalanceAfter = await account2.getBalance();
 
-        const gasUsed = parseEther("0.0005");
-        assert.bnGte(acc1AssetBalanceAfter.sub(acc1AssetBalanceBefore), initialAcc1ShareBalance.mul(pps).div(parseEther("1")).sub(gasUsed));
-        assert.bnGte(acc2AssetBalanceAfter.sub(acc2AssetBalanceBefore), initialAcc2ShareBalance.mul(pps).div(parseEther("1")).sub(gasUsed));
+        assert.bnGte(acc1AssetBalanceAfter.sub(acc1AssetBalanceBefore), initialAcc1ShareBalance.mul(pps).div(parseEther("1")).sub(acc1GasFee));
+        assert.bnGte(acc2AssetBalanceAfter.sub(acc2AssetBalanceBefore), initialAcc2ShareBalance.mul(pps).div(parseEther("1")).sub(acc2GasFee));
       });
     });
   });
