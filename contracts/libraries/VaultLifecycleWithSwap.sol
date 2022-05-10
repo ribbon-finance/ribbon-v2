@@ -39,8 +39,8 @@ library VaultLifecycleWithSwap {
         uint256 premiumDiscount;
     }
 
-    /// @notice Default maximum option allocation for the queue (50%)
-    uint256 internal constant QUEUE_OPTION_ALLOCATION = 5000;
+    /// @notice Default maximum option allocation for the queue
+    uint256 internal constant QUEUE_OPTION_ALLOCATION = 0; // DISABLED IN CURRENT VERSION
 
     /**
      * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction

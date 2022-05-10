@@ -455,19 +455,11 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        uint256 optionsMintAmount =
-            VaultLifecycleWithSwap.createShort(
-                GAMMA_CONTROLLER,
-                MARGIN_POOL,
-                newOption,
-                lockedBalance
-            );
-
-        VaultLifecycleWithSwap.allocateOptions(
-            optionsPurchaseQueue,
+        VaultLifecycleWithSwap.createShort(
+            GAMMA_CONTROLLER,
+            MARGIN_POOL,
             newOption,
-            optionsMintAmount,
-            VaultLifecycleWithSwap.QUEUE_OPTION_ALLOCATION
+            lockedBalance
         );
 
         _createOffer();
@@ -506,17 +498,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         nonReentrant
     {
         ISwap(SWAP_CONTRACT).settleOffer(optionAuctionID, bids);
-    }
-
-    /**
-     * @notice Sell the allocated options to the purchase queue post auction settlement
-     */
-    function sellOptionsToQueue() external onlyKeeper nonReentrant {
-        VaultLifecycleWithSwap.sellOptionsToQueue(
-            optionsPurchaseQueue,
-            SWAP_CONTRACT,
-            optionAuctionID
-        );
     }
 
     /**
