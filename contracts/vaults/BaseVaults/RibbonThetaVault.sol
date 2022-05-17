@@ -278,6 +278,16 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         optionsPurchaseQueue = newOptionsPurchaseQueue;
     }
 
+    /**
+     * @notice Sets oToken Premium
+     * @param minPrice is the new oToken Premium
+     */
+    function setMinPrice(uint256 minPrice) external onlyOwner {
+        require(minPrice > 0, "!minPrice");
+        ShareMath.assertUint104(minPrice);
+        currentOtokenPremium = uint104(minPrice);
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -368,15 +378,15 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
         (
             address otokenAddress,
-            uint256 premium,
+            // uint256 premium,
             uint256 strikePrice,
             uint256 delta
         ) = VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
+        // ShareMath.assertUint104(premium);
+        // currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
 
         uint256 nextOptionReady = block.timestamp.add(DELAY);
