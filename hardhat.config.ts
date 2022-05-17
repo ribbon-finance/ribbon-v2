@@ -63,20 +63,20 @@ export default {
         mnemonic: process.env.KOVAN_MNEMONIC,
       },
     },
-    avax: {
-      url: process.env.AVAX_URI,
-      chainId: 43114,
-      accounts: {
-        mnemonic: process.env.AVAX_MNEMONIC,
-      },
-    },
-    fuji: {
-      url: process.env.FUJI_URI,
-      chainId: 43113,
-      accounts: {
-        mnemonic: process.env.FUJI_MNEMONIC,
-      },
-    },
+    // avax: {
+    //   url: process.env.AVAX_URI,
+    //   chainId: 43114,
+    //   accounts: {
+    //     mnemonic: process.env.AVAX_MNEMONIC,
+    //   },
+    // },
+    // fuji: {
+    //   url: process.env.FUJI_URI,
+    //   chainId: 43113,
+    //   accounts: {
+    //     mnemonic: process.env.FUJI_MNEMONIC,
+    //   },
+    // },
   },
   namedAccounts: {
     deployer: {
