@@ -43,7 +43,7 @@ const main = async ({
     false
   );
 
-  const pricer = await deploy("OptionsPremiumPricerWBTC", {
+  const pricer = await deploy("OptionsPremiumPricerWBTCWithSwap", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
@@ -61,7 +61,7 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionWBTC", {
+  const strikeSelection = await deploy("StrikeSelectionWBTCWithSwap", {
     contract: "DeltaStrikeSelection",
     from: deployer,
     args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
@@ -134,6 +134,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultWBTCCallWithSwap"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
+// main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
 
 export default main;
