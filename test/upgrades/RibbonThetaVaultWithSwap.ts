@@ -210,7 +210,7 @@ function checkWithdrawal(vaultAddress: string) {
           strikePrice
         );
 
-        await vault.connect(keeper).closeRound()
+        await vault.connect(keeper).closeRound();
 
         // Get the initiate asset balance of the users
         const acc1AssetBalanceBefore = await account1.getBalance();
