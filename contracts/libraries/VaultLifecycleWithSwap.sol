@@ -729,9 +729,7 @@ library VaultLifecycleWithSwap {
 
         currOtokenPremium = decimals > 18
             ? currOtokenPremium.mul(10**(decimals.sub(18)))
-            : currOtokenPremium.div(
-                10**(uint256(18).sub(decimals))
-        );
+            : currOtokenPremium.div(10**(uint256(18).sub(decimals)));
 
         optionAuctionID = ISwap(swapContract).createOffer(
             currentOtoken,
