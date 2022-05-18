@@ -359,6 +359,7 @@ function behavesLikeRibbonOptionsVault(params: {
     let secondOption: Option;
 
     const rollToNextOption = async () => {
+      await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await strikeSelection.setDelta(params.deltaFirstOption);
@@ -380,6 +381,7 @@ function behavesLikeRibbonOptionsVault(params: {
         settlementPrice
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
+      await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
       await vault.connect(ownerSigner).commitAndClose();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
       await vault.connect(keeperSigner).rollToNextOption();
@@ -547,13 +549,15 @@ function behavesLikeRibbonOptionsVault(params: {
         params.isPut
       );
 
-      firstOptionPremium = BigNumber.from(
-        await optionsPremiumPricer.getPremium(
-          firstOptionStrike,
-          firstOptionExpiry,
-          params.isPut
-        )
-      );
+      // firstOptionPremium = BigNumber.from(
+      //   await optionsPremiumPricer.getPremium(
+      //     firstOptionStrike,
+      //     firstOptionExpiry,
+      //     params.isPut
+      //   )
+      // );
+
+      firstOptionPremium = parseEther("0.01");
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
@@ -1588,6 +1592,7 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
         );
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
 
         await vault.connect(ownerSigner).commitAndClose({ from: owner });
 
@@ -1600,22 +1605,21 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        const expiryTimestampOfNewOption = await (
-          await getContractAt("IOtoken", await vault.nextOption())
-        ).expiryTimestamp();
+        // const expiryTimestampOfNewOption = await (
+        //   await getContractAt("IOtoken", await vault.nextOption())
+        // ).expiryTimestamp();
 
-        assert.bnEqual(
-          await vault.currentOtokenPremium(),
-          (
-            await optionsPremiumPricer.getPremium(
-              newStrikePrice,
-              expiryTimestampOfNewOption,
-              params.isPut
-            )
-          )
-            .mul(await vault.premiumDiscount())
-            .div(1000)
-        );
+        assert.bnEqual(await vault.currentOtokenPremium(), parseEther("0.01"));
+        //   (
+        //     await optionsPremiumPricer.getPremium(
+        //       newStrikePrice,
+        //       expiryTimestampOfNewOption,
+        //       params.isPut
+        //     )
+        //   )
+        //     .mul(await vault.premiumDiscount())
+        //     .div(1000)
+        // );
       });
 
       it("closes short even when otokens are burned", async function () {
@@ -1737,6 +1741,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when not called with keeper", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
@@ -1749,6 +1755,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("1"));
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
@@ -1803,6 +1811,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns all remaining oTokens", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
@@ -1907,6 +1917,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -1944,6 +1956,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("starts auction with correct parameters", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -1999,15 +2013,16 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
 
-        const oTokenPremium = (
-          await optionsPremiumPricer.getPremium(
-            await nextOption.strikePrice(),
-            await nextOption.expiryTimestamp(),
-            params.isPut
-          )
-        )
-          .mul(await vault.premiumDiscount())
-          .div(1000);
+        // const oTokenPremium = (
+        //   await optionsPremiumPricer.getPremium(
+        //     await nextOption.strikePrice(),
+        //     await nextOption.expiryTimestamp(),
+        //     params.isPut
+        //   )
+        // )
+        //   .mul(await vault.premiumDiscount())
+        //   .div(1000);
+
         assert.equal(
           initialAuctionOrder.sellAmount.toString(),
           oTokenSellAmount.toString()
@@ -2016,7 +2031,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         let bid = wmul(
           oTokenSellAmount.mul(BigNumber.from(10).pow(10)),
-          oTokenPremium
+          parseEther("0.01")
         );
         bid =
           decimals > 18
@@ -2036,6 +2051,8 @@ function behavesLikeRibbonOptionsVault(params: {
         const EXPECTED_ERROR = "31";
 
         const firstOptionAddress = firstOption.address;
+
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
 
         await vault.connect(ownerSigner).commitAndClose();
 
@@ -2061,6 +2078,8 @@ function behavesLikeRibbonOptionsVault(params: {
       it("withdraws and roll funds into next option, after expiry ITM", async function () {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
+
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
 
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -2142,6 +2161,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const firstOptionAddress = firstOption.address;
 
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -2166,6 +2187,8 @@ function behavesLikeRibbonOptionsVault(params: {
       it("withdraws and roll funds into next option, after expiry OTM", async function () {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
+
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
 
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
@@ -2293,6 +2316,8 @@ function behavesLikeRibbonOptionsVault(params: {
           depositAmount,
           ownerSigner
         );
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
@@ -2388,6 +2413,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("is not able to roll to new option consecutively without setNextOption", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
@@ -2399,6 +2426,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("does not debit the user on first deposit", async () => {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
@@ -2426,6 +2455,8 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
+
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
@@ -2571,6 +2602,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .transfer(owner, params.depositAmount);
         await vault.connect(ownerSigner).deposit(params.depositAmount);
 
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
         await vault.connect(ownerSigner).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(keeperSigner).rollToNextOption();
@@ -3151,6 +3183,7 @@ function behavesLikeRibbonOptionsVault(params: {
           params.protocol
         );
 
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.01"));
         await vault.connect(ownerSigner).commitAndClose();
         startOtokenPrice = await vault.currentOtokenPremium();
 
@@ -3176,10 +3209,11 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
 
         // We increase the discount so the otoken min price should go down
-        await vault
-          .connect(keeperSigner)
-          .setPremiumDiscount(BigNumber.from("800"));
+        // await vault
+        //   .connect(keeperSigner)
+        //   .setPremiumDiscount(BigNumber.from("800"));
 
+        await vault.connect(ownerSigner).setMinPrice(parseEther("0.001"));
         await vault.connect(keeperSigner).startAuction();
 
         assert.bnEqual(
