@@ -35,7 +35,6 @@ library VaultLifecycleYearn {
      * @param vaultState is the struct with vault accounting state
      * @param collateralAsset is the address of the collateral asset
      * @return otokenAddress is the address of the new option
-     * @return premium is the premium of the new option
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
@@ -48,7 +47,7 @@ library VaultLifecycleYearn {
         external
         returns (
             address otokenAddress,
-            uint256 premium,
+            // uint256 premium,
             uint256 strikePrice,
             uint256 delta
         )
@@ -80,14 +79,15 @@ library VaultLifecycleYearn {
             isPut
         );
 
-        premium = _getOTokenPremium(
-            otokenAddress,
-            closeParams.optionsPremiumPricer,
-            closeParams.premiumDiscount,
-            collateralAsset
-        );
+        // premium = _getOTokenPremium(
+        //     otokenAddress,
+        //     closeParams.optionsPremiumPricer,
+        //     closeParams.premiumDiscount,
+        //     collateralAsset
+        // );
 
-        return (otokenAddress, premium, strikePrice, delta);
+        // return (otokenAddress, premium, strikePrice, delta);
+        return (otokenAddress, strikePrice, delta);
     }
 
     /**

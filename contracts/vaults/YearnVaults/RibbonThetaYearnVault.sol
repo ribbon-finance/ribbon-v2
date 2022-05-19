@@ -259,6 +259,16 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         optionsPurchaseQueue = newOptionsPurchaseQueue;
     }
 
+    /**
+     * @notice Sets oToken Premium
+     * @param minPrice is the new oToken Premium
+     */
+    function setMinPrice(uint256 minPrice) external onlyOwner {
+        require(minPrice > 0, "!minPrice");
+        ShareMath.assertUint104(minPrice);
+        currentOtokenPremium = uint104(minPrice);
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -362,7 +372,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         (
             address otokenAddress,
-            uint256 premium,
+            // uint256 premium,
             uint256 strikePrice,
             uint256 delta
         ) =
@@ -375,9 +385,9 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
+        // ShareMath.assertUint104(premium);
 
-        currentOtokenPremium = uint104(premium);
+        // currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         uint256 nextOptionReady = block.timestamp.add(DELAY);
         require(
@@ -488,19 +498,19 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         address currentOtoken = optionState.currentOption;
-        uint256 currOtokenPremium =
-            VaultLifecycleYearn.getOTokenPremium(
-                currentOtoken,
-                optionsPremiumPricer,
-                premiumDiscount,
-                address(collateralToken)
-            );
+        // uint256 currOtokenPremium =
+        //     VaultLifecycleYearn.getOTokenPremium(
+        //         currentOtoken,
+        //         optionsPremiumPricer,
+        //         premiumDiscount,
+        //         address(collateralToken)
+        //     );
 
         auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
+        auctionDetails.oTokenPremium = currentOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);
