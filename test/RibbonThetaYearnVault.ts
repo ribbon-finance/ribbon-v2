@@ -480,17 +480,6 @@ function behavesLikeRibbonOptionsVault(params: {
         18 - parseInt((await assetContract.decimals()).toString())
       );
 
-      // firstOptionPremium = BigNumber.from(
-      //   wmul(
-      //     await optionsPremiumPricer.getPremium(
-      //       firstOptionStrike,
-      //       firstOptionExpiry,
-      //       params.isPut
-      //     ),
-      //     await collateralContract.stEthPerToken()
-      //   )
-      // );
-
       firstOptionPremium = parseEther("0.00553198");
 
       await setAssetPricer(
@@ -1608,27 +1597,7 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        // const expiryTimestampOfNewOption = await (
-        //   await getContractAt("IOtoken", await vault.nextOption())
-        // ).expiryTimestamp();
-
         assert.bnEqual(await vault.currentOtokenPremium(), parseEther("0.01"));
-
-        // assert.bnEqual(
-        //   await vault.currentOtokenPremium(),
-        //   wmul(
-        //     (
-        //       await optionsPremiumPricer.getPremium(
-        //         newStrikePrice,
-        //         expiryTimestampOfNewOption,
-        //         params.isPut
-        //       )
-        //     )
-        //       .mul(await vault.premiumDiscount())
-        //       .div(1000),
-        //     pricePerShare.mul(decimalDiff)
-        //   )
-        // );
       });
 
       it("closes short even when otokens are burned", async function () {
@@ -1971,19 +1940,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const oTokenSellAmount = params.expectedMintAmount
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
-
-        // const oTokenPremium = wmul(
-        //   (
-        //     await optionsPremiumPricer.getPremium(
-        //       await nextOption.strikePrice(),
-        //       await nextOption.expiryTimestamp(),
-        //       params.isPut
-        //     )
-        //   )
-        //     .mul(await vault.premiumDiscount())
-        //     .div(1000),
-        //   (await collateralContract.pricePerShare()).mul(decimalDiff)
-        // );
 
         assert.equal(
           initialAuctionOrder.sellAmount.toString(),

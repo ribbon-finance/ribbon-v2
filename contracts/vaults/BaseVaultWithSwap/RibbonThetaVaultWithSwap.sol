@@ -261,7 +261,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Sets oToken Premium
-     * @param minPrice is the new oToken Premium
+     * @param minPrice is the new oToken Premium in the units of 10**18
      */
     function setMinPrice(uint256 minPrice) external onlyKeeper {
         require(minPrice > 0, "!minPrice");
