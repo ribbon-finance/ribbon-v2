@@ -1575,8 +1575,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ? BigNumber.from("250000000000")
             : BigNumber.from("4050000000000");
 
-        // let pricePerShare = await collateralContract.pricePerShare();
-
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
         assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
@@ -1889,11 +1887,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(ownerSigner).commitAndClose();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        // const nextOption = await getContractAt(
-        //   "IOtoken",
-        //   await vault.nextOption()
-        // );
 
         await vault.connect(keeperSigner).rollToNextOption();
 
@@ -3247,9 +3240,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
 
         // We increase the discount so the otoken min price should go down
-        // await vault
-        //   .connect(keeperSigner)
-        //   .setPremiumDiscount(BigNumber.from("800"));
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.001"));
         await vault.connect(keeperSigner).startAuction();
 
