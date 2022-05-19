@@ -1941,12 +1941,17 @@ function behavesLikeRibbonOptionsVault(params: {
         )
           .mul(await vault.premiumDiscount())
           .div(1000);
+
+        const adjustedOtokenPremium = tokenDecimals > 18
+            ? oTokenPremium.mul(10 ** (tokenDecimals - 18))
+            : oTokenPremium.div(10 ** (18 - tokenDecimals));
+
         assert.equal(initialOtokenBalance.toString(), totalSize.toString());
         assert.equal(
           initialOtokenBalance.toString(),
           offerDetails.availableSize.toString()
         );
-        assert.equal(oTokenPremium.toString(), minPrice.toString());
+        assert.equal(adjustedOtokenPremium.toString(), minPrice.toString());
       });
 
       it("reverts when calling before expiry", async function () {
