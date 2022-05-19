@@ -278,6 +278,15 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         optionsPurchaseQueue = newOptionsPurchaseQueue;
     }
 
+    /**
+     * @notice Sets oToken Premium
+     * @param minPrice is the new oToken Premium in the units of 10**18
+     */
+    function setMinPrice(uint256 minPrice) external onlyKeeper {
+        require(minPrice > 0, "!minPrice");
+        currentOtokenPremium = minPrice;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -366,17 +375,11 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
                 premiumDiscount: premiumDiscount
             });
 
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) = VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
+        (address otokenAddress, uint256 strikePrice, uint256 delta) =
+            VaultLifecycle.commitAndClose(closeParams, vaultParams, vaultState);
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
 
         uint256 nextOptionReady = block.timestamp.add(DELAY);
@@ -469,18 +472,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         address currentOtoken = optionState.currentOption;
-        uint256 currOtokenPremium =
-            VaultLifecycle.getOTokenPremium(
-                currentOtoken,
-                optionsPremiumPricer,
-                premiumDiscount
-            );
 
         auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
         auctionDetails.asset = vaultParams.asset;
         auctionDetails.assetDecimals = vaultParams.decimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
+        auctionDetails.oTokenPremium = currentOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
         optionAuctionID = VaultLifecycle.startAuction(auctionDetails);

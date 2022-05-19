@@ -259,6 +259,15 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         liquidityGauge = newLiquidityGauge;
     }
 
+    /**
+     * @notice Sets oToken Premium
+     * @param minPrice is the new oToken Premium in the units of 10**18
+     */
+    function setMinPrice(uint256 minPrice) external onlyKeeper {
+        require(minPrice > 0, "!minPrice");
+        currentOtokenPremium = minPrice;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -413,12 +422,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
                 premiumDiscount: premiumDiscount
             });
 
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
+        (address otokenAddress, uint256 strikePrice, uint256 delta) =
             VaultLifecycleWithSwap.commitNextOption(
                 commitParams,
                 vaultParams,
@@ -428,7 +432,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         emit NewOptionStrikeSelected(strikePrice, delta);
 
         optionState.nextOption = otokenAddress;
-        currentOtokenPremium = uint104(premium);
     }
 
     /**
@@ -463,12 +466,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
     function _createOffer() private {
         address currentOtoken = optionState.currentOption;
-        uint256 currOtokenPremium =
-            VaultLifecycleWithSwap.getOTokenPremium(
-                currentOtoken,
-                optionsPremiumPricer,
-                premiumDiscount
-            );
+        uint256 currOtokenPremium = currentOtokenPremium;
 
         optionAuctionID = VaultLifecycleWithSwap.createOffer(
             currentOtoken,

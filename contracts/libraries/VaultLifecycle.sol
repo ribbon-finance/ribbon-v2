@@ -44,7 +44,6 @@ library VaultLifecycle {
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
      * @return otokenAddress is the address of the new option
-     * @return premium is the premium of the new option
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
      */
@@ -56,7 +55,6 @@ library VaultLifecycle {
         external
         returns (
             address otokenAddress,
-            uint256 premium,
             uint256 strikePrice,
             uint256 delta
         )
@@ -88,16 +86,7 @@ library VaultLifecycle {
             isPut
         );
 
-        // get the black scholes premium of the option
-        premium = _getOTokenPremium(
-            otokenAddress,
-            closeParams.optionsPremiumPricer,
-            closeParams.premiumDiscount
-        );
-
-        require(premium > 0, "!premium");
-
-        return (otokenAddress, premium, strikePrice, delta);
+        return (otokenAddress, strikePrice, delta);
     }
 
     /**
