@@ -263,10 +263,9 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      * @notice Sets oToken Premium
      * @param minPrice is the new oToken Premium
      */
-    function setMinPrice(uint256 minPrice) external onlyOwner {
+    function setMinPrice(uint256 minPrice) external onlyKeeper {
         require(minPrice > 0, "!minPrice");
-        ShareMath.assertUint104(minPrice);
-        currentOtokenPremium = uint104(minPrice);
+        currentOtokenPremium = minPrice;
     }
 
     /************************************************
@@ -370,12 +369,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                 premiumDiscount: premiumDiscount
             });
 
-        (
-            address otokenAddress,
-            // uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
+        (address otokenAddress, uint256 strikePrice, uint256 delta) =
             VaultLifecycleYearn.commitAndClose(
                 closeParams,
                 vaultParams,
@@ -385,9 +379,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        // ShareMath.assertUint104(premium);
-
-        // currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         uint256 nextOptionReady = block.timestamp.add(DELAY);
         require(
