@@ -549,14 +549,6 @@ function behavesLikeRibbonOptionsVault(params: {
         params.isPut
       );
 
-      // firstOptionPremium = BigNumber.from(
-      //   await optionsPremiumPricer.getPremium(
-      //     firstOptionStrike,
-      //     firstOptionExpiry,
-      //     params.isPut
-      //   )
-      // );
-
       firstOptionPremium = parseEther("0.00553198");
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
@@ -1605,21 +1597,7 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        // const expiryTimestampOfNewOption = await (
-        //   await getContractAt("IOtoken", await vault.nextOption())
-        // ).expiryTimestamp();
-
         assert.bnEqual(await vault.currentOtokenPremium(), parseEther("0.01"));
-        //   (
-        //     await optionsPremiumPricer.getPremium(
-        //       newStrikePrice,
-        //       expiryTimestampOfNewOption,
-        //       params.isPut
-        //     )
-        //   )
-        //     .mul(await vault.premiumDiscount())
-        //     .div(1000)
-        // );
       });
 
       it("closes short even when otokens are burned", async function () {
@@ -1962,11 +1940,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        // const nextOption = await getContractAt(
-        //   "IOtoken",
-        //   await vault.nextOption()
-        // );
-
         await vault.connect(keeperSigner).rollToNextOption();
 
         const currentAuctionCounter = await gnosisAuction.auctionCounter();
@@ -2012,16 +1985,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const oTokenSellAmount = params.expectedMintAmount
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
-
-        // const oTokenPremium = (
-        //   await optionsPremiumPricer.getPremium(
-        //     await nextOption.strikePrice(),
-        //     await nextOption.expiryTimestamp(),
-        //     params.isPut
-        //   )
-        // )
-        //   .mul(await vault.premiumDiscount())
-        //   .div(1000);
 
         assert.equal(
           initialAuctionOrder.sellAmount.toString(),

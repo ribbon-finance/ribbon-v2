@@ -1909,11 +1909,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        // const nextOption = await getContractAt(
-        //   "IOtoken",
-        //   await vault.nextOption()
-        // );
-
         await vault.connect(keeperSigner).rollToNextOption();
         const initialOtokenBalance = await defaultOtoken.balanceOf(
           vault.address
@@ -1932,16 +1927,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ? 10 ** tokenDecimals
             : totalSize / 10;
         assert.equal(offerDetails.minBidSize.toString(), minBidSize);
-
-        // const oTokenPremium = (
-        //   await optionsPremiumPricer.getPremium(
-        //     await nextOption.strikePrice(),
-        //     await nextOption.expiryTimestamp(),
-        //     params.isPut
-        //   )
-        // )
-        //   .mul(await vault.premiumDiscount())
-        //   .div(1000);
 
         const adjustedOtokenPremium =
           tokenDecimals > 18

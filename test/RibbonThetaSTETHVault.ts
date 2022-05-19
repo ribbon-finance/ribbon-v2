@@ -495,17 +495,6 @@ function behavesLikeRibbonOptionsVault(params: {
         intermediaryAsset
       );
 
-      // firstOptionPremium = BigNumber.from(
-      //   wmul(
-      //     await optionsPremiumPricer.getPremium(
-      //       firstOptionStrike,
-      //       firstOptionExpiry,
-      //       params.isPut
-      //     ),
-      //     await collateralContract.stEthPerToken()
-      //   )
-      // );
-
       firstOptionPremium = parseEther("0.00553198");
 
       await setAssetPricer(
@@ -1383,27 +1372,7 @@ function behavesLikeRibbonOptionsVault(params: {
           newStrikePrice.toString()
         );
 
-        // const expiryTimestampOfNewOption = await (
-        //   await getContractAt("IOtoken", await vault.nextOption())
-        // ).expiryTimestamp();
-
         assert.bnEqual(await vault.currentOtokenPremium(), parseEther("0.01"));
-
-        // assert.bnEqual(
-        //   await vault.currentOtokenPremium(),
-        //   wmul(
-        //     (
-        //       await optionsPremiumPricer.getPremium(
-        //         newStrikePrice,
-        //         expiryTimestampOfNewOption,
-        //         params.isPut
-        //       )
-        //     )
-        //       .mul(await vault.premiumDiscount())
-        //       .div(1000),
-        //     await collateralContract.stEthPerToken()
-        //   )
-        // );
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {

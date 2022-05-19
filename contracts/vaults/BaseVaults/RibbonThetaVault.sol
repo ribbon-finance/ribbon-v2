@@ -280,7 +280,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
 
     /**
      * @notice Sets oToken Premium
-     * @param minPrice is the new oToken Premium
+     * @param minPrice is the new oToken Premium in the units of 10**18
      */
     function setMinPrice(uint256 minPrice) external onlyKeeper {
         require(minPrice > 0, "!minPrice");
@@ -472,12 +472,6 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
         address currentOtoken = optionState.currentOption;
-        // uint256 currOtokenPremium =
-        //     VaultLifecycle.getOTokenPremium(
-        //         currentOtoken,
-        //         optionsPremiumPricer,
-        //         premiumDiscount
-        //     );
 
         auctionDetails.oTokenAddress = currentOtoken;
         auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
