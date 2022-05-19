@@ -46,7 +46,6 @@ library VaultLifecycleSTETH {
         external
         returns (
             address otokenAddress,
-            // uint256 premium,
             uint256 strikePrice,
             uint256 delta
         )
@@ -76,14 +75,6 @@ library VaultLifecycleSTETH {
             false
         );
 
-        // premium = _getOTokenPremium(
-        //     otokenAddress,
-        //     closeParams.optionsPremiumPricer,
-        //     closeParams.premiumDiscount,
-        //     collateralAsset
-        // );
-
-        // return (otokenAddress, premium, strikePrice, delta);
         return (otokenAddress, strikePrice, delta);
     }
 

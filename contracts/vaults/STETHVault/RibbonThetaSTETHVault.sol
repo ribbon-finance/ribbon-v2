@@ -252,10 +252,9 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @notice Sets oToken Premium
      * @param minPrice is the new oToken Premium
      */
-    function setMinPrice(uint256 minPrice) external onlyOwner {
+    function setMinPrice(uint256 minPrice) external onlyKeeper {
         require(minPrice > 0, "!minPrice");
-        ShareMath.assertUint104(minPrice);
-        currentOtokenPremium = uint104(minPrice);
+        currentOtokenPremium = minPrice;
     }
 
     /************************************************
@@ -354,12 +353,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
                 premiumDiscount: premiumDiscount
             });
 
-        (
-            address otokenAddress,
-            // uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
+        (address otokenAddress, uint256 strikePrice, uint256 delta) =
             VaultLifecycleSTETH.commitAndClose(
                 closeParams,
                 vaultParams,
@@ -369,9 +363,6 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        // ShareMath.assertUint104(premium);
-
-        // currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
         uint256 nextOptionReady = block.timestamp.add(DELAY);
         require(
