@@ -1557,11 +1557,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        // const nextOption = await getContractAt(
-        //   "IOtoken",
-        //   await vault.nextOption()
-        // );
-
         await vault.connect(keeperSigner).rollToNextOption();
 
         const currentAuctionCounter = await gnosisAuction.auctionCounter();
@@ -1607,19 +1602,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const oTokenSellAmount = params.expectedMintAmount
           .mul(feeDenominator)
           .div(feeDenominator.add(feeNumerator));
-
-        // const oTokenPremium = wmul(
-        //   (
-        //     await optionsPremiumPricer.getPremium(
-        //       await nextOption.strikePrice(),
-        //       await nextOption.expiryTimestamp(),
-        //       params.isPut
-        //     )
-        //   )
-        //     .mul(await vault.premiumDiscount())
-        //     .div(1000),
-        //   await collateralContract.stEthPerToken()
-        // );
 
         assert.equal(
           initialAuctionOrder.sellAmount.toString(),
@@ -2877,9 +2859,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
 
         // We increase the discount so the otoken min price should go down
-        // await vault
-        //   .connect(keeperSigner)
-        //   .setPremiumDiscount(BigNumber.from("800"));
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.001"));
         await vault.connect(keeperSigner).startAuction();
 
