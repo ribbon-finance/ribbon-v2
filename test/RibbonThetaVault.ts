@@ -229,6 +229,39 @@ describe("RibbonThetaVault", () => {
   });
 });
 
+behavesLikeRibbonOptionsVault({
+  name: `Ribbon RETH Theta Vault (Call)`,
+  tokenName: "Ribbon RETH Theta Vault",
+  tokenSymbol: "rRETH-THETA",
+  asset: RETH_ADDRESS[chainId],
+  assetContractName: "IWBTC",
+  strikeAsset: USDC_ADDRESS[chainId],
+  collateralAsset: RETH_ADDRESS[chainId],
+  chainlinkPricer: RETH_PRICER,
+  deltaFirstOption: BigNumber.from("1000"),
+  deltaSecondOption: BigNumber.from("1000"),
+  deltaStep: getDeltaStep("WETH"),
+  depositAmount: parseEther("1"),
+  minimumSupply: BigNumber.from("10").pow("10").toString(),
+  expectedMintAmount: BigNumber.from("100000000"),
+  premiumDiscount: BigNumber.from("997"),
+  managementFee: BigNumber.from("2000000"),
+  performanceFee: BigNumber.from("20000000"),
+  auctionDuration: 21600,
+  tokenDecimals: 18,
+  isPut: false,
+  gasLimits: {
+    depositWorstCase: 109576,
+    depositBestCase: 93300,
+  },
+  mintConfig: {
+    amount: parseEther("20"),
+    contractOwnerAddress: RETH_OWNER_ADDRESS[chainId],
+  },
+  availableChains: [CHAINID.ETH_MAINNET],
+  protocol: OPTION_PROTOCOL.GAMMA,
+});
+
 type Option = {
   address: string;
   strikePrice: BigNumber;
