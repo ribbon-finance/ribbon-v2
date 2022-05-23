@@ -2,12 +2,12 @@
 pragma solidity =0.8.4;
 
 interface IVaultPauser {
-    /// @notice Returns the pool address for a given pair of tokens and a fee, or address 0 if it does not exist
-    /// @param _account The contract address of either token0 or token1
-    /// @param _amount The contract address of the other token
+    /// @notice pause vault position of an account with max amount
+    /// @param _account the address of user
+    /// @param _amount amount of shares
     function pausePosition(address _account, uint256 _amount) external;
 
-    function resumePosition(address _account, uint256 _amount) external;
-
-    function processWithdrawal() external;
+    /// @notice resume vault position of an account with max amount
+    /// @param _vaultAddress the address of vault
+    function resumePosition(address _vaultAddress) external;
 }

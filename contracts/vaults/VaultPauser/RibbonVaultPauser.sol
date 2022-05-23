@@ -15,13 +15,16 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {IVaultPaucer} from "../../interfaces/IVaultPauser";
-import {Vault} from "../../../libraries/Vault.sol";
+import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {RibbonVault} from "../BaseVaults/base/RibbonVault.sol";
+import {ShareMath} from "../../libraries/ShareMath.sol";
+import "hardhat/console.sol";
 
 contract RibbonVaultPauser is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
-    RibbonVaultPauserStorage,
     IVaultPauser
 {
     using SafeERC20 for IERC20;
@@ -32,7 +35,13 @@ contract RibbonVaultPauser is
      ***********************************************/
 
     /// @notice Stores all the vault's paused positions
-    mapping(address => mapping(address => uint256)) public pausedPositions;
+    struct PauseReceipt {
+        uint16 round;
+        address account;
+        uint128 shares;
+    }
+
+    mapping(address => mapping(address => PauseReceipt)) public pausedPositions;
 
     /// @notice role in charge of weekly vault operations
     // no access to critical vault changes
@@ -61,17 +70,15 @@ contract RibbonVaultPauser is
      */
     constructor() {}
 
-    /**
-     * @notice Initializes the contract with storage variables.
-     */
-    function initialize() external initializer {
-        _initialize(_owner, _keeper);
+    // /**
+    //  * @notice Initializes the contract with storage variables.
+    //  */
+    function initialize(address _owner, address _keeper) external initializer {
         __ReentrancyGuard_init();
-
-        keeper = _initParams._keeper;
+        __Ownable_init();
+        transferOwnership(_owner);
+        keeper = _keeper;
     }
-
-    function _initialize(address _owner, address _keeper) internal {}
 
     /**
      * @dev Throws if called by any account other than the keeper.
@@ -98,30 +105,52 @@ contract RibbonVaultPauser is
      *  VAULT OPERATIONS
      ***********************************************/
 
-    /**
-     * @notice pause position for certain vault
-     * @dev assume that user has already redeemed the shares (basically it should work behind the scene)
-     * then you can transfer the shares into VaultPauser
-     * @param newKeeper is the address of the new keeper
-     */
-    function pausePosition(
-        address _account,
-        uint256 _amount,
-        address _vaultAddress
-    ) external override {
-        // IERC transfer to Pauser
-        // pausedPosition[vaultAddress][msg.sender] = _amount
-        // initiate withdrawal
-    }
-
-    function resumePosition(address _account, uint256 _amount)
+    function pausePosition(address _account, uint256 _amount)
         external
         override
     {
-        // depositFor
+        address currentVaultAddress = address(msg.sender);
+        IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
+
+        currentVault.initiateWithdraw(_amount);
+
+        pausedPositions[currentVaultAddress][_account] = PauseReceipt({
+            round: uint16(currentVault.vaultState().round),
+            account: address(_account),
+            shares: uint104(_amount)
+        });
     }
 
-    function processWithdrawal() external onlyKeeper {}
+    function resumePosition(address _vaultAddress) external override {
+        IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
 
-    function _processWithdrawal() private {}
+        address currentUser = address(msg.sender);
+
+        PauseReceipt memory pauseReceipt =
+            pausedPositions[_vaultAddress][currentUser];
+
+        uint256 withdrawAmount =
+            ShareMath.sharesToAsset(
+                pauseReceipt.shares,
+                currentVault.roundPricePerShare(uint256(pauseReceipt.round)),
+                currentVault.vaultParams().decimals
+            );
+
+        // doesn't work for ETH yet
+        IERC20(currentVault.vaultParams().asset).approve(
+            _vaultAddress,
+            withdrawAmount
+        );
+
+        currentVault.depositFor(withdrawAmount, currentUser);
+    }
+
+    function processWithdrawal(address _vaultAddress) external onlyKeeper {
+        _processWithdrawal(_vaultAddress);
+    }
+
+    function _processWithdrawal(address _vaultAddress) private {
+        IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
+        currentVault.completeWithdraw();
+    }
 }
