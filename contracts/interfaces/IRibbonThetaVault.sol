@@ -19,4 +19,12 @@ interface IRibbonThetaVault {
     function pricePerShare() external view returns (uint256);
 
     function roundPricePerShare(uint256) external view returns (uint256);
+
+    function depositFor(uint256 amount, address creditor) external;
+
+    function initiateWithdraw(uint256 numShares) external;
+
+    function completeWithdraw() external;
+
+    function maxRedeem() external;
 }
