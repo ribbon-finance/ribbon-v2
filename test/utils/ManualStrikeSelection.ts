@@ -29,7 +29,7 @@ describe("ManualStrikeSelection", () => {
   it("sets the strike price", async () => {
     await ss.connect(ownerSigner).setStrikePrice("1000");
     const [strike, delta] = await ss.getStrikePrice(
-      Math.floor(+new Date() / 1000),
+      Math.floor(Number(new Date()) / 1000),
       false
     );
     assert.bnEqual(strike, BigNumber.from("1000"));
