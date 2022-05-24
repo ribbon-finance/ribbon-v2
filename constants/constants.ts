@@ -162,7 +162,7 @@ export const PERP_PRICE_ORACLE = {
 };
 
 export const BAL_PRICE_ORACLE = {
-  [CHAINID.ETH_MAINNET]: "",
+  [CHAINID.ETH_MAINNET]: "0xdf2917806e30300537aeb49a7663062f4d1f2b5f",
   [CHAINID.ETH_KOVAN]: "", //NOTE: Unofficial, use only for deployment testing
 };
 
