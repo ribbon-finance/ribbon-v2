@@ -2,10 +2,10 @@ import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
-  PERP_ADDRESS,
-  PERP_PRICE_ORACLE,
+  BAL_ADDRESS,
+  BAL_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  PERP_ETH_POOL,
+  BAL_ETH_POOL,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
@@ -15,7 +15,7 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_STEP,
-  PERP_STRIKE_MULTIPLIER,
+  BAL_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 const main = async ({
@@ -29,7 +29,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`13 - Deploying PERP Treasury Vault on ${network.name}`);
+  console.log(`13 - Deploying BAL Treasury Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
   if (chainId !== CHAINID.ETH_MAINNET) {
@@ -38,35 +38,35 @@ const main = async ({
   }
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
-  const underlyingOracle = PERP_PRICE_ORACLE[chainId];
+  const underlyingOracle = BAL_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const pricer = await deploy("OptionsPremiumPricerPERP", {
+  const pricer = await deploy("OptionsPremiumPricerBAL", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
     args: [
-      PERP_ETH_POOL[chainId],
+      BAL_ETH_POOL[chainId],
       manualVolOracle.address,
       underlyingOracle,
       stablesOracle,
     ],
   });
 
-  console.log(`RibbonTreasuryVaultPERP pricer @ ${pricer.address}`);
+  console.log(`RibbonTreasuryVaultBAL pricer @ ${pricer.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionPERP", {
+  const strikeSelection = await deploy("StrikeSelectionBAL", {
     contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_STEP.PERP, PERP_STRIKE_MULTIPLIER], //change this
+    args: [pricer.address, STRIKE_STEP.BAL, BAL_STRIKE_MULTIPLIER], //change this
   });
 
   console.log(
-    `RibbonTreasuryVaultPERP strikeSelection @ ${strikeSelection.address}`
+    `RibbonTreasuryVaultBAL strikeSelection @ ${strikeSelection.address}`
   );
 
   try {
@@ -74,8 +74,8 @@ const main = async ({
       address: strikeSelection.address,
       constructorArguments: [
         pricer.address,
-        STRIKE_STEP.PERP,
-        PERP_STRIKE_MULTIPLIER,
+        STRIKE_STEP.BAL,
+        BAL_STRIKE_MULTIPLIER,
       ], // change this
     });
   } catch (error) {
@@ -101,8 +101,8 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: "Ribbon PERP Treasury Vault",
-      _tokenSymbol: "rPERP-TSRY",
+      _tokenName: "Ribbon BAL Treasury Vault",
+      _tokenSymbol: "rBAL-TSRY",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
@@ -114,8 +114,8 @@ const main = async ({
     {
       isPut: false,
       decimals: 18,
-      asset: PERP_ADDRESS[chainId],
-      underlying: PERP_ADDRESS[chainId],
+      asset: BAL_ADDRESS[chainId],
+      underlying: BAL_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("200000"),
     },
@@ -125,13 +125,13 @@ const main = async ({
     initArgs
   );
 
-  const proxy = await deploy("RibbonTreasuryVaultPERP", {
+  const proxy = await deploy("RibbonTreasuryVaultBAL", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonTreasuryVaultPERP Proxy @ ${proxy.address}`);
+  console.log(`RibbonTreasuryVaultBAL Proxy @ ${proxy.address}`);
 
   try {
     await run("verify:verify", {
@@ -142,7 +142,7 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonTreasuryVaultPERP"];
+main.tags = ["RibbonTreasuryVaultBAL"];
 main.dependencies = ["ManualVolOracle", "RibbonTreasuryVaultLogic"];
 
 export default main;
