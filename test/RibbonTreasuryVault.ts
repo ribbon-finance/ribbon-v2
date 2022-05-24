@@ -24,6 +24,11 @@ import {
   PERP_OWNER_ADDRESS,
   PERP_ADDRESS,
   CHAINLINK_PERP_PRICER,
+  BAL_ETH_POOL,
+  BAL_PRICE_ORACLE,
+  BAL_OWNER_ADDRESS,
+  BAL_ADDRESS,
+  CHAINLINK_BAL_PRICER,
   ManualVolOracle_BYTECODE,
 } from "../constants/constants";
 import {
@@ -44,7 +49,8 @@ import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
   PERP_STRIKE_MULTIPLIER,
-  STRIKE_STEP
+  BAL_STRIKE_MULTIPLIER,
+  STRIKE_STEP,
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
@@ -92,6 +98,44 @@ describe("RibbonTreasuryVault", () => {
     oracle: PERP_PRICE_ORACLE[chainId],
     premiumInStables: true,
     multiplier: PERP_STRIKE_MULTIPLIER,
+    premiumDecimals: 6,
+    maxDepositors: 30,
+    minDeposit: parseUnits("1", 18),
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon BAL Treasury Vault (Call)`,
+    tokenName: "Ribbon BAL Treasury Vault",
+    tokenSymbol: "rBAL-TSRY",
+    asset: BAL_ADDRESS[chainId],
+    assetContractName: "IPERP",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: BAL_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_BAL_PRICER[chainId],
+    deltaStep: BigNumber.from(STRIKE_STEP.BAL),
+    depositAmount: parseEther("20"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("2000000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("0"),
+    performanceFee: BigNumber.from("20000000"),
+    manualStrikePrice: BigNumber.from("1").pow("8"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 161000,
+      depositBestCase: 95000,
+    },
+    mintConfig: {
+      contractOwnerAddress: BAL_OWNER_ADDRESS[chainId],
+    },
+    period: 30,
+    pool: BAL_ETH_POOL[chainId],
+    oracle: BAL_PRICE_ORACLE[chainId],
+    premiumInStables: true,
+    multiplier: BAL_STRIKE_MULTIPLIER,
     premiumDecimals: 6,
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
