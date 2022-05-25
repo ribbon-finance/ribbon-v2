@@ -19,6 +19,7 @@
         "StrikeSelectionAVAXCall": "0x34DCc3FD8cdB790DBFC10349875Dc1b8c5B8Ab34",
         "StrikeSelectionAVAXPut": "0x93455A75870A0fa6239826Cb1cD81AD09e588034",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
+        "Swap": "0xF75f429580B92c6C8e3f0f5Fec15133e6A04d2f2",
         "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef"
     },
     "fuji": {
@@ -38,6 +39,7 @@
         "StrikeSelectionETH": "0xE19d1bB9fea8337E7e28Aa23f17954fdE0707081",
         "StrikeSelectionSAVAX": "0x7B352e6b8FCF699331293727EB8E418eB09651Be",
         "StrikeSelectionWBTC": "0xc3FC1dEac3214621b015353a0a623778425ef067",
+        "Swap": "0xb8a80d9520D23fBfe6F822510E320CbB45Ff590D",
         "UniswapRouter": "0x94aaFff6B6Bf89b0Fd6fCBEa84436eb094Dd47A8",
         "VaultLifecycle": "0x853cC5f4780D81e4e5C3649C2d1ad968338517da"
     },
