@@ -2,7 +2,9 @@
 pragma solidity =0.8.4;
 
 abstract contract RibbonVaultPauserStorageV1 {
-    address public abc;
+    /// @notice role in charge of weekly vault operations such as rollToNextOption and burnRemainingOTokens
+    // no access to critical vault changes
+    address public keeper;
 }
 
 // We are following Compound's method of upgrading new contract implementations

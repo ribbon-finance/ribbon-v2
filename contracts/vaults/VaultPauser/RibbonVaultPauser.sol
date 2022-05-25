@@ -18,14 +18,18 @@ import {
 import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {IWETH} from "../../interfaces/IWETH.sol";
 import {RibbonVault} from "../BaseVaults/base/RibbonVault.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
-import "hardhat/console.sol";
+import {
+    RibbonVaultPauserStorage
+} from "../../storage/RibbonVaultPauserStorage.sol";
 
 contract RibbonVaultPauser is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
-    IVaultPauser
+    IVaultPauser,
+    RibbonVaultPauserStorage
 {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -41,25 +45,33 @@ contract RibbonVaultPauser is
         uint128 shares;
     }
 
-    mapping(address => mapping(address => PauseReceipt)) public pausedPositions;
-
-    /// @notice role in charge of weekly vault operations
-    // no access to critical vault changes
-    address public keeper;
+    mapping(address => mapping(address => PauseReceipt[]))
+        public pausedPositions;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
+    /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    address public immutable WETH;
 
     /************************************************
      *  EVENTS
      ***********************************************/
 
-    event Pause();
+    event Pause(
+        address indexed account,
+        address indexed vaultAddress,
+        uint256 share,
+        uint256 round
+    );
 
-    event Resume();
+    event Resume(
+        address indexed account,
+        address indexed vaultAddress,
+        uint256 withdrawAmount
+    );
 
-    event ProcessWithdrawal();
+    event ProcessWithdrawal(address indexed vaultAddress, uint256 round);
 
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
@@ -68,7 +80,11 @@ contract RibbonVaultPauser is
     /**
      * @notice Initializes the contract with immutable variables
      */
-    constructor() {}
+    constructor(address _weth) {
+        require(_weth != address(0), "!_weth");
+
+        WETH = _weth;
+    }
 
     // /**
     //  * @notice Initializes the contract with storage variables.
@@ -89,6 +105,21 @@ contract RibbonVaultPauser is
     }
 
     /************************************************
+     *  GETTERS
+     ***********************************************/
+
+    /**
+     * @notice gets pause position for specific vault and user
+     */
+    function getPausePositions(address _vaultAddress, address _userAddress)
+        external
+        view
+        returns (PauseReceipt[] memory)
+    {
+        return pausedPositions[_vaultAddress][_userAddress];
+    }
+
+    /************************************************
      *  SETTERS
      ***********************************************/
 
@@ -105,6 +136,11 @@ contract RibbonVaultPauser is
      *  VAULT OPERATIONS
      ***********************************************/
 
+    /**
+     * @notice pause position from vault by redeem all the shares from vault to Pauser
+     * @param _account user's address
+     * @param _amount the amount of shares
+     */
     function pausePosition(address _account, uint256 _amount)
         external
         override
@@ -112,45 +148,86 @@ contract RibbonVaultPauser is
         address currentVaultAddress = address(msg.sender);
         IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
 
-        currentVault.initiateWithdraw(_amount);
+        PauseReceipt[] storage pauseReceipts =
+            pausedPositions[currentVaultAddress][_account];
 
-        pausedPositions[currentVaultAddress][_account] = PauseReceipt({
-            round: uint16(currentVault.vaultState().round),
-            account: address(_account),
-            shares: uint104(_amount)
-        });
+        // user can pause multiple position hence it's necessary to make an array
+        // to store each paused position
+        pauseReceipts.push(
+            PauseReceipt({
+                round: uint16(currentVault.vaultState().round),
+                account: address(_account),
+                shares: uint104(_amount)
+            })
+        );
+
+        emit Pause(
+            _account,
+            currentVaultAddress,
+            _amount,
+            currentVault.vaultState().round
+        );
+
+        currentVault.initiateWithdraw(_amount);
     }
 
+    /**
+     * @notice resume user's position into vault by making a deposit
+     * @param _vaultAddress vault's address
+     */
     function resumePosition(address _vaultAddress) external override {
         IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
 
         address currentUser = address(msg.sender);
 
-        PauseReceipt memory pauseReceipt =
+        PauseReceipt[] memory pauseReceipts =
             pausedPositions[_vaultAddress][currentUser];
 
-        uint256 withdrawAmount =
-            ShareMath.sharesToAsset(
-                pauseReceipt.shares,
-                currentVault.roundPricePerShare(uint256(pauseReceipt.round)),
+        // loop all receipts, convert into withdraw amount and sum it up
+        uint256 totalWithdrawAmount = 0;
+        for (uint16 i = 0; i < pauseReceipts.length; i++) {
+            totalWithdrawAmount += ShareMath.sharesToAsset(
+                pauseReceipts[i].shares,
+                currentVault.roundPricePerShare(
+                    uint256(pauseReceipts[i].round)
+                ),
                 currentVault.vaultParams().decimals
             );
+        }
 
-        // doesn't work for ETH yet
+        emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
+
+        // delete receipts once finish calculating total withdraw amount
+        delete pausedPositions[_vaultAddress][currentUser];
+
+        // if asset is ETH, we will convert it into WETH before depositing
+        if (currentVault.vaultParams().asset == WETH) {
+            IWETH(WETH).deposit{value: totalWithdrawAmount}();
+        }
         IERC20(currentVault.vaultParams().asset).approve(
             _vaultAddress,
-            withdrawAmount
+            totalWithdrawAmount
         );
 
-        currentVault.depositFor(withdrawAmount, currentUser);
+        currentVault.depositFor(totalWithdrawAmount, currentUser);
     }
 
+    /**
+     * @notice process withdrawals by completing in a batch
+     * @param _vaultAddress vault's address to be processed
+     */
     function processWithdrawal(address _vaultAddress) external onlyKeeper {
         _processWithdrawal(_vaultAddress);
     }
 
     function _processWithdrawal(address _vaultAddress) private {
         IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
+        // we can only process withdrawal after closing the previous round
+        // hence round should be - 1
+        emit ProcessWithdrawal(
+            _vaultAddress,
+            currentVault.vaultState().round - 1
+        );
         currentVault.completeWithdraw();
     }
 }
