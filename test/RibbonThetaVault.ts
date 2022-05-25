@@ -1374,6 +1374,8 @@ function behavesLikeRibbonOptionsVault(params: {
       it("creates a pending deposit", async function () {
         const startBalance = await assetContract.balanceOf(user);
 
+        console.log(startBalance);
+
         await assetContract
           .connect(userSigner)
           .approve(vault.address, depositAmount);
