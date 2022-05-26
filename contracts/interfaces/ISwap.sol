@@ -89,6 +89,10 @@ interface ISwap {
 
     event Cancel(uint256 indexed nonce, address indexed signerWallet);
 
+    event Authorize(address indexed signer, address indexed signerWallet);
+
+    event Revoke(address indexed signer, address indexed signerWallet);
+
     function createOffer(
         address oToken,
         address biddingToken,
@@ -110,6 +114,10 @@ interface ISwap {
         external
         view
         returns (uint256);
+
+    function authorize(address sender) external;
+
+    function revoke() external;
 
     function nonceUsed(address, uint256) external view returns (bool);
 }
