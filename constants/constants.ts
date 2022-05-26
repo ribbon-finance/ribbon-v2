@@ -12,7 +12,7 @@ export enum CHAINID {
 // Make the block number on Thursday 12pm UTC
 // Must be 1 day from current time
 export const BLOCK_NUMBER = {
-  [CHAINID.ETH_MAINNET]: 14847900,
+  [CHAINID.ETH_MAINNET]: 14448950,
   [CHAINID.AVAX_MAINNET]: 11518500,
   [CHAINID.AVAX_FUJI]: 2823963,
 };
