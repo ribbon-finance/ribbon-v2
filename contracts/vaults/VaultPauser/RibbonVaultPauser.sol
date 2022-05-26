@@ -53,6 +53,7 @@ contract RibbonVaultPauser is
      ***********************************************/
     /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     address public immutable WETH;
+    address public immutable STETH;
 
     /************************************************
      *  EVENTS
@@ -80,10 +81,11 @@ contract RibbonVaultPauser is
     /**
      * @notice Initializes the contract with immutable variables
      */
-    constructor(address _weth) {
+    constructor(address _weth, address _steth) {
         require(_weth != address(0), "!_weth");
 
         WETH = _weth;
+        STETH = _steth;
     }
 
     // /**
@@ -185,21 +187,39 @@ contract RibbonVaultPauser is
 
         // loop all receipts, convert into withdraw amount and sum it up
         uint256 totalWithdrawAmount = 0;
-        for (uint16 i = 0; i < pauseReceipts.length; i++) {
-            totalWithdrawAmount += ShareMath.sharesToAsset(
-                pauseReceipts[i].shares,
-                currentVault.roundPricePerShare(
-                    uint256(pauseReceipts[i].round)
-                ),
-                currentVault.vaultParams().decimals
-            );
+        uint256 receiptsLength = pauseReceipts.length;
+        for (uint16 i = 0; i < receiptsLength; i++) {
+            if (pauseReceipts[i].round < currentVault.vaultState().round) {
+                totalWithdrawAmount += ShareMath.sharesToAsset(
+                    pauseReceipts[i].shares,
+                    currentVault.roundPricePerShare(
+                        uint256(pauseReceipts[i].round)
+                    ),
+                    currentVault.vaultParams().decimals
+                );
+            }
         }
-
-        emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
 
         // delete receipts once finish calculating total withdraw amount
         delete pausedPositions[_vaultAddress][currentUser];
 
+        string memory currentSymbol = currentVault.symbol();
+
+        // stETH transfers suffer from an off-by-1 error
+        // since we received STETH , we shall deposit using STETH instead of ETH
+        if (
+            (keccak256(abi.encodePacked(currentSymbol)) ==
+                keccak256(abi.encodePacked("rSTETH-THETA")))
+        ) {
+            totalWithdrawAmount = totalWithdrawAmount.sub((3 * receiptsLength));
+
+            emit Resume(currentUser, _vaultAddress, totalWithdrawAmount.sub(1));
+            IERC20(STETH).approve(_vaultAddress, totalWithdrawAmount);
+            currentVault.depositYieldToken(totalWithdrawAmount, currentUser);
+            return;
+        }
+
+        emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
         // if asset is ETH, we will convert it into WETH before depositing
         if (currentVault.vaultParams().asset == WETH) {
             IWETH(WETH).deposit{value: totalWithdrawAmount}();
