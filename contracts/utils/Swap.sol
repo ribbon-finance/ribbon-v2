@@ -404,7 +404,7 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         }
 
         require(signatory != address(0), "SIGNATURE_INVALID");
-        require(signatory == bid.signerWallet, "SIGNATURE_MISMATCHED");
+        
         require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
         require(
             bid.buyAmount <= offer.availableSize,
