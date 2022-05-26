@@ -309,7 +309,7 @@ describe("Swap", () => {
     time.revertToSnapshotAfterEach(async function () {
       swapId = (await swap.offersCounter()).add(1);
 
-      await swap.connect(userSigner).authorize(owner)
+      await swap.connect(userSigner).authorize(owner);
 
       await swap
         .connect(keeperSigner)
@@ -938,7 +938,7 @@ describe("Swap", () => {
 
   describe("#check", () => {
     time.revertToSnapshotAfterEach(async function () {
-      await swap.connect(userSigner).authorize(owner)
+      await swap.connect(userSigner).authorize(owner);
 
       await swap
         .connect(keeperSigner)
@@ -948,7 +948,7 @@ describe("Swap", () => {
           parseUnits("3", 6),
           parseUnits("0.01", 8),
           parseUnits("1", 8)
-        )
+        );
     });
 
     it("reverts when offering does not exist", async function () {
@@ -985,7 +985,7 @@ describe("Swap", () => {
     });
 
     it("returns 0 error when order is valid", async function () {
-      const swapId = await swap.offersCounter()
+      const swapId = await swap.offersCounter();
       const nonce = 1;
       const sellAmount = parseUnits("100", 6);
       const buyAmount = parseUnits("0.01", 8);
@@ -1018,7 +1018,7 @@ describe("Swap", () => {
     });
 
   it("allow authorized signer to check with 0 error", async function () {
-    const swapId = await swap.offersCounter()
+    const swapId = await swap.offersCounter();
     const nonce = 1;
     const sellAmount = parseUnits("100", 6);
     const buyAmount = parseUnits("0.01", 8);
@@ -1051,9 +1051,9 @@ describe("Swap", () => {
   });
 
   it("revert when signer is not authorized", async function () {
-    await swap.connect(userSigner).revoke()
+    await swap.connect(userSigner).revoke();
 
-    const swapId = await swap.offersCounter()
+    const swapId = await swap.offersCounter();
     const nonce = 1;
     const sellAmount = parseUnits("100", 6);
     const buyAmount = parseUnits("0.01", 8);
