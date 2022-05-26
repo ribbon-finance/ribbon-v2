@@ -331,7 +331,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: 14847900,
+              blockNumber: asset == BAL_ADDRESS[chainId] ? 14847900 : 14087600,
             },
           },
         ],
