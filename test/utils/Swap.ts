@@ -309,6 +309,8 @@ describe("Swap", () => {
     time.revertToSnapshotAfterEach(async function () {
       swapId = (await swap.offersCounter()).add(1);
 
+      await swap.connect(userSigner).authorize(owner);
+
       await swap
         .connect(keeperSigner)
         .createOffer(wethAddress, usdcAddress, minPrice, minBidSize, totalSize);
@@ -482,7 +484,43 @@ describe("Swap", () => {
 
       await expect(
         swap.connect(keeperSigner).settleOffer(swapId, bids)
-      ).to.be.revertedWith("SIGNATURE_MISMATCHED");
+      ).to.be.revertedWith("UNAUTHORIZED");
+    });
+
+    it("reverts when signer is not authorized", async function () {
+      const nonce = 1;
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize.div(2);
+      const referrer = constants.AddressZero;
+
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
+
+      const signature = await getSignature(domain, order, keeperSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ],
+      ];
+
+      await expect(
+        swap.connect(keeperSigner).settleOffer(swapId, bids)
+      ).to.be.revertedWith("UNAUTHORIZED");
     });
 
     it("reverts when nonce already used", async function () {
@@ -704,6 +742,42 @@ describe("Swap", () => {
       assert.bnEqual(sellAmount, userStartUsdcBalance.sub(userEndUsdcBalance));
     });
 
+    it("allow authorized signer", async function () {
+      const nonce = 1;
+      const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
+      const buyAmount = totalSize;
+      const referrer = constants.AddressZero;
+
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
+
+      const signature = await getSignature(domain, order, ownerSigner);
+
+      const bids = [
+        [
+          swapId,
+          nonce,
+          user,
+          sellAmount,
+          buyAmount,
+          referrer,
+          signature.v,
+          signature.r,
+          signature.s,
+        ],
+      ];
+
+      await expect(swap.connect(keeperSigner).settleOffer(swapId, bids))
+        .to.emit(swap, "Swap")
+        .withArgs(swapId, nonce, user, sellAmount, buyAmount, referrer, 0);
+    });
+
     it("gives the correct amount to the referrer", async function () {
       const nonce = 1;
       const sellAmount = totalSize.mul(minPrice).div(parseUnits("1", 8));
@@ -819,7 +893,7 @@ describe("Swap", () => {
       const tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 151500);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 151600);
     });
 
     it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
@@ -858,15 +932,27 @@ describe("Swap", () => {
       let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 397996);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 400000);
     });
   });
 
   describe("#check", () => {
-    time.revertToSnapshotAfterTest();
+    time.revertToSnapshotAfterEach(async function () {
+      await swap.connect(userSigner).authorize(owner);
+
+      await swap
+        .connect(keeperSigner)
+        .createOffer(
+          wethAddress,
+          usdcAddress,
+          parseUnits("3", 6),
+          parseUnits("0.01", 8),
+          parseUnits("1", 8)
+        );
+    });
 
     it("reverts when offering does not exist", async function () {
-      const swapId = 1;
+      const swapId = 2;
       const nonce = 1;
       const sellAmount = parseUnits("1", 6);
       const buyAmount = parseUnits("1", 8);
@@ -899,30 +985,7 @@ describe("Swap", () => {
     });
 
     it("returns 0 error when order is valid", async function () {
-      const swapId = (await swap.offersCounter()).add(1);
-
-      await expect(
-        await swap
-          .connect(keeperSigner)
-          .createOffer(
-            wethAddress,
-            usdcAddress,
-            parseUnits("3", 6),
-            parseUnits("0.01", 8),
-            parseUnits("1", 8)
-          )
-      )
-        .to.emit(swap, "NewOffer")
-        .withArgs(
-          swapId,
-          keeper,
-          wethAddress,
-          usdcAddress,
-          parseUnits("3", 6),
-          parseUnits("0.01", 8),
-          parseUnits("1", 8)
-        );
-
+      const swapId = await swap.offersCounter();
       const nonce = 1;
       const sellAmount = parseUnits("100", 6);
       const buyAmount = parseUnits("0.01", 8);
@@ -953,7 +1016,75 @@ describe("Swap", () => {
 
       assert.bnEqual(error[0], BigNumber.from(0));
     });
+
+  it("allow authorized signer to check with 0 error", async function () {
+    const swapId = await swap.offersCounter();
+    const nonce = 1;
+    const sellAmount = parseUnits("100", 6);
+    const buyAmount = parseUnits("0.01", 8);
+    const referrer = constants.AddressZero;
+
+    const order = {
+      swapId,
+      nonce,
+      signerWallet: user,
+      sellAmount,
+      buyAmount,
+      referrer,
+    };
+
+    const signature = await getSignature(domain, order, ownerSigner);
+
+    const error = await swap.check([
+      swapId,
+      nonce,
+      user,
+      sellAmount,
+      buyAmount,
+      referrer,
+      signature.v,
+      signature.r,
+      signature.s,
+    ]);
+
+    assert.bnEqual(error[0], BigNumber.from(0));
   });
+
+  it("revert when signer is not authorized", async function () {
+    await swap.connect(userSigner).revoke();
+
+    const swapId = await swap.offersCounter();
+    const nonce = 1;
+    const sellAmount = parseUnits("100", 6);
+    const buyAmount = parseUnits("0.01", 8);
+    const referrer = constants.AddressZero;
+
+    const order = {
+      swapId,
+      nonce,
+      signerWallet: user,
+      sellAmount,
+      buyAmount,
+      referrer,
+    };
+
+    const signature = await getSignature(domain, order, ownerSigner);
+
+    const error = await swap.check([
+      swapId,
+      nonce,
+      user,
+      sellAmount,
+      buyAmount,
+      referrer,
+      signature.v,
+      signature.r,
+      signature.s,
+    ]);
+
+    assert.bnEqual(error[0], BigNumber.from(1));
+  });
+});
 
   describe("#averagePriceForOffer", () => {
     const minPrice = parseUnits("3", 6);
