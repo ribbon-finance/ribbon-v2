@@ -443,7 +443,7 @@ function behavesLikeRibbonOptionsVault(params: {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
               blockNumber:
-                asset == RETH_ADDRESS[chainId]
+                asset === RETH_ADDRESS[chainId]
                   ? 14847900
                   : BLOCK_NUMBER[chainId],
             },
