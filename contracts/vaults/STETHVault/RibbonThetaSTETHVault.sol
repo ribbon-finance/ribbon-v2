@@ -18,6 +18,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaSTETHVaultStorage
 } from "../../storage/RibbonThetaSTETHVaultStorage.sol";
+import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -257,6 +258,14 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         currentOtokenPremium = minPrice;
     }
 
+    /**
+     * @notice Sets the new Vault Pauser contract for this vault
+     * @param newVaultPauser is the address of the new vaultPauser contract
+     */
+    function setVaultPauser(address newVaultPauser) external onlyOwner {
+        vaultPauser = newVaultPauser;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -478,5 +487,18 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             address(collateralToken),
             STETH
         );
+    }
+
+    /**
+     * @notice pause a user's vault position
+     */
+    function pausePosition() external {
+        address _vaultPauser = vaultPauser;
+        require(_vaultPauser != address(0)); // Removed revert msgs due to contract size limit
+        _redeem(0, true);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        _approve(msg.sender, _vaultPauser, heldByAccount);
+        _transfer(msg.sender, _vaultPauser, heldByAccount);
+        IVaultPauser(_vaultPauser).pausePosition(msg.sender, heldByAccount);
     }
 }

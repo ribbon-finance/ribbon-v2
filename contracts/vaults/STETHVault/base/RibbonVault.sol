@@ -331,11 +331,14 @@ contract RibbonVault is
      * @notice Deposits the `collateralAsset` into the contract and mint vault shares.
      * @param amount is the amount of `collateralAsset` to deposit
      */
-    function depositYieldToken(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
+    function depositYieldToken(uint256 amount, address creditor)
+        external
+        nonReentrant
+    {
+        require(amount > 0 && creditor != address(0), "!arg");
 
         // stETH transfers suffer from an off-by-1 error
-        _depositFor(amount.sub(1), msg.sender, false);
+        _depositFor(amount.sub(1), creditor, false);
 
         IERC20(STETH).safeTransferFrom(msg.sender, address(this), amount);
     }
