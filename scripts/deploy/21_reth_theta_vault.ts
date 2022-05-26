@@ -68,7 +68,7 @@ const main = async ({
       cap: parseEther("1000"),
     },
   ];
-  const initData = RibbonThetaSTETHVault.interface.encodeFunctionData(
+  const initData = RibbonThetaRETHVault.interface.encodeFunctionData(
     "initialize",
     initArgs
   );
