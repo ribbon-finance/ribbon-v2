@@ -17,6 +17,7 @@ import {
   APE_ADDRESS,
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
+  BAL_ADDRESS,
   YEARN_PRICER_OWNER,
   SAVAX_PRICER,
   GAMMA_CONTROLLER,
@@ -356,7 +357,8 @@ export async function mintToken(
   } else if (
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
-    contract.address === APE_ADDRESS[chainId]
+    contract.address === APE_ADDRESS[chainId] ||
+    contract.address === BAL_ADDRESS[chainId]
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
