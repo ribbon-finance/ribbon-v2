@@ -125,7 +125,7 @@ describe("RibbonTreasuryVault", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 161000,
+      depositWorstCase: 169000,
       depositBestCase: 95000,
     },
     mintConfig: {
@@ -507,7 +507,7 @@ function behavesLikeRibbonOptionsVault(params: {
           firstOptionExpiry,
           params.isPut
         )
-      );
+      ).mul(BigNumber.from(11)).div(BigNumber.from(10));
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
