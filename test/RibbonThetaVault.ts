@@ -444,7 +444,7 @@ function behavesLikeRibbonOptionsVault(params: {
               jsonRpcUrl: TEST_URI[chainId],
               blockNumber:
                 asset === RETH_ADDRESS[chainId]
-                  ? 14847900
+                  ? 14854158
                   : BLOCK_NUMBER[chainId],
             },
           },
