@@ -507,7 +507,7 @@ function behavesLikeRibbonOptionsVault(params: {
           firstOptionExpiry,
           params.isPut
         )
-      ).mul(BigNumber.from(20)).div(BigNumber.from(10));
+      );
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
@@ -3164,7 +3164,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmount.mul(3), keeper);
 
-        let bidMultiplier = 1;
+        let bidMultiplier = 1.25;
 
         let tokenContract = premiumInStables ? premiumContract : assetContract;
 
