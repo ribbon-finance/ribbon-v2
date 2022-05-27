@@ -15,6 +15,7 @@ import {
   ORACLE_OWNER,
   USDC_ADDRESS,
   APE_ADDRESS,
+  RETH_ADDRESS,
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
   YEARN_PRICER_OWNER,
@@ -356,7 +357,8 @@ export async function mintToken(
   } else if (
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
-    contract.address === APE_ADDRESS[chainId]
+    contract.address === APE_ADDRESS[chainId] ||
+    contract.address === RETH_ADDRESS[chainId]
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
