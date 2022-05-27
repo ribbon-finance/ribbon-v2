@@ -117,7 +117,7 @@ describe("RibbonTreasuryVault", () => {
     depositAmount: parseEther("20"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("2000000000"),
-    premiumDiscount: BigNumber.from("997"),
+    premiumDiscount: BigNumber.from("900"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
     manualStrikePrice: BigNumber.from("1").pow("8"),
@@ -3164,7 +3164,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(firstOptionAddress, depositAmount.mul(3), keeper);
 
-        let bidMultiplier = 1.25;
+        let bidMultiplier = 1;
 
         let tokenContract = premiumInStables ? premiumContract : assetContract;
 
