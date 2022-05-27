@@ -54,6 +54,8 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
     mapping(address => uint256) public referralFees;
 
+    mapping(address => address) public authorized;
+
     /**
      * @notice Double mapping of signers to nonce groups to nonce states
      * @dev The nonce group is computed as nonce / 256, so each group of 256 sequential nonces uses the same key
@@ -204,6 +206,27 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     }
 
     /**
+     * @notice Authorize a signer
+     * @param signer address Wallet of the signer to authorize
+     * @dev Emits an Authorize event
+     */
+    function authorize(address signer) external override {
+        require(signer != address(0), "SIGNER_INVALID");
+        authorized[msg.sender] = signer;
+        emit Authorize(signer, msg.sender);
+    }
+
+    /**
+     * @notice Revoke the signer
+     * @dev Emits a Revoke event
+     */
+    function revoke() external override {
+        address tmp = authorized[msg.sender];
+        delete authorized[msg.sender];
+        emit Revoke(tmp, msg.sender);
+    }
+
+    /**
      * @notice Cancel one or more nonces
      * @dev Cancelled nonces are marked as used
      * @dev Emits a Cancel event
@@ -249,8 +272,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             errCount++;
         }
 
-        if (signatory != bid.signerWallet) {
-            errors[errCount] = "SIGNATURE_MISMATCHED";
+        if (
+            bid.signerWallet != signatory &&
+            authorized[bid.signerWallet] != signatory
+        ) {
+            errors[errCount] = "UNAUTHORIZED";
             errCount++;
         }
 
@@ -372,8 +398,13 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
         require(DOMAIN_CHAIN_ID == getChainId(), "CHAIN_ID_CHANGED");
 
         address signatory = _getSignatory(bid);
+
+        if (bid.signerWallet != signatory) {
+            require(authorized[bid.signerWallet] == signatory, "UNAUTHORIZED");
+        }
+
         require(signatory != address(0), "SIGNATURE_INVALID");
-        require(signatory == bid.signerWallet, "SIGNATURE_MISMATCHED");
+
         require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
         require(
             bid.buyAmount <= offer.availableSize,
