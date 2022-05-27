@@ -109,7 +109,7 @@ describe("RibbonTreasuryVault", () => {
     tokenName: "Ribbon BAL Treasury Vault",
     tokenSymbol: "rBAL-TSRY",
     asset: BAL_ADDRESS[chainId],
-    assetContractName: "IPERP",
+    assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: BAL_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_BAL_PRICER[chainId],
