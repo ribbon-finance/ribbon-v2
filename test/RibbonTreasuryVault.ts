@@ -507,7 +507,7 @@ function behavesLikeRibbonOptionsVault(params: {
           firstOptionExpiry,
           params.isPut
         )
-      ).mul(BigNumber.from(11)).div(BigNumber.from(10));
+      ).mul(BigNumber.from(20)).div(BigNumber.from(10));
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
         params.asset,
