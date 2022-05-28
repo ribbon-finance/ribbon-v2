@@ -257,7 +257,7 @@ describe("RibbonThetaVault", () => {
       depositBestCase: 93300,
     },
     mintConfig: {
-      amount: parseEther("20"),
+      amount: parseEther("100"),
       contractOwnerAddress: RETH_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.ETH_MAINNET],
@@ -3747,7 +3747,8 @@ function behavesLikeRibbonOptionsVault(params: {
     ) {
       describe("pricePerShare checks", () => {
         // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
-        const totalDepositAmount = parseUnits(asset === RETH_ADDRESS[chainId] ? "1000" : "10000", params.tokenDecimals);
+        // const totalDepositAmount = parseUnits(asset === RETH_ADDRESS[chainId] ? "10" : "10000", params.tokenDecimals);
+        const totalDepositAmount = parseUnits("10000", params.tokenDecimals);
         const depositAmount = totalDepositAmount.div(2); // 5000
 
         time.revertToSnapshotAfterEach(async () => {
@@ -3799,7 +3800,9 @@ function behavesLikeRibbonOptionsVault(params: {
             await vault.pricePerShare(),
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare == 1
-
+          console.log(asset);
+          console.log(assetContract);
+          console.log(params.tokenDecimals);
           // Transfer 50 tokens in premiums to vault
           const premiumAmount = parseUnits("50", params.tokenDecimals);
           await mintToken(
