@@ -3799,9 +3799,7 @@ function behavesLikeRibbonOptionsVault(params: {
             await vault.pricePerShare(),
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare == 1
-          console.log(asset);
-          console.log(assetContract);
-          console.log(params.tokenDecimals);
+
           // Transfer 50 tokens in premiums to vault
           const premiumAmount = parseUnits("50", params.tokenDecimals);
           await mintToken(
