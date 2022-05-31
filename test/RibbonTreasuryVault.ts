@@ -126,7 +126,7 @@ describe("RibbonTreasuryVault", () => {
     isPut: false,
     gasLimits: {
       depositWorstCase: 169000,
-      depositBestCase: 95000,
+      depositBestCase: 102201,
     },
     mintConfig: {
       contractOwnerAddress: BAL_OWNER_ADDRESS[chainId],
