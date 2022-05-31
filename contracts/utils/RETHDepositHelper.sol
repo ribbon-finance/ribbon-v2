@@ -25,8 +25,9 @@ contract RETHDepositHelper {
     }
 
     function deposit() external payable {
+        uint256 rETHAmount = rETH.getRethValue(msg.value);
         depositPool.deposit{value: msg.value}();
         rETH.approve(address(rETHVault), msg.value);
-        rETHVault.depositFor(msg.value, msg.sender);
+        rETHVault.depositFor(rETHAmount, msg.sender);
     }
 }
