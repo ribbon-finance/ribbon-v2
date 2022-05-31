@@ -3253,6 +3253,11 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
 
+        firstOptionPremium =
+          params.collateralAsset === BAL_ADDRESS[chainId]
+            ? firstOptionPremium.mul(12).div(8)
+            : firstOptionPremium;
+
         auctionDetails = await bidForOToken(
           gnosisAuction,
           tokenContract,
