@@ -3743,7 +3743,8 @@ function behavesLikeRibbonOptionsVault(params: {
     if (
       chainId === CHAINID.ETH_MAINNET &&
       params.protocol === OPTION_PROTOCOL.GAMMA &&
-      params.mintConfig
+      params.mintConfig &&
+      params.collateralAsset != RETH_ADDRESS[chainId]
     ) {
       describe("pricePerShare checks", () => {
         // Deposit 10000 tokens in the vault (5000 from user 0, 5000 from user 1)
