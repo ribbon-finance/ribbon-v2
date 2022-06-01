@@ -141,8 +141,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
         address currentVaultAddress = address(msg.sender);
         IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
 
-        // check if position is paused due to steth and yearn vault contract
-        // being too large, we had to check here
+        // check if position is paused
         require(
             !pausedPositions[currentVaultAddress][_account].paused,
             "Position is paused"

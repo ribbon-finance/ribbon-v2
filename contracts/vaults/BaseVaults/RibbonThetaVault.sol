@@ -543,14 +543,12 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
     function pausePosition() external {
         address _vaultPauserAddress = vaultPauser;
         require(_vaultPauserAddress != address(0)); // Removed revert msgs due to contract size limit
-        IVaultPauser _vaultPauser = IVaultPauser(_vaultPauserAddress);
-        require(
-            !_vaultPauser.isPaused(address(this), msg.sender),
-            "Position is paused"
-        );
         _redeem(0, true);
         uint256 heldByAccount = balanceOf(msg.sender);
         _approve(msg.sender, _vaultPauserAddress, heldByAccount);
-        _vaultPauser.pausePosition(msg.sender, heldByAccount);
+        IVaultPauser(_vaultPauserAddress).pausePosition(
+            msg.sender,
+            heldByAccount
+        );
     }
 }
