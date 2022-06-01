@@ -24,12 +24,11 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
     /// @notice Stores all the vault's paused positions
     struct PauseReceipt {
         uint16 round;
-        address account;
         uint128 shares;
-        bool paused;
     }
 
     mapping(address => mapping(address => PauseReceipt)) public pausedPositions;
+    mapping(address => bool) private registeredVaults;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
@@ -95,15 +94,6 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
      *  GETTERS
      ***********************************************/
 
-    function isPaused(address _vaultAddress, address _userAddress)
-        external
-        view
-        override
-        returns (bool paused)
-    {
-        return pausedPositions[_vaultAddress][_userAddress].paused;
-    }
-
     function getPausePosition(address _vaultAddress, address _userAddress)
         external
         view
@@ -118,11 +108,19 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
 
     /**
      * @notice Sets the new keeper
-     * @param newKeeper is the address of the new keeper
+     * @param _newKeeper is the address of the new keeper
      */
-    function setNewKeeper(address newKeeper) external onlyOwner {
-        require(newKeeper != address(0), "!newKeeper");
-        keeper = newKeeper;
+    function setNewKeeper(address _newKeeper) external onlyOwner {
+        require(_newKeeper != address(0), "!newKeeper");
+        keeper = _newKeeper;
+    }
+
+    /**
+     * @notice add vault into registered vaults
+     * @param _vaultAddress is the address of the new keeper
+     */
+    function addVault(address _vaultAddress) external onlyKeeper {
+        registeredVaults[_vaultAddress] = true;
     }
 
     /************************************************
@@ -141,9 +139,18 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
         address currentVaultAddress = address(msg.sender);
         IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
 
+        // check if vault is registered
+        require(
+            registeredVaults[currentVaultAddress],
+            "Vault is not registered"
+        );
+
         // check if position is paused
         require(
-            !pausedPositions[currentVaultAddress][_account].paused,
+            pausedPositions[currentVaultAddress][_account].shares ==
+                uint128(0) &&
+                pausedPositions[currentVaultAddress][_account].round ==
+                uint128(0),
             "Position is paused"
         );
 
@@ -158,9 +165,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
 
         pausedPositions[currentVaultAddress][_account] = PauseReceipt({
             round: round,
-            account: address(_account),
-            shares: uint104(_amount),
-            paused: true
+            shares: uint104(_amount)
         });
 
         emit Pause(_account, currentVaultAddress, _amount, round);
@@ -192,14 +197,6 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
                 currentParams.decimals
             );
 
-        // revert receipts back to none
-        pausedPositions[_vaultAddress][currentUser] = PauseReceipt({
-            round: 0,
-            account: currentUser,
-            shares: uint104(0),
-            paused: false
-        });
-
         // stETH transfers suffer from an off-by-1 error
         // since we received STETH , we shall deposit using STETH instead of ETH
         if (_vaultAddress == STETH_VAULT) {
@@ -208,18 +205,23 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
             emit Resume(currentUser, _vaultAddress, totalWithdrawAmount.sub(1));
             IERC20(STETH).approve(_vaultAddress, totalWithdrawAmount);
             currentVault.depositYieldToken(totalWithdrawAmount, currentUser);
-            return;
+        } else {
+            emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
+
+            // if asset is ETH, we will convert it into WETH before depositing
+            if (currentParams.asset == WETH) {
+                IWETH(WETH).deposit{value: totalWithdrawAmount}();
+            }
+            IERC20(currentParams.asset).approve(
+                _vaultAddress,
+                totalWithdrawAmount
+            );
+
+            currentVault.depositFor(totalWithdrawAmount, currentUser);
         }
 
-        emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
-
-        // if asset is ETH, we will convert it into WETH before depositing
-        if (currentParams.asset == WETH) {
-            IWETH(WETH).deposit{value: totalWithdrawAmount}();
-        }
-        IERC20(currentParams.asset).approve(_vaultAddress, totalWithdrawAmount);
-
-        currentVault.depositFor(totalWithdrawAmount, currentUser);
+        // delete position once transfer (revert to zero)
+        delete pausedPositions[_vaultAddress][currentUser];
     }
 
     /**
