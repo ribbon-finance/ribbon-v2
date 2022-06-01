@@ -10,13 +10,4 @@ interface IVaultPauser {
     /// @notice resume vault position of an account with max amount
     /// @param _vaultAddress the address of vault
     function resumePosition(address _vaultAddress) external;
-
-    /// @notice check if there is exist paused position
-    /// @param _vaultAddress the address of vault
-    /// @param _userAddress the address of user
-
-    function isPaused(address _vaultAddress, address _userAddress)
-        external
-        view
-        returns (bool paused);
 }
