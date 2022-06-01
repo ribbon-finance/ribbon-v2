@@ -2,35 +2,18 @@
 pragma solidity =0.8.4;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {
-    ReentrancyGuardUpgradeable
-} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {
-    OwnableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {
-    ERC20Upgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
 import {RibbonVault} from "../BaseVaults/base/RibbonVault.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
-import {
-    RibbonVaultPauserStorage
-} from "../../storage/RibbonVaultPauserStorage.sol";
 
-contract RibbonVaultPauser is
-    ReentrancyGuardUpgradeable,
-    OwnableUpgradeable,
-    IVaultPauser,
-    RibbonVaultPauserStorage
-{
+contract RibbonVaultPauser is Ownable, IVaultPauser {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
@@ -43,10 +26,10 @@ contract RibbonVaultPauser is
         uint16 round;
         address account;
         uint128 shares;
+        bool paused;
     }
 
-    mapping(address => mapping(address => PauseReceipt[]))
-        public pausedPositions;
+    mapping(address => mapping(address => PauseReceipt)) public pausedPositions;
 
     /************************************************
      *  IMMUTABLES & CONSTANTS
@@ -54,7 +37,9 @@ contract RibbonVaultPauser is
     /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     address public immutable WETH;
     address public immutable STETH;
+    address public immutable STETH_VAULT;
 
+    address public keeper;
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -81,21 +66,21 @@ contract RibbonVaultPauser is
     /**
      * @notice Initializes the contract with immutable variables
      */
-    constructor(address _weth, address _steth) {
+    constructor(
+        address _keeper,
+        address _weth,
+        address _steth,
+        address _steth_vault
+    ) {
+        require(_keeper != address(0), "!_keeper");
         require(_weth != address(0), "!_weth");
+        require(_steth != address(0), "!_steth");
+        require(_steth_vault != address(0), "!_steth_vault");
 
+        keeper = _keeper;
         WETH = _weth;
         STETH = _steth;
-    }
-
-    // /**
-    //  * @notice Initializes the contract with storage variables.
-    //  */
-    function initialize(address _owner, address _keeper) external initializer {
-        __ReentrancyGuard_init();
-        __Ownable_init();
-        transferOwnership(_owner);
-        keeper = _keeper;
+        STETH_VAULT = _steth_vault;
     }
 
     /**
@@ -110,13 +95,19 @@ contract RibbonVaultPauser is
      *  GETTERS
      ***********************************************/
 
-    /**
-     * @notice gets pause position for specific vault and user
-     */
-    function getPausePositions(address _vaultAddress, address _userAddress)
+    function isPaused(address _vaultAddress, address _userAddress)
         external
         view
-        returns (PauseReceipt[] memory)
+        override
+        returns (bool paused)
+    {
+        return pausedPositions[_vaultAddress][_userAddress].paused;
+    }
+
+    function getPausePosition(address _vaultAddress, address _userAddress)
+        external
+        view
+        returns (PauseReceipt memory)
     {
         return pausedPositions[_vaultAddress][_userAddress];
     }
@@ -150,25 +141,30 @@ contract RibbonVaultPauser is
         address currentVaultAddress = address(msg.sender);
         IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
 
-        PauseReceipt[] storage pauseReceipts =
-            pausedPositions[currentVaultAddress][_account];
-
-        // user can pause multiple position hence it's necessary to make an array
-        // to store each paused position
-        pauseReceipts.push(
-            PauseReceipt({
-                round: uint16(currentVault.vaultState().round),
-                account: address(_account),
-                shares: uint104(_amount)
-            })
+        // check if position is paused due to steth and yearn vault contract
+        // being too large, we had to check here
+        require(
+            !pausedPositions[currentVaultAddress][_account].paused,
+            "Position is paused"
         );
 
-        emit Pause(
+        // transfer from user to pauser
+        IERC20(currentVaultAddress).safeTransferFrom(
             _account,
-            currentVaultAddress,
-            _amount,
-            currentVault.vaultState().round
+            address(this),
+            _amount
         );
+
+        uint16 round = currentVault.vaultState().round;
+
+        pausedPositions[currentVaultAddress][_account] = PauseReceipt({
+            round: round,
+            account: address(_account),
+            shares: uint104(_amount),
+            paused: true
+        });
+
+        emit Pause(_account, currentVaultAddress, _amount, round);
 
         currentVault.initiateWithdraw(_amount);
     }
@@ -179,39 +175,36 @@ contract RibbonVaultPauser is
      */
     function resumePosition(address _vaultAddress) external override {
         IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
-
         address currentUser = address(msg.sender);
 
-        PauseReceipt[] memory pauseReceipts =
+        // get params and round
+        Vault.VaultParams memory currentParams = currentVault.vaultParams();
+        uint16 round = currentVault.vaultState().round;
+
+        PauseReceipt memory pauseReceipts =
             pausedPositions[_vaultAddress][currentUser];
 
-        // loop all receipts, convert into withdraw amount and sum it up
-        uint256 totalWithdrawAmount = 0;
-        uint256 receiptsLength = pauseReceipts.length;
-        for (uint16 i = 0; i < receiptsLength; i++) {
-            if (pauseReceipts[i].round < currentVault.vaultState().round) {
-                totalWithdrawAmount += ShareMath.sharesToAsset(
-                    pauseReceipts[i].shares,
-                    currentVault.roundPricePerShare(
-                        uint256(pauseReceipts[i].round)
-                    ),
-                    currentVault.vaultParams().decimals
-                );
-            }
-        }
+        // check if roun is closed before resuming position
+        require(pauseReceipts.round < round, "Round not closed yet");
+        uint256 totalWithdrawAmount =
+            ShareMath.sharesToAsset(
+                pauseReceipts.shares,
+                currentVault.roundPricePerShare(uint256(pauseReceipts.round)),
+                currentParams.decimals
+            );
 
-        // delete receipts once finish calculating total withdraw amount
-        delete pausedPositions[_vaultAddress][currentUser];
-
-        string memory currentSymbol = currentVault.symbol();
+        // revert receipts back to none
+        pausedPositions[_vaultAddress][currentUser] = PauseReceipt({
+            round: 0,
+            account: currentUser,
+            shares: uint104(0),
+            paused: false
+        });
 
         // stETH transfers suffer from an off-by-1 error
         // since we received STETH , we shall deposit using STETH instead of ETH
-        if (
-            (keccak256(abi.encodePacked(currentSymbol)) ==
-                keccak256(abi.encodePacked("rSTETH-THETA")))
-        ) {
-            totalWithdrawAmount = totalWithdrawAmount.sub((3 * receiptsLength));
+        if (_vaultAddress == STETH_VAULT) {
+            totalWithdrawAmount = totalWithdrawAmount.sub((3));
 
             emit Resume(currentUser, _vaultAddress, totalWithdrawAmount.sub(1));
             IERC20(STETH).approve(_vaultAddress, totalWithdrawAmount);
@@ -220,14 +213,12 @@ contract RibbonVaultPauser is
         }
 
         emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
+
         // if asset is ETH, we will convert it into WETH before depositing
-        if (currentVault.vaultParams().asset == WETH) {
+        if (currentParams.asset == WETH) {
             IWETH(WETH).deposit{value: totalWithdrawAmount}();
         }
-        IERC20(currentVault.vaultParams().asset).approve(
-            _vaultAddress,
-            totalWithdrawAmount
-        );
+        IERC20(currentParams.asset).approve(_vaultAddress, totalWithdrawAmount);
 
         currentVault.depositFor(totalWithdrawAmount, currentUser);
     }
@@ -237,10 +228,6 @@ contract RibbonVaultPauser is
      * @param _vaultAddress vault's address to be processed
      */
     function processWithdrawal(address _vaultAddress) external onlyKeeper {
-        _processWithdrawal(_vaultAddress);
-    }
-
-    function _processWithdrawal(address _vaultAddress) private {
         IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
         // we can only process withdrawal after closing the previous round
         // hence round should be - 1
@@ -250,4 +237,8 @@ contract RibbonVaultPauser is
         );
         currentVault.completeWithdraw();
     }
+
+    fallback() external payable {}
+
+    receive() external payable {}
 }
