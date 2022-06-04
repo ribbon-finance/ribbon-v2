@@ -331,7 +331,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: asset === BAL_ADDRESS[chainId] ? 14854158 : 14087600,
+              blockNumber: asset === BAL_ADDRESS[chainId] ? 14890858 : 14087600,
             },
           },
         ],
@@ -3253,10 +3253,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
 
-        firstOptionPremium =
-          params.collateralAsset === BAL_ADDRESS[chainId]
-            ? firstOptionPremium.mul(12).div(8)
-            : firstOptionPremium;
+//         firstOptionPremium =
+//           params.collateralAsset === BAL_ADDRESS[chainId]
+//             ? firstOptionPremium.mul(12).div(8)
+//             : firstOptionPremium;
 
         auctionDetails = await bidForOToken(
           gnosisAuction,
