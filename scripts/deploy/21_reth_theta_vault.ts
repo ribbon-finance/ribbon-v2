@@ -18,7 +18,7 @@ const main = async ({
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
     console.log(
-      `20 - Skipping deployment rETH Call Theta Vault on ${network.name} because no rETH on Avax`
+      `21 - Skipping deployment rETH Call Theta Vault on ${network.name} because no rETH on Avax`
     );
     return;
   }
@@ -29,36 +29,38 @@ const main = async ({
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
 
-  console.log(`20 - Deploying rETH Call Theta Vault on ${network.name}`);
+  console.log(`21 - Deploying rETH Call Theta Vault on ${network.name}`);
 
-  const pricer = await deployments.get("OptionsPremiumPricerETH");
+  const pricer = "0x5ba2a42b74a72a1a3ccc37cf03802a0b7a551139" //await deployments.get("OptionsPremiumPricerETHCall");
 
-  const strikeSelection = await deployments.get("StrikeSelectionETH");
+  const strikeSelection = "0xab40513b6f0a33a68b59ccf90cb6f892b4be1573" //await deployments.get("StrikeSelectionETHCall");
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const logicDeployment = "0xd584e753e44d5cded8588821ce64196a7306f8e5" // await deployments.get("RibbonThetaVaultLogic");
+  const lifecycle = "0xE6342509ae61b63F015f268953FCA0dE71e61128" //await deployments.get("VaultLifecycle");
 
   const RibbonThetaRETHVault = await ethers.getContractFactory(
     "RibbonThetaVault",
     {
       libraries: {
-        VaultLifecycle: lifecycle.address,
+        VaultLifecycle: lifecycle,
       },
     }
   );
 
   const initArgs = [
-    owner,
-    keeper,
-    feeRecipient,
-    MANAGEMENT_FEE,
-    PERFORMANCE_FEE,
-    "Ribbon rETH Theta Vault",
-    "rrETH-THETA",
-    pricer.address,
-    strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
+    {
+    _owner: owner,
+    _keeper: keeper,
+    _feeRecipient: feeRecipient,
+    _managementFee: MANAGEMENT_FEE,
+    _performanceFee: PERFORMANCE_FEE,
+    _tokenName: "Ribbon rETH Theta Vault",
+    _tokenSymbol: "rrETH-THETA",
+    _optionsPremiumPricer: pricer,
+    _strikeSelection: strikeSelection,
+    _premiumDiscount: PREMIUM_DISCOUNT,
+    _auctionDuration: AUCTION_DURATION,
+    },
     {
       isPut: false,
       decimals: 18,
@@ -76,7 +78,7 @@ const main = async ({
   const proxy = await deploy("RibbonThetaVaultRETHCall", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
-    args: [logicDeployment.address, admin, initData],
+    args: [logicDeployment, admin, initData],
   });
 
   console.log(`RibbonThetaVaultRETHCall Proxy @ ${proxy.address}`);
@@ -84,7 +86,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: proxy.address,
-      constructorArguments: [logicDeployment.address, admin, initData],
+      constructorArguments: [logicDeployment, admin, initData],
     });
   } catch (error) {
     console.log(error);
