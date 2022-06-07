@@ -18,7 +18,7 @@ const main = async ({
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
     console.log(
-      `20 - Skipping deployment rETH Call Theta Vault on ${network.name} because no rETH on Avax`
+      `21 - Skipping deployment rETH Call Theta Vault on ${network.name} because no rETH on Avax`
     );
     return;
   }
@@ -29,11 +29,10 @@ const main = async ({
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
 
-  console.log(`20 - Deploying rETH Call Theta Vault on ${network.name}`);
+  console.log(`21 - Deploying rETH Call Theta Vault on ${network.name}`);
 
-  const pricer = await deployments.get("OptionsPremiumPricerETH");
-
-  const strikeSelection = await deployments.get("StrikeSelectionETH");
+  const pricer = await deployments.get("OptionsPremiumPricerETHCall");
+  const strikeSelection = "0xab40513b6f0a33a68b59ccf90cb6f892b4be1573"; //await deployments.get("StrikeSelectionETH");
 
   const logicDeployment = await deployments.get("RibbonThetaVaultLogic");
   const lifecycle = await deployments.get("VaultLifecycle");
@@ -48,17 +47,19 @@ const main = async ({
   );
 
   const initArgs = [
-    owner,
-    keeper,
-    feeRecipient,
-    MANAGEMENT_FEE,
-    PERFORMANCE_FEE,
-    "Ribbon rETH Theta Vault",
-    "rrETH-THETA",
-    pricer.address,
-    strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
+    {
+      _owner: owner,
+      _keeper: keeper,
+      _feeRecipient: feeRecipient,
+      _managementFee: MANAGEMENT_FEE,
+      _performanceFee: PERFORMANCE_FEE,
+      _tokenName: "Ribbon rETH Theta Vault",
+      _tokenSymbol: "rrETH-THETA",
+      _optionsPremiumPricer: pricer.address,
+      _strikeSelection: strikeSelection,
+      _premiumDiscount: PREMIUM_DISCOUNT,
+      _auctionDuration: AUCTION_DURATION,
+    },
     {
       isPut: false,
       decimals: 18,
