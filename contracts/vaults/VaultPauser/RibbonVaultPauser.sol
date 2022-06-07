@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
@@ -10,12 +9,10 @@ import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
-import {RibbonVault} from "../BaseVaults/base/RibbonVault.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 
 contract RibbonVaultPauser is Ownable, IVaultPauser {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
 
     /************************************************
      *  NON UPGRADEABLE STORAGE
@@ -145,19 +142,13 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
             "Vault is not registered"
         );
 
-        PauseReceipt storage pausedPosition = pausedPositions[currentVaultAddress][_account];
+        PauseReceipt storage pausedPosition =
+            pausedPositions[currentVaultAddress][_account];
 
         // check if position is paused
         require(
             pausedPosition.shares == 0 && pausedPosition.round == 0,
             "Position is paused"
-        );
-
-        // transfer from user to pauser
-        IERC20(currentVaultAddress).safeTransferFrom(
-            _account,
-            address(this),
-            _amount
         );
 
         uint16 round = currentVault.vaultState().round;
@@ -171,6 +162,13 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
 
         emit Pause(_account, currentVaultAddress, _amount, round);
 
+        // transfer from user to pauser
+        IERC20(currentVaultAddress).safeTransferFrom(
+            _account,
+            address(this),
+            _amount
+        );
+
         currentVault.initiateWithdraw(_amount);
     }
 
@@ -180,22 +178,19 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
      */
     function resumePosition(address _vaultAddress) external override {
         IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
-        
+
         // check if vault is registered
-        require(
-            registeredVaults[_vaultAddress],
-            "Vault is not registered"
-        );
+        require(registeredVaults[_vaultAddress], "Vault is not registered");
 
         address currentUser = address(msg.sender);
 
         // get params and round
         Vault.VaultParams memory currentParams = currentVault.vaultParams();
-        uint round = currentVault.vaultState().round;
+        uint256 round = currentVault.vaultState().round;
 
         PauseReceipt storage pauseReceipt =
             pausedPositions[_vaultAddress][currentUser];
-        uint pauseReceiptRound = pauseReceipt.round;
+        uint256 pauseReceiptRound = pauseReceipt.round;
 
         // check if roun is closed before resuming position
         require(pauseReceiptRound < round, "Round not closed yet");
@@ -212,9 +207,9 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
         // stETH transfers suffer from an off-by-1 error
         // since we received STETH , we shall deposit using STETH instead of ETH
         if (_vaultAddress == STETH_VAULT) {
-            totalWithdrawAmount = totalWithdrawAmount.sub((3));
+            totalWithdrawAmount = totalWithdrawAmount - 3;
 
-            emit Resume(currentUser, _vaultAddress, totalWithdrawAmount.sub(1));
+            emit Resume(currentUser, _vaultAddress, totalWithdrawAmount - 1);
             IERC20(STETH).safeApprove(_vaultAddress, totalWithdrawAmount);
             currentVault.depositYieldToken(totalWithdrawAmount, currentUser);
         } else {
