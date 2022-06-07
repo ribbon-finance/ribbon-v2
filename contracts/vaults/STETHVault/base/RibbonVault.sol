@@ -330,6 +330,7 @@ contract RibbonVault is
      * @param creditor is the amount of `collateralAsset` to deposit
      */
     function depositYieldTokenFor(uint256 amount, address creditor) external {
+        require(creditor != address(0), "!creditor");
         _depositYieldTokenFor(amount, creditor);
     }
 
@@ -342,7 +343,7 @@ contract RibbonVault is
         // stETH transfers suffer from an off-by-1 error
         _depositFor(amount.sub(1), creditor, false);
 
-        IERC20(STETH).safeTransferFrom(creditor, address(this), amount);
+        IERC20(STETH).safeTransferFrom(msg.sender, address(this), amount);
     }
 
     /**

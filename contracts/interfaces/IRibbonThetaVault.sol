@@ -28,7 +28,7 @@ interface IRibbonThetaVault {
 
     function maxRedeem() external;
 
-    function depositYieldToken(uint256 amount, address creditor) external;
+    function depositYieldTokenFor(uint256 amount, address creditor) external;
 
     function symbol() external view returns (string calldata);
 }
