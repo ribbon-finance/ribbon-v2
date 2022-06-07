@@ -182,14 +182,12 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
         // check if vault is registered
         require(registeredVaults[_vaultAddress], "Vault is not registered");
 
-        address currentUser = address(msg.sender);
-
         // get params and round
         Vault.VaultParams memory currentParams = currentVault.vaultParams();
         uint256 round = currentVault.vaultState().round;
 
         PauseReceipt storage pauseReceipt =
-            pausedPositions[_vaultAddress][currentUser];
+            pausedPositions[_vaultAddress][msg.sender];
         uint256 pauseReceiptRound = pauseReceipt.round;
 
         // check if roun is closed before resuming position
@@ -202,18 +200,18 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
             );
 
         // delete position once transfer (revert to zero)
-        delete pausedPositions[_vaultAddress][currentUser];
+        delete pausedPositions[_vaultAddress][msg.sender];
 
         // stETH transfers suffer from an off-by-1 error
         // since we received STETH , we shall deposit using STETH instead of ETH
         if (_vaultAddress == STETH_VAULT) {
             totalWithdrawAmount = totalWithdrawAmount - 3;
 
-            emit Resume(currentUser, _vaultAddress, totalWithdrawAmount - 1);
+            emit Resume(msg.sender, _vaultAddress, totalWithdrawAmount - 1);
             IERC20(STETH).safeApprove(_vaultAddress, totalWithdrawAmount);
-            currentVault.depositYieldToken(totalWithdrawAmount, currentUser);
+            currentVault.depositYieldToken(totalWithdrawAmount, msg.sender);
         } else {
-            emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
+            emit Resume(msg.sender, _vaultAddress, totalWithdrawAmount);
 
             // if asset is ETH, we will convert it into WETH before depositing
             if (currentParams.asset == WETH) {
@@ -224,7 +222,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
                 totalWithdrawAmount
             );
 
-            currentVault.depositFor(totalWithdrawAmount, currentUser);
+            currentVault.depositFor(totalWithdrawAmount, msg.sender);
         }
     }
 
