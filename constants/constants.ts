@@ -360,6 +360,11 @@ export const APE_OPTION_ID = {
     "0x53df032786f782a036aa7a561d8fe9eea0710602cab739e0ef3ce0f06560df00",
 };
 
+export const NETWORK_NAMES = {
+  [CHAINID.ETH_MAINNET]: "ETH",
+  [CHAINID.AVAX_MAINNET]: "AVAX",
+};
+
 /**
  * Curve Pool
  */
