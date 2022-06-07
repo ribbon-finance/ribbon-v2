@@ -136,7 +136,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
         external
         override
     {
-        address currentVaultAddress = address(msg.sender);
+        address currentVaultAddress = msg.sender;
         IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
 
         // check if vault is registered
@@ -145,12 +145,11 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
             "Vault is not registered"
         );
 
+        PauseReceipt storage pausedPosition = pausedPositions[currentVaultAddress][_account];
+
         // check if position is paused
         require(
-            pausedPositions[currentVaultAddress][_account].shares ==
-                uint128(0) &&
-                pausedPositions[currentVaultAddress][_account].round ==
-                uint128(0),
+            pausedPosition.shares == 0 && pausedPosition.round == 0,
             "Position is paused"
         );
 
@@ -163,9 +162,11 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
 
         uint16 round = currentVault.vaultState().round;
 
+        require(_amount < type(uint128).max, "_amount overflow");
+
         pausedPositions[currentVaultAddress][_account] = PauseReceipt({
             round: round,
-            shares: uint104(_amount)
+            shares: uint128(_amount)
         });
 
         emit Pause(_account, currentVaultAddress, _amount, round);
@@ -179,23 +180,34 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
      */
     function resumePosition(address _vaultAddress) external override {
         IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
+        
+        // check if vault is registered
+        require(
+            registeredVaults[_vaultAddress],
+            "Vault is not registered"
+        );
+
         address currentUser = address(msg.sender);
 
         // get params and round
         Vault.VaultParams memory currentParams = currentVault.vaultParams();
-        uint16 round = currentVault.vaultState().round;
+        uint round = currentVault.vaultState().round;
 
-        PauseReceipt memory pauseReceipts =
+        PauseReceipt storage pauseReceipt =
             pausedPositions[_vaultAddress][currentUser];
+        uint pauseReceiptRound = pauseReceipt.round;
 
         // check if roun is closed before resuming position
-        require(pauseReceipts.round < round, "Round not closed yet");
+        require(pauseReceiptRound < round, "Round not closed yet");
         uint256 totalWithdrawAmount =
             ShareMath.sharesToAsset(
-                pauseReceipts.shares,
-                currentVault.roundPricePerShare(uint256(pauseReceipts.round)),
+                pauseReceipt.shares,
+                currentVault.roundPricePerShare(pauseReceiptRound),
                 currentParams.decimals
             );
+
+        // delete position once transfer (revert to zero)
+        delete pausedPositions[_vaultAddress][currentUser];
 
         // stETH transfers suffer from an off-by-1 error
         // since we received STETH , we shall deposit using STETH instead of ETH
@@ -203,7 +215,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
             totalWithdrawAmount = totalWithdrawAmount.sub((3));
 
             emit Resume(currentUser, _vaultAddress, totalWithdrawAmount.sub(1));
-            IERC20(STETH).approve(_vaultAddress, totalWithdrawAmount);
+            IERC20(STETH).safeApprove(_vaultAddress, totalWithdrawAmount);
             currentVault.depositYieldToken(totalWithdrawAmount, currentUser);
         } else {
             emit Resume(currentUser, _vaultAddress, totalWithdrawAmount);
@@ -212,16 +224,13 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
             if (currentParams.asset == WETH) {
                 IWETH(WETH).deposit{value: totalWithdrawAmount}();
             }
-            IERC20(currentParams.asset).approve(
+            IERC20(currentParams.asset).safeApprove(
                 _vaultAddress,
                 totalWithdrawAmount
             );
 
             currentVault.depositFor(totalWithdrawAmount, currentUser);
         }
-
-        // delete position once transfer (revert to zero)
-        delete pausedPositions[_vaultAddress][currentUser];
     }
 
     /**
