@@ -3901,6 +3901,11 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#resumeWithoutPause", () => {
+      time.revertToSnapshotAfterEach(async () => {
+        await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
+      });
+
       it("unable to resume position without pause", async function () {
         await expect(
           Pauser.connect(userSigner).resumePosition(vault.address)
