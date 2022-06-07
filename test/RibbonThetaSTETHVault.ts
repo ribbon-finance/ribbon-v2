@@ -1168,7 +1168,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("creates a pending deposit", async function () {
         const startBalance = await intermediaryAssetContract.balanceOf(user);
 
-        const res = await vault.depositYieldToken(depositAmount, user);
+        const res = await vault.depositYieldToken(depositAmount);
 
         assert.bnEqual(
           await intermediaryAssetContract.balanceOf(user),
@@ -1189,9 +1189,9 @@ function behavesLikeRibbonOptionsVault(params: {
       it("tops up existing deposit", async function () {
         const startBalance = await intermediaryAssetContract.balanceOf(user);
 
-        await vault.depositYieldToken(depositAmount, user);
+        await vault.depositYieldToken(depositAmount);
 
-        const tx = await vault.depositYieldToken(depositAmount, user);
+        const tx = await vault.depositYieldToken(depositAmount);
 
         assert.bnEqual(
           await intermediaryAssetContract.balanceOf(user),
@@ -1213,18 +1213,16 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("fits gas budget for deposits [ @skip-on-coverage ]", async function () {
-        await vault
-          .connect(ownerSigner)
-          .depositYieldToken(depositAmount, ownerSigner.address);
+        await vault.connect(ownerSigner).depositYieldToken(depositAmount);
 
-        const tx1 = await vault.depositYieldToken(depositAmount, user);
+        const tx1 = await vault.depositYieldToken(depositAmount);
         const receipt1 = await tx1.wait();
         assert.isAtMost(
           receipt1.gasUsed.toNumber(),
           params.gasLimits.depositWorstCase
         );
 
-        const tx2 = await vault.depositYieldToken(depositAmount, user);
+        const tx2 = await vault.depositYieldToken(depositAmount);
         const receipt2 = await tx2.wait();
         assert.isAtMost(
           receipt2.gasUsed.toNumber(),
@@ -1245,7 +1243,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault
           .connect(userSigner)
-          .depositYieldToken(BigNumber.from("10000000000"), user);
+          .depositYieldToken(BigNumber.from("10000000000"));
 
         // user needs to get back exactly 1 ether
         // even though the total has been incremented
@@ -1257,14 +1255,13 @@ function behavesLikeRibbonOptionsVault(params: {
           vault
             .connect(userSigner)
             .depositYieldToken(
-              (await collateralContract.getWstETHByStETH(minimumSupply)).sub(1),
-              user
+              (await collateralContract.getWstETHByStETH(minimumSupply)).sub(1)
             )
         ).to.be.revertedWith("Insufficient balance");
       });
 
       it("updates the previous deposit receipt", async function () {
-        await vault.depositYieldToken(params.depositAmount, user);
+        await vault.depositYieldToken(params.depositAmount);
 
         await intermediaryAssetContract
           .connect(adminSigner)
@@ -1292,7 +1289,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(amount2, depositAmountInAsset);
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
 
-        await vault.depositYieldToken(params.depositAmount, user);
+        await vault.depositYieldToken(params.depositAmount);
 
         assert.bnEqual(
           await vault.balanceOf(vault.address),
@@ -2483,7 +2480,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await steth.approve(vault.address, depositAmount);
 
-        await vault.depositYieldToken(depositAmount, user);
+        await vault.depositYieldToken(depositAmount);
 
         await vault.withdrawInstantly(depositAmount.sub(1), 0);
       });
@@ -3341,7 +3338,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#pause", () => {
       time.revertToSnapshotAfterEach(async function () {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         await assetContract
           .connect(userSigner)
@@ -3379,7 +3376,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#processWithdrawal", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         // User Deposit
         await assetContract
@@ -3439,7 +3436,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#resumePosition", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         //approving
         await assetContract
@@ -3501,6 +3498,11 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#resumeWithoutPause", () => {
+      time.revertToSnapshotAfterEach(async () => {
+        await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
+      });
+
       it("unable to resume position without pause", async function () {
         await expect(
           Pauser.connect(userSigner).resumePosition(vault.address)
@@ -3511,7 +3513,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#resumeBeforeComplete", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         await assetContract
           .connect(userSigner)
@@ -3548,7 +3550,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#processAndPauseAgain", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         await assetContract
           .connect(userSigner)
@@ -3618,7 +3620,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         assert.bnEqual(await vault.totalBalance(), depositAmount);
 
-        await vault.depositYieldToken(depositAmount, user);
+        await vault.depositYieldToken(depositAmount);
 
         assert.bnEqual(await vault.totalBalance(), depositAmount.mul(2).sub(1));
       });

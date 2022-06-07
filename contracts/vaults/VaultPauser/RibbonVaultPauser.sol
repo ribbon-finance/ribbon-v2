@@ -209,7 +209,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
 
             emit Resume(msg.sender, _vaultAddress, totalWithdrawAmount - 1);
             IERC20(STETH).safeApprove(_vaultAddress, totalWithdrawAmount);
-            currentVault.depositYieldToken(totalWithdrawAmount, msg.sender);
+            currentVault.depositYieldTokenFor(totalWithdrawAmount, msg.sender);
         } else {
             emit Resume(msg.sender, _vaultAddress, totalWithdrawAmount);
 
