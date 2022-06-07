@@ -114,7 +114,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
 
     /**
      * @notice add vault into registered vaults
-     * @param _vaultAddress is the address of the new vault to be registered 
+     * @param _vaultAddress is the address of the new vault to be registered
      */
     function addVault(address _vaultAddress) external onlyOwner {
         registeredVaults[_vaultAddress] = true;
