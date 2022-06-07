@@ -3725,7 +3725,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#pause", () => {
       time.revertToSnapshotAfterEach(async function () {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         await assetContract
           .connect(userSigner)
@@ -3762,7 +3762,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#processWithdrawal", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         // User Deposit
         await assetContract
@@ -3833,7 +3833,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#resumePosition", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         //approving
         await assetContract
@@ -3911,7 +3911,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#resumeBeforeComplete", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         await assetContract
           .connect(userSigner)
@@ -3956,7 +3956,7 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#processAndPauseAgain", () => {
       time.revertToSnapshotAfterEach(async () => {
         await vault.connect(ownerSigner).setVaultPauser(Pauser.address);
-        await Pauser.connect(keeperSigner).addVault(vault.address);
+        await Pauser.connect(ownerSigner).addVault(vault.address);
 
         await assetContract
           .connect(userSigner)
