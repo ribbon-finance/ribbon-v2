@@ -17,7 +17,6 @@ import {
   STETH_ADDRESS,
   WSTETH_ADDRESS,
   LDO_ADDRESS,
-  STETH_ETH_CRV_POOL,
   WETH_ADDRESS,
   GNOSIS_EASY_AUCTION,
   WSTETH_PRICER,
@@ -82,7 +81,6 @@ describe("RibbonThetaSTETHVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
-    crvSlippage: BigNumber.from("1"),
     stETHAmountAfterRounding: BigNumber.from("999746414674411972"),
     auctionDuration: 21600,
     tokenDecimals: 18,
@@ -128,7 +126,6 @@ type Option = {
  * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
- * @param {BigNumber} params.crvSlippage - Slippage for steth -> eth swap
  * @param {BigNumber} params.stETHAmountAfterRounding - stETH returns after unwrapping wstETH
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  */
@@ -156,7 +153,6 @@ function behavesLikeRibbonOptionsVault(params: {
   premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
-  crvSlippage: BigNumber;
   stETHAmountAfterRounding: BigNumber;
   isPut: boolean;
   gasLimits: {
@@ -190,7 +186,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let premiumDiscount = params.premiumDiscount;
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
-  let crvSlippage = params.crvSlippage;
   let stETHAmountAfterRounding = params.stETHAmountAfterRounding;
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
@@ -391,7 +386,6 @@ function behavesLikeRibbonOptionsVault(params: {
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
-        STETH_ETH_CRV_POOL,
       ];
 
       vault = (
@@ -566,8 +560,7 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY[chainId],
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId],
-          STETH_ETH_CRV_POOL
+          GNOSIS_EASY_AUCTION[chainId]
         );
       });
 
@@ -2395,14 +2388,9 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#withdrawInstantly", () => {
-      let minETHOut: BigNumberish;
+      let minETHOut = BigNumber.from(0);
 
-      time.revertToSnapshotAfterEach(async function () {
-        const crv = await getContractAt("ICRV", STETH_ETH_CRV_POOL);
-        minETHOut = (await crv.get_dy(1, 0, depositAmount))
-          .mul(BigNumber.from(100).sub(crvSlippage))
-          .div(100);
-      });
+      time.revertToSnapshotAfterEach();
 
       it("reverts with 0 amount", async function () {
         await assetContract
@@ -2497,10 +2485,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.depositYieldToken(depositAmount, user);
 
-        await vault.withdrawInstantly(
-          depositAmount.sub(1),
-          depositAmount.mul(BigNumber.from(100).sub(crvSlippage)).div(100)
-        );
+        await vault.withdrawInstantly(depositAmount.sub(1), 0);
       });
     });
 
