@@ -3907,14 +3907,41 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     }
 
-    describe("#setPauserKeeper", () => {
-      it("is able to set keeper", async function () {
-        assert.equal(await pauser.owner(), ownerSigner.address);
-        await pauser.connect(ownerSigner).setNewKeeper(user);
+    describe("#pauserOwnerAndKeeper", () => {
+      time.revertToSnapshotAfterTest();
 
-        assert.equal(await pauser.keeper(), user);
-        await pauser.connect(ownerSigner).setNewKeeper(keeperSigner.address);
-        assert.equal(await pauser.keeper(), keeperSigner.address);
+      it("returns the owner", async function () {
+        assert.equal(await pauser.owner(), owner);
+      });
+      it("returns the keeper", async function () {
+        await pauser.connect(ownerSigner).setNewKeeper(keeper);
+        assert.equal(await pauser.keeper(), keeper);
+      });
+    });
+
+    describe("#pauserSetNewKeeper", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new keeper to owner", async function () {
+        assert.equal(await pauser.keeper(), keeper);
+        await pauser.connect(ownerSigner).setNewKeeper(owner);
+        assert.equal(await pauser.keeper(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(
+          pauser.connect(keeperSigner).setNewKeeper(owner)
+        ).to.be.revertedWith("caller is not the owner");
+      });
+    });
+
+    describe("#pauserAddVaults", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("revert if not owner call", async function () {
+        await expect(
+          pauser.connect(keeperSigner).addVault(vault.address)
+        ).to.be.revertedWith("caller is not the owner");
       });
     });
 
@@ -3985,6 +4012,14 @@ function behavesLikeRibbonOptionsVault(params: {
         // Roll and Pause
         await rollToNextOption();
         await vault.pausePosition();
+      });
+
+      it("revert if not keeper called process withdrawal", async function () {
+        await expect(
+          pauser.connect(ownerSigner).processWithdrawal(vault.address, {
+            gasPrice,
+          })
+        ).to.be.revertedWith("!keeper");
       });
 
       it("process withdrawal", async function () {
