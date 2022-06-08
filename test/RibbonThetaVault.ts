@@ -29,6 +29,7 @@ import {
   GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
+  STETH_ADDRESS,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -342,6 +343,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
   let assetContract: Contract;
+  let pauser: Contract;
 
   // Variables
   let defaultOtokenAddress: string;
@@ -465,6 +467,16 @@ function behavesLikeRibbonOptionsVault(params: {
         optionsPremiumPricer.address,
         params.deltaFirstOption,
         BigNumber.from(params.deltaStep).mul(10 ** 8)
+      );
+
+      const PauserFactory = await ethers.getContractFactory(
+        "RibbonVaultPauser"
+      );
+      pauser = await PauserFactory.connect(ownerSigner).deploy(
+        keeperSigner.address,
+        WETH_ADDRESS[chainId],
+        STETH_ADDRESS,
+        "0x986aaa537b8cc170761FDAC6aC4fc7F9d8a20A8C"
       );
 
       const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
@@ -3894,6 +3906,265 @@ function behavesLikeRibbonOptionsVault(params: {
         });
       });
     }
+
+    describe("#pausePosition", () => {
+      describe("pauser owner And keeper", () => {
+        time.revertToSnapshotAfterTest();
+
+        it("returns the owner", async function () {
+          assert.equal(await pauser.owner(), owner);
+        });
+        it("returns the keeper", async function () {
+          await pauser.connect(ownerSigner).setNewKeeper(keeper);
+          assert.equal(await pauser.keeper(), keeper);
+        });
+      });
+
+      describe("pauser set new keeper", () => {
+        time.revertToSnapshotAfterTest();
+
+        it("set new keeper to owner", async function () {
+          assert.equal(await pauser.keeper(), keeper);
+          await pauser.connect(ownerSigner).setNewKeeper(owner);
+          assert.equal(await pauser.keeper(), owner);
+        });
+
+        it("reverts when not owner call", async function () {
+          await expect(
+            pauser.connect(keeperSigner).setNewKeeper(owner)
+          ).to.be.revertedWith("caller is not the owner");
+        });
+      });
+
+      describe("pauser add vaults", () => {
+        time.revertToSnapshotAfterTest();
+
+        it("revert if not owner call", async function () {
+          await expect(
+            pauser.connect(keeperSigner).addVault(vault.address)
+          ).to.be.revertedWith("caller is not the owner");
+        });
+      });
+
+      time.revertToSnapshotAfterEach(async function () {
+        await vault.connect(ownerSigner).setVaultPauser(pauser.address);
+        await pauser.connect(ownerSigner).addVault(vault.address);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, params.depositAmount);
+
+        await vault.deposit(params.depositAmount);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(pauser.address, params.depositAmount);
+
+        await rollToNextOption();
+      });
+
+      it("is able to pause position", async function () {
+        const tx = await vault.pausePosition();
+
+        // check paused position is saved under user
+        let positions = await pauser.getPausePosition(vault.address, user);
+        await expect(tx)
+          .to.emit(pauser, "Pause")
+          .withArgs(user, vault.address, depositAmount, 2);
+
+        assert.equal(positions.round, 2);
+        assert.bnEqual(positions.shares, params.depositAmount);
+
+        // check withdrawal receipt
+        const results = await vault.withdrawals(pauser.address);
+        assert.equal(await results.round, 2);
+        assert.bnEqual(await results.shares, params.depositAmount);
+      });
+    });
+
+    describe("#processWithdrawal", () => {
+      time.revertToSnapshotAfterEach(async () => {
+        await vault.connect(ownerSigner).setVaultPauser(pauser.address);
+        await pauser.connect(ownerSigner).addVault(vault.address);
+
+        // User Deposit
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(pauser.address, depositAmount);
+
+        await assetContract
+          .connect(keeperSigner)
+          .approve(pauser.address, depositAmount);
+
+        await vault.deposit(depositAmount);
+
+        // Owner Deposit
+        await assetContract.connect(userSigner).transfer(owner, depositAmount);
+        await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+        await vault.connect(ownerSigner).deposit(depositAmount);
+
+        // Roll and Pause
+        await rollToNextOption();
+        await vault.pausePosition();
+      });
+
+      it("revert if not keeper called process withdrawal", async function () {
+        await expect(
+          pauser.connect(ownerSigner).processWithdrawal(vault.address, {
+            gasPrice,
+          })
+        ).to.be.revertedWith("!keeper");
+      });
+
+      it("process withdrawal", async function () {
+        // Roll again to process
+        await rollToSecondOption(firstOptionStrike);
+
+        const pricePerShare = await vault.roundPricePerShare(2);
+        const withdrawAmount = depositAmount
+          .mul(pricePerShare)
+          .div(BigNumber.from(10).pow(await vault.decimals()));
+
+        const tx = await pauser
+          .connect(keeperSigner)
+          .processWithdrawal(vault.address, {
+            gasPrice,
+          });
+
+        await expect(tx)
+          .to.emit(pauser, "ProcessWithdrawal")
+          .withArgs(vault.address, 2);
+
+        // withdrawal receipt should be empty
+        const { shares, round } = await vault.withdrawals(pauser.address);
+        assert.equal(shares, 0);
+        assert.equal(round, 2);
+
+        if (collateralAsset === WETH_ADDRESS[chainId]) {
+          assert.bnEqual(
+            await provider.getBalance(pauser.address),
+            withdrawAmount
+          );
+        } else {
+          assert.bnEqual(
+            await assetContract.balanceOf(pauser.address),
+            withdrawAmount
+          );
+        }
+      });
+
+      describe("process and pause again", () => {
+        it("process withdrawal and pause again", async function () {
+          // Roll and Process
+          await rollToSecondOption(firstOptionStrike);
+          await pauser.connect(keeperSigner).processWithdrawal(vault.address);
+          // Deposit and Pause again
+          await assetContract
+            .connect(userSigner)
+            .approve(vault.address, depositAmount);
+          await vault.connect(userSigner).deposit(depositAmount);
+          await rollToSecondOption(firstOptionStrike);
+          await expect(vault.pausePosition()).to.be.revertedWith(
+            "Position is paused"
+          );
+
+          // check paused position remains
+          let position = await pauser.getPausePosition(vault.address, user);
+          assert.equal(await position.round, 2);
+          assert.bnEqual(await position.shares, params.depositAmount);
+        });
+      });
+    });
+
+    describe("#resumePosition", () => {
+      time.revertToSnapshotAfterEach(async () => {
+        await vault.connect(ownerSigner).setVaultPauser(pauser.address);
+        await pauser.connect(ownerSigner).addVault(vault.address);
+
+        //approving
+        await assetContract
+          .connect(userSigner)
+          .approve(vault.address, depositAmount.mul(2));
+
+        await assetContract
+          .connect(userSigner)
+          .approve(pauser.address, depositAmount.mul(2));
+
+        await assetContract
+          .connect(ownerSigner)
+          .approve(vault.address, depositAmount);
+
+        // transfer some to owner to deposit
+        await assetContract.connect(userSigner).transfer(owner, depositAmount);
+
+        //deposit
+        if (collateralAsset === WETH_ADDRESS[chainId]) {
+          await vault.depositETH({ value: depositAmount, gasPrice });
+          await vault
+            .connect(ownerSigner)
+            .depositETH({ value: depositAmount, gasPrice });
+        } else {
+          await vault.deposit(depositAmount);
+          await vault.connect(ownerSigner).deposit(depositAmount);
+        }
+
+        await rollToNextOption();
+      });
+
+      it("unable to resume position without pause", async function () {
+        await expect(
+          pauser.connect(userSigner).resumePosition(vault.address)
+        ).to.be.revertedWith("Invalid assetPerShare");
+      });
+
+      it("revert if resume before complete", async function () {
+        // Roll and Process
+        await vault.pausePosition();
+
+        await expect(
+          pauser.connect(userSigner).resumePosition(vault.address)
+        ).to.be.revertedWith("Round not closed yet");
+      });
+
+      it("resume position", async function () {
+        await vault.pausePosition();
+
+        await rollToSecondOption(firstOptionStrike);
+
+        await pauser.connect(keeperSigner).processWithdrawal(vault.address, {
+          gasPrice,
+        });
+        const pricePerShare = await vault.roundPricePerShare(2);
+        const withdrawAmount = depositAmount
+          .mul(pricePerShare)
+          .div(BigNumber.from(10).pow(await vault.decimals()));
+        const res = await pauser
+          .connect(userSigner)
+          .resumePosition(vault.address);
+
+        await expect(res)
+          .to.emit(pauser, "Resume")
+          .withArgs(user, vault.address, withdrawAmount);
+
+        await expect(res).to.emit(vault, "Deposit");
+
+        assert.bnEqual(await vault.totalPending(), withdrawAmount);
+        const receipt = await vault.depositReceipts(user);
+        assert.equal(receipt.round, 3);
+        assert.bnEqual(receipt.amount, withdrawAmount);
+
+        // check if position is removed
+        let position = await pauser.getPausePosition(vault.address, user);
+        assert.equal(await position.round, 0);
+        assert.bnEqual(await position.shares, BigNumber.from(0));
+      });
+    });
   });
 }
 
