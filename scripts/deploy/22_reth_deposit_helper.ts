@@ -14,13 +14,13 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { deployer } = await getNamedAccounts();
-  console.log(`21 - Deploying rETH Deposit Helper on ${network.name}`);
+  console.log(`22 - Deploying rETH Deposit Helper on ${network.name}`);
 
   const chainId = network.config.chainId;
 
   if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
     console.log(
-      `21 - Skipping deployment rETH Call Theta Vault Deposit Helper on ${network.name} because no rETH on Avax`
+      `22 - Skipping deployment rETH Call Theta Vault Deposit Helper on ${network.name} because no rETH on Avax`
     );
     return;
   }
