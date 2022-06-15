@@ -20,6 +20,8 @@ import {Vault} from "../../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
+import {IRETH} from "../../interfaces/IRETH.sol";
+import {IRETHDepositPool} from "../../interfaces/IRETHDepositPool.sol";
 
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
@@ -297,15 +299,17 @@ contract RibbonVault is
      ***********************************************/
 
     /**
-     * @notice Deposits ETH into the contract and mint vault shares. Reverts if the asset is not WETH.
+     * @notice Deposits ETH into the contract and mint vault shares.
      */
     function depositETH() external payable nonReentrant {
-        require(vaultParams.asset == WETH, "!WETH");
         require(msg.value > 0, "!value");
 
-        _depositFor(msg.value, msg.sender);
+        uint256 rETHAmount = IRETH(vaultParams.asset).getRethValue(msg.value);
 
-        IWETH(WETH).deposit{value: msg.value}();
+        _depositFor(rETHAmount, msg.sender);
+
+        // Deposit ETH for rETH 
+        IRETHDepositPool(0x4D05E3d48a938db4b7a9A59A802D5b45011BDe58).deposit{value: msg.value}();
     }
 
     /**
