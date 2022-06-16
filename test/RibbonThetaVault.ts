@@ -28,6 +28,7 @@ import {
   APE_PRICER,
   RETH_ADDRESS,
   RETH_OWNER_ADDRESS,
+  RETH_DEPOSIT_POOL_ADDRESS,
   RETH_PRICER,
   GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
@@ -1205,11 +1206,17 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(ownerSigner)
             .depositETH({ value: parseEther("0.1") });
           const receipt1 = await tx1.wait();
-          assert.isAtMost(receipt1.gasUsed.toNumber(), 130000);
+          assert.isAtMost(
+            receipt1.gasUsed.toNumber(),
+            params.collateralAsset === WETH_ADDRESS[chainId] ? 130000 : 300000
+          );
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 91500);
+          assert.isAtMost(
+            receipt2.gasUsed.toNumber(),
+            params.collateralAsset === WETH_ADDRESS[chainId] ? 91500 : 261500
+          );
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
@@ -1223,9 +1230,21 @@ function behavesLikeRibbonOptionsVault(params: {
         });
 
         it("does not inflate the share tokens on initialization", async function () {
-          await assetContract
+          let depositContract =
+            params.collateralAsset === WETH_ADDRESS[chainId]
+              ? assetContract
+              : await getContractAt(
+                  "IRETHDepositPool",
+                  RETH_DEPOSIT_POOL_ADDRESS[chainId]
+                );
+
+          await depositContract
             .connect(adminSigner)
             .deposit({ value: parseEther("10") });
+
+          // Wait 2 minutes to allow reth transfer after mint
+          await time.increase(120000);
+
           await assetContract
             .connect(adminSigner)
             .transfer(vault.address, parseEther("10"));
