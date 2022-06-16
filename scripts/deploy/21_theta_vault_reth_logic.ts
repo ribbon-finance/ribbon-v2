@@ -16,7 +16,7 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`01 - Deploying Theta Vault RETH logic on ${network.name}`);
+  console.log(`21 - Deploying Theta Vault RETH logic on ${network.name}`);
 
   const chainId = network.config.chainId;
 
