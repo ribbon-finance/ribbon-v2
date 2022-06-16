@@ -28,7 +28,6 @@ import {
   APE_PRICER,
   RETH_ADDRESS,
   RETH_OWNER_ADDRESS,
-  RETH_DEPOSIT_POOL_ADDRESS,
   RETH_PRICER,
   GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
@@ -1230,7 +1229,7 @@ function behavesLikeRibbonOptionsVault(params: {
         });
 
         it("does not inflate the share tokens on initialization", async function () {
-          if(params.collateralAsset === WETH_ADDRESS[chainId]){
+          if (params.collateralAsset === WETH_ADDRESS[chainId]) {
             await assetContract
               .connect(adminSigner)
               .deposit({ value: parseEther("10") });
