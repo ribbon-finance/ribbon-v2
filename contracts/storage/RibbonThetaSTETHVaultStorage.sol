@@ -35,6 +35,11 @@ abstract contract RibbonThetaSTETHVaultStorageV4 {
     uint256 public currentQueuedWithdrawShares;
 }
 
+abstract contract RibbonThetaSTETHVaultStorageV5 {
+    // Vault Pauser Contract for the vault
+    address public vaultPauser;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
@@ -43,7 +48,8 @@ abstract contract RibbonThetaSTETHVaultStorage is
     RibbonThetaSTETHVaultStorageV1,
     RibbonThetaSTETHVaultStorageV2,
     RibbonThetaSTETHVaultStorageV3,
-    RibbonThetaSTETHVaultStorageV4
+    RibbonThetaSTETHVaultStorageV4,
+    RibbonThetaSTETHVaultStorageV5
 {
 
 }

@@ -115,9 +115,6 @@ contract RibbonVault is
     // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
     address public immutable GNOSIS_EASY_AUCTION;
 
-    // Curve stETH / ETH stables pool
-    address public immutable STETH_ETH_CRV_POOL;
-
     /// @notice STETH contract address
     address public immutable STETH;
 
@@ -161,7 +158,6 @@ contract RibbonVault is
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
         address _weth,
@@ -170,8 +166,7 @@ contract RibbonVault is
         address _ldo,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction,
-        address _crvPool
+        address _gnosisEasyAuction
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
@@ -181,7 +176,6 @@ contract RibbonVault is
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
-        require(_crvPool != address(0), "!_crvPool");
 
         WETH = _weth;
         USDC = _usdc;
@@ -191,7 +185,6 @@ contract RibbonVault is
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
-        STETH_ETH_CRV_POOL = _crvPool;
         collateralToken = IWSTETH(_wsteth);
     }
 
@@ -327,15 +320,28 @@ contract RibbonVault is
         _depositFor(msg.value, msg.sender, true);
     }
 
+    function depositYieldToken(uint256 amount) external {
+        _depositYieldTokenFor(amount, msg.sender);
+    }
+
     /**
      * @notice Deposits the `collateralAsset` into the contract and mint vault shares.
      * @param amount is the amount of `collateralAsset` to deposit
+     * @param creditor is the amount of `collateralAsset` to deposit
      */
-    function depositYieldToken(uint256 amount) external nonReentrant {
+    function depositYieldTokenFor(uint256 amount, address creditor) external {
+        require(creditor != address(0), "!creditor");
+        _depositYieldTokenFor(amount, creditor);
+    }
+
+    function _depositYieldTokenFor(uint256 amount, address creditor)
+        internal
+        nonReentrant
+    {
         require(amount > 0, "!amount");
 
         // stETH transfers suffer from an off-by-1 error
-        _depositFor(amount.sub(1), msg.sender, false);
+        _depositFor(amount.sub(1), creditor, false);
 
         IERC20(STETH).safeTransferFrom(msg.sender, address(this), amount);
     }
