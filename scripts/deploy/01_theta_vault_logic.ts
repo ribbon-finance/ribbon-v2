@@ -20,10 +20,12 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  const lifecycle = await deploy("VaultLifecycle", {
-    contract: "VaultLifecycle",
-    from: deployer,
-  });
+  const lifecycle = await deployments.get("VaultLifecycle");
+
+  // const lifecycle = await deploy("VaultLifecycle", {
+  //   contract: "VaultLifecycle",
+  //   from: deployer,
+  // });
   console.log(`VaultLifeCycle @ ${lifecycle.address}`);
 
   const vault = await deploy("RibbonThetaVaultLogic", {
