@@ -1230,20 +1230,11 @@ function behavesLikeRibbonOptionsVault(params: {
         });
 
         it("does not inflate the share tokens on initialization", async function () {
-          let depositContract =
-            params.collateralAsset === WETH_ADDRESS[chainId]
-              ? assetContract
-              : await getContractAt(
-                  "IRETHDepositPool",
-                  RETH_DEPOSIT_POOL_ADDRESS[chainId]
-                );
-
-          await depositContract
-            .connect(adminSigner)
-            .deposit({ value: parseEther("10") });
-
-          // Wait 48 hours to allow reth transfer after mint
-          await time.increase(172800000);
+          if(params.collateralAsset === WETH_ADDRESS[chainId]){
+            await assetContract
+              .connect(adminSigner)
+              .deposit({ value: parseEther("10") });
+          }
 
           await assetContract
             .connect(adminSigner)
