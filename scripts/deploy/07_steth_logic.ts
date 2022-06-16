@@ -9,7 +9,6 @@ import {
   GNOSIS_EASY_AUCTION,
   WETH_ADDRESS,
   LDO_ADDRESS,
-  STETH_ETH_CRV_POOL,
   WSTETH_ADDRESS,
 } from "../../constants/constants";
 
@@ -48,7 +47,6 @@ const main = async ({
     GAMMA_CONTROLLER[chainId],
     MARGIN_POOL[chainId],
     GNOSIS_EASY_AUCTION[chainId],
-    STETH_ETH_CRV_POOL,
   ];
 
   const vault = await deploy("RibbonThetaVaultSTETHLogic", {
