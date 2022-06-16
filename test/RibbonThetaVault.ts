@@ -1178,7 +1178,7 @@ function behavesLikeRibbonOptionsVault(params: {
           );
 
           if (params.collateralAsset === RETH_ADDRESS[chainId]) {
-            var rETHAmount = await (
+            let rETHAmount = await (
               await getContractAt("IRETH", params.collateralAsset)
             ).getRethValue(depositAmount);
             depositAmount = rETHAmount;
