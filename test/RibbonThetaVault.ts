@@ -100,6 +100,7 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
+    contractType: "RibbonThetaVault",
   });
 
   behavesLikeRibbonOptionsVault({
@@ -129,6 +130,7 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
+    contractType: "RibbonThetaVault",
   });
 
   behavesLikeRibbonOptionsVault({
@@ -163,6 +165,7 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET, CHAINID.AVAX_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
+    contractType: "RibbonThetaVault",
   });
 
   behavesLikeRibbonOptionsVault({
@@ -196,6 +199,7 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.AVAX_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
+    contractType: "RibbonThetaVault",
   });
 
   behavesLikeRibbonOptionsVault({
@@ -229,6 +233,7 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.TD,
+    contractType: "RibbonThetaVault",
   });
 
   behavesLikeRibbonOptionsVault({
@@ -262,6 +267,7 @@ describe("RibbonThetaVault", () => {
     },
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
+    contractType: "RibbonThetaRETHVault",
   });
 });
 
@@ -297,6 +303,7 @@ type Option = {
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
+ * @param {number[]} params.contractType - Either RibbonThetaVault or RibbonThetaRETHVault
  */
 function behavesLikeRibbonOptionsVault(params: {
   name: string;
@@ -329,6 +336,7 @@ function behavesLikeRibbonOptionsVault(params: {
   };
   availableChains: number[];
   protocol: OPTION_PROTOCOL;
+  contractType: string;
 }) {
   // Test configs
   let availableChains = params.availableChains;
@@ -549,7 +557,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       vault = (
         await deployProxy(
-          "RibbonThetaVault",
+          params.contractType,
           adminSigner,
           initializeArgs,
           deployArgs,
@@ -674,7 +682,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async function () {
         const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaVault",
+          params.contractType,
           {
             libraries: {
               VaultLifecycle: vaultLifecycleLib.address,
@@ -1136,14 +1144,14 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     // Only apply to when assets is WETH
-    if (params.collateralAsset === WETH_ADDRESS[chainId]) {
+    if ([WETH_ADDRESS[chainId], RETH_ADDRESS[chainId]].includes(params.collateralAsset)) {
       describe("#depositETH", () => {
         time.revertToSnapshotAfterEach();
 
         it("creates pending deposit successfully", async function () {
           const startBalance = await provider.getBalance(user);
 
-          const depositAmount = parseEther("1");
+          var depositAmount = parseEther("1");
           const tx = await vault.depositETH({ value: depositAmount, gasPrice });
           const receipt = await tx.wait();
           const gasFee = receipt.gasUsed.mul(gasPrice);
@@ -1152,6 +1160,11 @@ function behavesLikeRibbonOptionsVault(params: {
             await provider.getBalance(user),
             startBalance.sub(depositAmount).sub(gasFee)
           );
+
+          if(params.collateralAsset === RETH_ADDRESS[chainId]){
+            var rETHAmount = await (await getContractAt("IRETH", params.collateralAsset)).getRethValue(depositAmount)
+            depositAmount = rETHAmount
+          }
 
           // Unchanged for share balance and totalSupply
           assert.bnEqual(await vault.totalSupply(), BigNumber.from(0));
