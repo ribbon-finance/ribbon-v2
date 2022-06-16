@@ -1167,7 +1167,7 @@ function behavesLikeRibbonOptionsVault(params: {
         it("creates pending deposit successfully", async function () {
           const startBalance = await provider.getBalance(user);
 
-          var depositAmount = parseEther("1");
+          let depositAmount = parseEther("1");
           const tx = await vault.depositETH({ value: depositAmount, gasPrice });
           const receipt = await tx.wait();
           const gasFee = receipt.gasUsed.mul(gasPrice);
