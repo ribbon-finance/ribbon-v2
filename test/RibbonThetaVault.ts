@@ -1156,7 +1156,11 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     // Only apply to when assets is WETH
-    if ([WETH_ADDRESS[chainId], RETH_ADDRESS[chainId]].includes(params.collateralAsset)) {
+    if (
+      [WETH_ADDRESS[chainId], RETH_ADDRESS[chainId]].includes(
+        params.collateralAsset
+      )
+    ) {
       describe("#depositETH", () => {
         time.revertToSnapshotAfterEach();
 
@@ -1173,9 +1177,11 @@ function behavesLikeRibbonOptionsVault(params: {
             startBalance.sub(depositAmount).sub(gasFee)
           );
 
-          if(params.collateralAsset === RETH_ADDRESS[chainId]){
-            var rETHAmount = await (await getContractAt("IRETH", params.collateralAsset)).getRethValue(depositAmount)
-            depositAmount = rETHAmount
+          if (params.collateralAsset === RETH_ADDRESS[chainId]) {
+            var rETHAmount = await (
+              await getContractAt("IRETH", params.collateralAsset)
+            ).getRethValue(depositAmount);
+            depositAmount = rETHAmount;
           }
 
           // Unchanged for share balance and totalSupply
