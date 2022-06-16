@@ -20,31 +20,27 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  const lifecycle = await deployments.get("VaultLifecycle");
-
-  // const lifecycle = await deploy("VaultLifecycle", {
-  //   contract: "VaultLifecycle",
-  //   from: deployer,
-  // });
+  const lifecycle = await deploy("VaultLifecycle", {
+    contract: "VaultLifecycle",
+    from: deployer,
+  });
   console.log(`VaultLifeCycle @ ${lifecycle.address}`);
 
-  const vault = await deployments.get("RibbonThetaVaultLogic");
-
-  // const vault = await deploy("RibbonThetaVaultLogic", {
-  //   contract: "RibbonThetaVault",
-  //   from: deployer,
-  //   args: [
-  //     WETH_ADDRESS[chainId],
-  //     USDC_ADDRESS[chainId],
-  //     OTOKEN_FACTORY[chainId],
-  //     GAMMA_CONTROLLER[chainId],
-  //     MARGIN_POOL[chainId],
-  //     GNOSIS_EASY_AUCTION[chainId],
-  //   ],
-  //   libraries: {
-  //     VaultLifecycle: lifecycle.address,
-  //   },
-  // });
+  const vault = await deploy("RibbonThetaVaultLogic", {
+    contract: "RibbonThetaVault",
+    from: deployer,
+    args: [
+      WETH_ADDRESS[chainId],
+      USDC_ADDRESS[chainId],
+      OTOKEN_FACTORY[chainId],
+      GAMMA_CONTROLLER[chainId],
+      MARGIN_POOL[chainId],
+      GNOSIS_EASY_AUCTION[chainId],
+    ],
+    libraries: {
+      VaultLifecycle: lifecycle.address,
+    },
+  });
   console.log(`RibbonThetaVaultLogic @ ${vault.address}`);
 
   try {
