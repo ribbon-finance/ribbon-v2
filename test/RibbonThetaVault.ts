@@ -1242,8 +1242,8 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(adminSigner)
             .deposit({ value: parseEther("10") });
 
-          // Wait 24 hours to allow reth transfer after mint
-          await time.increase(86400000);
+          // Wait 48 hours to allow reth transfer after mint
+          await time.increase(172800000);
 
           await assetContract
             .connect(adminSigner)
