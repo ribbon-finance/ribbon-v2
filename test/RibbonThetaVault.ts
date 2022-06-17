@@ -1264,7 +1264,7 @@ function behavesLikeRibbonOptionsVault(params: {
             await vault.connect(keeperSigner).updaterETHMintCutoff();
 
             // 2 hour increase
-            await time.increase(7200000);
+            await time.increase(7200);
 
             await expect(
               vault.depositETH({
@@ -1274,18 +1274,16 @@ function behavesLikeRibbonOptionsVault(params: {
             ).to.be.revertedWith("!cutoff");
 
             await vault.connect(keeperSigner).commitAndClose();
-            await expect(vault.connect(keeperSigner).rollToNexOption()).to.be
+            await expect(vault.connect(keeperSigner).rollToNextOption()).to.be
               .reverted;
 
             // 22 hour increase
-            await time.increase(79200000);
+            await time.increase(79200);
 
             await vault.depositETH({
               value: parseEther("1"),
               gasPrice,
             });
-
-            await vault.connect(keeperSigner).rollToNexOption();
           }
         });
       });
