@@ -1271,12 +1271,18 @@ function behavesLikeRibbonOptionsVault(params: {
               })
             ).to.be.revertedWith("!cutoff");
 
+            await vault.connect(keeperSigner).commitAndClose();
+            await expect(vault.connect(keeperSigner).rollToNexOption()).to.be
+              .reverted;
+
             // 22 hour increase
             await time.increase(79200000);
 
             await vault.connect(userSigner).depositETH({
               value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
             });
+
+            await vault.connect(keeperSigner).rollToNexOption();
           }
         });
       });
