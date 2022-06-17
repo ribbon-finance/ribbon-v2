@@ -1,6 +1,6 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import { CHAINID, RETH_ADDRESS } from "../../constants/constants";
+import { CHAINID, RETH_ADDRESS, WETH_ADDRESS } from "../../constants/constants";
 import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
@@ -64,7 +64,7 @@ const main = async ({
       isPut: false,
       decimals: 18,
       asset: RETH_ADDRESS[chainId],
-      underlying: RETH_ADDRESS[chainId],
+      underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1000"),
     },
@@ -92,6 +92,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultRETHCall"];
-main.dependencies = [];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultRETHLogic"];
 
 export default main;
