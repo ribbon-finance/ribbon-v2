@@ -233,6 +233,7 @@ function behavesLikeRibbonOptionsVault(params: {
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
       const oracle = await setupOracle(
         params.asset,
+        params.collateralAsset,
         params.underlyingPricer,
         ownerSigner,
         OPTION_PROTOCOL.GAMMA
@@ -1498,6 +1499,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         oracle = await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.underlyingPricer,
           ownerSigner,
           OPTION_PROTOCOL.GAMMA
@@ -2124,6 +2126,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         oracle = await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.underlyingPricer,
           ownerSigner,
           OPTION_PROTOCOL.GAMMA
@@ -2492,6 +2495,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async () => {
         oracle = await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.underlyingPricer,
           ownerSigner,
           OPTION_PROTOCOL.GAMMA
@@ -2824,6 +2828,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.underlyingPricer,
           ownerSigner,
           OPTION_PROTOCOL.GAMMA
