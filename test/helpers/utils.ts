@@ -30,6 +30,7 @@ import {
   TD_ORACLE_OWNER,
   TD_WHITELIST,
   TD_WHITELIST_OWNER,
+  CHAINLINK_WETH_PRICER,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -199,6 +200,7 @@ export async function whitelistProduct(
 
 export async function setupOracle(
   assetAddr: string,
+  collateralAssetAddr: string,
   chainlinkPricer: string,
   signer: SignerWithAddress,
   protocol: OPTION_PROTOCOL
@@ -243,13 +245,33 @@ export async function setupOracle(
     .setStablePrice(USDC_ADDRESS[chainId], "100000000");
 
   if (protocol === OPTION_PROTOCOL.GAMMA) {
-    await oracle
-      .connect(oracleOwnerSigner)
-      .setAssetPricer(assetAddr, chainlinkPricer);
+    if (collateralAssetAddr === RETH_ADDRESS[chainId]) {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .setAssetPricer(assetAddr, CHAINLINK_WETH_PRICER[chainId]);
+
+      await oracle
+        .connect(oracleOwnerSigner)
+        .setAssetPricer(collateralAssetAddr, chainlinkPricer);
+    } else {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .setAssetPricer(assetAddr, chainlinkPricer);
+    }
   } else {
-    await oracle
-      .connect(oracleOwnerSigner)
-      .updateAssetPricer(assetAddr, chainlinkPricer);
+    if (collateralAssetAddr === RETH_ADDRESS[chainId]) {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .updateAssetPricer(assetAddr, CHAINLINK_WETH_PRICER[chainId]);
+
+      await oracle
+        .connect(oracleOwnerSigner)
+        .updateAssetPricer(collateralAssetAddr, chainlinkPricer);
+    } else {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .updateAssetPricer(assetAddr, chainlinkPricer);
+    }
   }
 
   return oracle;
@@ -257,14 +279,37 @@ export async function setupOracle(
 
 export async function setOpynOracleExpiryPrice(
   asset: string,
+  collateralAsset: string,
   oracle: Contract,
   expiry: BigNumber,
   settlePrice: BigNumber
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
-  const receipt = await res.wait();
+  var receipt;
+
+  if (collateralAsset === RETH_ADDRESS[chainId]) {
+    const res = await oracle.setExpiryPrice(
+      collateralAsset,
+      expiry,
+      settlePrice
+    );
+    await res.wait();
+
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [CHAINLINK_WETH_PRICER[chainId]],
+    });
+    const pricerSigner = await provider.getSigner(
+      CHAINLINK_WETH_PRICER[chainId]
+    );
+    let oracle2 = new ethers.Contract(oracle.address, ORACLE_ABI, pricerSigner);
+    const res2 = await oracle2.setExpiryPrice(asset, expiry, settlePrice);
+    receipt = await res2.wait();
+  } else {
+    const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+    receipt = await res.wait();
+  }
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
   await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
