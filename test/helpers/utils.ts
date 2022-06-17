@@ -286,7 +286,7 @@ export async function setOpynOracleExpiryPrice(
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  var receipt;
+  let receipt;
 
   if (collateralAsset === RETH_ADDRESS[chainId]) {
     const res = await oracle.setExpiryPrice(
