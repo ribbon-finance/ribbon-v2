@@ -1253,6 +1253,32 @@ function behavesLikeRibbonOptionsVault(params: {
             })
           ).to.be.revertedWith("Insufficient balance");
         });
+
+        it("ETH deposit works at predefined schedule", async function () {
+          if (params.collateralAsset === RETH_ADDRESS[chainId]) {
+            await vault.connect(userSigner).depositETH({
+              value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+            });
+
+            await vault.connect(keeperSigner).updaterETHMintCutoff();
+
+            // 2 hour increase
+            await time.increase(7200000);
+
+            await expect(
+              vault.connect(userSigner).depositETH({
+                value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+              })
+            ).to.be.revertedWith("!cutoff");
+
+            // 22 hour increase
+            await time.increase(79200000);
+
+            await vault.connect(userSigner).depositETH({
+              value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+            });
+          }
+        });
       });
     } else {
       describe("#depositETH", () => {
