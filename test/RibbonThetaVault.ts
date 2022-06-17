@@ -1267,7 +1267,7 @@ function behavesLikeRibbonOptionsVault(params: {
             await time.increase(7200000);
 
             await expect(
-              await vault.depositETH({
+              vault.depositETH({
                 value: parseEther("1"),
                 gasPrice,
               })
