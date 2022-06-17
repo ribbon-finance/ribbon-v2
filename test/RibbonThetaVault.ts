@@ -1273,9 +1273,9 @@ function behavesLikeRibbonOptionsVault(params: {
               })
             ).to.be.revertedWith("!cutoff");
 
-            await vault.connect(keeperSigner).commitAndClose();
-            await expect(vault.connect(keeperSigner).rollToNexOption()).to.be
-              .reverted;
+            // await vault.connect(keeperSigner).commitAndClose();
+            // await expect(vault.connect(keeperSigner).rollToNexOption()).to.be
+            //   .reverted;
 
             // 22 hour increase
             await time.increase(79200000);
@@ -1285,7 +1285,7 @@ function behavesLikeRibbonOptionsVault(params: {
               gasPrice,
             });
 
-            await vault.connect(keeperSigner).rollToNexOption();
+            // await vault.connect(keeperSigner).rollToNexOption();
           }
         });
       });
