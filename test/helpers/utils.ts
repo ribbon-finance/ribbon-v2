@@ -279,10 +279,10 @@ export async function setupOracle(
 
 export async function setOpynOracleExpiryPrice(
   asset: string,
-  collateralAsset: string,
   oracle: Contract,
   expiry: BigNumber,
-  settlePrice: BigNumber
+  settlePrice: BigNumber,
+  collateralAsset: string = ""
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 

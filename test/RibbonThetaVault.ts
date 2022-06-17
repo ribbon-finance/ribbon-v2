@@ -425,10 +425,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await setOpynOracleExpiryPrice(
         params.asset,
-        params.collateralAsset,
         oracle,
         await getCurrentOptionExpiry(),
-        settlementPrice
+        settlementPrice,
+        params.collateralAsset
       );
       await strikeSelection.setDelta(params.deltaSecondOption);
       await vault.connect(keeperSigner).setMinPrice(parseEther("30"));
@@ -2191,10 +2191,10 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
-          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.collateralAsset
         );
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
@@ -2315,10 +2315,10 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
-          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM
+          settlementPriceOTM,
+          params.collateralAsset
         );
 
         const beforeBalance = await assetContract.balanceOf(vault.address);
@@ -2412,10 +2412,10 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
-          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike
+          firstOptionStrike,
+          params.collateralAsset
         );
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -2454,10 +2454,10 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
-          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM
+          settlementPriceOTM,
+          params.collateralAsset
         );
 
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
@@ -2716,10 +2716,10 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
-          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM
+          settlementPriceITM,
+          params.collateralAsset
         );
 
         await strikeSelection.setDelta(params.deltaSecondOption);
@@ -3003,10 +3003,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await setOpynOracleExpiryPrice(
           params.asset,
-          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike
+          firstOptionStrike,
+          params.collateralAsset
         );
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
         await vault.connect(ownerSigner).commitAndClose();
