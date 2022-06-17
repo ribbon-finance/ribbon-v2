@@ -69,7 +69,7 @@ const PUT_EXPECTED_MINT_AMOUNT = {
 const chainId = network.config.chainId;
 
 describe("RibbonThetaVault", () => {
-  /*behavesLikeRibbonOptionsVault({
+  behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
@@ -235,7 +235,8 @@ describe("RibbonThetaVault", () => {
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.TD,
     contractType: "RibbonThetaVault",
-  });*/ 
+  });
+
   behavesLikeRibbonOptionsVault({
     name: `Ribbon RETH Theta Vault (Call)`,
     tokenName: "Ribbon RETH Theta Vault",
@@ -414,6 +415,7 @@ function behavesLikeRibbonOptionsVault(params: {
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
       const oracle = await setupOracle(
         params.asset,
+        params.collateralAsset,
         params.chainlinkPricer,
         ownerSigner,
         params.protocol
@@ -421,6 +423,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       await setOpynOracleExpiryPrice(
         params.asset,
+        params.collateralAsset,
         oracle,
         await getCurrentOptionExpiry(),
         settlementPrice
@@ -452,7 +455,7 @@ function behavesLikeRibbonOptionsVault(params: {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
               blockNumber:
-                asset === RETH_ADDRESS[chainId]
+                params.collateralAsset === RETH_ADDRESS[chainId]
                   ? 14854158
                   : BLOCK_NUMBER[chainId],
             },
@@ -550,7 +553,11 @@ function behavesLikeRibbonOptionsVault(params: {
         [
           isPut,
           tokenDecimals,
-          isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
+          isPut
+            ? USDC_ADDRESS[chainId]
+            : params.collateralAsset === RETH_ADDRESS[chainId]
+            ? params.collateralAsset
+            : asset,
           asset,
           minimumSupply,
           parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18),
@@ -779,7 +786,11 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
+              isPut
+                ? USDC_ADDRESS[chainId]
+                : params.collateralAsset === RETH_ADDRESS[chainId]
+                ? params.collateralAsset
+                : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -807,7 +818,11 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
+              isPut
+                ? USDC_ADDRESS[chainId]
+                : params.collateralAsset === RETH_ADDRESS[chainId]
+                ? params.collateralAsset
+                : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -835,7 +850,11 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
+              isPut
+                ? USDC_ADDRESS[chainId]
+                : params.collateralAsset === RETH_ADDRESS[chainId]
+                ? params.collateralAsset
+                : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -863,7 +882,11 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
+              isPut
+                ? USDC_ADDRESS[chainId]
+                : params.collateralAsset === RETH_ADDRESS[chainId]
+                ? params.collateralAsset
+                : asset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -891,7 +914,11 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
+              isPut
+                ? USDC_ADDRESS[chainId]
+                : params.collateralAsset === RETH_ADDRESS[chainId]
+                ? params.collateralAsset
+                : asset,
               asset,
               minimumSupply,
               0,
@@ -1993,6 +2020,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         oracle = await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
           params.protocol
@@ -2184,6 +2212,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceITM
@@ -2307,6 +2336,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
@@ -2403,6 +2433,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
           firstOptionStrike
@@ -2444,6 +2475,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceOTM
@@ -2570,6 +2602,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         oracle = await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
           params.protocol
@@ -2704,6 +2737,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
           settlementPriceITM
@@ -2930,6 +2964,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async () => {
         oracle = await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
           params.protocol
@@ -2989,6 +3024,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await setOpynOracleExpiryPrice(
           params.asset,
+          params.collateralAsset,
           oracle,
           await getCurrentOptionExpiry(),
           firstOptionStrike
@@ -3252,6 +3288,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await setupOracle(
           params.asset,
+          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
           params.protocol
