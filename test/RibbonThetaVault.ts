@@ -1256,8 +1256,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         it("ETH deposit works at predefined schedule", async function () {
           if (params.collateralAsset === RETH_ADDRESS[chainId]) {
-            await vault.connect(userSigner).depositETH({
-              value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+            await vault.depositETH({
+              value: parseEther("1"),
+              gasPrice,
             });
 
             await vault.connect(keeperSigner).updaterETHMintCutoff();
@@ -1266,8 +1267,9 @@ function behavesLikeRibbonOptionsVault(params: {
             await time.increase(7200000);
 
             await expect(
-              vault.connect(userSigner).depositETH({
-                value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+              await vault.depositETH({
+                value: parseEther("1"),
+                gasPrice,
               })
             ).to.be.revertedWith("!cutoff");
 
@@ -1278,8 +1280,9 @@ function behavesLikeRibbonOptionsVault(params: {
             // 22 hour increase
             await time.increase(79200000);
 
-            await vault.connect(userSigner).depositETH({
-              value: BigNumber.from("10").pow("10").sub(BigNumber.from("1")),
+            await vault.depositETH({
+              value: parseEther("1"),
+              gasPrice,
             });
 
             await vault.connect(keeperSigner).rollToNexOption();
