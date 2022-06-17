@@ -399,6 +399,8 @@ function behavesLikeRibbonOptionsVault(params: {
   let startMarginBalance: BigNumber;
   let optionId: string;
 
+  let vaultParamAsset: string;
+
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
     let firstOption: Option;
@@ -536,6 +538,14 @@ function behavesLikeRibbonOptionsVault(params: {
         GNOSIS_EASY_AUCTION[chainId]
       );
 
+      if (isPut) {
+        vaultParamAsset = USDC_ADDRESS[chainId];
+      } else if (params.collateralAsset === RETH_ADDRESS[chainId]) {
+        vaultParamAsset = params.collateralAsset;
+      } else {
+        vaultParamAsset = asset;
+      }
+
       const initializeArgs = [
         [
           owner,
@@ -553,11 +563,7 @@ function behavesLikeRibbonOptionsVault(params: {
         [
           isPut,
           tokenDecimals,
-          isPut
-            ? USDC_ADDRESS[chainId]
-            : params.collateralAsset === RETH_ADDRESS[chainId]
-            ? params.collateralAsset
-            : asset,
+          vaultParamAsset,
           asset,
           minimumSupply,
           parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18),
@@ -786,11 +792,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut
-                ? USDC_ADDRESS[chainId]
-                : params.collateralAsset === RETH_ADDRESS[chainId]
-                ? params.collateralAsset
-                : asset,
+              vaultParamAsset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -818,11 +820,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut
-                ? USDC_ADDRESS[chainId]
-                : params.collateralAsset === RETH_ADDRESS[chainId]
-                ? params.collateralAsset
-                : asset,
+              vaultParamAsset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -850,11 +848,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut
-                ? USDC_ADDRESS[chainId]
-                : params.collateralAsset === RETH_ADDRESS[chainId]
-                ? params.collateralAsset
-                : asset,
+              vaultParamAsset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -882,11 +876,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut
-                ? USDC_ADDRESS[chainId]
-                : params.collateralAsset === RETH_ADDRESS[chainId]
-                ? params.collateralAsset
-                : asset,
+              vaultParamAsset,
               asset,
               minimumSupply,
               parseEther("500"),
@@ -911,18 +901,7 @@ function behavesLikeRibbonOptionsVault(params: {
               premiumDiscount,
               auctionDuration,
             ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut
-                ? USDC_ADDRESS[chainId]
-                : params.collateralAsset === RETH_ADDRESS[chainId]
-                ? params.collateralAsset
-                : asset,
-              asset,
-              minimumSupply,
-              0,
-            ]
+            [isPut, tokenDecimals, vaultParamAsset, asset, minimumSupply, 0]
           )
         ).to.be.revertedWith("!cap");
       });
