@@ -417,10 +417,10 @@ function behavesLikeRibbonOptionsVault(params: {
     const rollToSecondOption = async (settlementPrice: BigNumber) => {
       const oracle = await setupOracle(
         params.asset,
-        params.collateralAsset,
         params.chainlinkPricer,
         ownerSigner,
-        params.protocol
+        params.protocol,
+        params.collateralAsset
       );
 
       await setOpynOracleExpiryPrice(
@@ -1999,10 +1999,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         oracle = await setupOracle(
           params.asset,
-          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
-          params.protocol
+          params.protocol,
+          params.collateralAsset
         );
       });
 
@@ -2581,10 +2581,10 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async function () {
         oracle = await setupOracle(
           params.asset,
-          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
-          params.protocol
+          params.protocol,
+          params.collateralAsset
         );
       });
 
@@ -2943,10 +2943,10 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach(async () => {
         oracle = await setupOracle(
           params.asset,
-          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
-          params.protocol
+          params.protocol,
+          params.collateralAsset
         );
       });
 
@@ -3267,10 +3267,10 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await setupOracle(
           params.asset,
-          params.collateralAsset,
           params.chainlinkPricer,
           ownerSigner,
-          params.protocol
+          params.protocol,
+          params.collateralAsset
         );
 
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
