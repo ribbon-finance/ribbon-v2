@@ -69,7 +69,7 @@ const PUT_EXPECTED_MINT_AMOUNT = {
 const chainId = network.config.chainId;
 
 describe("RibbonThetaVault", () => {
-  behavesLikeRibbonOptionsVault({
+  /*behavesLikeRibbonOptionsVault({
     name: `Ribbon WBTC Theta Vault (Call)`,
     tokenName: "Ribbon BTC Theta Vault",
     tokenSymbol: "rWBTC-THETA",
@@ -235,13 +235,13 @@ describe("RibbonThetaVault", () => {
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.TD,
     contractType: "RibbonThetaVault",
-  });
+  });*/
 
   behavesLikeRibbonOptionsVault({
     name: `Ribbon RETH Theta Vault (Call)`,
     tokenName: "Ribbon RETH Theta Vault",
     tokenSymbol: "rRETH-THETA",
-    asset: RETH_ADDRESS[chainId],
+    asset: WETH_ADDRESS[chainId],
     assetContractName: "IWETH",
     strikeAsset: USDC_ADDRESS[chainId],
     collateralAsset: RETH_ADDRESS[chainId],
@@ -551,7 +551,7 @@ function behavesLikeRibbonOptionsVault(params: {
         [
           isPut,
           tokenDecimals,
-          isPut ? USDC_ADDRESS[chainId] : asset,
+          isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
           asset,
           minimumSupply,
           parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18),
@@ -780,7 +780,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
               asset,
               minimumSupply,
               parseEther("500"),
@@ -808,7 +808,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
               asset,
               minimumSupply,
               parseEther("500"),
@@ -836,7 +836,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
               asset,
               minimumSupply,
               parseEther("500"),
@@ -864,7 +864,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
               asset,
               minimumSupply,
               parseEther("500"),
@@ -892,7 +892,7 @@ function behavesLikeRibbonOptionsVault(params: {
             [
               isPut,
               tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
+              isPut ? USDC_ADDRESS[chainId] : (params.collateralAsset === RETH_ADDRESS[chainId] ? params.collateralAsset : asset),
               asset,
               minimumSupply,
               0,
