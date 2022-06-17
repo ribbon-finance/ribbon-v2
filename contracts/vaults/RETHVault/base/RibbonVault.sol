@@ -317,7 +317,7 @@ contract RibbonVault is
         // After minting rETH there is a period of 5760 blocks (~21 hours)
         // where the minting wallet is not able to transfer any of its rETH tokens.
         // To allow rollToNexOption to occur we must pause mints
-        require(block.timestamp.sub(lastrETHMintCutoff) >= 24 hours, "!cutoff");
+        require(block.timestamp.sub(lastrETHMintCutoff) >= 1 days, "!cutoff");
 
         uint256 rETHAmount = IRETH(vaultParams.asset).getRethValue(msg.value);
 
