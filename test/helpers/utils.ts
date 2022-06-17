@@ -200,10 +200,10 @@ export async function whitelistProduct(
 
 export async function setupOracle(
   assetAddr: string,
-  collateralAssetAddr: string,
   chainlinkPricer: string,
   signer: SignerWithAddress,
-  protocol: OPTION_PROTOCOL
+  protocol: OPTION_PROTOCOL,
+  collateralAssetAddr: string = ""
 ) {
   await network.provider.request({
     method: "hardhat_impersonateAccount",
