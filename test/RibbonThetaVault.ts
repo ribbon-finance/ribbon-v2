@@ -235,8 +235,7 @@ describe("RibbonThetaVault", () => {
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.TD,
     contractType: "RibbonThetaVault",
-  });*/
-
+  });*/ 
   behavesLikeRibbonOptionsVault({
     name: `Ribbon RETH Theta Vault (Call)`,
     tokenName: "Ribbon RETH Theta Vault",
