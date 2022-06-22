@@ -365,7 +365,7 @@ export const PERP_ETH_POOL = {
 };
 
 export const BADGER_ETH_POOL = {
-  [CHAINID.ETH_MAINNET]: "",
+  [CHAINID.ETH_MAINNET]: "0xe15e6583425700993bd08f51bf6e7b73cd5da91b",
   [CHAINID.ETH_KOVAN]: "",
 };
 
