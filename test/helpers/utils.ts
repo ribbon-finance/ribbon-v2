@@ -231,7 +231,7 @@ export async function setupOracle(
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend
     .connect(signer)
-    .go(chainlinkPricer, { value: parseEther("1") });
+    .go(chainlinkPricer, { value: parseEther("10") });
 
   const oracle = new ethers.Contract(oracleAddr, ORACLE_ABI, pricerSigner);
 
@@ -295,6 +295,12 @@ export async function setOpynOracleExpiryPrice(
       settlePrice
     );
     await res.wait();
+
+    const forceSendContract = await ethers.getContractFactory("ForceSend");
+    const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+    await forceSend
+      .connect(oracle.signer)
+      .go(CHAINLINK_WETH_PRICER[chainId], { value: parseEther("3") });
 
     await network.provider.request({
       method: "hardhat_impersonateAccount",
