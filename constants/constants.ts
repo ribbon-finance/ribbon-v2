@@ -37,7 +37,7 @@ export const WETH_ADDRESS = {
 
 export const WBTC_ADDRESS = {
   [CHAINID.ETH_MAINNET]: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
-  [CHAINID.ETH_KOVAN]: "0xA5eFEe8c0D466349da48eCe3Da9EdcbA0466aaCc", //NOTE: Unofficial, use only for deployment testing
+  [CHAINID.ETH_KOVAN]: "0x50570256f0da172a1908207aAf0c80d4b279f303", //NOTE: Unofficial, use only for deployment testing
   [CHAINID.AVAX_MAINNET]: "0x50b7545627a5162F82A992c33b87aDc75187B218",
   [CHAINID.AVAX_FUJI]: "0x66729F67732DF3633edBf5DB9e912D829C8a4092",
 };
@@ -381,6 +381,11 @@ export const BAL_ETH_POOL = {
 export const APE_OPTION_ID = {
   [CHAINID.ETH_MAINNET]:
     "0x53df032786f782a036aa7a561d8fe9eea0710602cab739e0ef3ce0f06560df00",
+};
+
+export const NETWORK_NAMES = {
+  [CHAINID.ETH_MAINNET]: "ETH",
+  [CHAINID.AVAX_MAINNET]: "AVAX",
 };
 
 /**
