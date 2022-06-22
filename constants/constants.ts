@@ -114,6 +114,14 @@ export const PERP_OWNER_ADDRESS = {
   [CHAINID.ETH_MAINNET]: "0x460109de07d852ad451b8b3b0b3c73c75d81e1ab",
 };
 
+export const BADGER_ADDRESS = {
+  [CHAINID.ETH_MAINNET]: "0x3472a5a71965499acd81997a54bba8d852c6e53d",
+};
+
+export const BADGER_OWNER_ADDRESS = {
+  [CHAINID.ETH_MAINNET]: "0xd0a7a8b98957b9cd3cfb9c0425abe44551158e9e",
+};
+
 /**
  * Chainlink Oracles
  *
@@ -150,6 +158,11 @@ export const AAVE_PRICE_ORACLE = {
 export const PERP_PRICE_ORACLE = {
   [CHAINID.ETH_MAINNET]: "0x01cE1210Fe8153500F60f7131d63239373D7E26C",
   [CHAINID.ETH_KOVAN]: "0x9326BFA02ADD2366b30bacB125260Af641031331", //NOTE: Unofficial, use only for deployment testing
+};
+
+export const BADGER_PRICE_ORACLE = {
+  [CHAINID.ETH_MAINNET]: "0x3923ae26Fcc641bfbdBBeb37fd31420597954bFB",
+  [CHAINID.ETH_KOVAN]: "", //NOTE: Unofficial, use only for deployment testing
 };
 
 /**
@@ -349,6 +362,11 @@ export const AAVE_ETH_POOL = "0x5aB53EE1d50eeF2C1DD3d5402789cd27bB52c1bB";
 export const PERP_ETH_POOL = {
   [CHAINID.ETH_MAINNET]: "0xcD83055557536EFf25FD0eAfbC56e74a1b4260B3",
   [CHAINID.ETH_KOVAN]: "0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8",
+};
+
+export const BADGER_ETH_POOL = {
+  [CHAINID.ETH_MAINNET]: "",
+  [CHAINID.ETH_KOVAN]: "",
 };
 
 /**
