@@ -66,7 +66,7 @@ const WEEKS_PER_YEAR = 52142857;
 const chainId = network.config.chainId;
 
 describe("RibbonTreasuryVault", () => {
-  /*behavesLikeRibbonOptionsVault({
+  behavesLikeRibbonOptionsVault({
     name: `Ribbon PERP Treasury Vault (Call)`,
     tokenName: "Ribbon PERP Treasury Vault",
     tokenSymbol: "rPERP-TSRY",
@@ -102,7 +102,7 @@ describe("RibbonTreasuryVault", () => {
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
     availableChains: [CHAINID.ETH_MAINNET],
-  });*/
+  });
 
   behavesLikeRibbonOptionsVault({
     name: `Ribbon BADGER Treasury Vault (Call)`,
