@@ -15,6 +15,7 @@ import {Vault} from "../../libraries/Vault.sol";
 import {VaultLifecycle} from "../../libraries/VaultLifecycle.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
+import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 
 /**
@@ -287,6 +288,14 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         currentOtokenPremium = minPrice;
     }
 
+    /**
+     * @notice Sets the new Vault Pauser contract for this vault
+     * @param newVaultPauser is the address of the new vaultPauser contract
+     */
+    function setVaultPauser(address newVaultPauser) external onlyOwner {
+        vaultPauser = newVaultPauser;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -525,6 +534,21 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
         IERC20(token).safeTransfer(
             recipient,
             IERC20(token).balanceOf(address(this))
+        );
+    }
+
+    /**
+     * @notice pause a user's vault position
+     */
+    function pausePosition() external {
+        address _vaultPauserAddress = vaultPauser;
+        require(_vaultPauserAddress != address(0)); // Removed revert msgs due to contract size limit
+        _redeem(0, true);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        _approve(msg.sender, _vaultPauserAddress, heldByAccount);
+        IVaultPauser(_vaultPauserAddress).pausePosition(
+            msg.sender,
+            heldByAccount
         );
     }
 }

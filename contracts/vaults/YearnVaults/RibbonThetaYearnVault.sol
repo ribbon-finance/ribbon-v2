@@ -17,6 +17,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaYearnVaultStorage
 } from "../../storage/RibbonThetaYearnVaultStorage.sol";
+import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -266,6 +267,14 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     function setMinPrice(uint256 minPrice) external onlyKeeper {
         require(minPrice > 0, "!minPrice");
         currentOtokenPremium = minPrice;
+    }
+
+    /**
+     * @notice Sets the new Vault Pauser contract for this vault
+     * @param newVaultPauser is the address of the new vaultPauser contract
+     */
+    function setVaultPauser(address newVaultPauser) external onlyOwner {
+        vaultPauser = newVaultPauser;
     }
 
     /************************************************
@@ -529,6 +538,21 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         VaultLifecycleYearn.wrapToYieldToken(
             vaultParams.asset,
             address(collateralToken)
+        );
+    }
+
+    /**
+     * @notice pause a user's vault position
+     */
+    function pausePosition() external {
+        address _vaultPauserAddress = vaultPauser;
+        require(_vaultPauserAddress != address(0)); // Removed revert msgs due to contract size limit
+        _redeem(0, true);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        _approve(msg.sender, _vaultPauserAddress, heldByAccount);
+        IVaultPauser(_vaultPauserAddress).pausePosition(
+            msg.sender,
+            heldByAccount
         );
     }
 }

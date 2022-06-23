@@ -18,6 +18,7 @@ import {RibbonVault} from "./base/RibbonVault.sol";
 import {
     RibbonThetaSTETHVaultStorage
 } from "../../storage/RibbonThetaSTETHVaultStorage.sol";
+import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
@@ -95,7 +96,6 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
-     * @param _crvPool is the steth/eth crv stables pool
      */
     constructor(
         address _weth,
@@ -105,8 +105,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction,
-        address _crvPool
+        address _gnosisEasyAuction
     )
         RibbonVault(
             _weth,
@@ -115,8 +114,7 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             _ldo,
             _gammaController,
             _marginPool,
-            _gnosisEasyAuction,
-            _crvPool
+            _gnosisEasyAuction
         )
     {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
@@ -255,6 +253,14 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
     function setMinPrice(uint256 minPrice) external onlyKeeper {
         require(minPrice > 0, "!minPrice");
         currentOtokenPremium = minPrice;
+    }
+
+    /**
+     * @notice Sets the new Vault Pauser contract for this vault
+     * @param newVaultPauser is the address of the new vaultPauser contract
+     */
+    function setVaultPauser(address newVaultPauser) external onlyOwner {
+        vaultPauser = newVaultPauser;
     }
 
     /************************************************
@@ -477,6 +483,21 @@ contract RibbonThetaSTETHVault is RibbonVault, RibbonThetaSTETHVaultStorage {
             WETH,
             address(collateralToken),
             STETH
+        );
+    }
+
+    /**
+     * @notice pause a user's vault position
+     */
+    function pausePosition() external {
+        address _vaultPauserAddress = vaultPauser;
+        require(_vaultPauserAddress != address(0)); // Removed revert msgs due to contract size limit
+        _redeem(0, true);
+        uint256 heldByAccount = balanceOf(msg.sender);
+        _approve(msg.sender, _vaultPauserAddress, heldByAccount);
+        IVaultPauser(_vaultPauserAddress).pausePosition(
+            msg.sender,
+            heldByAccount
         );
     }
 }

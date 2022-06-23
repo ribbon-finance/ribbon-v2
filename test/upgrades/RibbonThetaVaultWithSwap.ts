@@ -9,7 +9,13 @@ import {
   USDC_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
-import { objectEquals, parseLog, serializeMap, setOpynOracleExpiryPrice, setupOracle } from "../helpers/utils";
+import {
+  objectEquals,
+  parseLog,
+  serializeMap,
+  setOpynOracleExpiryPrice,
+  setupOracle,
+} from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
 import { BigNumberish, Contract } from "ethers";
 import * as time from "../helpers/time";
@@ -29,7 +35,7 @@ const USER_ACCOUNT_1 = "0xbA304E6d2bBb7Bc84a247693E34Be1bed2e2cCc2";
 const USER_ACCOUNT_2 = "0xc9596e90ea2b30159889F1883077609eec048dB7";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14709786;
+const FORK_BLOCK = 14972200;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -96,9 +102,14 @@ function checkWithdrawal(vaultAddress: string) {
         vaultAddress,
         adminSigner
       );
-      vault = await ethers.getContractAt("RibbonThetaVaultWithSwap", vaultAddress);
+      vault = await ethers.getContractAt(
+        "RibbonThetaVaultWithSwap",
+        vaultAddress
+      );
 
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycleWithSwap");
+      const VaultLifecycle = await ethers.getContractFactory(
+        "VaultLifecycleWithSwap"
+      );
       const vaultLifecycleLib = await VaultLifecycle.deploy();
 
       const Swap = await ethers.getContractFactory("Swap");
@@ -155,7 +166,10 @@ function checkWithdrawal(vaultAddress: string) {
         keeper = await ethers.getSigner(KEEPER);
 
         const liquidityGaugeAddress = await vault.liquidityGauge();
-        liquidityGauge = await ethers.getContractAt("ILiquidityGauge", liquidityGaugeAddress);
+        liquidityGauge = await ethers.getContractAt(
+          "ILiquidityGauge",
+          liquidityGaugeAddress
+        );
 
         const assetAddress = (await vault.vaultParams()).asset;
         asset = await ethers.getContractAt("IERC20", assetAddress);
@@ -163,8 +177,12 @@ function checkWithdrawal(vaultAddress: string) {
 
       it("withdraws the correct amount after upgrade", async () => {
         // Get the staked vault shares of the users
-        const acc1StakedBalance = await liquidityGauge.balanceOf(account1.address);
-        const acc2StakedBalance = await liquidityGauge.balanceOf(account2.address);
+        const acc1StakedBalance = await liquidityGauge.balanceOf(
+          account1.address
+        );
+        const acc2StakedBalance = await liquidityGauge.balanceOf(
+          account2.address
+        );
 
         // Withdraw the staked balance of the users
         await liquidityGauge.connect(account1).withdraw(acc1StakedBalance);
@@ -175,12 +193,8 @@ function checkWithdrawal(vaultAddress: string) {
         const initialAcc2ShareBalance = await vault.shares(account2.address);
 
         // Initiate withdrawal
-        await vault
-          .connect(account1)
-          .initiateWithdraw(initialAcc1ShareBalance);
-        await vault
-          .connect(account2)
-          .initiateWithdraw(initialAcc2ShareBalance);
+        await vault.connect(account1).initiateWithdraw(initialAcc1ShareBalance);
+        await vault.connect(account2).initiateWithdraw(initialAcc2ShareBalance);
 
         // Get balance after initiate withdraw
         const acc1ShareBalanceAfterInit = await vault.shares(account1.address);
@@ -223,32 +237,46 @@ function checkWithdrawal(vaultAddress: string) {
         // Complete withdrawal
         const gasPrice = parseUnits("30", "gwei");
 
-        const acc1Tx = await vault.connect(account1).completeWithdraw({ gasPrice });
+        const acc1Tx = await vault
+          .connect(account1)
+          .completeWithdraw({ gasPrice });
         const acc1Receipt = await acc1Tx.wait();
         const acc1GasFee = acc1Receipt.gasUsed.mul(gasPrice);
 
-        const acc2Tx = await vault.connect(account2).completeWithdraw({ gasPrice });
+        const acc2Tx = await vault
+          .connect(account2)
+          .completeWithdraw({ gasPrice });
         const acc2Receipt = await acc2Tx.wait();
         const acc2GasFee = acc2Receipt.gasUsed.mul(gasPrice);
 
-        await expect(acc1Tx).to.emit(vault, "Withdraw").withArgs(
-          account1.address,
-          initialAcc1ShareBalance.mul(pps).div(parseEther("1")),
-          initialAcc1ShareBalance
-        );
+        await expect(acc1Tx)
+          .to.emit(vault, "Withdraw")
+          .withArgs(
+            account1.address,
+            initialAcc1ShareBalance.mul(pps).div(parseEther("1")),
+            initialAcc1ShareBalance
+          );
 
-        await expect(acc2Tx).to.emit(vault, "Withdraw").withArgs(
-          account2.address,
-          initialAcc2ShareBalance.mul(pps).div(parseEther("1")),
-          initialAcc2ShareBalance
-        );
+        await expect(acc2Tx)
+          .to.emit(vault, "Withdraw")
+          .withArgs(
+            account2.address,
+            initialAcc2ShareBalance.mul(pps).div(parseEther("1")),
+            initialAcc2ShareBalance
+          );
 
         // Get the users balance
         const acc1AssetBalanceAfter = await account1.getBalance();
         const acc2AssetBalanceAfter = await account2.getBalance();
 
-        assert.bnGte(acc1AssetBalanceAfter.sub(acc1AssetBalanceBefore), initialAcc1ShareBalance.mul(pps).div(parseEther("1")).sub(acc1GasFee));
-        assert.bnGte(acc2AssetBalanceAfter.sub(acc2AssetBalanceBefore), initialAcc2ShareBalance.mul(pps).div(parseEther("1")).sub(acc2GasFee));
+        assert.bnGte(
+          acc1AssetBalanceAfter.sub(acc1AssetBalanceBefore),
+          initialAcc1ShareBalance.mul(pps).div(parseEther("1")).sub(acc1GasFee)
+        );
+        assert.bnGte(
+          acc2AssetBalanceAfter.sub(acc2AssetBalanceBefore),
+          initialAcc2ShareBalance.mul(pps).div(parseEther("1")).sub(acc2GasFee)
+        );
       });
     });
   });
