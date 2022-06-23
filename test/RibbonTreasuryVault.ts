@@ -44,7 +44,7 @@ import {
   getAuctionMinPrice,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
@@ -120,7 +120,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").pow("8"),
+    manualStrikePrice: BigNumber.from("3").pow("8"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -331,7 +331,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: asset === BADGER_ADDRESS[chainId] ? 15007312 : 14087600,
+              blockNumber: asset === BADGER_ADDRESS[chainId] ? 15012740 : 14087600,
             },
           },
         ],
