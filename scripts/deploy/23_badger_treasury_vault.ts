@@ -37,7 +37,7 @@ const main = async ({
     return;
   }
 
-  const manualVolOracle = await deployments.get("ManualVolOracle");
+  const manualVolOracle = "0x7c0bfab993fbd54deadf43adff960e9c9e116399"; //await deployments.get("ManualVolOracle");
   const underlyingOracle = BADGER_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
@@ -117,7 +117,7 @@ const main = async ({
       asset: BADGER_ADDRESS[chainId],
       underlying: BADGER_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseEther("200000"),
+      cap: parseEther("5000000"),
     },
   ];
   const initData = RibbonTreasuryVault.interface.encodeFunctionData(
@@ -143,6 +143,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonTreasuryVaultBADGER"];
-main.dependencies = ["ManualVolOracle", "RibbonTreasuryVaultLogic"];
+main.dependencies = [];//["ManualVolOracle", "RibbonTreasuryVaultLogic"];
 
 export default main;
