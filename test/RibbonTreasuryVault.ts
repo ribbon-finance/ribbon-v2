@@ -3258,11 +3258,7 @@ function behavesLikeRibbonOptionsVault(params: {
           performanceFeeInAsset
         );
 
-        if (params.asset === BADGER_ADDRESS[chainId]) {
-          totalDistributed = totalDistributed.sub(1);
-        } else {
-          totalDistributed = totalDistributed.add(1);
-        }
+        totalDistributed = totalDistributed.sub(1);
 
         await expect(tx)
           .to.emit(vault, "DistributePremium")
