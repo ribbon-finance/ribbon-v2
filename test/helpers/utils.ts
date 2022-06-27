@@ -649,6 +649,8 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("5");
     case "SUSHI":
       return BigNumber.from("1");
+    case "BADGER":
+      return BigNumber.from("0");
     case "WETH":
       if (chainId === CHAINID.AVAX_MAINNET) {
         return BigNumber.from("3");
