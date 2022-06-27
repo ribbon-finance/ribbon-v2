@@ -3260,7 +3260,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         if (params.asset === BADGER_ADDRESS[chainId]) {
           totalDistributed = totalDistributed.sub(1);
-        }else{
+        } else {
           totalDistributed = totalDistributed.add(1);
         }
 
