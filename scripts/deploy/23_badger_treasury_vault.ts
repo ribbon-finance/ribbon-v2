@@ -5,7 +5,6 @@ import {
   BADGER_ADDRESS,
   BADGER_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  BADGER_ETH_POOL,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
