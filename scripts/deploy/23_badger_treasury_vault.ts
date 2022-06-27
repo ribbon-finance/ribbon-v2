@@ -9,6 +9,7 @@ import {
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
+import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
@@ -17,6 +18,8 @@ import {
   STRIKE_STEP,
   BADGER_STRIKE_MULTIPLIER,
 } from "../utils/constants";
+
+import { getDeltaStep } from "../../test/helpers/utils";
 
 const main = async ({
   network,
