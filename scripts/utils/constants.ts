@@ -20,5 +20,5 @@ export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result 
 /**
  * Treasury Vault Params
  */
-export const PERP_STRIKE_MULTIPLIER = 150;
+export const PERP_STRIKE_MULTIPLIER = 125;
 export const BADGER_STRIKE_MULTIPLIER = 125;
