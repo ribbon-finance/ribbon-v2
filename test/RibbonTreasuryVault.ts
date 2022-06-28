@@ -3306,7 +3306,7 @@ function behavesLikeRibbonOptionsVault(params: {
           performanceFeeInAsset
         );
 
-        if (![BADGER_ADDRESS[chainId], BAL_ADDRESS[chainId]].includes(asset)) {
+        if (asset !== BAL_ADDRESS[chainId]) {
           totalDistributed = totalDistributed.sub(1);
         }
 
