@@ -15,9 +15,11 @@ import {
   ORACLE_OWNER,
   USDC_ADDRESS,
   APE_ADDRESS,
+  RETH_ADDRESS,
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
   BAL_ADDRESS,
+  BADGER_ADDRESS,
   YEARN_PRICER_OWNER,
   SAVAX_PRICER,
   GAMMA_CONTROLLER,
@@ -30,6 +32,7 @@ import {
   TD_ORACLE_OWNER,
   TD_WHITELIST,
   TD_WHITELIST_OWNER,
+  CHAINLINK_WETH_PRICER,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -201,7 +204,8 @@ export async function setupOracle(
   assetAddr: string,
   chainlinkPricer: string,
   signer: SignerWithAddress,
-  protocol: OPTION_PROTOCOL
+  protocol: OPTION_PROTOCOL,
+  collateralAssetAddr: string = ""
 ) {
   await network.provider.request({
     method: "hardhat_impersonateAccount",
@@ -229,7 +233,7 @@ export async function setupOracle(
   const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
   await forceSend
     .connect(signer)
-    .go(chainlinkPricer, { value: parseEther("1") });
+    .go(chainlinkPricer, { value: parseEther("10") });
 
   const oracle = new ethers.Contract(oracleAddr, ORACLE_ABI, pricerSigner);
 
@@ -243,13 +247,33 @@ export async function setupOracle(
     .setStablePrice(USDC_ADDRESS[chainId], "100000000");
 
   if (protocol === OPTION_PROTOCOL.GAMMA) {
-    await oracle
-      .connect(oracleOwnerSigner)
-      .setAssetPricer(assetAddr, chainlinkPricer);
+    if (collateralAssetAddr === RETH_ADDRESS[chainId]) {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .setAssetPricer(assetAddr, CHAINLINK_WETH_PRICER[chainId]);
+
+      await oracle
+        .connect(oracleOwnerSigner)
+        .setAssetPricer(collateralAssetAddr, chainlinkPricer);
+    } else {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .setAssetPricer(assetAddr, chainlinkPricer);
+    }
   } else {
-    await oracle
-      .connect(oracleOwnerSigner)
-      .updateAssetPricer(assetAddr, chainlinkPricer);
+    if (collateralAssetAddr === RETH_ADDRESS[chainId]) {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .updateAssetPricer(assetAddr, CHAINLINK_WETH_PRICER[chainId]);
+
+      await oracle
+        .connect(oracleOwnerSigner)
+        .updateAssetPricer(collateralAssetAddr, chainlinkPricer);
+    } else {
+      await oracle
+        .connect(oracleOwnerSigner)
+        .updateAssetPricer(assetAddr, chainlinkPricer);
+    }
   }
 
   return oracle;
@@ -259,12 +283,41 @@ export async function setOpynOracleExpiryPrice(
   asset: string,
   oracle: Contract,
   expiry: BigNumber,
-  settlePrice: BigNumber
+  settlePrice: BigNumber,
+  collateralAsset: string = ""
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
-  const receipt = await res.wait();
+  let receipt;
+
+  if (collateralAsset === RETH_ADDRESS[chainId]) {
+    const res = await oracle.setExpiryPrice(
+      collateralAsset,
+      expiry,
+      settlePrice
+    );
+    await res.wait();
+
+    const forceSendContract = await ethers.getContractFactory("ForceSend");
+    const forceSend = await forceSendContract.deploy(); // force Send is a contract that forces the sending of Ether to WBTC minter (which is a contract with no receive() function)
+    await forceSend
+      .connect(oracle.signer)
+      .go(CHAINLINK_WETH_PRICER[chainId], { value: parseEther("3") });
+
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [CHAINLINK_WETH_PRICER[chainId]],
+    });
+    const pricerSigner = await provider.getSigner(
+      CHAINLINK_WETH_PRICER[chainId]
+    );
+    let oracle2 = new ethers.Contract(oracle.address, ORACLE_ABI, pricerSigner);
+    const res2 = await oracle2.setExpiryPrice(asset, expiry, settlePrice);
+    receipt = await res2.wait();
+  } else {
+    const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+    receipt = await res.wait();
+  }
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
   await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);
@@ -358,7 +411,12 @@ export async function mintToken(
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
     contract.address === APE_ADDRESS[chainId] ||
+<<<<<<< HEAD
     contract.address === BAL_ADDRESS[chainId]
+=======
+    contract.address === BADGER_ADDRESS[chainId] ||
+    contract.address === RETH_ADDRESS[chainId]
+>>>>>>> e6c0e3b5462b88a0f2505e3da5b29614bc8f0235
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
@@ -596,6 +654,8 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("5");
     case "SUSHI":
       return BigNumber.from("1");
+    case "BADGER":
+      return BigNumber.from("0");
     case "WETH":
       if (chainId === CHAINID.AVAX_MAINNET) {
         return BigNumber.from("3");
