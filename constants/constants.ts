@@ -141,7 +141,7 @@ export const BAL_ADDRESS = {
 
 export const BAL_OWNER_ADDRESS = {
   [CHAINID.ETH_MAINNET]: "0x0845989a8a6da24874b37b7c610b2d6fc524c067",
-}
+};
 
 /**
  * Chainlink Oracles
@@ -188,7 +188,7 @@ export const BADGER_PRICE_ORACLE = {
 
 export const BAL_PRICE_ORACLE = {
   [CHAINID.ETH_MAINNET]: "0xdf2917806e30300537aeb49a7663062f4d1f2b5f",
-}
+};
 
 /**
  * Yearn Pricers / Reference contracts
@@ -339,7 +339,7 @@ export const CHAINLINK_BADGER_PRICER = {
 
 export const CHAINLINK_BAL_PRICER = {
   [CHAINID.ETH_MAINNET]: "0x82bE7F1C9165C229f2B7D08067230C8e0dFd9662",
-}
+};
 
 export const CHAINLINK_MIM_PRICER = {
   [CHAINID.AVAX_MAINNET]: "0xe793D9FaB3378034995E8613678AC97234b292E8",
@@ -406,7 +406,7 @@ export const BADGER_ETH_POOL = {
 
 export const BAL_ETH_POOL = {
   [CHAINID.ETH_MAINNET]: "0xdc2c21f1b54ddaf39e944689a8f90cb844135cc9",
-}
+};
 
 /**
  * Option ID
