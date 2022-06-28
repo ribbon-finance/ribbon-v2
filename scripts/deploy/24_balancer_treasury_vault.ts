@@ -2,8 +2,8 @@ import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
-  BADGER_ADDRESS,
-  BADGER_PRICE_ORACLE,
+  BAL_ADDRESS,
+  BAL_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
@@ -15,7 +15,7 @@ import {
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_STEP,
-  BADGER_STRIKE_MULTIPLIER,
+  BAL_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 import { getDeltaStep } from "../../test/helpers/utils";
@@ -31,7 +31,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`23 - Deploying BADGER Treasury Vault on ${network.name}`);
+  console.log(`24 - Deploying BAL Treasury Vault on ${network.name}`);
 
   const chainId = network.config.chainId;
   if (chainId !== CHAINID.ETH_MAINNET) {
@@ -40,7 +40,7 @@ const main = async ({
   }
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
-  const underlyingOracle = BADGER_PRICE_ORACLE[chainId];
+  const underlyingOracle = BAL_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const manualVolOracleContract = await ethers.getContractAt(
@@ -48,13 +48,13 @@ const main = async ({
     manualVolOracle.address
   );
   const optionId = await manualVolOracleContract.getOptionId(
-    getDeltaStep("BADGER"),
-    BADGER_ADDRESS[chainId],
-    BADGER_ADDRESS[chainId],
+    getDeltaStep("BAL"),
+    BAL_ADDRESS[chainId],
+    BAL_ADDRESS[chainId],
     false
   );
 
-  const pricer = await deploy("OptionsPremiumPricerBADGER", {
+  const pricer = await deploy("OptionsPremiumPricerBAL", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
@@ -63,18 +63,18 @@ const main = async ({
     args: [optionId, manualVolOracle.address, underlyingOracle, stablesOracle],
   });
 
-  console.log(`RibbonTreasuryVaultBADGER pricer @ ${pricer.address}`);
+  console.log(`RibbonTreasuryVaultBAL pricer @ ${pricer.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionBADGER", {
+  const strikeSelection = await deploy("StrikeSelectionBAL", {
     contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_STEP.BADGER, BADGER_STRIKE_MULTIPLIER], //change this
+    args: [pricer.address, STRIKE_STEP.BAL, BAL_STRIKE_MULTIPLIER], //change this
   });
 
   console.log(
-    `RibbonTreasuryVaultBADGER strikeSelection @ ${strikeSelection.address}`
+    `RibbonTreasuryVaultBAL strikeSelection @ ${strikeSelection.address}`
   );
 
   try {
@@ -82,8 +82,8 @@ const main = async ({
       address: strikeSelection.address,
       constructorArguments: [
         pricer.address,
-        STRIKE_STEP.BADGER,
-        BADGER_STRIKE_MULTIPLIER,
+        STRIKE_STEP.BAL,
+        BAL_STRIKE_MULTIPLIER,
       ], // change this
     });
   } catch (error) {
@@ -109,8 +109,8 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: "Ribbon BADGER Treasury Vault",
-      _tokenSymbol: "rBADGER-TSRY",
+      _tokenName: "Ribbon BAL Treasury Vault",
+      _tokenSymbol: "rBAL-TSRY",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
@@ -122,8 +122,8 @@ const main = async ({
     {
       isPut: false,
       decimals: 18,
-      asset: BADGER_ADDRESS[chainId],
-      underlying: BADGER_ADDRESS[chainId],
+      asset: BAL_ADDRESS[chainId],
+      underlying: BAL_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("5000000"),
     },
@@ -133,13 +133,13 @@ const main = async ({
     initArgs
   );
 
-  const proxy = await deploy("RibbonTreasuryVaultBADGER", {
+  const proxy = await deploy("RibbonTreasuryVaultBAL", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonTreasuryVaultBADGER Proxy @ ${proxy.address}`);
+  console.log(`RibbonTreasuryVaultBAL Proxy @ ${proxy.address}`);
 
   try {
     await run("verify:verify", {
@@ -150,7 +150,7 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonTreasuryVaultBADGER"];
+main.tags = ["RibbonTreasuryVaultBAL"];
 main.dependencies = []; //["ManualVolOracle", "RibbonTreasuryVaultLogic"];
 
 export default main;

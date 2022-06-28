@@ -29,6 +29,11 @@ import {
   BADGER_OWNER_ADDRESS,
   BADGER_ADDRESS,
   CHAINLINK_BADGER_PRICER,
+  BAL_ETH_POOL,
+  BAL_PRICE_ORACLE,
+  BAL_OWNER_ADDRESS,
+  BAL_ADDRESS,
+  CHAINLINK_BAL_PRICER,
   ManualVolOracle_BYTECODE,
 } from "../constants/constants";
 import {
@@ -50,6 +55,7 @@ import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
   PERP_STRIKE_MULTIPLIER,
   BADGER_STRIKE_MULTIPLIER,
+  BAL_STRIKE_MULTIPLIER,
   STRIKE_STEP,
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
@@ -136,6 +142,44 @@ describe("RibbonTreasuryVault", () => {
     oracle: BADGER_PRICE_ORACLE[chainId],
     premiumInStables: true,
     multiplier: BADGER_STRIKE_MULTIPLIER,
+    premiumDecimals: 6,
+    maxDepositors: 30,
+    minDeposit: parseUnits("1", 18),
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon BAL Treasury Vault (Call)`,
+    tokenName: "Ribbon BAL Treasury Vault",
+    tokenSymbol: "rBAL-TSRY",
+    asset: BAL_ADDRESS[chainId],
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: BAL_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_BAL_PRICER[chainId],
+    deltaStep: BigNumber.from(STRIKE_STEP.BAL),
+    depositAmount: parseEther("20"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("2000000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("0"),
+    performanceFee: BigNumber.from("20000000"),
+    manualStrikePrice: BigNumber.from("1").pow("8"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 169000,
+      depositBestCase: 102201,
+    },
+    mintConfig: {
+      contractOwnerAddress: BAL_OWNER_ADDRESS[chainId],
+    },
+    period: 30,
+    pool: BAL_ETH_POOL[chainId],
+    oracle: BAL_PRICE_ORACLE[chainId],
+    premiumInStables: true,
+    multiplier: BAL_STRIKE_MULTIPLIER,
     premiumDecimals: 6,
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
@@ -331,8 +375,12 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber:
-                asset === BADGER_ADDRESS[chainId] ? 15012740 : 14087600,
+              blockNumber: [
+                BADGER_ADDRESS[chainId],
+                BAL_ADDRESS[chainId],
+              ].includes(asset)
+                ? 15012740
+                : 14087600,
             },
           },
         ],
@@ -3258,7 +3306,9 @@ function behavesLikeRibbonOptionsVault(params: {
           performanceFeeInAsset
         );
 
-        totalDistributed = totalDistributed.sub(1);
+        if (asset !== BAL_ADDRESS[chainId]) {
+          totalDistributed = totalDistributed.sub(1);
+        }
 
         await expect(tx)
           .to.emit(vault, "DistributePremium")

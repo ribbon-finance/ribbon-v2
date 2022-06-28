@@ -9,6 +9,7 @@ export const STRIKE_STEP = {
   APE: 1 * 1e8,
   PERP: 0.1 * 1e8,
   BADGER: 0.1 * 1e8,
+  BAL: 0.1 * 1e8,
 };
 
 export const STRIKE_DELTA = 1000; // 0.1d
@@ -22,3 +23,4 @@ export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result 
  */
 export const PERP_STRIKE_MULTIPLIER = 125;
 export const BADGER_STRIKE_MULTIPLIER = 125;
+export const BAL_STRIKE_MULTIPLIER = 125;
