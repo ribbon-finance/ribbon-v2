@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import "hardhat/console.sol";
 import {ICurveETHSTETHPool} from "../interfaces/ICurveETHSTETHPool.sol";
 import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {
+    SafeERC20
+} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract STETHDepositHelper {
     using SafeERC20 for IERC20;
@@ -14,7 +15,11 @@ contract STETHDepositHelper {
     IRibbonThetaVault public immutable stETHVault;
     IERC20 public immutable stETH;
 
-    constructor(address _curveETHSTETHPool, address _stETHVault, address _stETH) {
+    constructor(
+        address _curveETHSTETHPool,
+        address _stETHVault,
+        address _stETH
+    ) {
         require(_curveETHSTETHPool != address(0), "!curveETHSTETH Pool");
         require(_stETHVault != address(0), "!stETHVault");
         require(_stETH != address(0), "!_stETH");
@@ -36,8 +41,6 @@ contract STETHDepositHelper {
         );
         uint256 balance = stETH.balanceOf(address(this));
         stETH.safeApprove(address(stETHVault), balance);
-        console.log("Balance", balance);
         stETHVault.depositYieldTokenFor(balance, msg.sender);
-        console.log("DEPOSIT", balance);
     }
 }

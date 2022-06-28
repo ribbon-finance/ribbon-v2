@@ -2,12 +2,7 @@ import { ethers, network } from "hardhat";
 import { BigNumber, Contract, utils } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "../helpers/assertions";
-import {
-  BLOCK_NUMBER,
-  CHAINID,
-  STETH_ADDRESS,
-  STETH_ETH_CRV_POOL,
-} from "../../constants/constants";
+import { STETH_ADDRESS, STETH_ETH_CRV_POOL } from "../../constants/constants";
 
 import CurveETHSTETHPoolAbi from "../../constants/abis/CurveETHSTETHPool.json";
 import RibbonThetaVaultLogic from "../../deployments/mainnet/RibbonThetaVaultLogic.json";
@@ -41,7 +36,7 @@ describe("STETHDepositHelper", () => {
         {
           forking: {
             jsonRpcUrl: process.env.TEST_URI,
-            blockNumber: BLOCK_NUMBER[CHAINID.ETH_MAINNET],
+            blockNumber: 15038742,
           },
         },
       ],
@@ -79,7 +74,7 @@ describe("STETHDepositHelper", () => {
       ].toString(),
       "0"
     );
-    const startBalance = await stETH.balanceOf(stETHVault.address);
+    const startVaultSTETHBalance = await stETH.balanceOf(stETHVault.address);
 
     // DEPOSITING 1 ETH -> stETH vault
     // 1. Find the minSTETHAmount using 0.05% slippage
@@ -93,28 +88,17 @@ describe("STETHDepositHelper", () => {
         gasLimit: 400000,
       }
     );
-    const minSTETHAmount = amountAfterSlippage(depositAmount, slippage);
+    const minSTETHAmount = amountAfterSlippage(exchangeSTETHAmount, slippage);
+    await stETHDepositHelper.deposit(minSTETHAmount, {
+      value: depositAmount,
+    });
+    const endVaultSTETHBalance = await stETH.balanceOf(stETHVault.address);
 
-    console.log(
-      depositAmount.toString(),
-      exchangeSTETHAmount.toString(),
-      minSTETHAmount.toString()
-    );
-    // 1000000000000000000;
-    // 950000000000000000;
-    // 949132737090134212;
+    // 1. The vault should own some stETH
+    assert.isAbove(endVaultSTETHBalance, startVaultSTETHBalance);
 
-    const tx = await stETHDepositHelper.deposit(minSTETHAmount, { value: depositAmount });
-    console.log(tx);
-
-    // assert.equal(
-    //   (await stETHVault.depositReceipts(signer.address))[
-    //     AMOUNT_INDEX
-    //   ].toString(),
-    //   "259480652035615045"
-    // );
-    const endBalance = await stETH.balanceOf(stETHVault.address);
-
-    assert.isAbove(endBalance, startBalance);
+    // 2. The helper contract should have 1 stETH balance
+    // (because stETH transfers suffer from an off-by-1 error)
+    assert.equal((await stETH.balanceOf(stETHDepositHelper.address)).toNumber(), 1);
   });
 });
