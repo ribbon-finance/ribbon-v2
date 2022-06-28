@@ -375,7 +375,12 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: [BADGER_ADDRESS[chainId], BAL_ADDRESS[chainId]].includes(asset) ? 15012740 : 14087600,
+              blockNumber: [
+                BADGER_ADDRESS[chainId],
+                BAL_ADDRESS[chainId],
+              ].includes(asset)
+                ? 15012740
+                : 14087600,
             },
           },
         ],
@@ -3257,10 +3262,10 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
 
-//         firstOptionPremium =
-//           params.collateralAsset === BAL_ADDRESS[chainId]
-//             ? firstOptionPremium.mul(12).div(8)
-//             : firstOptionPremium;
+        //         firstOptionPremium =
+        //           params.collateralAsset === BAL_ADDRESS[chainId]
+        //             ? firstOptionPremium.mul(12).div(8)
+        //             : firstOptionPremium;
 
         auctionDetails = await bidForOToken(
           gnosisAuction,
@@ -3307,6 +3312,10 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         totalDistributed = totalDistributed.sub(1);
+
+        if (![BADGER_ADDRESS[chainId], BAL_ADDRESS[chainId]].includes(asset)) {
+          totalDistributed = totalDistributed.sub(1);
+        }
 
         await expect(tx)
           .to.emit(vault, "DistributePremium")
