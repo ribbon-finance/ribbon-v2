@@ -117,7 +117,7 @@ const main = async ({
       asset: BAL_ADDRESS[chainId],
       underlying: BAL_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseEther("200000"),
+      cap: parseEther("5000000"),
     },
   ];
   const initData = RibbonTreasuryVault.interface.encodeFunctionData(
