@@ -651,6 +651,7 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("5");
     case "SUSHI":
       return BigNumber.from("1");
+    case "BAL":
     case "BADGER":
       return BigNumber.from("0");
     case "WETH":
