@@ -24,6 +24,11 @@ import {
   PERP_OWNER_ADDRESS,
   PERP_ADDRESS,
   CHAINLINK_PERP_PRICER,
+  BADGER_ETH_POOL,
+  BADGER_PRICE_ORACLE,
+  BADGER_OWNER_ADDRESS,
+  BADGER_ADDRESS,
+  CHAINLINK_BADGER_PRICER,
   BAL_ETH_POOL,
   BAL_PRICE_ORACLE,
   BAL_OWNER_ADDRESS,
@@ -49,6 +54,7 @@ import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
   PERP_STRIKE_MULTIPLIER,
+  BADGER_STRIKE_MULTIPLIER,
   BAL_STRIKE_MULTIPLIER,
   STRIKE_STEP,
 } from "../scripts/utils/constants";
@@ -98,6 +104,44 @@ describe("RibbonTreasuryVault", () => {
     oracle: PERP_PRICE_ORACLE[chainId],
     premiumInStables: true,
     multiplier: PERP_STRIKE_MULTIPLIER,
+    premiumDecimals: 6,
+    maxDepositors: 30,
+    minDeposit: parseUnits("1", 18),
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon BADGER Treasury Vault (Call)`,
+    tokenName: "Ribbon BADGER Treasury Vault",
+    tokenSymbol: "rBADGER-TSRY",
+    asset: BADGER_ADDRESS[chainId],
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: BADGER_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_BADGER_PRICER[chainId],
+    deltaStep: BigNumber.from(STRIKE_STEP.BADGER),
+    depositAmount: parseEther("20"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("2000000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("0"),
+    performanceFee: BigNumber.from("20000000"),
+    manualStrikePrice: BigNumber.from("3").pow("8"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 233691,
+      depositBestCase: 171670,
+    },
+    mintConfig: {
+      contractOwnerAddress: BADGER_OWNER_ADDRESS[chainId],
+    },
+    period: 30,
+    pool: BADGER_ETH_POOL[chainId],
+    oracle: BADGER_PRICE_ORACLE[chainId],
+    premiumInStables: true,
+    multiplier: BADGER_STRIKE_MULTIPLIER,
     premiumDecimals: 6,
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
@@ -331,7 +375,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: asset === BAL_ADDRESS[chainId] ? 15012740 : 14087600,
+              blockNumber: [BADGER_ADDRESS[chainId], BAL_ADDRESS[chainId]].includes(asset) ? 15012740 : 14087600,
             },
           },
         ],
@@ -1169,9 +1213,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("creates a pending deposit", async function () {
         const startBalance = await assetContract.balanceOf(user);
 
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
 
         const res = await vault.deposit(depositAmount);
 
@@ -1195,9 +1237,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const startBalance = await assetContract.balanceOf(user);
         const totalDepositAmount = depositAmount.add(depositAmount.div(2));
 
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDepositAmount);
+        await approve(assetContract, vault, totalDepositAmount, userSigner);
 
         await vault.deposit(depositAmount);
 
@@ -1262,9 +1302,12 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("updates the previous deposit receipt", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
+        await approve(
+          assetContract,
+          vault,
+          params.depositAmount.mul(2),
+          userSigner
+        );
 
         await vault.deposit(params.depositAmount);
 
@@ -1314,10 +1357,12 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("adds depositor to list and mapping", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
-
+        await approve(
+          assetContract,
+          vault,
+          params.depositAmount.mul(2),
+          userSigner
+        );
         await vault.deposit(params.depositAmount);
 
         assert.equal(await vault.depositorsArray(0), user);
@@ -1329,7 +1374,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("sets the next option and closes existing short", async function () {
-        await assetContract.approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
         const res = await vault
@@ -1353,7 +1398,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("should set the next option twice", async function () {
-        await assetContract.approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
         await vault.connect(ownerSigner).commitAndClose();
@@ -1402,7 +1447,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("closes short even when otokens are burned", async function () {
-        await assetContract.approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
         await rollToNextOption();
@@ -1426,7 +1471,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("closes short when otokens are partially burned", async function () {
-        await assetContract.approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await depositIntoVault(collateralAsset, vault, depositAmount);
 
         await rollToNextOption();
@@ -1467,9 +1512,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(userSigner)
             .approve(gnosisAuction.address, bid);
         } else {
-          await assetContract
-            .connect(userSigner)
-            .approve(gnosisAuction.address, bid);
+          await approve(assetContract, gnosisAuction, bid, userSigner);
         }
 
         // BID OTOKENS HERE
@@ -1499,7 +1542,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
-        await assetContract.approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await depositIntoVault(collateralAsset, vault, depositAmount);
         const res = await vault
           .connect(ownerSigner)
@@ -2248,7 +2291,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 966159); //963542, 1082712
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1012269);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });
@@ -2288,9 +2331,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("is able to redeem deposit at new price per share", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
+        await approve(assetContract, vault, params.depositAmount, userSigner);
 
         await vault.deposit(params.depositAmount);
 
@@ -2319,9 +2360,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("changes balance only once when redeeming twice", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
+        await approve(assetContract, vault, params.depositAmount, userSigner);
 
         await vault.deposit(params.depositAmount);
 
@@ -2357,9 +2396,12 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("redeems after a deposit what was unredeemed from previous rounds", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount.mul(2));
+        await approve(
+          assetContract,
+          vault,
+          params.depositAmount.mul(2),
+          userSigner
+        );
         await vault.deposit(params.depositAmount);
         await rollToNextOption();
 
@@ -2373,14 +2415,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("is able to redeem deposit at correct pricePerShare after closing short in the money", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
+        await approve(assetContract, vault, params.depositAmount, userSigner);
 
-        await assetContract
-          .connect(ownerSigner)
-          .approve(vault.address, params.depositAmount);
-
+        await approve(assetContract, vault, params.depositAmount, ownerSigner);
         // Mid-week deposit in round 1
         await assetContract
           .connect(userSigner)
@@ -2473,18 +2510,15 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts when 0 passed", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
+
         await vault.deposit(depositAmount);
         await rollToNextOption();
         await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
       });
 
       it("reverts when redeeming more than available", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2495,9 +2529,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("decreases unredeemed shares", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2541,18 +2573,14 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts with 0 amount", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
       });
 
       it("reverts when withdrawing more than available", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await expect(
@@ -2561,9 +2589,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when deposit receipt is processed", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2576,9 +2602,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when withdrawing next round", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2589,9 +2613,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when causing total deposit to go down below minimum", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         const withdrawAmount = depositAmount.sub(parseEther("0.5"));
@@ -2602,9 +2624,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("withdraws the amount in deposit receipt", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         let startBalance: BigNumber;
@@ -2642,13 +2662,9 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("removes user from list if all deposit amount is withdrawn", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
 
-        await assetContract
-          .connect(ownerSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, ownerSigner);
 
         await vault.connect(ownerSigner).deposit(depositAmount);
         await vault.connect(userSigner).deposit(depositAmount);
@@ -2692,9 +2708,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when withdrawing more than unredeemed balance", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2705,9 +2719,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when withdrawing more than vault + account balance", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2722,9 +2734,12 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("reverts when initiating with past existing withdrawal", async function () {
         const withdrawAmount = 100000000;
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount.add(withdrawAmount));
+        await approve(
+          assetContract,
+          vault,
+          depositAmount.add(withdrawAmount),
+          userSigner
+        );
         await vault.deposit(depositAmount.add(withdrawAmount));
 
         await rollToNextOption();
@@ -2748,9 +2763,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("creates withdrawal from unredeemed shares", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2771,9 +2784,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("creates withdrawal by debiting user shares", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2811,9 +2822,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .add(firstWithdrawAmount)
           .add(secondWithdrawAmount);
 
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, totalDeposit);
+        await approve(assetContract, vault, totalDeposit, userSigner);
         await vault.deposit(totalDeposit);
 
         await rollToNextOption();
@@ -2841,9 +2850,14 @@ function behavesLikeRibbonOptionsVault(params: {
       });
       it("reverts when there is insufficient balance over multiple calls", async function () {
         const withdrawAmount = BigNumber.from(100000000);
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount.add(withdrawAmount));
+
+        await approve(
+          assetContract,
+          vault,
+          depositAmount.add(withdrawAmount),
+          userSigner
+        );
+
         await vault.deposit(depositAmount.add(withdrawAmount));
 
         await rollToNextOption();
@@ -2856,9 +2870,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("allows withdrawal if taking out full balance", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2872,9 +2884,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("removes user from list if initiating full amount withdraw", async function () {
         // Assume user is initiating withdraw twice which amounts to full amount
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -2905,31 +2915,25 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
 
         const tx = await vault.initiateWithdraw(depositAmount);
         const receipt = await tx.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 127000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 140000);
         // console.log("initiateWithdraw", receipt.gasUsed.toNumber());
       });
     });
 
     describe("#completeWithdraw", () => {
       time.revertToSnapshotAfterEach(async () => {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await assetContract.connect(userSigner).transfer(owner, depositAmount);
-        await assetContract
-          .connect(ownerSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, ownerSigner);
         await vault.connect(ownerSigner).deposit(depositAmount);
 
         await rollToNextOption();
@@ -3035,7 +3039,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.completeWithdraw({ gasPrice });
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 95036);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 151803);
         // console.log(
         //   params.name,
         //   "completeWithdraw",
@@ -3301,6 +3305,8 @@ function behavesLikeRibbonOptionsVault(params: {
         totalDistributed = BigNumber.from(auctionDetails[2]).sub(
           performanceFeeInAsset
         );
+
+        totalDistributed = totalDistributed.sub(1);
 
         await expect(tx)
           .to.emit(vault, "DistributePremium")
@@ -3612,9 +3618,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("shows correct share balance after redemptions", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -3634,9 +3638,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("returns the share balances split", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -3656,9 +3658,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("returns the total number of shares", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -3675,9 +3675,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("returns a lesser underlying amount for user", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -3688,9 +3686,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await assetContract.connect(userSigner).transfer(owner, depositAmount);
-        await assetContract
-          .connect(ownerSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, ownerSigner);
         await vault.connect(ownerSigner).deposit(depositAmount);
 
         // remain the same after deposit
@@ -3728,9 +3724,7 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts on transfer", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -3754,9 +3748,8 @@ function behavesLikeRibbonOptionsVault(params: {
       time.revertToSnapshotAfterEach();
 
       it("reverts on transfer", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, depositAmount);
+        await approve(assetContract, vault, depositAmount, userSigner);
+
         await vault.deposit(depositAmount);
 
         await rollToNextOption();
@@ -3792,4 +3785,17 @@ async function depositIntoVault(
   } else {
     await vault.deposit(amount);
   }
+}
+
+async function approve(
+  assetContract: Contract,
+  vault: Contract,
+  amount: BigNumberish,
+  signer?: SignerWithAddress
+) {
+  if (assetContract.address === BADGER_ADDRESS[chainId]) {
+    await assetContract.connect(signer).approve(vault.address, 0);
+  }
+
+  await assetContract.connect(signer).approve(vault.address, amount);
 }

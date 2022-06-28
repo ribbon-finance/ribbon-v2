@@ -8,17 +8,19 @@ export const STRIKE_STEP = {
   AAVE: 10 * 1e8,
   APE: 1 * 1e8,
   PERP: 0.1 * 1e8,
+  BADGER: 0.1 * 1e8,
   BAL: 0.1 * 1e8,
 };
 
 export const STRIKE_DELTA = 1000; // 0.1d
 export const PREMIUM_DISCOUNT = 200; // 0.20, 80% discount
-export const AUCTION_DURATION = 3600; // 1 hour
+export const AUCTION_DURATION = 600; // 10 minutes
 export const PERFORMANCE_FEE = 10000000;
 export const MANAGEMENT_FEE = 2000000; // 2% per year. 2 * 10**6. Should result in 38356 per week.
 
 /**
  * Treasury Vault Params
  */
-export const PERP_STRIKE_MULTIPLIER = 150;
+export const PERP_STRIKE_MULTIPLIER = 125;
+export const BADGER_STRIKE_MULTIPLIER = 125;
 export const BAL_STRIKE_MULTIPLIER = 125;
