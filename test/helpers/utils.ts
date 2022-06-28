@@ -18,6 +18,7 @@ import {
   RETH_ADDRESS,
   WBTC_ADDRESS,
   SAVAX_ADDRESS,
+  BAL_ADDRESS,
   BADGER_ADDRESS,
   YEARN_PRICER_OWNER,
   SAVAX_PRICER,
@@ -411,6 +412,7 @@ export async function mintToken(
     contract.address === SAVAX_ADDRESS[chainId] ||
     contract.address === APE_ADDRESS[chainId] ||
     contract.address === BADGER_ADDRESS[chainId] ||
+    contract.address === BAL_ADDRESS[chainId] ||
     contract.address === RETH_ADDRESS[chainId]
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
@@ -649,6 +651,7 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("5");
     case "SUSHI":
       return BigNumber.from("1");
+    case "BAL":
     case "BADGER":
       return BigNumber.from("0");
     case "WETH":
