@@ -411,12 +411,9 @@ export async function mintToken(
     contract.address === USDC_ADDRESS[chainId] ||
     contract.address === SAVAX_ADDRESS[chainId] ||
     contract.address === APE_ADDRESS[chainId] ||
-<<<<<<< HEAD
-    contract.address === BAL_ADDRESS[chainId]
-=======
     contract.address === BADGER_ADDRESS[chainId] ||
+    contract.address === BAL_ADDRESS[chainId] ||
     contract.address === RETH_ADDRESS[chainId]
->>>>>>> e6c0e3b5462b88a0f2505e3da5b29614bc8f0235
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
