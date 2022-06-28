@@ -5,10 +5,10 @@ import {
   BAL_ADDRESS,
   BAL_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
-  BAL_ETH_POOL,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
+import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   AUCTION_DURATION,
   MANAGEMENT_FEE,
@@ -17,6 +17,8 @@ import {
   STRIKE_STEP,
   BAL_STRIKE_MULTIPLIER,
 } from "../utils/constants";
+
+import { getDeltaStep } from "../../test/helpers/utils";
 
 const main = async ({
   network,
@@ -41,18 +43,24 @@ const main = async ({
   const underlyingOracle = BAL_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
+  const manualVolOracleContract = await ethers.getContractAt(
+    ManualVolOracle_ABI,
+    manualVolOracle.address
+  );
+  const optionId = await manualVolOracleContract.getOptionId(
+    getDeltaStep("BAL"),
+    BAL_ADDRESS[chainId],
+    BAL_ADDRESS[chainId],
+    false
+  );
+
   const pricer = await deploy("OptionsPremiumPricerBAL", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
-    args: [
-      BAL_ETH_POOL[chainId],
-      manualVolOracle.address,
-      underlyingOracle,
-      stablesOracle,
-    ],
+    args: [optionId, manualVolOracle.address, underlyingOracle, stablesOracle],
   });
 
   console.log(`RibbonTreasuryVaultBAL pricer @ ${pricer.address}`);
@@ -143,6 +151,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonTreasuryVaultBAL"];
-main.dependencies = ["ManualVolOracle", "RibbonTreasuryVaultLogic"];
+main.dependencies = []; //["ManualVolOracle", "RibbonTreasuryVaultLogic"];
 
 export default main;
