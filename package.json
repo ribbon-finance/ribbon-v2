@@ -44,7 +44,6 @@
     "test:upgrade": "npx hardhat test test/upgrades/*.ts",
     "test:integration": "npx hardhat test test/integration/*.ts",
     "test:utils": "npx hardhat test test/utils/*.ts",
-    "test:utils:stETHDepositHelper": "npx hardhat test test/utils/STETHDepositHelper.ts",
     "compile": "CHAINID=1 npx hardhat compile",
     "deploy": "npx hardhat deploy",
     "etherscan-verify": "npx hardhat etherscan-verify",
