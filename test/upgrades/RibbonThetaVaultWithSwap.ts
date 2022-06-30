@@ -306,9 +306,10 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "lastQueuedWithdrawAmount",
     "liquidityGauge",
     "optionsPurchaseQueue",
+    "currentQueuedWithdrawShares",
   ];
 
-  const newVariables = ["currentQueuedWithdrawShares"];
+  const newVariables = ["offerExecutor"];
 
   let variables: Record<string, unknown> = {};
 
