@@ -169,7 +169,8 @@ function behavesLikeRibbonOptionsVault(params: {
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
     keeperSigner: SignerWithAddress,
-    feeRecipientSigner: SignerWithAddress;
+    feeRecipientSigner: SignerWithAddress,
+    offerExecutorSigner: SignerWithAddress;
 
   // Parameters
   let tokenName = params.tokenName;
@@ -269,8 +270,14 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [adminSigner, ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
-        await ethers.getSigners();
+      [
+        adminSigner,
+        ownerSigner,
+        keeperSigner,
+        userSigner,
+        feeRecipientSigner,
+        offerExecutorSigner,
+      ] = await ethers.getSigners();
       owner = ownerSigner.address;
       keeper = keeperSigner.address;
       user = userSigner.address;
@@ -386,6 +393,10 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         )
       ).connect(userSigner);
+
+      await vault
+        .connect(ownerSigner)
+        .setNewOfferExecutor(offerExecutorSigner.address);
 
       oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
 
@@ -1399,7 +1410,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(keeperSigner)
+          .connect(offerExecutorSigner)
           .settleOffer([Object.values(signedBid)]);
 
         assert.bnLte(
@@ -1496,7 +1507,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(keeperSigner)
+          .connect(offerExecutorSigner)
           .settleOffer([Object.values(signedBid)]);
 
         assert.bnLte(
@@ -1694,7 +1705,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 
         await vault
-          .connect(keeperSigner)
+          .connect(offerExecutorSigner)
           .settleOffer([Object.values(signedBid)]);
 
         assert.equal(
@@ -1758,7 +1769,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(keeperSigner)
+          .connect(offerExecutorSigner)
           .settleOffer([Object.values(signedBid)]);
 
         // Asset balance when auction closes only contains auction proceeds
@@ -2135,7 +2146,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // Check that the vault receives the correct amount of proceeds from the swap
         const tx = await vault
-          .connect(keeperSigner)
+          .connect(offerExecutorSigner)
           .settleOffer([Object.values(signedBid)]);
         let auctionProceeds = await assetContract.balanceOf(vault.address);
 
@@ -2307,7 +2318,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(keeperSigner)
+          .connect(offerExecutorSigner)
           .settleOffer([Object.values(signedBid)]);
 
         let newOptionStrike = await (
