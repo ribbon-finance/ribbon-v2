@@ -796,6 +796,22 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#setNewOfferExecutor", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("set new offerExecutor to owner", async function () {
+        assert.equal(await vault.offerExecutor(), offerExecutorSigner.address);
+        await vault.connect(ownerSigner).setNewOfferExecutor(owner);
+        assert.equal(await vault.offerExecutor(), owner);
+      });
+
+      it("reverts when not owner call", async function () {
+        await expect(vault.setNewOfferExecutor(owner)).to.be.revertedWith(
+          "caller is not the owner"
+        );
+      });
+    });
+
     describe("#setStrikeSelection", () => {
       time.revertToSnapshotAfterTest();
 
