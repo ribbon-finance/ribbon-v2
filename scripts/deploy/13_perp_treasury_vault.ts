@@ -76,7 +76,7 @@ const main = async ({
         pricer.address,
         PERP_STRIKE_MULTIPLIER,
         STRIKE_STEP.PERP,
-      ], 
+      ],
     });
   } catch (error) {
     console.log(error);
