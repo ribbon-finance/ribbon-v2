@@ -70,7 +70,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionBADGER", {
     contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_STEP.BADGER, BADGER_STRIKE_MULTIPLIER], //change this
+    args: [pricer.address, BADGER_STRIKE_MULTIPLIER, STRIKE_STEP.BADGER],
   });
 
   console.log(
@@ -82,9 +82,9 @@ const main = async ({
       address: strikeSelection.address,
       constructorArguments: [
         pricer.address,
-        STRIKE_STEP.BADGER,
         BADGER_STRIKE_MULTIPLIER,
-      ], // change this
+        STRIKE_STEP.BADGER,
+      ],
     });
   } catch (error) {
     console.log(error);
