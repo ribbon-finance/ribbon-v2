@@ -70,7 +70,7 @@ const main = async ({
   const strikeSelection = await deploy("StrikeSelectionBAL", {
     contract: "PercentStrikeSelection",
     from: deployer,
-    args: [pricer.address, BAL_STRIKE_MULTIPLIER, STRIKE_STEP.BAL], 
+    args: [pricer.address, BAL_STRIKE_MULTIPLIER, STRIKE_STEP.BAL],
   });
 
   console.log(
