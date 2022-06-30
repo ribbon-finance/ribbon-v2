@@ -1,13 +1,13 @@
 import { run } from "hardhat";
 import { DeployResult } from "hardhat-deploy/dist/types";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
-  CHAINID,
-} from "../../constants/constants";
+import { CHAINID } from "../../constants/constants";
 import {
   STRIKE_STEP,
   STRIKE_DELTA,
   PERP_STRIKE_MULTIPLIER,
+  BADGER_STRIKE_MULTIPLIER,
+  BAL_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 const ASSETS = {
@@ -17,12 +17,11 @@ const ASSETS = {
     "ETH Put",
     "WBTC Call",
     "APE Call",
-    "PERP Call"
+    "PERP Call",
+    "BADGER Call",
+    "BAL Call",
   ],
-  [CHAINID.AVAX_MAINNET]: [
-    "AVAX Call",
-    "AVAX Put"
-  ]
+  [CHAINID.AVAX_MAINNET]: ["AVAX Call", "AVAX Put"],
 };
 
 const main = async ({
@@ -31,15 +30,16 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
-  const { deployer } =
-    await getNamedAccounts();
+  const { deployer } = await getNamedAccounts();
   console.log(`00 - Deploying Strike Selection on ${network.name}`);
 
   const chainId = network.config.chainId;
 
   for (let vault of ASSETS[chainId]) {
     const [asset, optionType] = vault.split(" ");
-    const pricer = await deployments.get("OptionsPremiumPricer" + asset + optionType);
+    const pricer = await deployments.get(
+      "OptionsPremiumPricer" + asset + optionType
+    );
 
     let strikeSelection: DeployResult;
     if (asset === "PERP") {
@@ -48,6 +48,18 @@ const main = async ({
         from: deployer,
         args: [pricer.address, PERP_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
       });
+    } else if (asset === "BADGER") {
+      strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
+        contract: "PercentStrikeSelection",
+        from: deployer,
+        args: [pricer.address, BADGER_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
+      });
+    } else if (asset === "BAL") {
+          strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
+            contract: "PercentStrikeSelection",
+            from: deployer,
+            args: [pricer.address, BAL_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
+          });
     } else {
       strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
         contract: "DeltaStrikeSelection",
@@ -55,7 +67,6 @@ const main = async ({
         args: [pricer.address, STRIKE_DELTA, STRIKE_STEP[asset]],
       });
     }
-
 
     console.log(
       `strikeSelection${asset + optionType} @ ${strikeSelection.address}`
