@@ -277,6 +277,15 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         vaultPauser = newVaultPauser;
     }
 
+    /**
+     * @notice Sets the new offerExecutor
+     * @param newOfferExecutor is the address of the new offerExecutor
+     */
+    function setNewOfferExecutor(address newOfferExecutor) external onlyOwner {
+        require(newOfferExecutor != address(0), "!newOfferExecutor");
+        offerExecutor = newOfferExecutor;
+    }
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -466,13 +475,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         _createOffer();
     }
 
-    /**
-     * @notice Create offer in the swap contract.
-     */
-    function createOffer() external onlyKeeper nonReentrant {
-        _createOffer();
-    }
-
     function _createOffer() private {
         address currentOtoken = optionState.currentOption;
         uint256 currOtokenPremium = currentOtokenPremium;
@@ -490,7 +492,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function settleOffer(ISwap.Bid[] calldata bids)
         external
-        onlyKeeper
+        onlyOfferExecutor
         nonReentrant
     {
         ISwap(SWAP_CONTRACT).settleOffer(optionAuctionID, bids);
@@ -524,5 +526,13 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             msg.sender,
             heldByAccount
         );
+    }
+
+    /**
+     * @dev Throws if called by any account other than the offerExecutor.
+     */
+    modifier onlyOfferExecutor() {
+        require(msg.sender == offerExecutor, "!offerExecutor");
+        _;
     }
 }
