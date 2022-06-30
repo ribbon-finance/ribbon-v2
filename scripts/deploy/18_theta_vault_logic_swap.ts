@@ -19,28 +19,32 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  const swap = await deployments.get("Swap");
+  // const swap = await deployments.get("Swap");
+  const swapAddress = "0xF0E5c92cEdd66C7985C354C35e2bC37E685b99Da";
 
-  const lifecycle = await deploy("VaultLifecycleWithSwap", {
-    contract: "VaultLifecycleWithSwap",
-    from: deployer,
-  });
+  // const lifecycle = await deploy("VaultLifecycleWithSwap", {
+  //   contract: "VaultLifecycleWithSwap",
+  //   from: deployer,
+  // });
+  const lifecycle = await deployments.get("VaultLifecycleWithSwap");
 
-  const vault = await deploy("RibbonThetaVaultWithSwapLogic", {
-    contract: "RibbonThetaVaultWithSwap",
-    from: deployer,
-    args: [
-      WETH_ADDRESS[chainId],
-      USDC_ADDRESS[chainId],
-      OTOKEN_FACTORY[chainId],
-      GAMMA_CONTROLLER[chainId],
-      MARGIN_POOL[chainId],
-      swap.address,
-    ],
-    libraries: {
-      VaultLifecycleWithSwap: lifecycle.address,
-    },
-  });
+  // const vault = await deploy("RibbonThetaVaultWithSwapLogic", {
+  //   contract: "RibbonThetaVaultWithSwap",
+  //   from: deployer,
+  //   args: [
+  //     WETH_ADDRESS[chainId],
+  //     USDC_ADDRESS[chainId],
+  //     OTOKEN_FACTORY[chainId],
+  //     GAMMA_CONTROLLER[chainId],
+  //     MARGIN_POOL[chainId],
+  //     swapAddress,
+  //   ],
+  //   libraries: {
+  //     VaultLifecycleWithSwap: lifecycle.address,
+  //   },
+  // });
+  const vault = await deployments.get("RibbonThetaVaultWithSwapLogic");
+
   console.log(`RibbonThetaVaultWithSwapLogic @ ${vault.address}`);
 
   try {
@@ -61,7 +65,7 @@ const main = async ({
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
-        swap.address,
+        swapAddress,
       ],
     });
   } catch (error) {
@@ -69,6 +73,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultWithSwapLogic"];
-main.dependencies = ["Swap"];
+// main.dependencies = ["Swap"];
 
 export default main;
