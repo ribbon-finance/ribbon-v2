@@ -282,7 +282,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      * @param newOfferExecutor is the address of the new offerExecutor
      */
     function setNewOfferExecutor(address newOfferExecutor) external onlyOwner {
-        require(offerExecutor != address(0), "!newOfferExecutor");
+        require(newOfferExecutor != address(0), "!newOfferExecutor");
         offerExecutor = newOfferExecutor;
     }
 
