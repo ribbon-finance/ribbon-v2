@@ -28,6 +28,10 @@ KOVAN_URI=
 ETHERSCAN_API_KEY=
 KOVAN_MNEMONIC=
 MAINNET_MNEMONIC=
+AVAX_URI=https://api.avax.network/ext/bc/C/rpc
+FUJI_URI=https://mainnet.infura.io/v3/0bccea5795074895bdb92c62c5c3afba
+AVAX_MNEMONIC=
+FUJI_MNEMONIC=
 ```
 
 Finally, we can run the tests:
@@ -65,16 +69,19 @@ yarn etherscan-verify --network kovan
 ## Testing
 
 Will run all tests on Ethereum mainnet and a subset of tests on Avax
+
 ```
 yarn test
 ```
 
 Runs Ethereum mainnet
+
 ```
 yarn test:eth
 ```
 
 Runs Avax testnet
+
 ```
 yarn test:avax
 ```
