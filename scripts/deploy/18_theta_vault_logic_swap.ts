@@ -19,7 +19,8 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  const swap = await deployments.get("Swap");
+  // const swap = await deployments.get("Swap");
+  const swapAddress = "0xF0E5c92cEdd66C7985C354C35e2bC37E685b99Da";
 
   const lifecycle = await deploy("VaultLifecycleWithSwap", {
     contract: "VaultLifecycleWithSwap",
@@ -35,12 +36,13 @@ const main = async ({
       OTOKEN_FACTORY[chainId],
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
-      swap.address,
+      swapAddress,
     ],
     libraries: {
       VaultLifecycleWithSwap: lifecycle.address,
     },
   });
+
   console.log(`RibbonThetaVaultWithSwapLogic @ ${vault.address}`);
 
   try {
@@ -61,7 +63,7 @@ const main = async ({
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
-        swap.address,
+        swapAddress,
       ],
     });
   } catch (error) {
@@ -69,6 +71,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultWithSwapLogic"];
-main.dependencies = ["Swap"];
+// main.dependencies = ["Swap"];
 
 export default main;
