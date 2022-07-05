@@ -23,7 +23,7 @@ import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
-
+import "hardhat/console.sol";
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -354,30 +354,6 @@ contract RibbonVault is
     }
 
     /**
-     * @notice Deposits the `collateralToken` into the contract and mint vault shares.
-     * @param amount is the amount of `collateralToken` to deposit
-     */
-    function depositYieldToken(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
-
-        uint256 amountInAsset =
-            DSMath.wmul(
-                amount,
-                collateralToken.pricePerShare().mul(
-                    VaultLifecycleYearn.decimalShift(address(collateralToken))
-                )
-            );
-
-        _depositFor(amountInAsset, msg.sender);
-
-        IERC20(address(collateralToken)).safeTransferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
-    }
-
-    /**
      * @notice Mints the vault shares to the creditor
      * @param amount is the amount of `asset` deposited
      * @param creditor is the address to receieve the deposit
@@ -573,38 +549,26 @@ contract RibbonVault is
         _transfer(address(this), msg.sender, numShares);
     }
 
+
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
 
-    /**
-     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
-     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
-     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
-     * @param numRounds is the number of rounds to initialize in the map
-     */
-    function initRounds(uint256 numRounds) external nonReentrant {
-        require(numRounds > 0, "!numRounds");
-
-        uint256 _round = vaultState.round;
-        for (uint256 i = 0; i < numRounds; i++) {
-            uint256 index = _round + i;
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
-        }
+    struct rollToNextOptionParams {
+        uint256 lastQueuedWithdrawAmount;
+        uint256 currentQueuedWithdrawShares;
+        bool isYearnPaused;
     }
 
     /**
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
-     * @param lastQueuedWithdrawAmount is old queued withdraw amount
-     * @param currentQueuedWithdrawShares is the queued withdraw shares for the current round
+     * @param params is a struct of lastQueuedWithdrawAmount, currentQueuedWithdrawShares, isYearnPaused
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
     function _rollToNextOption(
-        uint256 lastQueuedWithdrawAmount,
-        uint256 currentQueuedWithdrawShares
+        rollToNextOptionParams memory params
     ) internal returns (address, uint256) {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
@@ -625,10 +589,10 @@ contract RibbonVault is
                     vaultParams.decimals,
                     totalBalance(),
                     totalSupply(),
-                    lastQueuedWithdrawAmount,
+                    params.lastQueuedWithdrawAmount,
                     performanceFee,
                     managementFee,
-                    currentQueuedWithdrawShares
+                    params.currentQueuedWithdrawShares
                 )
             );
 
@@ -656,9 +620,17 @@ contract RibbonVault is
         _mint(address(this), mintShares);
 
         address collateral = address(collateralToken);
-
-        // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
+        
+        if (params.isYearnPaused) {
+            VaultLifecycleYearn.unwrapYieldToken(
+                queuedWithdrawAmount,
+                vaultParams.asset,
+                collateral,
+                YEARN_WITHDRAWAL_BUFFER,
+                YEARN_WITHDRAWAL_SLIPPAGE);
+        } else {
+            VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
+        }
 
         if (totalVaultFee > 0) {
             VaultLifecycleYearn.withdrawYieldAndBaseToken(
