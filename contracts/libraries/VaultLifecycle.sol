@@ -18,6 +18,7 @@ import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+import "hardhat/console.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -244,6 +245,7 @@ library VaultLifecycle {
         address oTokenAddress,
         uint256 depositAmount
     ) external returns (uint256) {
+
         IController controller = IController(gammaController);
         uint256 newVaultID =
             (controller.getAccountVaultCounter(address(this))).add(1);
@@ -289,6 +291,7 @@ library VaultLifecycle {
 
         // double approve to fix non-compliant ERC20s
         IERC20 collateralToken = IERC20(collateralAsset);
+
         collateralToken.safeApproveNonCompliant(marginPool, depositAmount);
 
         IController.ActionArgs[] memory actions =
