@@ -320,8 +320,8 @@ export async function setOpynOracleExpiryPrice(
     receipt = await res2.wait();
   } else {
     if (collateralAsset === "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
-      const pricerAddress = await oracle.getPricer(asset)
-      await getAssetPricer(pricerAddress, oracle.signer as SignerWithAddress)
+      const pricerAddress = await oracle.getPricer(asset);
+      await getAssetPricer(pricerAddress, oracle.signer as SignerWithAddress);
       const pricerSigner = provider.getSigner(pricerAddress);
       const res = await oracle.connect(pricerSigner).setExpiryPrice(asset, expiry, settlePrice);
       receipt = await res.wait();
