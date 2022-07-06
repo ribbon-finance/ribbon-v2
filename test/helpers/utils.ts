@@ -343,27 +343,22 @@ export async function setOpynOracleExpiryPriceYearn(
 ) {
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
-  await network.provider.request({
-    method: "hardhat_impersonateAccount",
-    params: [],
-  });
-
-  console.log("pricer: " + await underlyingOracle.getPricer(underlyingAsset));
-  //timothy
-  console.log(underlyingAsset)
-  const res = await underlyingOracle.connect(ORACLE_OWNER).setExpiryPrice(
+  const res = await underlyingOracle.setExpiryPrice(
     underlyingAsset,
     expiry,
     underlyingSettlePrice
   );
-  console.log("reached2")
-  //await res.wait();
+  await res.wait();
   await network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [YEARN_PRICER_OWNER],
   });
 
-  const receipt = await res.wait();
+  const oracleOwnerSigner = await provider.getSigner(YEARN_PRICER_OWNER);
+  const res2 = await collateralPricer
+    .connect(oracleOwnerSigner)
+    .setExpiryPriceInOracle(expiry);
+  const receipt = await res2.wait();
 
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
   await increaseTo(timestamp + ORACLE_DISPUTE_PERIOD + 1);

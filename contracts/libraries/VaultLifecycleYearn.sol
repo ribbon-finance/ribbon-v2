@@ -382,7 +382,8 @@ library VaultLifecycleYearn {
 
         // get the black scholes premium of the option and adjust premium based on
         // collateral asset <-> asset exchange rate
-        uint256 adjustedPremium = isYearnPaused 
+        uint256 adjustedPremium = 
+        isYearnPaused 
             ? optionPremium
             : DSMath.wmul(
                 optionPremium,
