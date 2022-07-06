@@ -3753,23 +3753,22 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#yearnPause", () => {
       time.revertToSnapshotAfterEach();
 
-      it("yearnPaused initially set to true", async function () {
+      it("sets yearnPaused to true initially", async function () {
         assert.equal(await vault.isYearnPaused(), true);
       });
 
-      it("setYearnPaused cannot be set by non owner", async function () {
+      it("should revert if setYearnPaused called by non owner", async function () {
         await expect(
           vault.connect(userSigner).setYearnPaused(false)
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
-      it("setYearnPaused can be set owner", async function () {
+      it("should set isYearnPaused", async function () {
         await vault.connect(ownerSigner).setYearnPaused(false);
         assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(ownerSigner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
       });
-
 
     });
   });
