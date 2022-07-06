@@ -14,13 +14,15 @@
         "RibbonThetaVaultLogic": "0xA5b1170F2EB3c7e1eE1a4Ff6A60B3A018aE1c23D",
         "RibbonThetaVaultSAVAXCall": "0x6BF686d99A4cE17798C45d09C21181fAc29A9fb3",
         "RibbonThetaVaultWBTCCall": "0xB7EC3BecB9EA9946f4C055F6De73e7638Ce4f480",
+        "RibbonThetaVaultWithSwapLogic": "0x43cfEaa64013071d5505acF98b137f74c8CCD423",
         "RibbonVaultPauserAVAX": "0xf08d6a9c2C5a2Dc9B8645c5Ac0b529D4046D19aa",
         "SAVAXDepositHelper": "0x084a82fe209f014b3cb6D5986B2C65B584168303",
         "SAvaxOracle": "0x6CD4515759a91cC577ac9595C209cF94e551c922",
         "StrikeSelectionAVAXCall": "0x34DCc3FD8cdB790DBFC10349875Dc1b8c5B8Ab34",
         "StrikeSelectionAVAXPut": "0x93455A75870A0fa6239826Cb1cD81AD09e588034",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
-        "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef"
+        "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef",
+        "VaultLifecycleWithSwap": "0xC1e51bA212C8b3fAdA5B5D3973d7c46d2b8181dF"
     },
     "fuji": {
         "ManualVolOracle": "0x8c58dDE5156DE3b3Fb93664DccBc1BeB1d5Ac923",
@@ -95,7 +97,7 @@
         "RibbonThetaVaultSTETHLogic": "0x01F1d8744469Da81dbB6b7d3E9811f10029365E7",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
         "RibbonThetaVaultWBTCCallWithSwap": "0x460e0fC092bEbB74BDd80c593Bad99D97A3A23d0",
-        "RibbonThetaVaultWithSwapLogic": "0x74E52410aEdE9A66D0b21eb8658Bf27a15FbD421",
+        "RibbonThetaVaultWithSwapLogic": "0x6fc853A8978017381E4BEc0Da7792F0B46453a8e",
         "RibbonThetaVaultYearnLogic": "0x104701b548659033D16f2DBaA4D5D6847f494E94",
         "RibbonTreasuryVaultLogic": "0xc92E6B70eB6456171d32C3B5904386c05EC983FF",
         "RibbonVaultPauserETH": "0xE04e8Ae290965AD4F7E40c68041c493d2e89cDC3",
