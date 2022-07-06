@@ -33,10 +33,9 @@ import {
   TD_WHITELIST,
   TD_WHITELIST_OWNER,
   CHAINLINK_WETH_PRICER,
-  WETH_ADDRESS,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
-import { BigNumber, BigNumberish, Contract, Signer } from "ethers";
+import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
 
 const { provider } = ethers;
@@ -257,11 +256,11 @@ export async function setupOracle(
         .connect(oracleOwnerSigner)
         .setAssetPricer(collateralAssetAddr, chainlinkPricer);
     } else {
-      if (assetAddr !== "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2") {
+      if (collateralAssetAddr !== "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
         await oracle
           .connect(oracleOwnerSigner)
           .setAssetPricer(assetAddr, chainlinkPricer);
-        }
+      }
     }
   } else {
     if (collateralAssetAddr === RETH_ADDRESS[chainId]) {
@@ -273,10 +272,10 @@ export async function setupOracle(
         .connect(oracleOwnerSigner)
         .updateAssetPricer(collateralAssetAddr, chainlinkPricer);
     } else {
-      if (assetAddr !== "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2") {
+      if (collateralAssetAddr !== "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
         await oracle
           .connect(oracleOwnerSigner)
-          .setAssetPricer(assetAddr, chainlinkPricer);
+          .updateAssetPricer(assetAddr, chainlinkPricer);
       }
     }
   }
@@ -294,10 +293,8 @@ export async function setOpynOracleExpiryPrice(
   await increaseTo(expiry.toNumber() + ORACLE_LOCKING_PERIOD + 1);
 
   let receipt;
-  
+
   if (collateralAsset === RETH_ADDRESS[chainId]) {
-
-
     const res = await oracle.setExpiryPrice(
       collateralAsset,
       expiry,
@@ -322,12 +319,16 @@ export async function setOpynOracleExpiryPrice(
     const res2 = await oracle2.setExpiryPrice(asset, expiry, settlePrice);
     receipt = await res2.wait();
   } else {
-    const pricerAddress = await oracle.getPricer(asset)
-    await getAssetPricer(pricerAddress, oracle.signer as SignerWithAddress)
-    const pricerSigner = provider.getSigner(pricerAddress);
-
-    const res = await oracle.connect(pricerSigner).setExpiryPrice(asset, expiry, settlePrice);
-    receipt = await res.wait();
+    if (collateralAsset === "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
+      const pricerAddress = await oracle.getPricer(asset)
+      await getAssetPricer(pricerAddress, oracle.signer as SignerWithAddress)
+      const pricerSigner = provider.getSigner(pricerAddress);
+      const res = await oracle.connect(pricerSigner).setExpiryPrice(asset, expiry, settlePrice);
+      receipt = await res.wait();
+   } else {
+      const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+      receipt = await res.wait();
+   }
   }
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
