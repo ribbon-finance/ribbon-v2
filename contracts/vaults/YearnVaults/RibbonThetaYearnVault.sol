@@ -79,11 +79,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         uint256 auctionCounter,
         address indexed manager
     );
-
-    event YearnPaused(
-        bool isPaused
-    );
-
+    
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
