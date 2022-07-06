@@ -382,21 +382,21 @@ library VaultLifecycleYearn {
 
         // get the black scholes premium of the option and adjust premium based on
         // collateral asset <-> asset exchange rate
-        uint256 adjustedPremium = 
-        isYearnPaused 
-            ? optionPremium
-            : DSMath.wmul(
-                optionPremium,
-                IYearnVault(collateralAsset).pricePerShare().mul(
-                    decimalShift(collateralAsset)
-                )
-            );
+        uint256 adjustedPremium =
+            isYearnPaused
+                ? optionPremium
+                : DSMath.wmul(
+                    optionPremium,
+                    IYearnVault(collateralAsset).pricePerShare().mul(
+                        decimalShift(collateralAsset)
+                    )
+                );
 
         require(
             adjustedPremium <= type(uint96).max,
             "adjustedPremium > type(uint96) max value!"
         );
-        
+
         require(adjustedPremium > 0, "!adjustedPremium");
 
         return adjustedPremium;
