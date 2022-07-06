@@ -31,9 +31,7 @@ import {
 import {
   deployProxy,
   setupOracle,
-  setOpynOracleExpiryPriceYearn,
   setAssetPricer,
-  getAssetPricer,
   whitelistProduct,
   mintToken,
   bidForOToken,
@@ -42,7 +40,7 @@ import {
   getAuctionMinPrice,
   setOpynOracleExpiryPrice,
 } from "./helpers/utils";
-import { wmul, wdiv } from "./helpers/math";
+import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
@@ -199,8 +197,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let defaultOtoken: Contract;
   let assetContract: Contract;
   let collateralContract: Contract;
-  let decimalDiff: BigNumber;
-  let collateralPricerSigner: Contract;
   let pauser: Contract;
 
   // Variables
@@ -492,21 +488,12 @@ function behavesLikeRibbonOptionsVault(params: {
         MARGIN_POOL[chainId]
       );
 
-      decimalDiff = BigNumber.from(10).pow(
-        18 - parseInt((await assetContract.decimals()).toString())
-      );
-
       firstOptionPremium = parseEther("0.00553198");
 
       await setAssetPricer(
         collateralAsset,
         params.collateralPricer,
         OPTION_PROTOCOL.GAMMA
-      );
-
-      collateralPricerSigner = await getAssetPricer(
-        params.collateralPricer,
-        ownerSigner
       );
 
       // If mintable token, then mine the token
@@ -1632,9 +1619,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("mints oTokens and deposits collateral into vault", async function () {
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
-        
+
         await vault.connect(ownerSigner).commitAndClose();
-        
+
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         const res = await vault.connect(keeperSigner).rollToNextOption();
@@ -1644,7 +1631,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const finalMarginPoolBal = await collateralContract.balanceOf(
           MARGIN_POOL[chainId]
         );
-        
+
         await expect(res)
           .to.emit(vault, "OpenShort")
           .withArgs(
@@ -2403,7 +2390,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract
           .connect(userSigner)
           .transfer(owner, params.depositAmount);
-        
+
         await vault.connect(ownerSigner).deposit(params.depositAmount);
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
@@ -3282,7 +3269,6 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     describe("#upgradeYearnVault", () => {
-      let oracle: Contract;
       const depositAmount = params.depositAmount;
 
       time.revertToSnapshotAfterEach(async function () {
@@ -3291,13 +3277,6 @@ function behavesLikeRibbonOptionsVault(params: {
           .approve(vault.address, params.depositAmount);
 
         await depositIntoVault(params.depositAsset, vault, depositAmount);
-
-        oracle = await setupOracle(
-          params.asset,
-          params.underlyingPricer,
-          ownerSigner,
-          OPTION_PROTOCOL.GAMMA
-        );
       });
 
       it("should revert if not owner", async function () {
