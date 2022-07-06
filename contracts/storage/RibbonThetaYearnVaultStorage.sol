@@ -45,6 +45,11 @@ abstract contract RibbonThetaYearnVaultStorageV6 {
     address public vaultPauser;
 }
 
+abstract contract RibbonThetaYearnVaultStorageV7 {
+    // Check if yearn is used in vault
+    bool public isYearnPaused;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
@@ -55,7 +60,8 @@ abstract contract RibbonThetaYearnVaultStorage is
     RibbonThetaYearnVaultStorageV3,
     RibbonThetaYearnVaultStorageV4,
     RibbonThetaYearnVaultStorageV5,
-    RibbonThetaYearnVaultStorageV6
+    RibbonThetaYearnVaultStorageV6,
+    RibbonThetaYearnVaultStorageV7
 {
 
 }

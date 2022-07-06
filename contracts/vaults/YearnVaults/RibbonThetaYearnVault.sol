@@ -79,7 +79,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         uint256 auctionCounter,
         address indexed manager
     );
-
+    
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -175,25 +175,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      ***********************************************/
 
     /**
-     * @notice Sets the new discount on premiums for options we are selling
-     * @param newPremiumDiscount is the premium discount
-     */
-    function setPremiumDiscount(uint256 newPremiumDiscount)
-        external
-        onlyKeeper
-    {
-        require(
-            newPremiumDiscount > 0 &&
-                newPremiumDiscount <= 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "Invalid discount"
-        );
-
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
-
-        premiumDiscount = newPremiumDiscount;
-    }
-
-    /**
      * @notice Sets the new auction duration
      * @param newAuctionDuration is the auction duration
      */
@@ -275,6 +256,14 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
      */
     function setVaultPauser(address newVaultPauser) external onlyOwner {
         vaultPauser = newVaultPauser;
+    }
+
+    /**
+     * @notice Sets whether vault is using yearn
+     * @param isPaused is whether vault is using yearn
+     */
+    function setYearnPaused(bool isPaused) external onlyOwner {
+        isYearnPaused = isPaused;
     }
 
     /************************************************
@@ -383,7 +372,8 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                 closeParams,
                 vaultParams,
                 vaultState,
-                address(collateralToken)
+                address(collateralToken),
+                isYearnPaused
             );
 
         emit NewOptionStrikeSelected(strikePrice, delta);
@@ -425,10 +415,11 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
 
         (address newOption, uint256 queuedWithdrawAmount) =
-            _rollToNextOption(
+            _rollToNextOption(rollToNextOptionParams(
                 lastQueuedWithdrawAmount,
-                currQueuedWithdrawShares
-            );
+                currQueuedWithdrawShares,
+                isYearnPaused
+            ));
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
@@ -451,7 +442,11 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         // We are subtracting `collateralAsset` balance by queuedWithdrawAmount denominated in `collateralAsset` plus
         // a buffer for withdrawals taking into account slippage from yearn vault
 
+
         uint256 lockedBalance =
+        isYearnPaused 
+        ? IERC20(vaultParams.asset).balanceOf(address(this)).sub(queuedWithdrawAmount)
+        :
             collateralToken.balanceOf(address(this)).sub(
                 DSMath.wdiv(
                     queuedWithdrawAmount.add(
@@ -466,7 +461,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                     )
                 )
             );
-
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
         uint256 optionsMintAmount =
@@ -510,17 +504,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
     }
 
     /**
-     * @notice Sell the allocated options to the purchase queue post auction settlement
-     */
-    function sellOptionsToQueue() external onlyKeeper nonReentrant {
-        VaultLifecycle.sellOptionsToQueue(
-            optionsPurchaseQueue,
-            GNOSIS_EASY_AUCTION,
-            optionAuctionID
-        );
-    }
-
-    /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
@@ -532,12 +515,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         vaultState.lockedAmount = uint104(
             uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
-        );
-
-        // Wrap entire `asset` balance to `collateralToken` balance
-        VaultLifecycleYearn.wrapToYieldToken(
-            vaultParams.asset,
-            address(collateralToken)
         );
     }
 

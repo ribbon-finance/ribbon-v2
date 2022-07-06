@@ -256,9 +256,11 @@ export async function setupOracle(
         .connect(oracleOwnerSigner)
         .setAssetPricer(collateralAssetAddr, chainlinkPricer);
     } else {
-      await oracle
-        .connect(oracleOwnerSigner)
-        .setAssetPricer(assetAddr, chainlinkPricer);
+      if (collateralAssetAddr !== "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
+        await oracle
+          .connect(oracleOwnerSigner)
+          .setAssetPricer(assetAddr, chainlinkPricer);
+      }
     }
   } else {
     if (collateralAssetAddr === RETH_ADDRESS[chainId]) {
@@ -270,9 +272,11 @@ export async function setupOracle(
         .connect(oracleOwnerSigner)
         .updateAssetPricer(collateralAssetAddr, chainlinkPricer);
     } else {
-      await oracle
-        .connect(oracleOwnerSigner)
-        .updateAssetPricer(assetAddr, chainlinkPricer);
+      if (collateralAssetAddr !== "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
+        await oracle
+          .connect(oracleOwnerSigner)
+          .updateAssetPricer(assetAddr, chainlinkPricer);
+      }
     }
   }
 
@@ -315,8 +319,16 @@ export async function setOpynOracleExpiryPrice(
     const res2 = await oracle2.setExpiryPrice(asset, expiry, settlePrice);
     receipt = await res2.wait();
   } else {
-    const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
-    receipt = await res.wait();
+    if (collateralAsset === "0xa354F35829Ae975e850e23e9615b11Da1B3dC4DE") {
+      const pricerAddress = await oracle.getPricer(asset);
+      await getAssetPricer(pricerAddress, oracle.signer as SignerWithAddress);
+      const pricerSigner = provider.getSigner(pricerAddress);
+      const res = await oracle.connect(pricerSigner).setExpiryPrice(asset, expiry, settlePrice);
+      receipt = await res.wait();
+   } else {
+      const res = await oracle.setExpiryPrice(asset, expiry, settlePrice);
+      receipt = await res.wait();
+   }
   }
   const timestamp = (await provider.getBlock(receipt.blockNumber)).timestamp;
 
