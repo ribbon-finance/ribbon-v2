@@ -18,7 +18,7 @@ import {
     RibbonThetaYearnVaultStorage
 } from "../../storage/RibbonThetaYearnVaultStorage.sol";
 import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
-import "hardhat/console.sol";
+
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
@@ -376,7 +376,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
                 closeParams,
                 vaultParams,
                 vaultState,
-                vaultParams.asset,
+                address(collateralToken),
                 isYearnPaused
             );
 
@@ -536,5 +536,4 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
             heldByAccount
         );
     }
-
 }
