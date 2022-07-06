@@ -34,6 +34,7 @@ library VaultLifecycleYearn {
      * @param vaultParams is the struct with vault general data
      * @param vaultState is the struct with vault accounting state
      * @param collateralAsset is the address of the collateral asset
+     * @param isYearnPaused is whether yearn is enabled in contract
      * @return otokenAddress is the address of the new option
      * @return strikePrice is the strike price of the new option
      * @return delta is the delta of the new option
@@ -42,7 +43,8 @@ library VaultLifecycleYearn {
         VaultLifecycle.CloseParams calldata closeParams,
         Vault.VaultParams storage vaultParams,
         Vault.VaultState storage vaultState,
-        address collateralAsset
+        address collateralAsset,
+        bool isYearnPaused
     )
         external
         returns (
@@ -72,7 +74,7 @@ library VaultLifecycleYearn {
             closeParams,
             vaultParams,
             vaultParams.underlying,
-            collateralAsset,
+            isYearnPaused ? vaultParams.asset : collateralAsset,
             strikePrice,
             expiry,
             isPut
@@ -339,14 +341,16 @@ library VaultLifecycleYearn {
         address oTokenAddress,
         address optionsPremiumPricer,
         uint256 premiumDiscount,
-        address collateralAsset
+        address collateralAsset,
+        bool isYearnPaused
     ) external view returns (uint256) {
         return
             _getOTokenPremium(
                 oTokenAddress,
                 optionsPremiumPricer,
                 premiumDiscount,
-                collateralAsset
+                collateralAsset,
+                isYearnPaused
             );
     }
 
@@ -354,7 +358,8 @@ library VaultLifecycleYearn {
         address oTokenAddress,
         address optionsPremiumPricer,
         uint256 premiumDiscount,
-        address collateralAsset
+        address collateralAsset,
+        bool isYearnPaused
     ) internal view returns (uint256) {
         IOtoken newOToken = IOtoken(oTokenAddress);
         IOptionsPremiumPricer premiumPricer =
@@ -378,17 +383,20 @@ library VaultLifecycleYearn {
         // get the black scholes premium of the option and adjust premium based on
         // collateral asset <-> asset exchange rate
         uint256 adjustedPremium =
-            DSMath.wmul(
-                optionPremium,
-                IYearnVault(collateralAsset).pricePerShare().mul(
-                    decimalShift(collateralAsset)
-                )
-            );
+            isYearnPaused
+                ? optionPremium
+                : DSMath.wmul(
+                    optionPremium,
+                    IYearnVault(collateralAsset).pricePerShare().mul(
+                        decimalShift(collateralAsset)
+                    )
+                );
 
         require(
             adjustedPremium <= type(uint96).max,
             "adjustedPremium > type(uint96) max value!"
         );
+
         require(adjustedPremium > 0, "!adjustedPremium");
 
         return adjustedPremium;
