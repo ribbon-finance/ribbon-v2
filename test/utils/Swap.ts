@@ -6,14 +6,14 @@ import { parseEther, parseUnits } from "ethers/lib/utils";
 import { TEST_URI } from "../../scripts/helpers/getDefaultEthersProvider";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import * as time from "../helpers/time";
-import { mintToken } from "../helpers/utils";
+import { deployProxy, mintToken } from "../helpers/utils";
 import {
   BLOCK_NUMBER,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
-const { getContractAt, getContractFactory } = ethers;
+const { getContractAt } = ethers;
 const chainId = network.config.chainId;
 
 describe("Swap", () => {
@@ -21,7 +21,8 @@ describe("Swap", () => {
   let userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
     keeperSigner: SignerWithAddress,
-    feeRecipientSigner: SignerWithAddress;
+    feeRecipientSigner: SignerWithAddress,
+    adminSigner: SignerWithAddress;
 
   let owner: string, keeper: string, user: string, feeRecipient: string;
   let swap: Contract;
@@ -82,22 +83,32 @@ describe("Swap", () => {
     initSnapshotId = await time.takeSnapshot();
 
     // GET ACCOUNTS
-    [ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
+    [ownerSigner, keeperSigner, userSigner, feeRecipientSigner, adminSigner] =
       await ethers.getSigners();
+
     owner = ownerSigner.address;
     keeper = keeperSigner.address;
     user = userSigner.address;
     feeRecipient = feeRecipientSigner.address;
 
     // DEPLOY SWAP CONTRACT
-    const Swap = await getContractFactory("Swap", ownerSigner);
+    // const Swap = await getContractFactory("Swap", deployerSigner);
 
-    swap = await Swap.connect(ownerSigner).deploy();
+    // swap = await Swap.connect(deployerSigner).deploy();
+
+    const domainName = "RIBBON SWAP";
+    const domainVersion = "1";
+
+    const initializeArgs = [domainName, domainVersion, owner];
+
+    swap = (await deployProxy("Swap", adminSigner, initializeArgs)).connect(
+      ownerSigner
+    );
 
     // SETUP DOMAIN
     domain = {
-      name: "RIBBON SWAP",
-      version: "1",
+      name: domainName,
+      version: domainVersion,
       chainId,
       verifyingContract: swap.address,
     };
@@ -296,7 +307,7 @@ describe("Swap", () => {
 
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 142242);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
     });
   });
 
@@ -893,7 +904,7 @@ describe("Swap", () => {
       const tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 151600);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 163000);
     });
 
     it("fits gas budget (multi) [ @skip-on-coverage ]", async function () {
@@ -932,7 +943,7 @@ describe("Swap", () => {
       let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 400000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 412000);
     });
   });
 
@@ -1017,74 +1028,74 @@ describe("Swap", () => {
       assert.bnEqual(error[0], BigNumber.from(0));
     });
 
-  it("allow authorized signer to check with 0 error", async function () {
-    const swapId = await swap.offersCounter();
-    const nonce = 1;
-    const sellAmount = parseUnits("100", 6);
-    const buyAmount = parseUnits("0.01", 8);
-    const referrer = constants.AddressZero;
+    it("allow authorized signer to check with 0 error", async function () {
+      const swapId = await swap.offersCounter();
+      const nonce = 1;
+      const sellAmount = parseUnits("100", 6);
+      const buyAmount = parseUnits("0.01", 8);
+      const referrer = constants.AddressZero;
 
-    const order = {
-      swapId,
-      nonce,
-      signerWallet: user,
-      sellAmount,
-      buyAmount,
-      referrer,
-    };
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
 
-    const signature = await getSignature(domain, order, ownerSigner);
+      const signature = await getSignature(domain, order, ownerSigner);
 
-    const error = await swap.check([
-      swapId,
-      nonce,
-      user,
-      sellAmount,
-      buyAmount,
-      referrer,
-      signature.v,
-      signature.r,
-      signature.s,
-    ]);
+      const error = await swap.check([
+        swapId,
+        nonce,
+        user,
+        sellAmount,
+        buyAmount,
+        referrer,
+        signature.v,
+        signature.r,
+        signature.s,
+      ]);
 
-    assert.bnEqual(error[0], BigNumber.from(0));
+      assert.bnEqual(error[0], BigNumber.from(0));
+    });
+
+    it("revert when signer is not authorized", async function () {
+      await swap.connect(userSigner).revoke();
+
+      const swapId = await swap.offersCounter();
+      const nonce = 1;
+      const sellAmount = parseUnits("100", 6);
+      const buyAmount = parseUnits("0.01", 8);
+      const referrer = constants.AddressZero;
+
+      const order = {
+        swapId,
+        nonce,
+        signerWallet: user,
+        sellAmount,
+        buyAmount,
+        referrer,
+      };
+
+      const signature = await getSignature(domain, order, ownerSigner);
+
+      const error = await swap.check([
+        swapId,
+        nonce,
+        user,
+        sellAmount,
+        buyAmount,
+        referrer,
+        signature.v,
+        signature.r,
+        signature.s,
+      ]);
+
+      assert.bnEqual(error[0], BigNumber.from(1));
+    });
   });
-
-  it("revert when signer is not authorized", async function () {
-    await swap.connect(userSigner).revoke();
-
-    const swapId = await swap.offersCounter();
-    const nonce = 1;
-    const sellAmount = parseUnits("100", 6);
-    const buyAmount = parseUnits("0.01", 8);
-    const referrer = constants.AddressZero;
-
-    const order = {
-      swapId,
-      nonce,
-      signerWallet: user,
-      sellAmount,
-      buyAmount,
-      referrer,
-    };
-
-    const signature = await getSignature(domain, order, ownerSigner);
-
-    const error = await swap.check([
-      swapId,
-      nonce,
-      user,
-      sellAmount,
-      buyAmount,
-      referrer,
-      signature.v,
-      signature.r,
-      signature.s,
-    ]);
-
-    assert.bnEqual(error[0], BigNumber.from(1));
-  });
-});
 
   describe("#averagePriceForOffer", () => {
     const minPrice = parseUnits("3", 6);
