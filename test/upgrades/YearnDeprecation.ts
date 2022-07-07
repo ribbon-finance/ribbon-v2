@@ -501,13 +501,12 @@ function checkWithdrawal(vaultAddress: string) {
         const acc1USDCBalanceAfterDeposit = await usdcContract.balanceOf(account1.address);
         const acc2USDCBalanceAfterDeposit = await usdcContract.balanceOf(account2.address);
 
-        // able to roll to next option
         const currentOption2 = await vault.currentOption();
         const otoken2 = await ethers.getContractAt("IOtoken", currentOption2);
         const expiryTimestamp2 = await otoken2.expiryTimestamp();
         const strikePrice2 = await otoken.strikePrice();
 
-        // do new set expiry price function
+        // Use set expiry price function which does not includes setExpiryPriceInOracle
         await setOpynOracleExpiryPrice(
           WETH_ADDRESS[CHAINID],
           oracle,
@@ -517,7 +516,7 @@ function checkWithdrawal(vaultAddress: string) {
         );
 
         //////////////////////////////////////////////////////////////////////
-        // roll to next option
+        // Roll to next option
         await vault.connect(keeper).commitAndClose();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(keeper).rollToNextOption();
