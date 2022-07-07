@@ -344,9 +344,13 @@ function behavesLikeRibbonOptionsVault(params: {
       );
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
-      const SwapContract = await getContractFactory("Swap", ownerSigner);
+      const domainName = "RIBBON SWAP";
+      const domainVersion = "1";
+      const swapInitializeArgs = [domainName, domainVersion, owner];
 
-      swapContract = await SwapContract.deploy();
+      swapContract = (
+        await deployProxy("Swap", adminSigner, swapInitializeArgs)
+      ).connect(ownerSigner);
 
       const initializeArgs = [
         [
