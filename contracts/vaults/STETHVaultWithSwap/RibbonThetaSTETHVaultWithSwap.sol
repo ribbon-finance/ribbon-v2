@@ -9,24 +9,26 @@ import {
 
 import {ISwap} from "../../interfaces/ISwap.sol";
 import {
-    RibbonThetaVaultStorage
-} from "../../storage/RibbonThetaVaultStorage.sol";
+    RibbonThetaSTETHVaultStorage
+} from "../../storage/RibbonThetaSTETHVaultStorage.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {
     VaultLifecycleWithSwap
 } from "../../libraries/VaultLifecycleWithSwap.sol";
+import {VaultLifecycleSTETH} from "../../libraries/VaultLifecycleSTETH.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ILiquidityGauge} from "../../interfaces/ILiquidityGauge.sol";
 import {RibbonVault} from "./base/RibbonVault.sol";
 import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
+import {IWSTETH} from "../../interfaces/ISTETH.sol";
 
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
- * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
- * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
+ * Any changes/appends in storage variable needs to happen in RibbonThetaSTETHVaultStorage.
+ * RibbonThetaSTETHVault should not inherit from any other contract aside from RibbonVault, RibbonThetaSTETHVaultStorage
  */
-contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
+contract RibbonThetaSTETHVaultWithSwap is RibbonVault, RibbonThetaSTETHVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
@@ -123,6 +125,8 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      * @notice Initializes the contract with immutable variables
      * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
+     * @param _wsteth is the LDO contract
+     * @param _ldo is the LDO contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
@@ -131,11 +135,23 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
     constructor(
         address _weth,
         address _usdc,
+        address _wsteth,
+        address _ldo,
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
         address _swapContract
-    ) RibbonVault(_weth, _usdc, _gammaController, _marginPool, _swapContract) {
+    )
+        RibbonVault(
+            _weth,
+            _usdc,
+            _wsteth,
+            _ldo,
+            _gammaController,
+            _marginPool,
+            _swapContract
+        )
+    {
         require(_oTokenFactory != address(0), "!_oTokenFactory");
         OTOKEN_FACTORY = _oTokenFactory;
     }
@@ -211,9 +227,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             newAuctionDuration >= MIN_AUCTION_DURATION,
             "Invalid auction duration"
         );
-
         emit AuctionDurationSet(auctionDuration, newAuctionDuration);
-
         auctionDuration = newAuctionDuration;
     }
 
@@ -313,7 +327,14 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
-        transferAsset(msg.sender, amount);
+        IERC20(STETH).safeTransfer(
+            msg.sender,
+            VaultLifecycleSTETH.withdrawStEth(
+                STETH,
+                address(collateralToken),
+                amount
+            )
+        );
     }
 
     /**
@@ -461,7 +482,11 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
         optionState.currentOption = newOption;
         optionState.nextOption = address(0);
-        uint256 lockedBalance = vaultState.lockedAmount;
+        // Locked balance denominated in `collateralToken`
+        uint256 lockedBalance =
+            collateralToken.balanceOf(address(this)).sub(
+                collateralToken.getWstETHByStETH(lastQueuedWithdrawAmount)
+            );
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
@@ -509,7 +534,16 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             );
 
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            uint256(vaultState.lockedAmount).sub(
+                collateralToken.getStETHByWstETH(unlockedAssetAmount)
+            )
+        );
+
+        // Wrap entire `asset` balance to `collateralToken` balance
+        VaultLifecycleSTETH.wrapToYieldToken(
+            WETH,
+            address(collateralToken),
+            STETH
         );
     }
 
