@@ -178,7 +178,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let depositAmount = params.depositAmount;
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
-  // let expectedMintAmount = params.expectedMintAmount;
   let isPut = params.isPut;
 
   // Contracts
