@@ -37,7 +37,6 @@ const KEEPER = "0x55e4b3e3226444Cd4de09778844453bA9fe9cd7c";
 const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 const OWNERADDR = "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4";
-const USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
 const USER_ACCOUNT_1 = "0xb576328d591be38fa511e407f1f22544e6a147d2";
 const USER_ACCOUNT_2 = "0xeCcDb4930952e049d1731f9a75f0AD5A0B30b2aB";
 
@@ -192,7 +191,7 @@ function checkWithdrawal(vaultAddress: string) {
           liquidityGaugeAddress
         );
 
-        usdcContract = await ethers.getContractAt("ERC20", USDC);
+        usdcContract = await ethers.getContractAt("ERC20", USDC_ADDRESS[CHAINID]);
       });
 
       it("withdraws the correct amount after upgrade", async () => {
@@ -447,8 +446,6 @@ function checkWithdrawal(vaultAddress: string) {
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
 
-        const usdcContract = await ethers.getContractAt("ERC20", USDC);
-
         // Roll the vault
         const oracle = await setupOracle(
             WETH_ADDRESS[CHAINID],
@@ -538,6 +535,7 @@ function checkWithdrawal(vaultAddress: string) {
         const expiryTimestamp3 = await otoken3.expiryTimestamp();
         const strikePrice3 = await otoken3.strikePrice();
 
+        // Use set expiry price function which does not includes setExpiryPriceInOracle
         await setOpynOracleExpiryPrice(
           WETH_ADDRESS[CHAINID],
           oracle,
@@ -676,7 +674,6 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     it("has the correct return values for all public variables", async () => {
       await vaultProxy.upgradeTo(newImplementation);
       const newVariables = await getVariablesFromContract(vault);
-      console.log(newVariables);
       assert.isTrue(
         objectEquals(variables, newVariables),
         `Public variables do not match:
