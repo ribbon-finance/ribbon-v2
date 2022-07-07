@@ -3,6 +3,13 @@ pragma solidity =0.8.4;
 import "../interfaces/ISwap.sol";
 
 abstract contract SwapStorageV1 {
+    // Keccak256 of domain name for signature verification
+    bytes32 public DOMAIN_NAME;
+    // Keccak256 of domain version for signature verification
+    bytes32 public DOMAIN_VERSION;
+    // Keccak256 of abi-encoded domain parameters for signature verification
+    bytes32 public DOMAIN_SEPARATOR;
+    
     // Counter to keep track number of offers
     uint256 public offersCounter;
     // Mapping of swap offer details for a given swapId
@@ -17,11 +24,6 @@ abstract contract SwapStorageV1 {
      * @dev The nonce states are encoded as 256 bits, for each nonce in the group 0 means available and 1 means used
      */
     mapping(address => mapping(uint256 => uint256)) internal _nonceGroups;
-
-    bytes32 public DOMAIN_NAME;
-    bytes32 public DOMAIN_VERSION;
-    uint256 public DOMAIN_CHAIN_ID;
-    bytes32 public DOMAIN_SEPARATOR;
 }
 
 // We are following Compound's method of upgrading new contract implementations
