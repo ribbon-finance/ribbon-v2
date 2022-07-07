@@ -549,7 +549,6 @@ contract RibbonVault is
         _transfer(address(this), msg.sender, numShares);
     }
 
-
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -567,9 +566,10 @@ contract RibbonVault is
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
-    function _rollToNextOption(
-        rollToNextOptionParams memory params
-    ) internal returns (address, uint256) {
+    function _rollToNextOption(rollToNextOptionParams memory params)
+        internal
+        returns (address, uint256)
+    {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
@@ -620,14 +620,15 @@ contract RibbonVault is
         _mint(address(this), mintShares);
 
         address collateral = address(collateralToken);
-        
+
         if (params.isYearnPaused) {
             VaultLifecycleYearn.unwrapYieldToken(
                 queuedWithdrawAmount,
                 vaultParams.asset,
                 collateral,
                 YEARN_WITHDRAWAL_BUFFER,
-                YEARN_WITHDRAWAL_SLIPPAGE);
+                YEARN_WITHDRAWAL_SLIPPAGE
+            );
         } else {
             VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
         }
