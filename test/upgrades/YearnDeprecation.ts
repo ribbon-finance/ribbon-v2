@@ -29,6 +29,7 @@ import { BigNumber } from "ethereum-waffle/node_modules/ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { expect } from "chai";
 import { parseUnits } from "ethers/lib/utils";
+import { TASK_ETHERSCAN_VERIFY } from "hardhat-deploy";
 
 const { parseEther } = ethers.utils;
 
@@ -80,7 +81,6 @@ describe("RibbonThetaVault upgrade", () => {
     deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
   });
   checkWithdrawal(deployments.mainnet.RibbonThetaVaultETHPutYearn);
-  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultETHPutYearn);
 });
 
 function checkWithdrawal(vaultAddress: string) {
@@ -197,12 +197,70 @@ function checkWithdrawal(vaultAddress: string) {
         );
       });
 
+      it("test", async () => {
+        // Set isYearnPaused to be true
+        assert.equal(await vault.isYearnPaused(), false);
+        await vault.connect(owner).setYearnPaused(true);
+        assert.equal(await vault.isYearnPaused(), true);
+        // Roll the vault
+        const oracle = await setupOracle(
+          WETH_ADDRESS[CHAINID],
+          CHAINLINK_WETH_PRICER[CHAINID],
+          account1,
+          OPTION_PROTOCOL.GAMMA
+        );
+        const yvContract = await ethers.getContractAt("IYearnVault", await vault.collateralToken());
+        
+        console.log((await yvContract.pricePerShare()).toString());
+        const currentOption = await vault.currentOption();
+        const iotoken = await ethers.getContractAt("IOtoken", currentOption);
+        const ierc20 = await ethers.getContractAt("IERC20", currentOption);
+
+        const lockedAmount2 = (await vault.vaultState()).lockedAmount;
+        console.log("lockedAmount js");
+        console.log(lockedAmount2.toString());
+
+        const expiryTimestamp = await iotoken.expiryTimestamp();
+        const strikePrice = await iotoken.strikePrice();
+
+        let collateralPricer = YEARN_USDC_PRICER_V0_4_3;
+        let collateralPricerSigner = await getAssetPricer(
+          collateralPricer,
+          account1
+        );
+
+        // Use old set expiry price function which includes setExpiryPriceInOracle
+        await setOpynOracleExpiryPriceYearn(
+          WETH_ADDRESS[CHAINID],
+          oracle,
+          strikePrice,
+          collateralPricerSigner,
+          expiryTimestamp
+        );
+
+        //////////////////////////////////////////////////////////////////////
+        // Roll to next option
+        await vault.connect(keeper).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeper).rollToNextOption();
+
+        const currentOption2 = await vault.currentOption();
+
+        const lockedAmount = (await vault.vaultState()).lockedAmount;
+        const previousLockedAmount = (
+          await vault.vaultState()
+        ).lastLockedAmount.toString();
+
+        const iotoken2 = await ethers.getContractAt("IOtoken", currentOption2);
+        const strikePrice2 = await iotoken2.strikePrice();
+        const ierc20_2 = await ethers.getContractAt("IERC20", currentOption2);
+      });
+
       it("withdraws the correct amount after upgrade", async () => {
         // Set isYearnPaused to be true
         assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
-
         // Get initial usdc balance of users
         const initialAcc1USDCBalance = await usdcContract.balanceOf(
           account1.address
@@ -658,117 +716,5 @@ function checkWithdrawal(vaultAddress: string) {
         );
       });
     });
-  });
-}
-
-function checkIfStorageNotCorrupted(vaultAddress: string) {
-  const getVaultStorage = async (storageIndex: BigNumberish) => {
-    return await ethers.provider.getStorageAt(vaultAddress, storageIndex);
-  };
-
-  const variableNames = [
-    "vaultParams",
-    "vaultState",
-    "optionState",
-    "feeRecipient",
-    "keeper",
-    "performanceFee",
-    "managementFee",
-    "collateralToken",
-    "optionsPremiumPricer",
-    "strikeSelection",
-    "premiumDiscount",
-    "currentOtokenPremium",
-    "lastStrikeOverrideRound",
-    "overriddenStrikePrice",
-    "auctionDuration",
-    "optionAuctionID",
-    "lastQueuedWithdrawAmount",
-  ];
-
-  let variables: Record<string, unknown> = {};
-
-  describe(`Vault ${vaultAddress}`, () => {
-    let newImplementation: string;
-    let vaultProxy: Contract;
-    let vault: Contract;
-
-    time.revertToSnapshotAfterEach();
-
-    before(async () => {
-      const adminSigner = await ethers.provider.getSigner(UPGRADE_ADMIN);
-
-      vaultProxy = await ethers.getContractAt(
-        "AdminUpgradeabilityProxy",
-        vaultAddress,
-        adminSigner
-      );
-      vault = await ethers.getContractAt("RibbonThetaYearnVault", vaultAddress);
-
-      variables = await getVariablesFromContract(vault);
-
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
-      const vaultLifecycleLib = await VaultLifecycle.deploy();
-
-      const VaultLifecycleYearn = await ethers.getContractFactory(
-        "VaultLifecycleYearn"
-      );
-      const VaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
-
-      const RibbonThetaYearnVault = await ethers.getContractFactory(
-        "RibbonThetaYearnVault",
-        {
-          libraries: {
-            VaultLifecycle: vaultLifecycleLib.address,
-            VaultLifecycleYearn: VaultLifecycleYearnLib.address,
-          },
-        }
-      );
-      const newImplementationContract = await RibbonThetaYearnVault.deploy(
-        WETH_ADDRESS[CHAINID],
-        USDC_ADDRESS[CHAINID],
-        OTOKEN_FACTORY[CHAINID],
-        GAMMA_CONTROLLER[CHAINID],
-        MARGIN_POOL[CHAINID],
-        GNOSIS_EASY_AUCTION[CHAINID],
-        YEARN_REGISTRY_ADDRESS
-      );
-      newImplementation = newImplementationContract.address;
-    });
-
-    it("has the correct return values for all public variables", async () => {
-      await vaultProxy.upgradeTo(newImplementation);
-      const newVariables = await getVariablesFromContract(vault);
-      assert.isTrue(
-        objectEquals(variables, newVariables),
-        `Public variables do not match:
-Old: ${JSON.stringify(variables, null, 4)}
-New: ${JSON.stringify(newVariables, null, 4)}`
-      );
-    });
-
-    it("updates the implementation slot correctly after an upgrade", async () => {
-      const res = await vaultProxy.upgradeTo(newImplementation);
-
-      const receipt = await res.wait();
-
-      const log = await parseLog("AdminUpgradeabilityProxy", receipt.logs[0]);
-      assert.equal(log.args.implementation, newImplementation);
-      assert.equal(
-        await getVaultStorage(IMPLEMENTATION_SLOT),
-        "0x000000000000000000000000" + newImplementation.slice(2).toLowerCase()
-      );
-    });
-
-    const getVariablesFromContract = async (vault: Contract) => {
-      // get contract values with solidity getter
-      const variableReturns = await Promise.all(
-        variableNames.map((varName) => vault[varName]())
-      );
-      const variables = Object.fromEntries(
-        variableNames.map((varName, index) => [varName, variableReturns[index]])
-      );
-      return serializeMap(variables);
-    };
   });
 }

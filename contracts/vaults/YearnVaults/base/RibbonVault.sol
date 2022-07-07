@@ -23,7 +23,7 @@ import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
-
+import "hardhat/console.sol";
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -469,14 +469,6 @@ contract RibbonVault is
 
         _burn(address(this), withdrawalShares);
 
-        VaultLifecycleYearn.unwrapYieldToken(
-            withdrawAmount,
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
-            YEARN_WITHDRAWAL_SLIPPAGE
-        );
-
         require(withdrawAmount > 0, "!withdrawAmount");
 
         VaultLifecycleYearn.transferAsset(
@@ -621,13 +613,13 @@ contract RibbonVault is
 
         address collateral = address(collateralToken);
         
+        console.log("collateral total balance", collateralToken.balanceOf(address(this)));
         if (params.isYearnPaused) {
-            VaultLifecycleYearn.unwrapYieldToken(
-                queuedWithdrawAmount,
-                vaultParams.asset,
-                collateral,
-                YEARN_WITHDRAWAL_BUFFER,
-                YEARN_WITHDRAWAL_SLIPPAGE);
+            collateralToken.withdraw(
+                collateralToken.balanceOf(address(this)),
+                address(this),
+                0
+            );
         } else {
             VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
         }
@@ -641,7 +633,7 @@ contract RibbonVault is
                 totalVaultFee
             );
         }
-
+        
         return (newOption, queuedWithdrawAmount);
     }
 
