@@ -64,7 +64,7 @@ contract Swap is
         string memory _domainName,
         string memory _domainVersion,
         address _owner
-    ) internal initializer {
+    ) external initializer {
         require(bytes(_domainName).length > 0, "!_domainName");
         require(bytes(_domainVersion).length > 0, "!_domainVersion");
         require(_owner != address(0), "!_owner");
@@ -80,8 +80,8 @@ contract Swap is
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
-                _domainName,
-                _domainVersion,
+                DOMAIN_NAME,
+                DOMAIN_VERSION,
                 currentChainId,
                 this
             )
@@ -406,11 +406,11 @@ contract Swap is
 
         address signatory = _getSignatory(bid);
 
+        require(signatory != address(0), "SIGNATURE_INVALID");
+
         if (bid.signerWallet != signatory) {
             require(authorized[bid.signerWallet] == signatory, "UNAUTHORIZED");
         }
-
-        require(signatory != address(0), "SIGNATURE_INVALID");
 
         require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
         require(
