@@ -25,6 +25,8 @@ contract Swap is
 {
     using SafeERC20 for IERC20;
 
+    uint256 public immutable DOMAIN_CHAIN_ID;
+
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256(
             abi.encodePacked(
@@ -57,6 +59,15 @@ contract Swap is
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
     /************************************************
+     *  CONSTRUCTOR
+     ***********************************************/
+
+    constructor() {
+        uint256 currentChainId = getChainId();
+        DOMAIN_CHAIN_ID = currentChainId;
+    }
+
+    /************************************************
      *  INITIALIZATION
      ***********************************************/
 
@@ -73,8 +84,6 @@ contract Swap is
         __Ownable_init();
         transferOwnership(_owner);
 
-        uint256 currentChainId = getChainId();
-        DOMAIN_CHAIN_ID = currentChainId;
         DOMAIN_NAME = keccak256(bytes(_domainName));
         DOMAIN_VERSION = keccak256(bytes(_domainVersion));
         DOMAIN_SEPARATOR = keccak256(
@@ -82,7 +91,7 @@ contract Swap is
                 DOMAIN_TYPEHASH,
                 DOMAIN_NAME,
                 DOMAIN_VERSION,
-                currentChainId,
+                DOMAIN_CHAIN_ID,
                 this
             )
         );
