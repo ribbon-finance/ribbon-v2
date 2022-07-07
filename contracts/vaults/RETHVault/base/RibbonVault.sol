@@ -324,7 +324,9 @@ contract RibbonVault is
         _depositFor(rETHAmount, msg.sender);
 
         // Deposit ETH for rETH
-        IRETHDepositPool(0x4D05E3d48a938db4b7a9A59A802D5b45011BDe58).deposit{value: msg.value}();
+        IRETHDepositPool(0x4D05E3d48a938db4b7a9A59A802D5b45011BDe58).deposit{
+            value: msg.value
+        }();
     }
 
     /**
