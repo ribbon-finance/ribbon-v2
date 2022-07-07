@@ -9,7 +9,7 @@ abstract contract SwapStorageV1 {
     bytes32 public DOMAIN_VERSION;
     // Keccak256 of abi-encoded domain parameters for signature verification
     bytes32 public DOMAIN_SEPARATOR;
-    
+
     // Counter to keep track number of offers
     uint256 public offersCounter;
     // Mapping of swap offer details for a given swapId
