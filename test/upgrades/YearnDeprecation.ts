@@ -10,7 +10,7 @@ import {
   WETH_ADDRESS,
   YEARN_REGISTRY_ADDRESS,
   YVUSDC_V0_4_3,
-  YEARN_USDC_PRICER_V0_4_3
+  YEARN_USDC_PRICER_V0_4_3,
 } from "../../constants/constants";
 import {
   getAssetPricer,
@@ -92,42 +92,42 @@ function checkWithdrawal(vaultAddress: string) {
     time.revertToSnapshotAfterEach();
 
     before(async () => {
-        const adminSigner = await ethers.provider.getSigner(UPGRADE_ADMIN);
+      const adminSigner = await ethers.provider.getSigner(UPGRADE_ADMIN);
 
-        vaultProxy = await ethers.getContractAt(
-          "AdminUpgradeabilityProxy",
-          vaultAddress,
-          adminSigner
-        );
-        vault = await ethers.getContractAt("RibbonThetaYearnVault", vaultAddress);
+      vaultProxy = await ethers.getContractAt(
+        "AdminUpgradeabilityProxy",
+        vaultAddress,
+        adminSigner
+      );
+      vault = await ethers.getContractAt("RibbonThetaYearnVault", vaultAddress);
 
-        const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
-        const vaultLifecycleLib = await VaultLifecycle.deploy();
+      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      const vaultLifecycleLib = await VaultLifecycle.deploy();
 
-        const VaultLifecycleYearn = await ethers.getContractFactory(
-          "VaultLifecycleYearn"
-        );
-        const VaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
+      const VaultLifecycleYearn = await ethers.getContractFactory(
+        "VaultLifecycleYearn"
+      );
+      const VaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
 
-        const RibbonThetaYearnVault = await ethers.getContractFactory(
-          "RibbonThetaYearnVault",
-          {
-            libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
-              VaultLifecycleYearn: VaultLifecycleYearnLib.address,
-            },
-          }
-        );
-        const newImplementationContract = await RibbonThetaYearnVault.deploy(
-          WETH_ADDRESS[CHAINID],
-          USDC_ADDRESS[CHAINID],
-          OTOKEN_FACTORY[CHAINID],
-          GAMMA_CONTROLLER[CHAINID],
-          MARGIN_POOL[CHAINID],
-          GNOSIS_EASY_AUCTION[CHAINID],
-          YEARN_REGISTRY_ADDRESS
-        );
-        newImplementation = newImplementationContract.address;
+      const RibbonThetaYearnVault = await ethers.getContractFactory(
+        "RibbonThetaYearnVault",
+        {
+          libraries: {
+            VaultLifecycle: vaultLifecycleLib.address,
+            VaultLifecycleYearn: VaultLifecycleYearnLib.address,
+          },
+        }
+      );
+      const newImplementationContract = await RibbonThetaYearnVault.deploy(
+        WETH_ADDRESS[CHAINID],
+        USDC_ADDRESS[CHAINID],
+        OTOKEN_FACTORY[CHAINID],
+        GAMMA_CONTROLLER[CHAINID],
+        MARGIN_POOL[CHAINID],
+        GNOSIS_EASY_AUCTION[CHAINID],
+        YEARN_REGISTRY_ADDRESS
+      );
+      newImplementation = newImplementationContract.address;
     });
 
     describe("#completeWithdraw", () => {
@@ -171,18 +171,18 @@ function checkWithdrawal(vaultAddress: string) {
 
         // Fund & impersonate the admin account and two users who have locked yvUSDC
         await signer.sendTransaction({
-            to: account1.address,
-            value: parseEther("100"),
+          to: account1.address,
+          value: parseEther("100"),
         });
 
         await signer.sendTransaction({
-            to: account2.address,
-            value: parseEther("100"),
+          to: account2.address,
+          value: parseEther("100"),
         });
 
         await signer.sendTransaction({
-            to: owner.address,
-            value: parseEther("100"),
+          to: owner.address,
+          value: parseEther("100"),
         });
 
         const liquidityGaugeAddress = await vault.liquidityGauge();
@@ -191,7 +191,10 @@ function checkWithdrawal(vaultAddress: string) {
           liquidityGaugeAddress
         );
 
-        usdcContract = await ethers.getContractAt("ERC20", USDC_ADDRESS[CHAINID]);
+        usdcContract = await ethers.getContractAt(
+          "ERC20",
+          USDC_ADDRESS[CHAINID]
+        );
       });
 
       it("withdraws the correct amount after upgrade", async () => {
@@ -201,8 +204,12 @@ function checkWithdrawal(vaultAddress: string) {
         assert.equal(await vault.isYearnPaused(), true);
 
         // Get initial usdc balance of users
-        const initialAcc1USDCBalance = await usdcContract.balanceOf(account1.address);
-        const initialAcc2USDCBalance = await usdcContract.balanceOf(account2.address);
+        const initialAcc1USDCBalance = await usdcContract.balanceOf(
+          account1.address
+        );
+        const initialAcc2USDCBalance = await usdcContract.balanceOf(
+          account2.address
+        );
 
         const acc1StakedBalance = await liquidityGauge.balanceOf(
           account1.address
@@ -229,10 +236,10 @@ function checkWithdrawal(vaultAddress: string) {
 
         // Roll the vault
         const oracle = await setupOracle(
-            WETH_ADDRESS[CHAINID],
-            CHAINLINK_WETH_PRICER[CHAINID],
-            account1,
-            OPTION_PROTOCOL.GAMMA
+          WETH_ADDRESS[CHAINID],
+          CHAINLINK_WETH_PRICER[CHAINID],
+          account1,
+          OPTION_PROTOCOL.GAMMA
         );
 
         const decimals = await vault.decimals();
@@ -295,14 +302,28 @@ function checkWithdrawal(vaultAddress: string) {
             initialAcc2ShareBalance
           );
 
-        const afterAcc1USDCBalance = await usdcContract.balanceOf(account1.address);
-        const afterAcc2USDCBalance = await usdcContract.balanceOf(account2.address);
+        const afterAcc1USDCBalance = await usdcContract.balanceOf(
+          account1.address
+        );
+        const afterAcc2USDCBalance = await usdcContract.balanceOf(
+          account2.address
+        );
 
         // Check userBalance after withdraw is correct
-        assert.bnEqual(initialAcc1USDCBalance.add(acc1Receipt.events.find((event) => event.event === 'Withdraw').args[1]),
-        afterAcc1USDCBalance);
-        assert.bnEqual(initialAcc2USDCBalance.add(acc2Receipt.events.find((event) => event.event === 'Withdraw').args[1]),
-        afterAcc2USDCBalance);
+        assert.bnEqual(
+          initialAcc1USDCBalance.add(
+            acc1Receipt.events.find((event) => event.event === "Withdraw")
+              .args[1]
+          ),
+          afterAcc1USDCBalance
+        );
+        assert.bnEqual(
+          initialAcc2USDCBalance.add(
+            acc2Receipt.events.find((event) => event.event === "Withdraw")
+              .args[1]
+          ),
+          afterAcc2USDCBalance
+        );
       });
 
       it("withdraws the correct amount for deposits in the same round as upgrade", async () => {
@@ -312,8 +333,12 @@ function checkWithdrawal(vaultAddress: string) {
         assert.equal(await vault.isYearnPaused(), true);
 
         // Get initial usdc balance of users
-        const initialAcc1USDCBalance = await usdcContract.balanceOf(account1.address);
-        const initialAcc2USDCBalance = await usdcContract.balanceOf(account2.address);
+        const initialAcc1USDCBalance = await usdcContract.balanceOf(
+          account1.address
+        );
+        const initialAcc2USDCBalance = await usdcContract.balanceOf(
+          account2.address
+        );
 
         // Deposit new usdc to vault in the same round
         await usdcContract
@@ -325,15 +350,19 @@ function checkWithdrawal(vaultAddress: string) {
           .approve(vault.address, initialAcc2USDCBalance);
         await vault.connect(account2).deposit(initialAcc2USDCBalance);
 
-        const acc1USDCBalanceAfterDeposit = await usdcContract.balanceOf(account1.address);
-        const acc2USDCBalanceAfterDeposit = await usdcContract.balanceOf(account2.address);
+        const acc1USDCBalanceAfterDeposit = await usdcContract.balanceOf(
+          account1.address
+        );
+        const acc2USDCBalanceAfterDeposit = await usdcContract.balanceOf(
+          account2.address
+        );
 
         // Roll the vault
         const oracle = await setupOracle(
-            WETH_ADDRESS[CHAINID],
-            CHAINLINK_WETH_PRICER[CHAINID],
-            account1,
-            OPTION_PROTOCOL.GAMMA
+          WETH_ADDRESS[CHAINID],
+          CHAINLINK_WETH_PRICER[CHAINID],
+          account1,
+          OPTION_PROTOCOL.GAMMA
         );
 
         const decimals = await vault.decimals();
@@ -430,14 +459,28 @@ function checkWithdrawal(vaultAddress: string) {
             initialAcc2ShareBalance
           );
 
-        const afterAcc1USDCBalance = await usdcContract.balanceOf(account1.address);
-        const afterAcc2USDCBalance = await usdcContract.balanceOf(account2.address);
+        const afterAcc1USDCBalance = await usdcContract.balanceOf(
+          account1.address
+        );
+        const afterAcc2USDCBalance = await usdcContract.balanceOf(
+          account2.address
+        );
 
         // Check userBalance after withdraw is correct
-        assert.bnEqual(acc1USDCBalanceAfterDeposit.add(acc1Receipt.events.find((event) => event.event === 'Withdraw').args[1]),
-        afterAcc1USDCBalance);
-        assert.bnEqual(acc2USDCBalanceAfterDeposit.add(acc2Receipt.events.find((event) => event.event === 'Withdraw').args[1]),
-        afterAcc2USDCBalance);
+        assert.bnEqual(
+          acc1USDCBalanceAfterDeposit.add(
+            acc1Receipt.events.find((event) => event.event === "Withdraw")
+              .args[1]
+          ),
+          afterAcc1USDCBalance
+        );
+        assert.bnEqual(
+          acc2USDCBalanceAfterDeposit.add(
+            acc2Receipt.events.find((event) => event.event === "Withdraw")
+              .args[1]
+          ),
+          afterAcc2USDCBalance
+        );
       });
 
       it("withdraws the correct amount for deposits in the round after upgrade", async () => {
@@ -448,10 +491,10 @@ function checkWithdrawal(vaultAddress: string) {
 
         // Roll the vault
         const oracle = await setupOracle(
-            WETH_ADDRESS[CHAINID],
-            CHAINLINK_WETH_PRICER[CHAINID],
-            account1,
-            OPTION_PROTOCOL.GAMMA
+          WETH_ADDRESS[CHAINID],
+          CHAINLINK_WETH_PRICER[CHAINID],
+          account1,
+          OPTION_PROTOCOL.GAMMA
         );
 
         const decimals = await vault.decimals();
@@ -482,8 +525,12 @@ function checkWithdrawal(vaultAddress: string) {
         await vault.connect(keeper).rollToNextOption();
 
         // Get initial usdc balance of users
-        const initialAcc1USDCBalance = await usdcContract.balanceOf(account1.address);
-        const initialAcc2USDCBalance = await usdcContract.balanceOf(account2.address);
+        const initialAcc1USDCBalance = await usdcContract.balanceOf(
+          account1.address
+        );
+        const initialAcc2USDCBalance = await usdcContract.balanceOf(
+          account2.address
+        );
 
         // Deposit new usdc to vault
         await usdcContract
@@ -495,8 +542,12 @@ function checkWithdrawal(vaultAddress: string) {
           .approve(vault.address, initialAcc2USDCBalance);
         await vault.connect(account2).deposit(initialAcc2USDCBalance);
 
-        const acc1USDCBalanceAfterDeposit = await usdcContract.balanceOf(account1.address);
-        const acc2USDCBalanceAfterDeposit = await usdcContract.balanceOf(account2.address);
+        const acc1USDCBalanceAfterDeposit = await usdcContract.balanceOf(
+          account1.address
+        );
+        const acc2USDCBalanceAfterDeposit = await usdcContract.balanceOf(
+          account2.address
+        );
 
         const currentOption2 = await vault.currentOption();
         const otoken2 = await ethers.getContractAt("IOtoken", currentOption2);
@@ -583,14 +634,28 @@ function checkWithdrawal(vaultAddress: string) {
             initialAcc2ShareBalance
           );
 
-        const acc1USDCBalanceAfterWithdraw = await usdcContract.balanceOf(account1.address);
-        const acc2USDCBalanceAfterWIthdraw = await usdcContract.balanceOf(account2.address);
+        const acc1USDCBalanceAfterWithdraw = await usdcContract.balanceOf(
+          account1.address
+        );
+        const acc2USDCBalanceAfterWIthdraw = await usdcContract.balanceOf(
+          account2.address
+        );
 
         // Check userBalance after withdraw is correct
-        assert.bnEqual(acc1USDCBalanceAfterDeposit.add(acc1Receipt.events.find((event) => event.event === 'Withdraw').args[1]),
-        acc1USDCBalanceAfterWithdraw);
-        assert.bnEqual(acc2USDCBalanceAfterDeposit.add(acc2Receipt.events.find((event) => event.event === 'Withdraw').args[1]),
-        acc2USDCBalanceAfterWIthdraw);
+        assert.bnEqual(
+          acc1USDCBalanceAfterDeposit.add(
+            acc1Receipt.events.find((event) => event.event === "Withdraw")
+              .args[1]
+          ),
+          acc1USDCBalanceAfterWithdraw
+        );
+        assert.bnEqual(
+          acc2USDCBalanceAfterDeposit.add(
+            acc2Receipt.events.find((event) => event.event === "Withdraw")
+              .args[1]
+          ),
+          acc2USDCBalanceAfterWIthdraw
+        );
       });
     });
   });
