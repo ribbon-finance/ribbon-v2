@@ -3,14 +3,26 @@
 
 pragma solidity =0.8.4;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/ISwap.sol";
 import "../storage/SwapStorage.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
-contract Swap is ISwap, ReentrancyGuard, Ownable, SwapStorage {
+contract Swap is
+    ISwap,
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    SwapStorage
+{
     using SafeERC20 for IERC20;
 
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -39,28 +51,37 @@ contract Swap is ISwap, ReentrancyGuard, Ownable, SwapStorage {
             )
         );
 
-    bytes32 public constant DOMAIN_NAME = keccak256("RIBBON SWAP");
-    bytes32 public constant DOMAIN_VERSION = keccak256("1");
-    uint256 public immutable DOMAIN_CHAIN_ID;
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     uint256 internal constant MAX_PERCENTAGE = 10000;
     uint256 internal constant MAX_FEE = 1000;
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
     /************************************************
-     *  CONSTRUCTOR
+     *  INITIALIZATION
      ***********************************************/
 
-    constructor() {
+    function initialize(
+        string memory _domainName,
+        string memory _domainVersion,
+        address _owner
+    ) internal initializer {
+        require(bytes(_domainName).length > 0, "!_domainName");
+        require(bytes(_domainVersion).length > 0, "!_domainVersion");
+        require(_owner != address(0), "!_owner");
+
+        __ReentrancyGuard_init();
+        __Ownable_init();
+        transferOwnership(_owner);
+
         uint256 currentChainId = getChainId();
         DOMAIN_CHAIN_ID = currentChainId;
+        DOMAIN_NAME = keccak256(bytes(_domainName));
+        DOMAIN_VERSION = keccak256(bytes(_domainVersion));
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
-                DOMAIN_NAME,
-                DOMAIN_VERSION,
+                _domainName,
+                _domainVersion,
                 currentChainId,
                 this
             )
