@@ -66,14 +66,13 @@ describe("RibbonThetaVaultWithSwap", () => {
     deltaStep: getDeltaStep("WBTC"),
     tokenDecimals: 8,
     depositAmount: BigNumber.from("100000000"),
-    premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("2000000"),
     performanceFee: BigNumber.from("20000000"),
     minimumSupply: BigNumber.from("10").pow("3").toString(),
     expectedMintAmount: BigNumber.from("100000000"),
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101500,
+      depositWorstCase: 101510,
       depositBestCase: 90000,
     },
     mintConfig: {
@@ -111,7 +110,6 @@ type Option = {
  * @param {BigNumber} params.depositAmount - Deposit amount
  * @param {string} params.minimumSupply - Minimum supply to maintain for share and asset balance
  * @param {BigNumber} params.expectedMintAmount - Expected oToken amount to be minted with our deposit
- * @param {BigNumber} params.premiumDiscount - Premium discount of the sold options to incentivize arbitraguers (thousandths place: 000 - 999)
  * @param {BigNumber} params.managementFee - Management fee (6 decimals)
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
@@ -133,7 +131,6 @@ function behavesLikeRibbonOptionsVault(params: {
   depositAmount: BigNumber;
   minimumSupply: string;
   expectedMintAmount: BigNumber;
-  premiumDiscount: BigNumber;
   managementFee: BigNumber;
   performanceFee: BigNumber;
   isPut: boolean;
@@ -169,8 +166,7 @@ function behavesLikeRibbonOptionsVault(params: {
     userSigner: SignerWithAddress,
     ownerSigner: SignerWithAddress,
     keeperSigner: SignerWithAddress,
-    feeRecipientSigner: SignerWithAddress,
-    offerExecutorSigner: SignerWithAddress;
+    feeRecipientSigner: SignerWithAddress;
 
   // Parameters
   let tokenName = params.tokenName;
@@ -180,7 +176,6 @@ function behavesLikeRibbonOptionsVault(params: {
   let asset = params.asset;
   let collateralAsset = params.collateralAsset;
   let depositAmount = params.depositAmount;
-  let premiumDiscount = params.premiumDiscount;
   let managementFee = params.managementFee;
   let performanceFee = params.performanceFee;
   // let expectedMintAmount = params.expectedMintAmount;
@@ -270,14 +265,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
       initSnapshotId = await time.takeSnapshot();
 
-      [
-        adminSigner,
-        ownerSigner,
-        keeperSigner,
-        userSigner,
-        feeRecipientSigner,
-        offerExecutorSigner,
-      ] = await ethers.getSigners();
+      [adminSigner, ownerSigner, keeperSigner, userSigner, feeRecipientSigner] =
+        await ethers.getSigners();
       owner = ownerSigner.address;
       keeper = keeperSigner.address;
       user = userSigner.address;
@@ -363,7 +352,6 @@ function behavesLikeRibbonOptionsVault(params: {
           tokenSymbol,
           optionsPremiumPricer.address,
           strikeSelection.address,
-          premiumDiscount,
         ],
         [
           isPut,
@@ -397,10 +385,6 @@ function behavesLikeRibbonOptionsVault(params: {
           }
         )
       ).connect(userSigner);
-
-      await vault
-        .connect(ownerSigner)
-        .setNewOfferExecutor(offerExecutorSigner.address);
 
       oTokenFactory = await getContractAt("IOtokenFactory", OTOKEN_FACTORY);
 
@@ -564,10 +548,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
         assert.equal(minimumSupply, params.minimumSupply);
         assert.equal(isPut, params.isPut);
-        assert.equal(
-          (await vault.premiumDiscount()).toString(),
-          params.premiumDiscount.toString()
-        );
         assert.bnEqual(
           cap,
           parseUnits("500", tokenDecimals > 18 ? tokenDecimals : 18)
@@ -592,7 +572,6 @@ function behavesLikeRibbonOptionsVault(params: {
               tokenSymbol,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              premiumDiscount,
             ],
             [
               isPut,
@@ -619,7 +598,6 @@ function behavesLikeRibbonOptionsVault(params: {
               tokenSymbol,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              premiumDiscount,
             ],
             [
               isPut,
@@ -646,7 +624,6 @@ function behavesLikeRibbonOptionsVault(params: {
               tokenSymbol,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              premiumDiscount,
             ],
             [
               isPut,
@@ -673,7 +650,6 @@ function behavesLikeRibbonOptionsVault(params: {
               tokenSymbol,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              premiumDiscount,
             ],
             [
               isPut,
@@ -700,7 +676,6 @@ function behavesLikeRibbonOptionsVault(params: {
               tokenSymbol,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              premiumDiscount,
             ],
             [
               isPut,
@@ -727,7 +702,6 @@ function behavesLikeRibbonOptionsVault(params: {
               tokenSymbol,
               optionsPremiumPricer.address,
               strikeSelection.address,
-              premiumDiscount,
             ],
             [
               isPut,
@@ -800,22 +774,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setNewOfferExecutor", () => {
-      time.revertToSnapshotAfterTest();
-
-      it("set new offerExecutor to owner", async function () {
-        assert.equal(await vault.offerExecutor(), offerExecutorSigner.address);
-        await vault.connect(ownerSigner).setNewOfferExecutor(owner);
-        assert.equal(await vault.offerExecutor(), owner);
-      });
-
-      it("reverts when not owner call", async function () {
-        await expect(vault.setNewOfferExecutor(owner)).to.be.revertedWith(
-          "caller is not the owner"
-        );
-      });
-    });
-
     describe("#setStrikeSelection", () => {
       time.revertToSnapshotAfterTest();
 
@@ -848,34 +806,6 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(vault.setOptionsPremiumPricer(owner)).to.be.revertedWith(
           "caller is not the owner"
         );
-      });
-    });
-
-    describe("#setPremiumDiscount", () => {
-      time.revertToSnapshotAfterTest();
-
-      it("reverts when not keeper calling", async () => {
-        await expect(vault.setPremiumDiscount(100)).to.be.revertedWith(
-          "!keeper"
-        );
-      });
-
-      it("sets the premium discount", async () => {
-        await vault.connect(keeperSigner).setPremiumDiscount(800);
-        assert.equal((await vault.premiumDiscount()).toString(), 800);
-      });
-
-      it("cannot set the premium discount more than 100%", async () => {
-        await vault.connect(keeperSigner).setPremiumDiscount(1000);
-        await expect(
-          vault.connect(keeperSigner).setPremiumDiscount(1001)
-        ).to.be.revertedWith("Invalid discount");
-      });
-
-      it("cannot set the premium discount to 0", async () => {
-        await expect(
-          vault.connect(keeperSigner).setPremiumDiscount(0)
-        ).to.be.revertedWith("Invalid discount");
       });
     });
 
@@ -1430,7 +1360,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(offerExecutorSigner)
+          .connect(keeperSigner)
           .settleOffer([Object.values(signedBid)]);
 
         assert.bnLte(
@@ -1527,7 +1457,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(offerExecutorSigner)
+          .connect(keeperSigner)
           .settleOffer([Object.values(signedBid)]);
 
         assert.bnLte(
@@ -1725,7 +1655,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assetBalanceBeforeSettle = await assetContract.balanceOf(vault.address);
 
         await vault
-          .connect(offerExecutorSigner)
+          .connect(keeperSigner)
           .settleOffer([Object.values(signedBid)]);
 
         assert.equal(
@@ -1789,22 +1719,16 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(offerExecutorSigner)
+          .connect(keeperSigner)
           .settleOffer([Object.values(signedBid)]);
 
         // Asset balance when auction closes only contains auction proceeds
         // Remaining vault's balance is still in Opyn Gamma Controller
         let auctionProceeds = await assetContract.balanceOf(vault.address);
 
-        assert.isAbove(
+        assert.equal(
           parseInt((await defaultOtoken.balanceOf(vault.address)).toString()),
-          parseInt(
-            params.expectedMintAmount
-              .div(bidMultiplier)
-              .mul(params.premiumDiscount.sub(1))
-              .div(1000)
-              .toString()
-          )
+          parseInt(params.expectedMintAmount.div(bidMultiplier).toString())
         );
 
         assert.isAbove(
@@ -1826,16 +1750,11 @@ function behavesLikeRibbonOptionsVault(params: {
           vault.address
         );
 
-        assert.isAbove(
+        assert.equal(
           parseInt(assetBalanceAfterBurn.toString()),
           parseInt(
             assetBalanceAfterSettle
-              .add(
-                lockedAmountBeforeBurn
-                  .div(bidMultiplier)
-                  .mul(params.premiumDiscount.sub(1))
-                  .div(1000)
-              )
+              .add(lockedAmountBeforeBurn.div(bidMultiplier))
               .toString()
           )
         );
@@ -2166,7 +2085,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         // Check that the vault receives the correct amount of proceeds from the swap
         const tx = await vault
-          .connect(offerExecutorSigner)
+          .connect(keeperSigner)
           .settleOffer([Object.values(signedBid)]);
         let auctionProceeds = await assetContract.balanceOf(vault.address);
 
@@ -2338,7 +2257,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await vault
-          .connect(offerExecutorSigner)
+          .connect(keeperSigner)
           .settleOffer([Object.values(signedBid)]);
 
         let newOptionStrike = await (

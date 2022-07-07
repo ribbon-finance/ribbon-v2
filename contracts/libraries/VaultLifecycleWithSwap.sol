@@ -36,7 +36,6 @@ library VaultLifecycleWithSwap {
         uint256 overriddenStrikePrice;
         address strikeSelection;
         address optionsPremiumPricer;
-        uint256 premiumDiscount;
     }
 
     /**
@@ -616,52 +615,6 @@ library VaultLifecycleWithSwap {
         );
 
         return otoken;
-    }
-
-    function getOTokenPremium(
-        address oTokenAddress,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) external view returns (uint256) {
-        return
-            _getOTokenPremium(
-                oTokenAddress,
-                optionsPremiumPricer,
-                premiumDiscount
-            );
-    }
-
-    function _getOTokenPremium(
-        address oTokenAddress,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) internal view returns (uint256) {
-        IOtoken newOToken = IOtoken(oTokenAddress);
-        IOptionsPremiumPricer premiumPricer =
-            IOptionsPremiumPricer(optionsPremiumPricer);
-
-        // Apply black-scholes formula (from rvol library) to option given its features
-        // and get price for 100 contracts denominated in the underlying asset for call option
-        // and USDC for put option
-        uint256 optionPremium =
-            premiumPricer.getPremium(
-                newOToken.strikePrice(),
-                newOToken.expiryTimestamp(),
-                newOToken.isPut()
-            );
-
-        // Apply a discount to incentivize arbitraguers
-        optionPremium = optionPremium.mul(premiumDiscount).div(
-            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
-        );
-
-        require(
-            optionPremium <= type(uint96).max,
-            "optionPremium > type(uint96) max value!"
-        );
-        require(optionPremium > 0, "!optionPremium");
-
-        return optionPremium;
     }
 
     /**
