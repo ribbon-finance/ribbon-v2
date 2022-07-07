@@ -7,9 +7,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/ISwap.sol";
+import "../storage/SwapStorage.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
-contract Swap is ISwap, ReentrancyGuard, Ownable {
+contract Swap is ISwap, ReentrancyGuard, Ownable, SwapStorage {
     using SafeERC20 for IERC20;
 
     bytes32 public constant DOMAIN_TYPEHASH =
@@ -47,21 +48,6 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     uint256 internal constant MAX_FEE = 1000;
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
-
-    uint256 public offersCounter = 0;
-
-    mapping(uint256 => Offer) public swapOffers;
-
-    mapping(address => uint256) public referralFees;
-
-    mapping(address => address) public authorized;
-
-    /**
-     * @notice Double mapping of signers to nonce groups to nonce states
-     * @dev The nonce group is computed as nonce / 256, so each group of 256 sequential nonces uses the same key
-     * @dev The nonce states are encoded as 256 bits, for each nonce in the group 0 means available and 1 means used
-     */
-    mapping(address => mapping(uint256 => uint256)) internal _nonceGroups;
 
     /************************************************
      *  CONSTRUCTOR
