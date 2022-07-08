@@ -18,7 +18,6 @@ import {IGnosisAuction} from "../interfaces/IGnosisAuction.sol";
 import {IOptionsPurchaseQueue} from "../interfaces/IOptionsPurchaseQueue.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
-import "hardhat/console.sol";
 
 library VaultLifecycle {
     using SafeMath for uint256;
@@ -257,7 +256,6 @@ library VaultLifecycle {
         uint256 collateralDecimals =
             uint256(IERC20Detailed(collateralAsset).decimals());
         uint256 mintAmount;
-        console.log("lockedAmount", depositAmount);
 
         if (oToken.isPut()) {
             // For minting puts, there will be instances where the full depositAmount will not be used for minting.
