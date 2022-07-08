@@ -22,6 +22,7 @@ import {
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 import {SupportsNonCompliantERC20} from "./SupportsNonCompliantERC20.sol";
 import {IOptionsPremiumPricer} from "../interfaces/IRibbon.sol";
+
 library VaultLifecycleYearn {
     using SafeMath for uint256;
     using SupportsNonCompliantERC20 for IERC20;
