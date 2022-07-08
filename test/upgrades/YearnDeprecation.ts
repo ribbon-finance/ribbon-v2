@@ -14,35 +14,32 @@ import {
 } from "../../constants/constants";
 import {
   getAssetPricer,
-  objectEquals,
-  parseLog,
-  serializeMap,
   setOpynOracleExpiryPrice,
   setOpynOracleExpiryPriceYearn,
   setupOracle,
 } from "../helpers/utils";
 import deployments from "../../constants/deployments.json";
-import { BigNumberish, Contract } from "ethers";
+import { Contract } from "ethers";
 import * as time from "../helpers/time";
 import { assert } from "../helpers/assertions";
 import { BigNumber } from "ethereum-waffle/node_modules/ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { expect } from "chai";
 import { parseUnits } from "ethers/lib/utils";
-import { TASK_ETHERSCAN_VERIFY } from "hardhat-deploy";
 
 const { parseEther } = ethers.utils;
 
 const UPGRADE_ADMIN = "0x223d59FA315D7693dF4238d1a5748c964E615923";
 const KEEPER = "0x55e4b3e3226444Cd4de09778844453bA9fe9cd7c";
-const IMPLEMENTATION_SLOT =
-  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 const OWNERADDR = "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4";
+// accounts that have lockedDeposits
 const USER_ACCOUNT_1 = "0xb576328d591be38fa511e407f1f22544e6a147d2";
 const USER_ACCOUNT_2 = "0xeCcDb4930952e049d1731f9a75f0AD5A0B30b2aB";
+// account that will instantly withdraw
+const USER_ACCOUNT_3 = "0x6759074e018d694e9971516822b97a0dc68eccfe";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 15087398;
+const FORK_BLOCK = 15099328;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -134,6 +131,7 @@ function checkWithdrawal(vaultAddress: string) {
       time.revertToSnapshotAfterEach();
       let account1: SignerWithAddress;
       let account2: SignerWithAddress;
+      let account3: SignerWithAddress;
       let owner: SignerWithAddress;
       let keeper: SignerWithAddress;
       let liquidityGauge: Contract;
@@ -154,6 +152,11 @@ function checkWithdrawal(vaultAddress: string) {
 
         await network.provider.request({
           method: "hardhat_impersonateAccount",
+          params: [USER_ACCOUNT_3],
+        });
+
+        await network.provider.request({
+          method: "hardhat_impersonateAccount",
           params: [KEEPER],
         });
 
@@ -166,6 +169,7 @@ function checkWithdrawal(vaultAddress: string) {
 
         account1 = await ethers.getSigner(USER_ACCOUNT_1);
         account2 = await ethers.getSigner(USER_ACCOUNT_2);
+        account3 = await ethers.getSigner(USER_ACCOUNT_3);
         keeper = await ethers.getSigner(KEEPER);
         owner = await ethers.getSigner(OWNERADDR);
 
@@ -177,6 +181,11 @@ function checkWithdrawal(vaultAddress: string) {
 
         await signer.sendTransaction({
           to: account2.address,
+          value: parseEther("100"),
+        });
+
+        await signer.sendTransaction({
+          to: account3.address,
           value: parseEther("100"),
         });
 
@@ -197,11 +206,15 @@ function checkWithdrawal(vaultAddress: string) {
         );
       });
 
-      it("test", async () => {
+      it("should convert all yvUSDC to USDC and mint approx. expected number of oTokens", async () => {
+        // note: when large amounts of yvUSDC (~20 million) is unwrapped to USDC,
+        // there is currently a slippage of ~0.002%
+
         // Set isYearnPaused to be true
         assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
+
         // Roll the vault
         const oracle = await setupOracle(
           WETH_ADDRESS[CHAINID],
@@ -209,17 +222,9 @@ function checkWithdrawal(vaultAddress: string) {
           account1,
           OPTION_PROTOCOL.GAMMA
         );
-        const yvContract = await ethers.getContractAt("IYearnVault", await vault.collateralToken());
-        
-        console.log((await yvContract.pricePerShare()).toString());
+
         const currentOption = await vault.currentOption();
         const iotoken = await ethers.getContractAt("IOtoken", currentOption);
-        const ierc20 = await ethers.getContractAt("IERC20", currentOption);
-
-        const lockedAmount2 = (await vault.vaultState()).lockedAmount;
-        console.log("lockedAmount js");
-        console.log(lockedAmount2.toString());
-
         const expiryTimestamp = await iotoken.expiryTimestamp();
         const strikePrice = await iotoken.strikePrice();
 
@@ -228,6 +233,14 @@ function checkWithdrawal(vaultAddress: string) {
           collateralPricer,
           account1
         );
+
+        const initialUSDCBalance = await usdcContract.balanceOf(vault.address);
+        const yvContract = await ethers.getContractAt(
+          "IYearnVault",
+          await vault.collateralToken()
+        );
+        const initialYVUSDCBalance = await yvContract.balanceOf(vault.address);
+        const yvPps = await yvContract.pricePerShare();
 
         // Use old set expiry price function which includes setExpiryPriceInOracle
         await setOpynOracleExpiryPriceYearn(
@@ -244,16 +257,34 @@ function checkWithdrawal(vaultAddress: string) {
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(keeper).rollToNextOption();
 
+        // // Calculate expected number of oTokens minted
+
+        const queuedWithdrawAmount = await vault.lastQueuedWithdrawAmount();
+
         const currentOption2 = await vault.currentOption();
 
-        const lockedAmount = (await vault.vaultState()).lockedAmount;
-        const previousLockedAmount = (
-          await vault.vaultState()
-        ).lastLockedAmount.toString();
-
+        // Get strike price
         const iotoken2 = await ethers.getContractAt("IOtoken", currentOption2);
         const strikePrice2 = await iotoken2.strikePrice();
-        const ierc20_2 = await ethers.getContractAt("IERC20", currentOption2);
+
+        // Get oToken totalSupply
+        const ierc20 = await ethers.getContractAt("IERC20", currentOption2);
+        const otokenSupply = await ierc20.totalSupply();
+
+        // Expected amount of USDC converted from yvUSDC
+        const convertedUSDCBalance = initialYVUSDCBalance
+          .mul(yvPps)
+          .div(10 ** 6);
+        // Expected number of oTokens minted
+        const otokenCalculation = convertedUSDCBalance
+          .add(initialUSDCBalance)
+          .sub(queuedWithdrawAmount)
+          .mul(10 ** 10)
+          .div(strikePrice2);
+        const ratio = otokenCalculation.toNumber() / otokenSupply.toNumber();
+
+        // Expect ratio of expected number of oTokens minted to actual number to be small
+        expect(ratio).to.be.lessThan(1.002);
       });
 
       it("withdraws the correct amount after upgrade", async () => {
@@ -261,6 +292,7 @@ function checkWithdrawal(vaultAddress: string) {
         assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
+
         // Get initial usdc balance of users
         const initialAcc1USDCBalance = await usdcContract.balanceOf(
           account1.address
@@ -381,6 +413,40 @@ function checkWithdrawal(vaultAddress: string) {
               .args[1]
           ),
           afterAcc2USDCBalance
+        );
+      });
+
+      it("should withdrawInstantly correct amount of tokens that was deposited in same round", async () => {
+        // Set isYearnPaused to be true
+        assert.equal(await vault.isYearnPaused(), false);
+        await vault.connect(owner).setYearnPaused(true);
+        assert.equal(await vault.isYearnPaused(), true);
+
+        const initialPendingDeposits = await vault.totalPending();
+        const depositedAmount = (
+          await vault.depositReceipts(account3.address)
+        )[1];
+
+        const initialAcc3USDCBalance = await usdcContract.balanceOf(
+          account3.address
+        );
+        await vault.connect(account3).withdrawInstantly(depositedAmount);
+
+        // Get initial usdc balance of users
+        const acc3USDCBalanceAfterDeposit = await usdcContract.balanceOf(
+          account3.address
+        );
+
+        // Check user usdc balance is correct after withdraw
+        assert.bnEqual(
+          initialAcc3USDCBalance.add(depositedAmount),
+          acc3USDCBalanceAfterDeposit
+        );
+
+        // Check totalPending changed correctly
+        assert.bnEqual(
+          initialPendingDeposits.sub(depositedAmount),
+          await vault.totalPending()
         );
       });
 

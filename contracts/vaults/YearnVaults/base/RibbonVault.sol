@@ -23,7 +23,7 @@ import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
-import "hardhat/console.sol";
+
 contract RibbonVault is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
@@ -612,14 +612,17 @@ contract RibbonVault is
         _mint(address(this), mintShares);
 
         address collateral = address(collateralToken);
-        
-        console.log("collateral total balance", collateralToken.balanceOf(address(this)));
+
         if (params.isYearnPaused) {
-            collateralToken.withdraw(
-                collateralToken.balanceOf(address(this)),
-                address(this),
-                0
-            );
+            // note: withdrawing large amounts of yvUSDC will result in a slippage of ~ 0.001%
+            // withdraw reverts if balance is 0
+            if(collateralToken.balanceOf(address(this)) > 0) {
+                collateralToken.withdraw(
+                    collateralToken.balanceOf(address(this)),
+                    address(this),
+                    0
+                );
+            }
         } else {
             VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
         }
