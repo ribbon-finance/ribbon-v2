@@ -423,6 +423,7 @@ function checkWithdrawal(vaultAddress: string) {
         assert.equal(await vault.isYearnPaused(), true);
 
         const initialPendingDeposits = await vault.totalPending();
+        
         const depositedAmount = (
           await vault.depositReceipts(account3.address)
         )[1];
@@ -430,6 +431,7 @@ function checkWithdrawal(vaultAddress: string) {
         const initialAcc3USDCBalance = await usdcContract.balanceOf(
           account3.address
         );
+
         await vault.connect(account3).withdrawInstantly(depositedAmount);
 
         // Get initial usdc balance of users
