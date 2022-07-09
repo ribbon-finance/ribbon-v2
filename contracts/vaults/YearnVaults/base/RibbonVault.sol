@@ -469,14 +469,6 @@ contract RibbonVault is
 
         _burn(address(this), withdrawalShares);
 
-        VaultLifecycleYearn.unwrapYieldToken(
-            withdrawAmount,
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
-            YEARN_WITHDRAWAL_SLIPPAGE
-        );
-
         require(withdrawAmount > 0, "!withdrawAmount");
 
         VaultLifecycleYearn.transferAsset(
@@ -620,14 +612,17 @@ contract RibbonVault is
         _mint(address(this), mintShares);
 
         address collateral = address(collateralToken);
-        
+
         if (params.isYearnPaused) {
-            VaultLifecycleYearn.unwrapYieldToken(
-                queuedWithdrawAmount,
-                vaultParams.asset,
-                collateral,
-                YEARN_WITHDRAWAL_BUFFER,
-                YEARN_WITHDRAWAL_SLIPPAGE);
+            // note: withdrawing large amounts of yvUSDC will result in a slippage of ~ 0.001%
+            // withdraw reverts if balance is 0
+            if(collateralToken.balanceOf(address(this)) > 0) {
+                collateralToken.withdraw(
+                    collateralToken.balanceOf(address(this)),
+                    address(this),
+                    0
+                );
+            }
         } else {
             VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
         }
@@ -641,7 +636,7 @@ contract RibbonVault is
                 totalVaultFee
             );
         }
-
+        
         return (newOption, queuedWithdrawAmount);
     }
 
