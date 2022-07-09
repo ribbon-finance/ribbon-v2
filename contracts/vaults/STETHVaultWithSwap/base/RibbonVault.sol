@@ -613,7 +613,7 @@ contract RibbonVault is
                 vaultState,
                 VaultLifecycleWithSwap.CloseParams(
                     vaultParams.decimals,
-                    IERC20(vaultParams.asset).balanceOf(address(this)),
+                    totalBalance(),
                     totalSupply(),
                     lastQueuedWithdrawAmount,
                     performanceFee,
@@ -754,8 +754,9 @@ contract RibbonVault is
             );
 
         uint256 stEthBalance = IERC20(STETH).balanceOf(address(this));
-        uint256 lockedAmount = optionState.currentOption != address(0) 
-            ? uint256(vaultState.lockedAmount)
+        uint256 lockedAmount =
+            optionState.currentOption != address(0)
+                ? uint256(vaultState.lockedAmount)
                 : 0;
 
         return
