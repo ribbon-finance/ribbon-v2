@@ -36,10 +36,10 @@ const OWNERADDR = "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4";
 const USER_ACCOUNT_1 = "0xb576328d591be38fa511e407f1f22544e6a147d2";
 const USER_ACCOUNT_2 = "0xeCcDb4930952e049d1731f9a75f0AD5A0B30b2aB";
 // account that will instantly withdraw
-const USER_ACCOUNT_3 = "0x6759074e018d694e9971516822b97a0dc68eccfe";
+const USER_ACCOUNT_3 = "0x87451bb0053cd80e1c7d092114d710f7600b66a2";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 15099328;
+const FORK_BLOCK = 15106000;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -136,6 +136,7 @@ function checkWithdrawal(vaultAddress: string) {
       let keeper: SignerWithAddress;
       let liquidityGauge: Contract;
       let usdcContract: Contract;
+      let oracle: Contract;
 
       beforeEach(async function () {
         await vaultProxy.upgradeTo(newImplementation);
@@ -204,24 +205,24 @@ function checkWithdrawal(vaultAddress: string) {
           "ERC20",
           USDC_ADDRESS[CHAINID]
         );
-      });
-
-      it("should convert all yvUSDC to USDC and mint approx. expected number of oTokens", async () => {
-        // note: when large amounts of yvUSDC (~20 million) is unwrapped to USDC,
-        // there is currently a slippage of ~0.002%
-
-        // Set isYearnPaused to be true
-        assert.equal(await vault.isYearnPaused(), false);
-        await vault.connect(owner).setYearnPaused(true);
-        assert.equal(await vault.isYearnPaused(), true);
 
         // Roll the vault
-        const oracle = await setupOracle(
+        oracle = await setupOracle(
           WETH_ADDRESS[CHAINID],
           CHAINLINK_WETH_PRICER[CHAINID],
           account1,
           OPTION_PROTOCOL.GAMMA
         );
+
+        // Set isYearnPaused to be true
+        assert.equal(await vault.isYearnPaused(), false);
+        await vault.connect(owner).setYearnPaused(true);
+        assert.equal(await vault.isYearnPaused(), true);
+      });
+
+      it("should convert all yvUSDC to USDC and mint approx. expected number of oTokens", async () => {
+        // note: when large amounts of yvUSDC (~20 million) is unwrapped to USDC,
+        // there is currently a slippage of ~0.002%
 
         const currentOption = await vault.currentOption();
         const iotoken = await ethers.getContractAt("IOtoken", currentOption);
@@ -288,10 +289,6 @@ function checkWithdrawal(vaultAddress: string) {
       });
 
       it("withdraws the correct amount after upgrade", async () => {
-        // Set isYearnPaused to be true
-        await vault.connect(owner).setYearnPaused(true);
-        assert.equal(await vault.isYearnPaused(), true);
-
         // Get initial usdc balance of users
         const initialAcc1USDCBalance = await usdcContract.balanceOf(
           account1.address
@@ -322,14 +319,6 @@ function checkWithdrawal(vaultAddress: string) {
         // Ensure share balance remains the same
         assert.bnEqual(await vault.shares(account1.address), BigNumber.from(0));
         assert.bnEqual(await vault.shares(account2.address), BigNumber.from(0));
-
-        // Roll the vault
-        const oracle = await setupOracle(
-          WETH_ADDRESS[CHAINID],
-          CHAINLINK_WETH_PRICER[CHAINID],
-          account1,
-          OPTION_PROTOCOL.GAMMA
-        );
 
         const decimals = await vault.decimals();
         const currentOption = await vault.currentOption();
@@ -416,10 +405,6 @@ function checkWithdrawal(vaultAddress: string) {
       });
 
       it("should withdrawInstantly correct amount of tokens that was deposited in same round", async () => {
-        // Set isYearnPaused to be true
-        await vault.connect(owner).setYearnPaused(true);
-        assert.equal(await vault.isYearnPaused(), true);
-
         const initialPendingDeposits = await vault.totalPending();
         // get an account's deposit in the same round
         const depositedAmount = (
@@ -451,10 +436,6 @@ function checkWithdrawal(vaultAddress: string) {
       });
 
       it("withdraws the correct amount for deposits in the same round as upgrade", async () => {
-        // Set isYearnPaused to be true
-        await vault.connect(owner).setYearnPaused(true);
-        assert.equal(await vault.isYearnPaused(), true);
-
         // Get initial usdc balance of users
         const initialAcc1USDCBalance = await usdcContract.balanceOf(
           account1.address
@@ -478,14 +459,6 @@ function checkWithdrawal(vaultAddress: string) {
         );
         const acc2USDCBalanceAfterDeposit = await usdcContract.balanceOf(
           account2.address
-        );
-
-        // Roll the vault
-        const oracle = await setupOracle(
-          WETH_ADDRESS[CHAINID],
-          CHAINLINK_WETH_PRICER[CHAINID],
-          account1,
-          OPTION_PROTOCOL.GAMMA
         );
 
         const decimals = await vault.decimals();
@@ -607,18 +580,6 @@ function checkWithdrawal(vaultAddress: string) {
       });
 
       it("withdraws the correct amount for deposits in the round after upgrade", async () => {
-        // Set isYearnPaused to be true
-        await vault.connect(owner).setYearnPaused(true);
-        assert.equal(await vault.isYearnPaused(), true);
-
-        // Roll the vault
-        const oracle = await setupOracle(
-          WETH_ADDRESS[CHAINID],
-          CHAINLINK_WETH_PRICER[CHAINID],
-          account1,
-          OPTION_PROTOCOL.GAMMA
-        );
-
         const decimals = await vault.decimals();
         const currentOption = await vault.currentOption();
         const otoken = await ethers.getContractAt("IOtoken", currentOption);
