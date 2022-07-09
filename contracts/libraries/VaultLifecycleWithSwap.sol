@@ -30,6 +30,7 @@ library VaultLifecycleWithSwap {
     struct CommitParams {
         address OTOKEN_FACTORY;
         address USDC;
+        address collateralAsset;
         address currentOption;
         uint256 delay;
         uint16 lastStrikeOverrideRound;
@@ -66,7 +67,6 @@ library VaultLifecycleWithSwap {
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
-        address asset = vaultParams.asset;
 
         (strikePrice, delta) = commitParams.lastStrikeOverrideRound ==
             vaultState.round
@@ -80,7 +80,6 @@ library VaultLifecycleWithSwap {
             commitParams,
             vaultParams,
             underlying,
-            asset,
             strikePrice,
             expiry,
             isPut
@@ -565,7 +564,6 @@ library VaultLifecycleWithSwap {
      * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param underlying is the address of the underlying asset of the option
-     * @param collateralAsset is the address of the collateral asset of the option
      * @param strikePrice is the strike price of the option
      * @param expiry is the expiry timestamp of the option
      * @param isPut is whether the option is a put
@@ -575,7 +573,6 @@ library VaultLifecycleWithSwap {
         CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         address underlying,
-        address collateralAsset,
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
@@ -586,7 +583,7 @@ library VaultLifecycleWithSwap {
             factory.getOtoken(
                 underlying,
                 commitParams.USDC,
-                collateralAsset,
+                commitParams.collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
@@ -600,7 +597,7 @@ library VaultLifecycleWithSwap {
             factory.createOtoken(
                 underlying,
                 commitParams.USDC,
-                collateralAsset,
+                commitParams.collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
@@ -609,7 +606,7 @@ library VaultLifecycleWithSwap {
         verifyOtoken(
             otoken,
             vaultParams,
-            collateralAsset,
+            commitParams.collateralAsset,
             commitParams.USDC,
             commitParams.delay
         );
