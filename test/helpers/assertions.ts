@@ -35,7 +35,7 @@ const assertBNNotEqual = (
  *  @param bBN The right operand BN.js instance
  */
 const assertBNGreaterThan = (aBN, bBN) => {
-  assert.ok(
+  _assert.ok(
     aBN.gt(bBN),
     `${aBN.toString()} is not greater than ${bBN.toString()}`
   );
@@ -47,7 +47,7 @@ const assertBNGreaterThan = (aBN, bBN) => {
  *  @param bBN The right operand BN.js instance
  */
 const assertBNGreaterEqualThan = (aBN, bBN) => {
-  assert.ok(
+  _assert.ok(
     aBN.gte(bBN),
     `${aBN.toString()} is not greater than or equal to ${bBN.toString()}`
   );
@@ -59,7 +59,7 @@ const assertBNGreaterEqualThan = (aBN, bBN) => {
  *  @param bBN The right operand BN.js instance
  */
 const assertBNLessThan = (aBN, bBN) => {
-  assert.ok(
+  _assert.ok(
     aBN.lt(bBN),
     `${aBN.toString()} is not less than ${bBN.toString()}`
   );
@@ -71,9 +71,21 @@ const assertBNLessThan = (aBN, bBN) => {
  *  @param bBN The right operand BN.js instance
  */
 const assertBNLessEqualThan = (aBN, bBN) => {
-  assert.ok(
+  _assert.ok(
     aBN.lte(bBN),
     `${aBN.toString()} is not less than or equal to ${bBN.toString()}`
+  );
+};
+
+/**
+ *  Convenience method to assert that the value of left operand is within a delta than then value of the right operand
+ *  @param aBN The left operand BN.js instance
+ *  @param bBN The right operand BN.js instance
+ */
+const assertBNInDelta = (aBN, bBN, delta) => {
+  _assert.ok(
+    aBN.lte(bBN.add(delta)) && aBN.gte(bBN.sub(delta)),
+    `${aBN.toString()} is not within ${delta} from ${bBN.toString()}`
   );
 };
 
@@ -85,4 +97,5 @@ export const assert = {
   bnLt: assertBNLessThan,
   bnGt: assertBNGreaterThan,
   bnGte: assertBNGreaterEqualThan,
+  bnInDelta: assertBNInDelta,
 };
