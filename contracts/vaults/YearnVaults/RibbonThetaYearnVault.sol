@@ -18,7 +18,6 @@ import {
     RibbonThetaYearnVaultStorage
 } from "../../storage/RibbonThetaYearnVaultStorage.sol";
 import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
-
 /**
  * UPGRADEABILITY: Since we use the upgradeable proxy pattern, we must observe
  * the inheritance chain closely.
@@ -294,13 +293,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
 
-        VaultLifecycleYearn.unwrapYieldToken(
-            amount,
-            vaultParams.asset,
-            address(collateralToken),
-            YEARN_WITHDRAWAL_BUFFER,
-            YEARN_WITHDRAWAL_SLIPPAGE
-        );
         VaultLifecycleYearn.transferAsset(
             WETH,
             vaultParams.asset,
@@ -441,7 +433,6 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
 
         // We are subtracting `collateralAsset` balance by queuedWithdrawAmount denominated in `collateralAsset` plus
         // a buffer for withdrawals taking into account slippage from yearn vault
-
 
         uint256 lockedBalance =
         isYearnPaused 
