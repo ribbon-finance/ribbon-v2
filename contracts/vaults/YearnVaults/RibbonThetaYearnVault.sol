@@ -78,7 +78,7 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         uint256 auctionCounter,
         address indexed manager
     );
-    
+
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -407,11 +407,13 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
 
         (address newOption, uint256 queuedWithdrawAmount) =
-            _rollToNextOption(rollToNextOptionParams(
-                lastQueuedWithdrawAmount,
-                currQueuedWithdrawShares,
-                isYearnPaused
-            ));
+            _rollToNextOption(
+                rollToNextOptionParams(
+                    lastQueuedWithdrawAmount,
+                    currQueuedWithdrawShares,
+                    isYearnPaused
+                )
+            );
 
         lastQueuedWithdrawAmount = queuedWithdrawAmount;
 
@@ -435,23 +437,24 @@ contract RibbonThetaYearnVault is RibbonVault, RibbonThetaYearnVaultStorage {
         // a buffer for withdrawals taking into account slippage from yearn vault
 
         uint256 lockedBalance =
-        isYearnPaused 
-        ? IERC20(vaultParams.asset).balanceOf(address(this)).sub(queuedWithdrawAmount)
-        :
-            collateralToken.balanceOf(address(this)).sub(
-                DSMath.wdiv(
-                    queuedWithdrawAmount.add(
-                        queuedWithdrawAmount.mul(YEARN_WITHDRAWAL_BUFFER).div(
-                            10000
-                        )
-                    ),
-                    collateralToken.pricePerShare().mul(
-                        VaultLifecycleYearn.decimalShift(
-                            address(collateralToken)
+            isYearnPaused
+                ? IERC20(vaultParams.asset).balanceOf(address(this)).sub(
+                    queuedWithdrawAmount
+                )
+                : collateralToken.balanceOf(address(this)).sub(
+                    DSMath.wdiv(
+                        queuedWithdrawAmount.add(
+                            queuedWithdrawAmount
+                                .mul(YEARN_WITHDRAWAL_BUFFER)
+                                .div(10000)
+                        ),
+                        collateralToken.pricePerShare().mul(
+                            VaultLifecycleYearn.decimalShift(
+                                address(collateralToken)
+                            )
                         )
                     )
-                )
-            );
+                );
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
         uint256 optionsMintAmount =

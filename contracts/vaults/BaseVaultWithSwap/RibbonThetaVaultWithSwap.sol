@@ -59,11 +59,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
 
-    event PremiumDiscountSet(
-        uint256 premiumDiscount,
-        uint256 newPremiumDiscount
-    );
-
     event AuctionDurationSet(
         uint256 auctionDuration,
         uint256 newAuctionDuration
@@ -100,7 +95,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      * @param _optionsPremiumPricer is the address of the contract with the
        black-scholes premium calculation logic
      * @param _strikeSelection is the address of the contract with strike selection logic
-     * @param _premiumDiscount is the vault's discount applied to the premium
      */
     struct InitParams {
         address _owner;
@@ -112,7 +106,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
         string _tokenSymbol;
         address _optionsPremiumPricer;
         address _strikeSelection;
-        uint32 _premiumDiscount;
     }
 
     /************************************************
@@ -167,55 +160,14 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             _initParams._strikeSelection != address(0),
             "!_strikeSelection"
         );
-        require(
-            _initParams._premiumDiscount > 0 &&
-                _initParams._premiumDiscount <
-                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "!_premiumDiscount"
-        );
 
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
-        premiumDiscount = _initParams._premiumDiscount;
     }
 
     /************************************************
      *  SETTERS
      ***********************************************/
-
-    /**
-     * @notice Sets the new discount on premiums for options we are selling
-     * @param newPremiumDiscount is the premium discount
-     */
-    function setPremiumDiscount(uint256 newPremiumDiscount)
-        external
-        onlyKeeper
-    {
-        require(
-            newPremiumDiscount > 0 &&
-                newPremiumDiscount <= 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "Invalid discount"
-        );
-
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
-
-        premiumDiscount = newPremiumDiscount;
-    }
-
-    /**
-     * @notice Sets the new auction duration
-     * @param newAuctionDuration is the auction duration
-     */
-    function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(
-            newAuctionDuration >= MIN_AUCTION_DURATION,
-            "Invalid auction duration"
-        );
-
-        emit AuctionDurationSet(auctionDuration, newAuctionDuration);
-
-        auctionDuration = newAuctionDuration;
-    }
 
     /**
      * @notice Sets the new strike selection contract
@@ -275,15 +227,6 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function setVaultPauser(address newVaultPauser) external onlyOwner {
         vaultPauser = newVaultPauser;
-    }
-
-    /**
-     * @notice Sets the new offerExecutor
-     * @param newOfferExecutor is the address of the new offerExecutor
-     */
-    function setNewOfferExecutor(address newOfferExecutor) external onlyOwner {
-        require(newOfferExecutor != address(0), "!newOfferExecutor");
-        offerExecutor = newOfferExecutor;
     }
 
     /************************************************
@@ -367,7 +310,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             oldOption != address(0) || vaultState.round == 1,
             "Round closed"
         );
-        _closeShort(optionState.currentOption);
+        _closeShort(oldOption);
 
         uint256 currQueuedWithdrawShares = currentQueuedWithdrawShares;
         (uint256 lockedBalance, uint256 queuedWithdrawAmount) =
@@ -431,13 +374,13 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             VaultLifecycleWithSwap.CommitParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
+                collateralAsset: vaultParams.asset,
                 currentOption: currentOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
                 overriddenStrikePrice: overriddenStrikePrice,
                 strikeSelection: strikeSelection,
-                optionsPremiumPricer: optionsPremiumPricer,
-                premiumDiscount: premiumDiscount
+                optionsPremiumPricer: optionsPremiumPricer
             });
 
         (address otokenAddress, uint256 strikePrice, uint256 delta) =
@@ -492,7 +435,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      */
     function settleOffer(ISwap.Bid[] calldata bids)
         external
-        onlyOfferExecutor
+        onlyKeeper
         nonReentrant
     {
         ISwap(SWAP_CONTRACT).settleOffer(optionAuctionID, bids);
@@ -526,13 +469,5 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             msg.sender,
             heldByAccount
         );
-    }
-
-    /**
-     * @dev Throws if called by any account other than the offerExecutor.
-     */
-    modifier onlyOfferExecutor() {
-        require(msg.sender == offerExecutor, "!offerExecutor");
-        _;
     }
 }

@@ -30,13 +30,13 @@ library VaultLifecycleWithSwap {
     struct CommitParams {
         address OTOKEN_FACTORY;
         address USDC;
+        address collateralAsset;
         address currentOption;
         uint256 delay;
         uint16 lastStrikeOverrideRound;
         uint256 overriddenStrikePrice;
         address strikeSelection;
         address optionsPremiumPricer;
-        uint256 premiumDiscount;
     }
 
     /**
@@ -67,7 +67,6 @@ library VaultLifecycleWithSwap {
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
-        address asset = vaultParams.asset;
 
         (strikePrice, delta) = commitParams.lastStrikeOverrideRound ==
             vaultState.round
@@ -81,7 +80,6 @@ library VaultLifecycleWithSwap {
             commitParams,
             vaultParams,
             underlying,
-            asset,
             strikePrice,
             expiry,
             isPut
@@ -566,7 +564,6 @@ library VaultLifecycleWithSwap {
      * @param commitParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
      * @param underlying is the address of the underlying asset of the option
-     * @param collateralAsset is the address of the collateral asset of the option
      * @param strikePrice is the strike price of the option
      * @param expiry is the expiry timestamp of the option
      * @param isPut is whether the option is a put
@@ -576,7 +573,6 @@ library VaultLifecycleWithSwap {
         CommitParams calldata commitParams,
         Vault.VaultParams storage vaultParams,
         address underlying,
-        address collateralAsset,
         uint256 strikePrice,
         uint256 expiry,
         bool isPut
@@ -587,7 +583,7 @@ library VaultLifecycleWithSwap {
             factory.getOtoken(
                 underlying,
                 commitParams.USDC,
-                collateralAsset,
+                commitParams.collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
@@ -601,7 +597,7 @@ library VaultLifecycleWithSwap {
             factory.createOtoken(
                 underlying,
                 commitParams.USDC,
-                collateralAsset,
+                commitParams.collateralAsset,
                 strikePrice,
                 expiry,
                 isPut
@@ -610,58 +606,12 @@ library VaultLifecycleWithSwap {
         verifyOtoken(
             otoken,
             vaultParams,
-            collateralAsset,
+            commitParams.collateralAsset,
             commitParams.USDC,
             commitParams.delay
         );
 
         return otoken;
-    }
-
-    function getOTokenPremium(
-        address oTokenAddress,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) external view returns (uint256) {
-        return
-            _getOTokenPremium(
-                oTokenAddress,
-                optionsPremiumPricer,
-                premiumDiscount
-            );
-    }
-
-    function _getOTokenPremium(
-        address oTokenAddress,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) internal view returns (uint256) {
-        IOtoken newOToken = IOtoken(oTokenAddress);
-        IOptionsPremiumPricer premiumPricer =
-            IOptionsPremiumPricer(optionsPremiumPricer);
-
-        // Apply black-scholes formula (from rvol library) to option given its features
-        // and get price for 100 contracts denominated in the underlying asset for call option
-        // and USDC for put option
-        uint256 optionPremium =
-            premiumPricer.getPremium(
-                newOToken.strikePrice(),
-                newOToken.expiryTimestamp(),
-                newOToken.isPut()
-            );
-
-        // Apply a discount to incentivize arbitraguers
-        optionPremium = optionPremium.mul(premiumDiscount).div(
-            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
-        );
-
-        require(
-            optionPremium <= type(uint96).max,
-            "optionPremium > type(uint96) max value!"
-        );
-        require(optionPremium > 0, "!optionPremium");
-
-        return optionPremium;
     }
 
     /**

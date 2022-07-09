@@ -3,14 +3,29 @@
 
 pragma solidity =0.8.4;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/ISwap.sol";
+import "../storage/SwapStorage.sol";
+import {
+    ReentrancyGuardUpgradeable
+} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import {
+    OwnableUpgradeable
+} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {
+    ERC20Upgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
 
-contract Swap is ISwap, ReentrancyGuard, Ownable {
+contract Swap is
+    ISwap,
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    SwapStorage
+{
     using SafeERC20 for IERC20;
+
+    uint256 public immutable DOMAIN_CHAIN_ID;
 
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256(
@@ -38,30 +53,10 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
             )
         );
 
-    bytes32 public constant DOMAIN_NAME = keccak256("RIBBON SWAP");
-    bytes32 public constant DOMAIN_VERSION = keccak256("1");
-    uint256 public immutable DOMAIN_CHAIN_ID;
-    bytes32 public immutable DOMAIN_SEPARATOR;
-
     uint256 internal constant MAX_PERCENTAGE = 10000;
     uint256 internal constant MAX_FEE = 1000;
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
-
-    uint256 public offersCounter = 0;
-
-    mapping(uint256 => Offer) public swapOffers;
-
-    mapping(address => uint256) public referralFees;
-
-    mapping(address => address) public authorized;
-
-    /**
-     * @notice Double mapping of signers to nonce groups to nonce states
-     * @dev The nonce group is computed as nonce / 256, so each group of 256 sequential nonces uses the same key
-     * @dev The nonce states are encoded as 256 bits, for each nonce in the group 0 means available and 1 means used
-     */
-    mapping(address => mapping(uint256 => uint256)) internal _nonceGroups;
 
     /************************************************
      *  CONSTRUCTOR
@@ -70,12 +65,33 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
     constructor() {
         uint256 currentChainId = getChainId();
         DOMAIN_CHAIN_ID = currentChainId;
+    }
+
+    /************************************************
+     *  INITIALIZATION
+     ***********************************************/
+
+    function initialize(
+        string memory _domainName,
+        string memory _domainVersion,
+        address _owner
+    ) external initializer {
+        require(bytes(_domainName).length > 0, "!_domainName");
+        require(bytes(_domainVersion).length > 0, "!_domainVersion");
+        require(_owner != address(0), "!_owner");
+
+        __ReentrancyGuard_init();
+        __Ownable_init();
+        transferOwnership(_owner);
+
+        DOMAIN_NAME = keccak256(bytes(_domainName));
+        DOMAIN_VERSION = keccak256(bytes(_domainVersion));
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
                 DOMAIN_NAME,
                 DOMAIN_VERSION,
-                currentChainId,
+                DOMAIN_CHAIN_ID,
                 this
             )
         );
@@ -399,11 +415,11 @@ contract Swap is ISwap, ReentrancyGuard, Ownable {
 
         address signatory = _getSignatory(bid);
 
+        require(signatory != address(0), "SIGNATURE_INVALID");
+
         if (bid.signerWallet != signatory) {
             require(authorized[bid.signerWallet] == signatory, "UNAUTHORIZED");
         }
-
-        require(signatory != address(0), "SIGNATURE_INVALID");
 
         require(_markNonceAsUsed(signatory, bid.nonce), "NONCE_ALREADY_USED");
         require(

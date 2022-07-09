@@ -541,7 +541,6 @@ contract RibbonVault is
         _transfer(address(this), msg.sender, numShares);
     }
 
-
     /************************************************
      *  VAULT OPERATIONS
      ***********************************************/
@@ -559,9 +558,10 @@ contract RibbonVault is
      * @return newOption is the new option address
      * @return queuedWithdrawAmount is the queued amount for withdrawal
      */
-    function _rollToNextOption(
-        rollToNextOptionParams memory params
-    ) internal returns (address, uint256) {
+    function _rollToNextOption(rollToNextOptionParams memory params)
+        internal
+        returns (address, uint256)
+    {
         require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
 
         address newOption = optionState.nextOption;
@@ -616,7 +616,7 @@ contract RibbonVault is
         if (params.isYearnPaused) {
             // note: withdrawing large amounts of yvUSDC will result in a slippage of ~ 0.001%
             // withdraw reverts if balance is 0
-            if(collateralToken.balanceOf(address(this)) > 0) {
+            if (collateralToken.balanceOf(address(this)) > 0) {
                 collateralToken.withdraw(
                     collateralToken.balanceOf(address(this)),
                     address(this),
@@ -636,7 +636,7 @@ contract RibbonVault is
                 totalVaultFee
             );
         }
-        
+
         return (newOption, queuedWithdrawAmount);
     }
 
