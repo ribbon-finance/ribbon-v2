@@ -40,11 +40,6 @@ abstract contract RibbonThetaSTETHVaultStorageV5 {
     address public vaultPauser;
 }
 
-abstract contract RibbonThetaSTETHVaultStorageV6 {
-    // Executor role for Swap offers
-    address public offerExecutor;
-}
-
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonThetaVaultStorage
 // e.g. RibbonThetaVaultStorage<versionNumber>, so finally it would look like
@@ -54,8 +49,7 @@ abstract contract RibbonThetaSTETHVaultStorage is
     RibbonThetaSTETHVaultStorageV2,
     RibbonThetaSTETHVaultStorageV3,
     RibbonThetaSTETHVaultStorageV4,
-    RibbonThetaSTETHVaultStorageV5,
-    RibbonThetaSTETHVaultStorageV6
+    RibbonThetaSTETHVaultStorageV5
 {
 
 }
