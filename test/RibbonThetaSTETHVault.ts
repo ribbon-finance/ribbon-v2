@@ -2098,7 +2098,6 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const beforeBalance = await collateralContract.balanceOf(MARGIN_POOL);
 
-        const secondInitialTotalBalance = await vault.totalBalance();
         let [secondInitialLockedBalance, queuedWithdrawAmount] =
           await lockedBalanceForRollover(vault);
         let pendingAmount = (await vault.vaultState()).totalPending;
