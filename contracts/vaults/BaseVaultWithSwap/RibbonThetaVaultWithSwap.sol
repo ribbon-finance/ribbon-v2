@@ -374,6 +374,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
             VaultLifecycleWithSwap.CommitParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
+                collateralAsset: vaultParams.asset,
                 currentOption: currentOption,
                 delay: DELAY,
                 lastStrikeOverrideRound: lastStrikeOverrideRound,
