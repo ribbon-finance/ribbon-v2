@@ -77,10 +77,10 @@ describe("RibbonThetaVault upgrade", () => {
     const deploymentNames = ["RibbonThetaVaultETHPutYearn"];
     deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
   });
-  checkWithdrawal(deployments.mainnet.RibbonThetaVaultETHPutYearn);
+  checkYearnUpgrade(deployments.mainnet.RibbonThetaVaultETHPutYearn);
 });
 
-function checkWithdrawal(vaultAddress: string) {
+function checkYearnUpgrade(vaultAddress: string) {
   describe(`Vault ${vaultAddress}`, () => {
     let newImplementation: string;
     let vaultProxy: Contract;
@@ -125,6 +125,37 @@ function checkWithdrawal(vaultAddress: string) {
         YEARN_REGISTRY_ADDRESS
       );
       newImplementation = newImplementationContract.address;
+    });
+
+    describe("#setYearnPaused", () => {
+      time.revertToSnapshotAfterEach();
+      let owner: SignerWithAddress;
+
+      beforeEach(async function () {
+        await vaultProxy.upgradeTo(newImplementation);
+        // For deposit and withdrawal testing
+
+        await network.provider.request({
+          method: "hardhat_impersonateAccount",
+          params: [OWNERADDR],
+        });
+
+        const [signer] = await ethers.getSigners();
+
+        owner = await ethers.getSigner(OWNERADDR);
+
+        await signer.sendTransaction({
+          to: owner.address,
+          value: parseEther("100"),
+        });
+      });
+
+      it("should be able to setYearnPaused to true", async () => {
+        // Set isYearnPaused to be true
+        assert.equal(await vault.isYearnPaused(), false);
+        await vault.connect(owner).setYearnPaused(true);
+        assert.equal(await vault.isYearnPaused(), true);
+      });
     });
 
     describe("#completeWithdraw", () => {
