@@ -402,7 +402,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       vault = (
         await deployProxy(
-          "RibbonThetaSTETHVaultWithSwap",
+          "RibbonThetaSTETHVault",
           adminSigner,
           initializeArgs,
           deployArgs,
