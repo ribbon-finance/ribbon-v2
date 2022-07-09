@@ -54,7 +54,7 @@ abstract contract RibbonThetaVaultStorageV7 {
 
 abstract contract RibbonThetaVaultStorageV8 {
     // DEPRECATED: Executor role for Swap offers
-    address private offerExecutor;
+    address private _offerExecutor;
 }
 
 // We are following Compound's method of upgrading new contract implementations
