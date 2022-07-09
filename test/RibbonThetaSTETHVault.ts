@@ -53,7 +53,7 @@ const WEEKS_PER_YEAR = 52142857;
 
 const chainId = network.config.chainId;
 
-describe("RibbonThetaSTETHVaultWithSwap", () => {
+describe("RibbonThetaSTETHVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon ETH Theta Vault - stETH (Call)`,
     tokenName: "Ribbon ETH Theta Vault stETH",
@@ -549,7 +549,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       time.revertToSnapshotAfterEach(async function () {
         const RibbonThetaVault = await ethers.getContractFactory(
-          "RibbonThetaSTETHVaultWithSwap",
+          "RibbonThetaSTETHVault",
           {
             libraries: {
               VaultLifecycleWithSwap: vaultLifecycleLib.address,
