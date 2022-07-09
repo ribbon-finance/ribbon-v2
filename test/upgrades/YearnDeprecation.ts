@@ -289,7 +289,6 @@ function checkWithdrawal(vaultAddress: string) {
 
       it("withdraws the correct amount after upgrade", async () => {
         // Set isYearnPaused to be true
-        assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
 
@@ -418,12 +417,11 @@ function checkWithdrawal(vaultAddress: string) {
 
       it("should withdrawInstantly correct amount of tokens that was deposited in same round", async () => {
         // Set isYearnPaused to be true
-        assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
 
         const initialPendingDeposits = await vault.totalPending();
-        
+        // get an account's deposit in the same round
         const depositedAmount = (
           await vault.depositReceipts(account3.address)
         )[1];
@@ -454,7 +452,6 @@ function checkWithdrawal(vaultAddress: string) {
 
       it("withdraws the correct amount for deposits in the same round as upgrade", async () => {
         // Set isYearnPaused to be true
-        assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
 
@@ -611,7 +608,6 @@ function checkWithdrawal(vaultAddress: string) {
 
       it("withdraws the correct amount for deposits in the round after upgrade", async () => {
         // Set isYearnPaused to be true
-        assert.equal(await vault.isYearnPaused(), false);
         await vault.connect(owner).setYearnPaused(true);
         assert.equal(await vault.isYearnPaused(), true);
 
