@@ -271,7 +271,7 @@ function checkYearnUpgrade(vaultAddress: string) {
           "IYearnVault",
           await vault.collateralToken()
         );
-        const initialYVUSDCBalance = await yvContract.balanceOf(vault.address);
+
         const yvPps = await yvContract.pricePerShare();
 
         // Use old set expiry price function which includes setExpiryPriceInOracle
@@ -286,6 +286,10 @@ function checkYearnUpgrade(vaultAddress: string) {
         //////////////////////////////////////////////////////////////////////
         // Roll to next option
         await vault.connect(keeper).commitAndClose();
+
+        // Get amount of yvUSDC that will be converted to USDC
+        const initialYVUSDCBalance = await yvContract.balanceOf(vault.address);
+
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
         await vault.connect(keeper).rollToNextOption();
 
@@ -317,6 +321,7 @@ function checkYearnUpgrade(vaultAddress: string) {
 
         // Expect ratio of expected number of oTokens minted to actual number to be small
         expect(ratio).to.be.lessThan(1.002);
+        expect(ratio).to.be.greaterThanOrEqual(1);
       });
 
       it("withdraws the correct amount after upgrade", async () => {
