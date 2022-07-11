@@ -81,9 +81,9 @@ export default {
   namedAccounts: {
     deployer: {
       default: 0,
-      1: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      1: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
@@ -129,7 +129,10 @@ export default {
     timeout: 500000,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey:
+      CHAINID === 1 || CHAINID === 42
+        ? process.env.ETHERSCAN_API_KEY
+        : process.env.SNOWTRACE_API_KEY,
   },
   gasReporter: {
     enabled: true,

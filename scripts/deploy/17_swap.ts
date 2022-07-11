@@ -25,7 +25,7 @@ const main = async ({
     console.log(error);
   }
 
-  const Swap = await ethers.getContractFactory("SwapLogic");
+  const Swap = await ethers.getContractFactory("Swap");
 
   const initArgs = ["RIBBON SWAP", "1", owner];
 

@@ -14,15 +14,17 @@
         "RibbonThetaVaultLogic": "0xA5b1170F2EB3c7e1eE1a4Ff6A60B3A018aE1c23D",
         "RibbonThetaVaultSAVAXCall": "0x6BF686d99A4cE17798C45d09C21181fAc29A9fb3",
         "RibbonThetaVaultWBTCCall": "0xB7EC3BecB9EA9946f4C055F6De73e7638Ce4f480",
-        "RibbonThetaVaultWithSwapLogic": "0x43cfEaa64013071d5505acF98b137f74c8CCD423",
+        "RibbonThetaVaultWithSwapLogic": "0xa5c2F49CDc8197d7b0129d3C92aF7499Cc6D986C",
         "RibbonVaultPauserAVAX": "0xf08d6a9c2C5a2Dc9B8645c5Ac0b529D4046D19aa",
         "SAVAXDepositHelper": "0x084a82fe209f014b3cb6D5986B2C65B584168303",
         "SAvaxOracle": "0x6CD4515759a91cC577ac9595C209cF94e551c922",
         "StrikeSelectionAVAXCall": "0x34DCc3FD8cdB790DBFC10349875Dc1b8c5B8Ab34",
         "StrikeSelectionAVAXPut": "0x93455A75870A0fa6239826Cb1cD81AD09e588034",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
+        "Swap": "0x15988ceA1F11D62e63bAa02B0e8B3046942983c0",
+        "SwapLogic": "0x0b5CEd3Da03BF02851cF887E7b90B2A6130Ac96B",
         "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef",
-        "VaultLifecycleWithSwap": "0xC1e51bA212C8b3fAdA5B5D3973d7c46d2b8181dF"
+        "VaultLifecycleWithSwap": "0xa0025d92bEaEAB39495237A162590D200cDCdc82"
     },
     "fuji": {
         "ManualVolOracle": "0x8c58dDE5156DE3b3Fb93664DccBc1BeB1d5Ac923",
@@ -97,7 +99,7 @@
         "RibbonThetaVaultSTETHLogic": "0x01F1d8744469Da81dbB6b7d3E9811f10029365E7",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
         "RibbonThetaVaultWBTCCallWithSwap": "0x460e0fC092bEbB74BDd80c593Bad99D97A3A23d0",
-        "RibbonThetaVaultWithSwapLogic": "0x6fc853A8978017381E4BEc0Da7792F0B46453a8e",
+        "RibbonThetaVaultWithSwapLogic": "0x7a6A812188D01D08DEF011356b98425997800429",
         "RibbonThetaVaultYearnLogic": "0x104701b548659033D16f2DBaA4D5D6847f494E94",
         "RibbonTreasuryVaultLogic": "0xc92E6B70eB6456171d32C3B5904386c05EC983FF",
         "RibbonVaultPauserETH": "0xE04e8Ae290965AD4F7E40c68041c493d2e89cDC3",
@@ -108,11 +110,12 @@
         "StrikeSelectionETHPut": "0x33450Fb9C34065caD6E7e0444bFBefb69Ec48931",
         "StrikeSelectionWBTCCall": "0x5f14b546E8aCFce9fd8C72aB049363a981768700",
         "StrikeSelectionWBTCWithSwap": "0x32C180eDF55A1374ab26d4730e0e06124E437504",
-        "Swap": "0xF0E5c92cEdd66C7985C354C35e2bC37E685b99Da",
+        "Swap": "0xEb8CAB2F4663247db8eAfb556F498c861bB4e161",
+        "SwapLogic": "0x2b77768CA47D6CC9eb1Ae95dAEE09ad1F3b52014",
         "VaultLifecycle": "0x25Af99Ff07575Ac55fB3C2D1E6B920Ba3bf67B40",
         "VaultLifecycleSTETH": "0x21f0FF1D33F76B938dec63cfFe0eE6171F4Bd6B0",
         "VaultLifecycleTreasury": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
-        "VaultLifecycleWithSwap": "0x63b9712F3aCf31597595a1D43F7eE0ad2C83357F",
+        "VaultLifecycleWithSwap": "0xf7F4260943DB50EEE7e917330C35B460fF70aD54",
         "VaultLifecycleYearn": "0xE2635CC6CE168E45b47551a1454ad6f4ee769AB1"
     }
 }
