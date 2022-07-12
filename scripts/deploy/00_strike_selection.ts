@@ -8,6 +8,7 @@ import {
   PERP_STRIKE_MULTIPLIER,
   BADGER_STRIKE_MULTIPLIER,
   BAL_STRIKE_MULTIPLIER,
+  SPELL_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 const ASSETS = {
@@ -20,6 +21,7 @@ const ASSETS = {
     "PERP Call",
     "BADGER Call",
     "BAL Call",
+    "SPELL Call",
   ],
   [CHAINID.AVAX_MAINNET]: ["AVAX Call", "AVAX Put"],
 };
@@ -55,11 +57,17 @@ const main = async ({
         args: [pricer.address, BADGER_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
       });
     } else if (asset === "BAL") {
-          strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
-            contract: "PercentStrikeSelection",
-            from: deployer,
-            args: [pricer.address, BAL_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
-          });
+      strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
+        contract: "PercentStrikeSelection",
+        from: deployer,
+        args: [pricer.address, BAL_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
+      });
+    } else if (asset === "SPELL") {
+      strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
+        contract: "PercentStrikeSelection",
+        from: deployer,
+        args: [pricer.address, SPELL_STRIKE_MULTIPLIER, STRIKE_STEP[asset]],
+      });
     } else {
       strikeSelection = await deploy("StrikeSelection" + asset + optionType, {
         contract: "DeltaStrikeSelection",

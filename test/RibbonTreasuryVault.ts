@@ -34,6 +34,11 @@ import {
   BAL_OWNER_ADDRESS,
   BAL_ADDRESS,
   CHAINLINK_BAL_PRICER,
+  SPELL_ETH_POOL,
+  SPELL_PRICE_ORACLE,
+  SPELL_OWNER_ADDRESS,
+  SPELL_ADDRESS,
+  CHAINLINK_SPELL_PRICER,
   ManualVolOracle_BYTECODE,
 } from "../constants/constants";
 import {
@@ -56,6 +61,7 @@ import {
   PERP_STRIKE_MULTIPLIER,
   BADGER_STRIKE_MULTIPLIER,
   BAL_STRIKE_MULTIPLIER,
+  SPELL_STRIKE_MULTIPLIER,
   STRIKE_STEP,
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
@@ -183,6 +189,44 @@ describe("RibbonTreasuryVault", () => {
     premiumDecimals: 6,
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon SPELL Treasury Vault (Call)`,
+    tokenName: "Ribbon SPELL Treasury Vault",
+    tokenSymbol: "rSPELL-TSRY",
+    asset: SPELL_ADDRESS[chainId],
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SPELL_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SPELL_PRICER[chainId],
+    deltaStep: BigNumber.from(STRIKE_STEP.SPELL),
+    depositAmount: parseEther("100000"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("2000000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("0"),
+    performanceFee: BigNumber.from("20000000"),
+    manualStrikePrice: BigNumber.from("1").pow("8"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 169000,
+      depositBestCase: 102201,
+    },
+    mintConfig: {
+      contractOwnerAddress: SPELL_OWNER_ADDRESS[chainId],
+    },
+    period: 30,
+    pool: SPELL_ETH_POOL[chainId],
+    oracle: SPELL_PRICE_ORACLE[chainId],
+    premiumInStables: true,
+    multiplier: SPELL_STRIKE_MULTIPLIER,
+    premiumDecimals: 6,
+    maxDepositors: 30,
+    minDeposit: parseUnits("100000", 18),
     availableChains: [CHAINID.ETH_MAINNET],
   });
 });
