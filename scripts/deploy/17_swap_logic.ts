@@ -24,30 +24,7 @@ const main = async ({
   } catch (error) {
     console.log(error);
   }
-
-  const Swap = await ethers.getContractFactory("Swap");
-
-  const initArgs = ["RIBBON SWAP", "1", owner];
-
-  const initData = Swap.interface.encodeFunctionData("initialize", initArgs);
-
-  const proxy = await deploy("Swap", {
-    contract: "AdminUpgradeabilityProxy",
-    from: deployer,
-    args: [swapLogic.address, admin, initData],
-  });
-
-  console.log(`Swap Proxy @ ${proxy.address}`);
-
-  try {
-    await run("verify:verify", {
-      address: proxy.address,
-      constructorArguments: [swapLogic.address, admin, initData],
-    });
-  } catch (error) {
-    console.log(error);
-  }
 };
-main.tags = ["Swap"];
+main.tags = ["SwapLogic"];
 
 export default main;
