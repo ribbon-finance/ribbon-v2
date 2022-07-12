@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 const main = async ({
@@ -7,7 +7,7 @@ const main = async ({
   getNamedAccounts,
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
-  const { deployer, owner, admin } = await getNamedAccounts();
+  const { deployer } = await getNamedAccounts();
   console.log(`17 - Deploying Swap Logic on ${network.name}`);
 
   const swapLogic = await deploy("SwapLogic", {
