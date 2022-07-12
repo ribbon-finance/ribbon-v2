@@ -73,6 +73,18 @@ export async function deployProxy(
   return await ethers.getContractAt(logicContractName, proxy.address);
 }
 
+export async function getBlockNum(asset: string, chainId: number) {
+  if (asset == BADGER_ADDRESS[chainId]) {
+    return 15012740;
+  } else if (asset == BAL_ADDRESS[chainId]) {
+    return 15012740;
+  } else if (asset == SPELL_ADDRESS[chainId]) {
+    return 15126156;
+  } else {
+    return 14087600;
+  }
+}
+
 export async function parseLog(
   contractName: string,
   log: { topics: string[]; data: string }
