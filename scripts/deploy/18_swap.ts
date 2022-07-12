@@ -8,23 +8,9 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer, owner, admin } = await getNamedAccounts();
-  console.log(`17 - Deploying Swap Logic on ${network.name}`);
+  console.log(`18 - Deploying Swap Proxy on ${network.name}`);
 
-  const swapLogic = await deploy("SwapLogic", {
-    contract: "Swap",
-    from: deployer,
-  });
-
-  console.log(`Swap Logic @ ${swapLogic.address}`);
-
-  try {
-    await run("verify:verify", {
-      address: swapLogic.address,
-    });
-  } catch (error) {
-    console.log(error);
-  }
-
+  const swapAddress = (await deployments.get("SwapLogic")).address;
   const Swap = await ethers.getContractFactory("Swap");
 
   const initArgs = ["RIBBON SWAP", "1", owner];
@@ -34,7 +20,7 @@ const main = async ({
   const proxy = await deploy("Swap", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
-    args: [swapLogic.address, admin, initData],
+    args: [swapAddress, admin, initData],
   });
 
   console.log(`Swap Proxy @ ${proxy.address}`);
@@ -42,12 +28,13 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: proxy.address,
-      constructorArguments: [swapLogic.address, admin, initData],
+      constructorArguments: [swapAddress, admin, initData],
     });
   } catch (error) {
     console.log(error);
   }
 };
 main.tags = ["Swap"];
+main.dependencies = ["SwapLogic"];
 
 export default main;
