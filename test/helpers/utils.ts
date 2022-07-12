@@ -74,11 +74,11 @@ export async function deployProxy(
 }
 
 export async function getBlockNum(asset: string, chainId: number) {
-  if (asset == BADGER_ADDRESS[chainId]) {
+  if (asset === BADGER_ADDRESS[chainId]) {
     return 15012740;
-  } else if (asset == BAL_ADDRESS[chainId]) {
+  } else if (asset === BAL_ADDRESS[chainId]) {
     return 15012740;
-  } else if (asset == SPELL_ADDRESS[chainId]) {
+  } else if (asset === SPELL_ADDRESS[chainId]) {
     return 15126156;
   } else {
     return 14087600;
