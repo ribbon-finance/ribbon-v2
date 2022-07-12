@@ -51,7 +51,7 @@ export default {
     },
     mainnet: {
       url: process.env.TEST_URI,
-      chainId: CHAINID,
+      chainId: 1,
       accounts: {
         mnemonic: process.env.MAINNET_MNEMONIC,
       },
@@ -84,7 +84,7 @@ export default {
       1: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
-      43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      43113: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
     },
