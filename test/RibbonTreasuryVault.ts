@@ -52,6 +52,7 @@ import {
   lockedBalanceForRollover,
   addMinter,
   getAuctionMinPrice,
+  getBlockNum,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -202,7 +203,7 @@ describe("RibbonTreasuryVault", () => {
     collateralAsset: SPELL_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SPELL_PRICER[chainId],
     deltaStep: BigNumber.from(STRIKE_STEP.SPELL),
-    depositAmount: parseEther("100000"),
+    depositAmount: parseEther("20"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
     expectedMintAmount: BigNumber.from("2000000000"),
     premiumDiscount: BigNumber.from("997"),
@@ -226,7 +227,7 @@ describe("RibbonTreasuryVault", () => {
     multiplier: SPELL_STRIKE_MULTIPLIER,
     premiumDecimals: 6,
     maxDepositors: 30,
-    minDeposit: parseUnits("100000", 18),
+    minDeposit: parseUnits("1", 18),
     availableChains: [CHAINID.ETH_MAINNET],
   });
 });
@@ -419,12 +420,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: [
-                BADGER_ADDRESS[chainId],
-                BAL_ADDRESS[chainId],
-              ].includes(asset)
-                ? 15012740
-                : 14087600,
+              blockNumber: await getBlockNum(asset, chainId),
             },
           },
         ],

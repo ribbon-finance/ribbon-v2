@@ -10,7 +10,7 @@ export const STRIKE_STEP = {
   PERP: 0.1 * 1e8,
   BADGER: 0.1 * 1e8,
   BAL: 0.1 * 1e8,
-  SPELL: 0.00001 * 1e8,
+  SPELL: 1000, // 0.00001 * 1e8
 };
 
 export const STRIKE_DELTA = 1000; // 0.1d
