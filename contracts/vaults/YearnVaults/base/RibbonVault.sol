@@ -628,13 +628,7 @@ contract RibbonVault is
         }
 
         if (totalVaultFee > 0) {
-            VaultLifecycleYearn.withdrawYieldAndBaseToken(
-                WETH,
-                vaultParams.asset,
-                collateral,
-                recipient,
-                totalVaultFee
-            );
+            IERC20(vaultParams.asset).safeTransfer(recipient, totalVaultFee);
         }
 
         return (newOption, queuedWithdrawAmount);
