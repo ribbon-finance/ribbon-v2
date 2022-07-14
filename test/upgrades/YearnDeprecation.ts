@@ -251,6 +251,44 @@ function checkYearnUpgrade(vaultAddress: string) {
         assert.equal(await vault.isYearnPaused(), true);
       });
 
+      it("should increase feeRecipient usdc balance after roll", async () => {
+        const currentOption = await vault.currentOption();
+        const iotoken = await ethers.getContractAt("IOtoken", currentOption);
+        const expiryTimestamp = await iotoken.expiryTimestamp();
+        const strikePrice = await iotoken.strikePrice();
+
+        let collateralPricer = YEARN_USDC_PRICER_V0_4_3;
+        let collateralPricerSigner = await getAssetPricer(
+          collateralPricer,
+          account1
+        );
+
+        const initialUSDCBalance = await usdcContract.balanceOf(await vault.feeRecipient());
+
+        // Use old set expiry price function which includes setExpiryPriceInOracle
+        await setOpynOracleExpiryPriceYearn(
+          WETH_ADDRESS[CHAINID],
+          oracle,
+          strikePrice,
+          collateralPricerSigner,
+          expiryTimestamp
+        );
+
+        //////////////////////////////////////////////////////////////////////
+        // Roll to next option
+        await vault.connect(keeper).commitAndClose();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        const tx = await vault.connect(keeper).rollToNextOption();
+        const txReceipt = await tx.wait();
+        const afterUSDCBalance = await usdcContract.balanceOf(await vault.feeRecipient());
+        // Check feeRecipient receives vault fees in usdc
+        assert.bnEqual(
+          txReceipt.events.find((event) => event.event === "CollectVaultFees")
+              .args[1],
+          afterUSDCBalance.sub(initialUSDCBalance)
+        );
+      });
+
       it("should convert all yvUSDC to USDC and mint approx. expected number of oTokens", async () => {
         // note: when large amounts of yvUSDC (~20 million) is unwrapped to USDC,
         // there is currently a slippage of ~0.002%
