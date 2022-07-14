@@ -51,7 +51,7 @@ export default {
     },
     mainnet: {
       url: process.env.TEST_URI,
-      chainId: CHAINID,
+      chainId: 1,
       accounts: {
         mnemonic: process.env.MAINNET_MNEMONIC,
       },
@@ -81,16 +81,16 @@ export default {
   namedAccounts: {
     deployer: {
       default: 0,
-      1: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      1: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
-      43114: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
-      43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
+      43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
+      43113: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
     },
     owner: {
       default: 0,
-      1: "0xAb6df2dE75a4f07D95c040DF90c7362bB5edcd90",
+      1: "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4",
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
@@ -108,7 +108,7 @@ export default {
     },
     admin: {
       default: 0,
-      1: "0x88A9142fa18678003342a8Fd706Bd301E0FecEfd",
+      1: "0x223d59FA315D7693dF4238d1a5748c964E615923",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43114: "0x31351f2BD9e94813BCf0cA04B5E6e2b7ceAFC7c6",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
@@ -129,7 +129,10 @@ export default {
     timeout: 500000,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey:
+      CHAINID === 1 || CHAINID === 42
+        ? process.env.ETHERSCAN_API_KEY
+        : process.env.SNOWTRACE_API_KEY,
   },
   gasReporter: {
     enabled: true,

@@ -70,6 +70,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultWithSwapLogic"];
-// main.dependencies = ["Swap"];
+main.dependencies = ["Swap"];
 
 export default main;
