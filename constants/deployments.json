@@ -21,12 +21,8 @@
         "StrikeSelectionAVAXCall": "0x34DCc3FD8cdB790DBFC10349875Dc1b8c5B8Ab34",
         "StrikeSelectionAVAXPut": "0x93455A75870A0fa6239826Cb1cD81AD09e588034",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
-<<<<<<< HEAD
-        "Swap": "0x907a3535EE5275e4af7E6c8A642c0F9443da1Dc2",
-=======
         "Swap": "0x15988ceA1F11D62e63bAa02B0e8B3046942983c0",
         "SwapLogic": "0x0b5CEd3Da03BF02851cF887E7b90B2A6130Ac96B",
->>>>>>> c3a7b2fa86098475f7e883206c6cca9f2f73b1e1
         "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef",
         "VaultLifecycleWithSwap": "0xa0025d92bEaEAB39495237A162590D200cDCdc82"
     },
