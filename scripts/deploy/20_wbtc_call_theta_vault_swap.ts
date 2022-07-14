@@ -28,14 +28,19 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`19 - Deploying WBTC Call Theta Vault With Swap on ${network.name}`);
+  console.log(
+    `19 - Deploying WBTC Call Theta Vault With Swap on ${network.name}`
+  );
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
   const underlyingOracle = BTC_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
-  const manualVolOracleContract = await ethers.getContractAt(ManualVolOracle_ABI, manualVolOracle.address);
+  const manualVolOracleContract = await ethers.getContractAt(
+    ManualVolOracle_ABI,
+    manualVolOracle.address
+  );
   const optionId = await manualVolOracleContract.getOptionId(
     getDeltaStep("WBTC"),
     WBTC_ADDRESS[chainId],
@@ -49,12 +54,7 @@ const main = async ({
       abi: OptionsPremiumPricerInStables_ABI,
       bytecode: OptionsPremiumPricerInStables_BYTECODE,
     },
-    args: [
-      optionId,
-      manualVolOracle.address,
-      underlyingOracle,
-      stablesOracle,
-    ],
+    args: [optionId, manualVolOracle.address, underlyingOracle, stablesOracle],
   });
 
   console.log(`RibbonThetaVaultWBTCCall pricer @ ${pricer.address}`);
@@ -80,14 +80,19 @@ const main = async ({
     console.log(error);
   }
 
-  const logicDeployment = await deployments.get("RibbonThetaVaultWithSwapLogic");
+  const logicDeployment = await deployments.get(
+    "RibbonThetaVaultWithSwapLogic"
+  );
   const lifecycle = await deployments.get("VaultLifecycleWithSwap");
 
-  const RibbonThetaVault = await ethers.getContractFactory("RibbonThetaVaultWithSwap", {
-    libraries: {
-      VaultLifecycleWithSwap: lifecycle.address,
-    },
-  });
+  const RibbonThetaVault = await ethers.getContractFactory(
+    "RibbonThetaVaultWithSwap",
+    {
+      libraries: {
+        VaultLifecycleWithSwap: lifecycle.address,
+      },
+    }
+  );
 
   const initArgs = [
     {

@@ -14,16 +14,21 @@
         "RibbonThetaVaultLogic": "0xA5b1170F2EB3c7e1eE1a4Ff6A60B3A018aE1c23D",
         "RibbonThetaVaultSAVAXCall": "0x6BF686d99A4cE17798C45d09C21181fAc29A9fb3",
         "RibbonThetaVaultWBTCCall": "0xB7EC3BecB9EA9946f4C055F6De73e7638Ce4f480",
-        "RibbonThetaVaultWithSwapLogic": "0x43cfEaa64013071d5505acF98b137f74c8CCD423",
+        "RibbonThetaVaultWithSwapLogic": "0xa5c2F49CDc8197d7b0129d3C92aF7499Cc6D986C",
         "RibbonVaultPauserAVAX": "0xf08d6a9c2C5a2Dc9B8645c5Ac0b529D4046D19aa",
         "SAVAXDepositHelper": "0x084a82fe209f014b3cb6D5986B2C65B584168303",
         "SAvaxOracle": "0x6CD4515759a91cC577ac9595C209cF94e551c922",
         "StrikeSelectionAVAXCall": "0x34DCc3FD8cdB790DBFC10349875Dc1b8c5B8Ab34",
         "StrikeSelectionAVAXPut": "0x93455A75870A0fa6239826Cb1cD81AD09e588034",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
+<<<<<<< HEAD
         "Swap": "0x907a3535EE5275e4af7E6c8A642c0F9443da1Dc2",
+=======
+        "Swap": "0x15988ceA1F11D62e63bAa02B0e8B3046942983c0",
+        "SwapLogic": "0x0b5CEd3Da03BF02851cF887E7b90B2A6130Ac96B",
+>>>>>>> c3a7b2fa86098475f7e883206c6cca9f2f73b1e1
         "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef",
-        "VaultLifecycleWithSwap": "0xC1e51bA212C8b3fAdA5B5D3973d7c46d2b8181dF"
+        "VaultLifecycleWithSwap": "0xa0025d92bEaEAB39495237A162590D200cDCdc82"
     },
     "fuji": {
         "ManualVolOracle": "0x8c58dDE5156DE3b3Fb93664DccBc1BeB1d5Ac923",
@@ -42,6 +47,8 @@
         "StrikeSelectionETH": "0xE19d1bB9fea8337E7e28Aa23f17954fdE0707081",
         "StrikeSelectionSAVAX": "0x7B352e6b8FCF699331293727EB8E418eB09651Be",
         "StrikeSelectionWBTC": "0xc3FC1dEac3214621b015353a0a623778425ef067",
+        "Swap": "0x81111914490ADA09e4dA1E522AC262aA06bd01e1",
+        "SwapLogic": "0x1DD78D76a6414A5FdfE15FD97987e161Cc18463e",
         "UniswapRouter": "0x94aaFff6B6Bf89b0Fd6fCBEa84436eb094Dd47A8",
         "VaultLifecycle": "0x853cC5f4780D81e4e5C3649C2d1ad968338517da"
     },
@@ -66,7 +73,8 @@
         "StrikeSelectionPERP": "0x449C85f1D86c1Af7750C1f1333d4456C7EFA88C0",
         "StrikeSelectionWBTC": "0x9023Bcf98B696382106126231cFFF69a340a8F39",
         "StrikeSelectionWBTCWithSwap": "0x772952680c9838B59862D31838FAAf4f0FC6eAC2",
-        "Swap": "0x5fB3fBC0D2C759A594b16fD012a127c1c3d22241",
+        "Swap": "0x65B7A53D9342758b59F9Cd9F4Bb56de6e572743B",
+        "SwapLogic": "0x6A0A7526d36F3579073Ab83A69138AbB384f977B",
         "VaultLifecycle": "0x0D58b7dF4Ebd4B61Db85b5fF89D02220130C6642",
         "VaultLifecycleTreasury": "0x5Ed981E32b32548968DC8a722D8D4a559859cc45",
         "VaultLifecycleWithSwap": "0x119F259e14564Ad0a3E8E25A698e02b86e710c3D"
@@ -100,7 +108,7 @@
         "RibbonThetaVaultSTETHLogic": "0x01F1d8744469Da81dbB6b7d3E9811f10029365E7",
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
         "RibbonThetaVaultWBTCCallWithSwap": "0x460e0fC092bEbB74BDd80c593Bad99D97A3A23d0",
-        "RibbonThetaVaultWithSwapLogic": "0x6fc853A8978017381E4BEc0Da7792F0B46453a8e",
+        "RibbonThetaVaultWithSwapLogic": "0x7a6A812188D01D08DEF011356b98425997800429",
         "RibbonThetaVaultYearnLogic": "0xb1AAb30c0Cf2f1E9AD262F2Bf216e9A428B93425",
         "RibbonTreasuryVaultLogic": "0xc92E6B70eB6456171d32C3B5904386c05EC983FF",
         "RibbonVaultPauserETH": "0xE04e8Ae290965AD4F7E40c68041c493d2e89cDC3",
@@ -112,11 +120,12 @@
         "StrikeSelectionETHWithSwap": "0xF6010Dc7475547221f97c28F8ed6f5EC0969024b",
         "StrikeSelectionWBTCCall": "0x5f14b546E8aCFce9fd8C72aB049363a981768700",
         "StrikeSelectionWBTCWithSwap": "0x32C180eDF55A1374ab26d4730e0e06124E437504",
-        "Swap": "0xF0E5c92cEdd66C7985C354C35e2bC37E685b99Da",
+        "Swap": "0xEb8CAB2F4663247db8eAfb556F498c861bB4e161",
+        "SwapLogic": "0x2b77768CA47D6CC9eb1Ae95dAEE09ad1F3b52014",
         "VaultLifecycle": "0x25Af99Ff07575Ac55fB3C2D1E6B920Ba3bf67B40",
         "VaultLifecycleSTETH": "0x21f0FF1D33F76B938dec63cfFe0eE6171F4Bd6B0",
         "VaultLifecycleTreasury": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
-        "VaultLifecycleWithSwap": "0x63b9712F3aCf31597595a1D43F7eE0ad2C83357F",
+        "VaultLifecycleWithSwap": "0xf7F4260943DB50EEE7e917330C35B460fF70aD54",
         "VaultLifecycleYearn": "0x2431d422Be262bD522aB8eda9834421F2489b216"
     }
 }
