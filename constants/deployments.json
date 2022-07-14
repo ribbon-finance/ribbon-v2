@@ -21,6 +21,7 @@
         "StrikeSelectionAVAXCall": "0x34DCc3FD8cdB790DBFC10349875Dc1b8c5B8Ab34",
         "StrikeSelectionAVAXPut": "0x93455A75870A0fa6239826Cb1cD81AD09e588034",
         "StrikeSelectionWBTC": "0x6c2Bd3FF7C5d7c3cF782860fc1d88cdf438ccf7b",
+        "Swap": "0x907a3535EE5275e4af7E6c8A642c0F9443da1Dc2",
         "VaultLifecycle": "0x86be9cd3c839765c83183927426B17fa9E4AD7ef",
         "VaultLifecycleWithSwap": "0xC1e51bA212C8b3fAdA5B5D3973d7c46d2b8181dF"
     },
@@ -81,6 +82,7 @@
         "OptionsPremiumPricerAPE": "0xf9745aD6c6FF4FE9D8a0A2668A7F9E2944EA0955",
         "OptionsPremiumPricerETHCall": "0x5bA2A42b74A72a1A3ccC37CF03802a0b7A551139",
         "OptionsPremiumPricerETHPut": "0x231237241A36809e210FA385fA960950feEC457d",
+        "OptionsPremiumPricerETHWithSwap": "0xB38f51BeaE3718011CFBA1Aee51C4c9B05681286",
         "OptionsPremiumPricerWBTCCall": "0xc4B907262774F5722cCf2f1A290b8a8Da49e3485",
         "OptionsPremiumPricerWBTCWithSwap": "0x0c933982FA7BAA4C6bc9B6f7298fF77014881989",
         "OpynOracle": "0xEF3B91345dd7be2C5C1F95C40545e9bF274ee698",
@@ -89,6 +91,7 @@
         "RibbonThetaVaultAAVECall": "0xe63151A0Ed4e5fafdc951D877102cf0977Abd365",
         "RibbonThetaVaultAPECall": "0xc0cF10Dd710aefb209D9dc67bc746510ffd98A53",
         "RibbonThetaVaultETHCall": "0x25751853Eab4D0eB3652B5eB6ecB102A2789644B",
+        "RibbonThetaVaultETHCallWithSwap": "0xa413CcF8e9EB83c0d50EB8c69C524C927381DCf9",
         "RibbonThetaVaultETHPutYearn": "0xCc323557c71C0D1D20a1861Dc69c06C5f3cC9624",
         "RibbonThetaVaultLogic": "0xbEba74374e7cf9362FdEDD0b9E2Bc4a04549E4ad",
         "RibbonThetaVaultLogic10D": "0x0FF7C2D2a935d31D354bF7ea7FDaD39DE0141a5A",
@@ -98,7 +101,7 @@
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
         "RibbonThetaVaultWBTCCallWithSwap": "0x460e0fC092bEbB74BDd80c593Bad99D97A3A23d0",
         "RibbonThetaVaultWithSwapLogic": "0x6fc853A8978017381E4BEc0Da7792F0B46453a8e",
-        "RibbonThetaVaultYearnLogic": "0x104701b548659033D16f2DBaA4D5D6847f494E94",
+        "RibbonThetaVaultYearnLogic": "0xb1AAb30c0Cf2f1E9AD262F2Bf216e9A428B93425",
         "RibbonTreasuryVaultLogic": "0xc92E6B70eB6456171d32C3B5904386c05EC983FF",
         "RibbonVaultPauserETH": "0xE04e8Ae290965AD4F7E40c68041c493d2e89cDC3",
         "STETHDepositHelper": "0x07F36CF3c834E423536680F560b6BaD0319f5411",
@@ -106,6 +109,7 @@
         "StrikeSelectionAPECall": "0x99Ac238691Ae6f5373f413A7d1A6A0826F430814",
         "StrikeSelectionETHCall": "0xfbff9B1043C4998212FB7969a05C307539042B97",
         "StrikeSelectionETHPut": "0x33450Fb9C34065caD6E7e0444bFBefb69Ec48931",
+        "StrikeSelectionETHWithSwap": "0xF6010Dc7475547221f97c28F8ed6f5EC0969024b",
         "StrikeSelectionWBTCCall": "0x5f14b546E8aCFce9fd8C72aB049363a981768700",
         "StrikeSelectionWBTCWithSwap": "0x32C180eDF55A1374ab26d4730e0e06124E437504",
         "Swap": "0xF0E5c92cEdd66C7985C354C35e2bC37E685b99Da",
@@ -113,6 +117,6 @@
         "VaultLifecycleSTETH": "0x21f0FF1D33F76B938dec63cfFe0eE6171F4Bd6B0",
         "VaultLifecycleTreasury": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
         "VaultLifecycleWithSwap": "0x63b9712F3aCf31597595a1D43F7eE0ad2C83357F",
-        "VaultLifecycleYearn": "0xE2635CC6CE168E45b47551a1454ad6f4ee769AB1"
+        "VaultLifecycleYearn": "0x2431d422Be262bD522aB8eda9834421F2489b216"
     }
 }
