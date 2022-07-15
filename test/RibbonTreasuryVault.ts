@@ -203,9 +203,9 @@ describe("RibbonTreasuryVault", () => {
     collateralAsset: SPELL_ADDRESS[chainId],
     chainlinkPricer: CHAINLINK_SPELL_PRICER[chainId],
     deltaStep: BigNumber.from(STRIKE_STEP.SPELL),
-    depositAmount: parseEther("20"),
+    depositAmount: parseEther("100000"),
     minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("2000000000"),
+    expectedMintAmount: BigNumber.from("10000000000000"),
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
@@ -618,7 +618,7 @@ function behavesLikeRibbonOptionsVault(params: {
         secondOptionExpiry = moment(latestTimestamp * 1000)
           .endOf("month")
           .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
-          .add(1, "month")
+          .add(asset === SPELL_ADDRESS[chainId] ? 0 : 1, "month")
           .endOf("month")
           .add(-1, "week")
           .day(5)
@@ -702,15 +702,21 @@ function behavesLikeRibbonOptionsVault(params: {
           );
         }
 
+        let toMint = parseEther("200");
+
+        if (params.collateralAsset === USDC_ADDRESS[chainId]) {
+          toMint = BigNumber.from("10000000000000");
+        } else if (params.collateralAsset === SPELL_ADDRESS[chainId]) {
+          toMint = parseEther("10000000");
+        }
+
         for (let i = 0; i < addressToDeposit.length; i++) {
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             vault.address,
-            params.collateralAsset === USDC_ADDRESS[chainId]
-              ? BigNumber.from("10000000000000")
-              : parseEther("200")
+            toMint
           );
           if (premiumInStables) {
             if (premiumAsset === WETH_ADDRESS[chainId]) {
@@ -3301,6 +3307,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
+
+        if (asset === SPELL_ADDRESS[chainId]) {
+          firstOptionPremium = firstOptionPremium.mul(3);
+        }
 
         auctionDetails = await bidForOToken(
           gnosisAuction,
