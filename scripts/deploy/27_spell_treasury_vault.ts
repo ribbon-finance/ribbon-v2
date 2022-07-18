@@ -63,7 +63,6 @@ const main = async ({
     args: [optionId, manualVolOracle.address, underlyingOracle, stablesOracle],
   });
 
-  console.log(`${optionId} ${manualVolOracle.address} ${underlyingOracle} ${stablesOracle}`)
   console.log(`RibbonTreasuryVaultSPELL pricer @ ${pricer.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
@@ -73,8 +72,6 @@ const main = async ({
     from: deployer,
     args: [pricer.address, SPELL_STRIKE_MULTIPLIER, STRIKE_STEP.SPELL],
   });
-
-  console.log(`${pricer.address} ${SPELL_STRIKE_MULTIPLIER} ${STRIKE_STEP.SPELL}`)
 
   console.log(
     `RibbonTreasuryVaultSPELL strikeSelection @ ${strikeSelection.address}`
