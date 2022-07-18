@@ -20,6 +20,7 @@ import {
   SAVAX_ADDRESS,
   BAL_ADDRESS,
   BADGER_ADDRESS,
+  SPELL_ADDRESS,
   YEARN_PRICER_OWNER,
   SAVAX_PRICER,
   GAMMA_CONTROLLER,
@@ -70,6 +71,18 @@ export async function deployProxy(
     initBytes
   );
   return await ethers.getContractAt(logicContractName, proxy.address);
+}
+
+export async function getBlockNum(asset: string, chainId: number) {
+  if (asset === BADGER_ADDRESS[chainId]) {
+    return 15012740;
+  } else if (asset === BAL_ADDRESS[chainId]) {
+    return 15012740;
+  } else if (asset === SPELL_ADDRESS[chainId]) {
+    return 15140525;
+  } else {
+    return 14087600;
+  }
 }
 
 export async function parseLog(
@@ -431,6 +444,7 @@ export async function mintToken(
     contract.address === APE_ADDRESS[chainId] ||
     contract.address === BADGER_ADDRESS[chainId] ||
     contract.address === BAL_ADDRESS[chainId] ||
+    contract.address === SPELL_ADDRESS[chainId] ||
     contract.address === RETH_ADDRESS[chainId]
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
@@ -670,6 +684,7 @@ export const getDeltaStep = (asset: string) => {
     case "SUSHI":
       return BigNumber.from("1");
     case "BAL":
+    case "SPELL":
     case "BADGER":
       return BigNumber.from("0");
     case "WETH":
