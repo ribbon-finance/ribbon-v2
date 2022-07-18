@@ -34,6 +34,11 @@ import {
   BAL_OWNER_ADDRESS,
   BAL_ADDRESS,
   CHAINLINK_BAL_PRICER,
+  SPELL_ETH_POOL,
+  SPELL_PRICE_ORACLE,
+  SPELL_OWNER_ADDRESS,
+  SPELL_ADDRESS,
+  CHAINLINK_SPELL_PRICER,
   ManualVolOracle_BYTECODE,
 } from "../constants/constants";
 import {
@@ -47,6 +52,7 @@ import {
   lockedBalanceForRollover,
   addMinter,
   getAuctionMinPrice,
+  getBlockNum,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
@@ -56,6 +62,7 @@ import {
   PERP_STRIKE_MULTIPLIER,
   BADGER_STRIKE_MULTIPLIER,
   BAL_STRIKE_MULTIPLIER,
+  SPELL_STRIKE_MULTIPLIER,
   STRIKE_STEP,
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
@@ -180,6 +187,44 @@ describe("RibbonTreasuryVault", () => {
     oracle: BAL_PRICE_ORACLE[chainId],
     premiumInStables: true,
     multiplier: BAL_STRIKE_MULTIPLIER,
+    premiumDecimals: 6,
+    maxDepositors: 30,
+    minDeposit: parseUnits("1", 18),
+    availableChains: [CHAINID.ETH_MAINNET],
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon SPELL Treasury Vault (Call)`,
+    tokenName: "Ribbon SPELL Treasury Vault",
+    tokenSymbol: "rSPELL-TSRY",
+    asset: SPELL_ADDRESS[chainId],
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: SPELL_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_SPELL_PRICER[chainId],
+    deltaStep: BigNumber.from(STRIKE_STEP.SPELL),
+    depositAmount: parseEther("100000"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(),
+    expectedMintAmount: BigNumber.from("10000000000000"),
+    premiumDiscount: BigNumber.from("997"),
+    managementFee: BigNumber.from("0"),
+    performanceFee: BigNumber.from("20000000"),
+    manualStrikePrice: BigNumber.from("1").pow("8"),
+    auctionDuration: 21600,
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 169000,
+      depositBestCase: 102201,
+    },
+    mintConfig: {
+      contractOwnerAddress: SPELL_OWNER_ADDRESS[chainId],
+    },
+    period: 30,
+    pool: SPELL_ETH_POOL[chainId],
+    oracle: SPELL_PRICE_ORACLE[chainId],
+    premiumInStables: true,
+    multiplier: SPELL_STRIKE_MULTIPLIER,
     premiumDecimals: 6,
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
@@ -375,12 +420,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: [
-                BADGER_ADDRESS[chainId],
-                BAL_ADDRESS[chainId],
-              ].includes(asset)
-                ? 15012740
-                : 14087600,
+              blockNumber: await getBlockNum(asset, chainId),
             },
           },
         ],
@@ -578,7 +618,7 @@ function behavesLikeRibbonOptionsVault(params: {
         secondOptionExpiry = moment(latestTimestamp * 1000)
           .endOf("month")
           .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
-          .add(1, "month")
+          .add(asset === SPELL_ADDRESS[chainId] ? 0 : 1, "month")
           .endOf("month")
           .add(-1, "week")
           .day(5)
@@ -662,15 +702,21 @@ function behavesLikeRibbonOptionsVault(params: {
           );
         }
 
+        let toMint = parseEther("200");
+
+        if (params.collateralAsset === USDC_ADDRESS[chainId]) {
+          toMint = BigNumber.from("10000000000000");
+        } else if (params.collateralAsset === SPELL_ADDRESS[chainId]) {
+          toMint = parseEther("10000000");
+        }
+
         for (let i = 0; i < addressToDeposit.length; i++) {
           await mintToken(
             assetContract,
             params.mintConfig.contractOwnerAddress,
             addressToDeposit[i].address,
             vault.address,
-            params.collateralAsset === USDC_ADDRESS[chainId]
-              ? BigNumber.from("10000000000000")
-              : parseEther("200")
+            toMint
           );
           if (premiumInStables) {
             if (premiumAsset === WETH_ADDRESS[chainId]) {
@@ -3261,6 +3307,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
+
+        if (asset === SPELL_ADDRESS[chainId]) {
+          firstOptionPremium = firstOptionPremium.mul(3);
+        }
 
         auctionDetails = await bidForOToken(
           gnosisAuction,
