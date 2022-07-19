@@ -7,7 +7,6 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {DSMath} from "../../vendor/DSMath.sol";
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {ISwap} from "../../interfaces/ISwap.sol";
@@ -75,13 +74,6 @@ contract RibbonThetaYearnVaultWithSwap is RibbonVault, RibbonThetaYearnVaultStor
         uint256 round
     );
 
-    event InitiateGnosisAuction(
-        address indexed auctioningToken,
-        address indexed biddingToken,
-        uint256 auctionCounter,
-        address indexed manager
-    );
-
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
      ***********************************************/
@@ -94,7 +86,6 @@ contract RibbonThetaYearnVaultWithSwap is RibbonVault, RibbonThetaYearnVaultStor
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _swapContract is the contract address that facilitates bids settlement
-     * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
      * @param _yearnRegistry is the address of the yearn registry from token to vault token
      */
     constructor(
@@ -103,7 +94,6 @@ contract RibbonThetaYearnVaultWithSwap is RibbonVault, RibbonThetaYearnVaultStor
         address _oTokenFactory,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction,
         address _yearnRegistry,
         address _swapContract
     )
@@ -112,7 +102,6 @@ contract RibbonThetaYearnVaultWithSwap is RibbonVault, RibbonThetaYearnVaultStor
             _usdc,
             _gammaController,
             _marginPool,
-            _gnosisEasyAuction,
             _yearnRegistry,
             _swapContract
         )
@@ -134,7 +123,7 @@ contract RibbonThetaYearnVaultWithSwap is RibbonVault, RibbonThetaYearnVaultStor
        black-scholes premium calculation logic
      * @param _strikeSelection is the address of the contract with strike selection logic
      * @param _premiumDiscount is the vault's discount applied to the premium
-     * @param _auctionDuration is the duration of the gnosis auction
+     * @param _auctionDuration is the duration of the auction
      * @param _vaultParams is the struct with vault general data
      */
     function initialize(
@@ -490,7 +479,7 @@ contract RibbonThetaYearnVaultWithSwap is RibbonVault, RibbonThetaYearnVaultStor
     }
 
     /**
-     * @notice Burn the remaining oTokens left over from gnosis auction.
+     * @notice Burn the remaining oTokens left over
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
