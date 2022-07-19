@@ -19,8 +19,10 @@ import {
 import {DSMath} from "../../../vendor/DSMath.sol";
 import {IYearnRegistry, IYearnVault} from "../../../interfaces/IYearn.sol";
 import {Vault} from "../../../libraries/Vault.sol";
-import {VaultLifecycle} from "../../../libraries/VaultLifecycle.sol";
 import {VaultLifecycleYearn} from "../../../libraries/VaultLifecycleYearn.sol";
+import {
+    VaultLifecycleWithSwap
+} from "../../../libraries/VaultLifecycleWithSwap.sol";
 import {ShareMath} from "../../../libraries/ShareMath.sol";
 import {IWETH} from "../../../interfaces/IWETH.sol";
 
@@ -123,6 +125,10 @@ contract RibbonVault is
     // Yearn registry contract
     address public immutable YEARN_REGISTRY;
 
+    // SWAP_CONTRACT is a contract for settling bids via signed messages
+    // https://github.com/ribbon-finance/ribbon-v2/blob/master/contracts/utils/Swap.sol
+    address public immutable SWAP_CONTRACT;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -164,6 +170,7 @@ contract RibbonVault is
      * @param _marginPool is the contract address for providing collateral to opyn
      * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
      * @param _yearnRegistry is the address of the yearn registry from token to vault token
+     * @param _swapContract is the contract address that facilitates bids settlement
      */
     constructor(
         address _weth,
@@ -171,11 +178,13 @@ contract RibbonVault is
         address _gammaController,
         address _marginPool,
         address _gnosisEasyAuction,
-        address _yearnRegistry
+        address _yearnRegistry,
+        address _swapContract
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
+        require(_swapContract != address(0), "!_swapContract");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
         require(_yearnRegistry != address(0), "!_yearnRegistry");
@@ -186,6 +195,7 @@ contract RibbonVault is
         MARGIN_POOL = _marginPool;
         GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
         YEARN_REGISTRY = _yearnRegistry;
+        SWAP_CONTRACT = _swapContract;
     }
 
     /**
@@ -201,7 +211,7 @@ contract RibbonVault is
         string memory _tokenSymbol,
         Vault.VaultParams calldata _vaultParams
     ) internal initializer {
-        VaultLifecycle.verifyInitializerParams(
+        VaultLifecycleWithSwap.verifyInitializerParams(
             _owner,
             _keeper,
             _feeRecipient,
@@ -545,93 +555,66 @@ contract RibbonVault is
      *  VAULT OPERATIONS
      ***********************************************/
 
-    struct rollToNextOptionParams {
-        uint256 lastQueuedWithdrawAmount;
-        uint256 currentQueuedWithdrawShares;
-        bool isYearnPaused;
-    }
-
     /**
      * @notice Helper function that performs most administrative tasks
-     * such as setting next option, minting new shares, getting vault fees, etc.
-     * @param params is a struct of lastQueuedWithdrawAmount, currentQueuedWithdrawShares, isYearnPaused
-     * @return newOption is the new option address
-     * @return queuedWithdrawAmount is the queued amount for withdrawal
+     * such as minting new shares, getting vault fees, etc.
+     * @param lastQueuedWithdrawAmount is old queued withdraw amount
+     * @param currentQueuedWithdrawShares is the queued withdraw shares for the current round
+     * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
+     * @return queuedWithdrawAmount is the new queued withdraw amount for this round
      */
-    function _rollToNextOption(rollToNextOptionParams memory params)
-        internal
-        returns (address, uint256)
-    {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
-
-        address newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
-
-        (
-            uint256 lockedBalance,
-            uint256 queuedWithdrawAmount,
-            uint256 newPricePerShare,
-            uint256 mintShares,
-            uint256 performanceFeeInAsset,
-            uint256 totalVaultFee
-        ) =
-            VaultLifecycle.rollover(
+    function _closeRound(
+        uint256 lastQueuedWithdrawAmount,
+        uint256 currentQueuedWithdrawShares
+    ) internal returns (uint256 lockedBalance, uint256 queuedWithdrawAmount) {
+        address recipient = feeRecipient;
+        uint256 mintShares;
+        uint256 performanceFeeInAsset;
+        uint256 totalVaultFee;
+        {
+            uint256 newPricePerShare;
+            (
+                lockedBalance,
+                queuedWithdrawAmount,
+                newPricePerShare,
+                mintShares,
+                performanceFeeInAsset,
+                totalVaultFee
+            ) = VaultLifecycleWithSwap.closeRound(
                 vaultState,
-                VaultLifecycle.RolloverParams(
+                VaultLifecycleWithSwap.CloseParams(
                     vaultParams.decimals,
-                    totalBalance(),
+                    IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
-                    params.lastQueuedWithdrawAmount,
+                    lastQueuedWithdrawAmount,
                     performanceFee,
                     managementFee,
-                    params.currentQueuedWithdrawShares
+                    currentQueuedWithdrawShares
                 )
             );
 
-        optionState.currentOption = newOption;
-        optionState.nextOption = address(0);
+            // Finalize the pricePerShare at the end of the round
+            uint256 currentRound = vaultState.round;
+            roundPricePerShare[currentRound] = newPricePerShare;
 
-        // Finalize the pricePerShare at the end of the round
-        uint256 currentRound = vaultState.round;
-        roundPricePerShare[currentRound] = newPricePerShare;
+            emit CollectVaultFees(
+                performanceFeeInAsset,
+                totalVaultFee,
+                currentRound,
+                recipient
+            );
 
-        address recipient = feeRecipient;
-
-        emit CollectVaultFees(
-            performanceFeeInAsset,
-            totalVaultFee,
-            currentRound,
-            recipient
-        );
-
-        vaultState.totalPending = 0;
-        vaultState.round = uint16(currentRound + 1);
-        ShareMath.assertUint104(lockedBalance);
-        vaultState.lockedAmount = uint104(lockedBalance);
+            vaultState.totalPending = 0;
+            vaultState.round = uint16(currentRound + 1);
+        }
 
         _mint(address(this), mintShares);
 
-        address collateral = address(collateralToken);
-
-        if (params.isYearnPaused) {
-            // note: withdrawing large amounts of yvUSDC will result in a slippage of ~ 0.001%
-            // withdraw reverts if balance is 0
-            if (collateralToken.balanceOf(address(this)) > 0) {
-                collateralToken.withdraw(
-                    collateralToken.balanceOf(address(this)),
-                    address(this),
-                    0
-                );
-            }
-        } else {
-            VaultLifecycleYearn.wrapToYieldToken(vaultParams.asset, collateral);
-        }
-
         if (totalVaultFee > 0) {
-            IERC20(vaultParams.asset).safeTransfer(recipient, totalVaultFee);
+            IERC20(vaultParams.asset).safeTransfer(payable(recipient), totalVaultFee);
         }
 
-        return (newOption, queuedWithdrawAmount);
+        return (lockedBalance, queuedWithdrawAmount);
     }
 
     /*
