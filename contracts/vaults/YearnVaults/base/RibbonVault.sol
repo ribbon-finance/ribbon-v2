@@ -118,10 +118,6 @@ contract RibbonVault is
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/MarginPool.sol
     address public immutable MARGIN_POOL;
 
-    // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids
-    // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
-    address public immutable GNOSIS_EASY_AUCTION;
-
     // Yearn registry contract
     address public immutable YEARN_REGISTRY;
 
@@ -168,7 +164,6 @@ contract RibbonVault is
      * @param _usdc is the USDC contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
-     * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
      * @param _yearnRegistry is the address of the yearn registry from token to vault token
      * @param _swapContract is the contract address that facilitates bids settlement
      */
@@ -177,13 +172,11 @@ contract RibbonVault is
         address _usdc,
         address _gammaController,
         address _marginPool,
-        address _gnosisEasyAuction,
         address _yearnRegistry,
         address _swapContract
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
-        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
         require(_swapContract != address(0), "!_swapContract");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
@@ -193,7 +186,6 @@ contract RibbonVault is
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
-        GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
         YEARN_REGISTRY = _yearnRegistry;
         SWAP_CONTRACT = _swapContract;
     }
