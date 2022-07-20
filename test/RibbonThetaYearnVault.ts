@@ -16,9 +16,7 @@ import {
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
   WETH_ADDRESS,
-  GNOSIS_EASY_AUCTION,
   YEARN_USDC_PRICER_V0_4_3,
-  YEARN_REGISTRY_ADDRESS,
   OptionsPremiumPricerInStables_BYTECODE,
   YVUSDC_V0_4_3,
   ETH_PRICE_ORACLE,
@@ -34,13 +32,11 @@ import {
   setAssetPricer,
   whitelistProduct,
   mintToken,
-  bidForOToken,
-  decodeOrder,
-  lockedBalanceForRollover,
-  getAuctionMinPrice,
   setOpynOracleExpiryPrice,
+  Bid,
+  generateSignedBid,
+  lockedBalanceForRollover,
 } from "./helpers/utils";
-import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 
@@ -189,20 +185,17 @@ function behavesLikeRibbonOptionsVault(params: {
   let strikeSelection: Contract;
   let volOracle: Contract;
   let optionsPremiumPricer: Contract;
-  let gnosisAuction: Contract;
-  let vaultLifecycleYearnLib: Contract;
+  let swapContract: Contract;
   let vaultLifecycleLib: Contract;
   let vault: Contract;
   let oTokenFactory: Contract;
   let defaultOtoken: Contract;
   let assetContract: Contract;
-  let collateralContract: Contract;
   let pauser: Contract;
 
   // Variables
   let defaultOtokenAddress: string;
   let firstOptionStrike: BigNumber;
-  let firstOptionPremium: BigNumber;
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
@@ -215,10 +208,11 @@ function behavesLikeRibbonOptionsVault(params: {
     let secondOption: Option;
 
     const rollToNextOption = async () => {
-      await vault.connect(keeperSigner).setMinPrice(parseEther("0.00551538"));
-      await vault.connect(ownerSigner).commitAndClose();
+      await vault.connect(ownerSigner).closeRound();
       await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
       await strikeSelection.setDelta(params.deltaFirstOption);
+      await vault.connect(keeperSigner).setMinPrice(parseEther("0.00551538"));
+      await vault.connect(keeperSigner).commitNextOption();
       await vault.connect(keeperSigner).rollToNextOption();
     };
 
@@ -234,14 +228,13 @@ function behavesLikeRibbonOptionsVault(params: {
         params.asset,
         oracle,
         await getCurrentOptionExpiry(),
-        settlementPrice,
-        collateralAsset
+        settlementPrice
       );
-
       await strikeSelection.setDelta(params.deltaSecondOption);
-      await vault.connect(keeperSigner).setMinPrice(parseEther("30"));
-      await vault.connect(ownerSigner).commitAndClose();
+      await vault.connect(ownerSigner).closeRound();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+      await vault.connect(keeperSigner).setMinPrice(parseEther("30"));
+      await vault.connect(keeperSigner).commitNextOption();
       await vault.connect(keeperSigner).rollToNextOption();
     };
 
@@ -336,18 +329,18 @@ function behavesLikeRibbonOptionsVault(params: {
         "0xCc323557c71C0D1D20a1861Dc69c06C5f3cC9624"
       );
 
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      const VaultLifecycle = await ethers.getContractFactory(
+        "VaultLifecycleWithSwap"
+      );
       vaultLifecycleLib = await VaultLifecycle.deploy();
 
-      const VaultLifecycleYearn = await ethers.getContractFactory(
-        "VaultLifecycleYearn"
-      );
-      vaultLifecycleYearnLib = await VaultLifecycleYearn.deploy();
+      const domainName = "RIBBON SWAP";
+      const domainVersion = "1";
+      const swapInitializeArgs = [domainName, domainVersion, owner];
 
-      gnosisAuction = await getContractAt(
-        "IGnosisAuction",
-        GNOSIS_EASY_AUCTION[chainId]
-      );
+      swapContract = (
+        await deployProxy("Swap", adminSigner, swapInitializeArgs)
+      ).connect(ownerSigner);
 
       const initializeArgs = [
         owner,
@@ -377,8 +370,7 @@ function behavesLikeRibbonOptionsVault(params: {
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
-        GNOSIS_EASY_AUCTION[chainId],
-        YEARN_REGISTRY_ADDRESS,
+        swapContract.address,
       ];
 
       vault = (
@@ -389,14 +381,11 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
-              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
+              VaultLifecycleWithSwap: vaultLifecycleLib.address,
             },
           }
         )
       ).connect(userSigner);
-
-      await vault.connect(ownerSigner).setYearnPaused(true);
 
       oTokenFactory = await getContractAt(
         "IOtokenFactory",
@@ -479,22 +468,17 @@ function behavesLikeRibbonOptionsVault(params: {
         depositAsset
       );
 
-      collateralContract = await getContractAt(
-        params.assetContractName,
-        depositAsset
-      );
-
       initialMarginPoolBal = await assetContract.balanceOf(
         MARGIN_POOL[chainId]
       );
-
-      firstOptionPremium = parseEther("0.00553198");
 
       await setAssetPricer(
         collateralAsset,
         params.collateralPricer,
         OPTION_PROTOCOL.GAMMA
       );
+
+      collateralAsset = depositAsset;
 
       // If mintable token, then mine the token
       if (params.mintConfig) {
@@ -530,8 +514,7 @@ function behavesLikeRibbonOptionsVault(params: {
           "RibbonThetaYearnVault",
           {
             libraries: {
-              VaultLifecycle: vaultLifecycleLib.address,
-              VaultLifecycleYearn: vaultLifecycleYearnLib.address,
+              VaultLifecycleWithSwap: vaultLifecycleLib.address,
             },
           }
         );
@@ -541,8 +524,7 @@ function behavesLikeRibbonOptionsVault(params: {
           OTOKEN_FACTORY[chainId],
           GAMMA_CONTROLLER[chainId],
           MARGIN_POOL[chainId],
-          GNOSIS_EASY_AUCTION[chainId],
-          YEARN_REGISTRY_ADDRESS
+          swapContract.address
         );
       });
 
@@ -571,7 +553,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await decimals, tokenDecimals);
         assert.equal(decimals, tokenDecimals);
         assert.equal(assetFromContract, depositAsset);
-        assert.equal(collateralAsset, await vault.collateralToken());
         assert.equal(underlying, asset);
         assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
         assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
@@ -931,33 +912,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#setAuctionDuration", () => {
-      time.revertToSnapshotAfterTest();
-
-      it("reverts when setting 10 seconds to setAuctionDuration", async function () {
-        await expect(
-          vault.connect(ownerSigner).setAuctionDuration("10")
-        ).to.be.revertedWith("Invalid auction duration");
-      });
-
-      it("reverts when not owner call", async function () {
-        await expect(
-          vault.setAuctionDuration(BigNumber.from("10").toString())
-        ).to.be.revertedWith("caller is not the owner");
-      });
-
-      it("changes the auction duration", async function () {
-        await vault.connect(ownerSigner).setAuctionDuration("1000000");
-        assert.equal((await vault.auctionDuration()).toString(), "1000000");
-      });
-    });
-
-    describe("#collateralAsset", () => {
-      it("returns the asset", async function () {
-        assert.equal(await vault.collateralToken(), collateralAsset);
-      });
-    });
-
     describe("#deposit", () => {
       time.revertToSnapshotAfterEach();
 
@@ -1295,77 +1249,98 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#commitAndClose", () => {
+    describe("#commitNextOption", () => {
       time.revertToSnapshotAfterEach();
 
-      beforeEach(async function () {
-        // Deposit only if asset is WETH
-        if (params.depositAsset === WETH_ADDRESS[chainId]) {
-          const addressToDeposit = [userSigner, ownerSigner, adminSigner];
-
-          for (let i = 0; i < addressToDeposit.length; i++) {
-            const weth = assetContract.connect(addressToDeposit[i]);
-            await weth.deposit({ value: parseEther("10") });
-            await weth.approve(vault.address, parseEther("10"));
-          }
-        }
+      it("reverts when not called with keeper", async function () {
+        await expect(
+          vault.connect(ownerSigner).commitNextOption()
+        ).to.be.revertedWith("!keeper");
       });
 
-      it("sets the next option and closes existing short", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
+      it("reverts when the currentOption is not closed", async function () {
+        // Ensure commitNextOption cannot be called if closeRound has not been called
+        await expect(
+          vault.connect(keeperSigner).commitNextOption()
+        ).to.be.revertedWith("Round not closed");
+      });
 
-        await depositIntoVault(params.depositAsset, vault, depositAmount);
+      it("sets the option correctly on the first round", async function () {
+        await vault.connect(ownerSigner).closeRound({ from: owner });
 
-        const res = await vault
-          .connect(ownerSigner)
-          .commitAndClose({ from: owner });
-
-        const receipt = await res.wait();
-        const block = await provider.getBlock(receipt.blockNumber);
+        await vault.connect(keeperSigner).commitNextOption();
 
         const optionState = await vault.optionState();
-        const vaultState = await vault.vaultState();
 
         assert.equal(optionState.currentOption, constants.AddressZero);
-        assert.equal(optionState.nextOption, defaultOtokenAddress);
-        assert.equal(
-          optionState.nextOptionReadyAt,
-          block.timestamp + OPTION_DELAY
-        );
-        assert.isTrue(vaultState.lockedAmount.isZero());
-        assert.equal(optionState.currentOption, constants.AddressZero);
+        assert.equal(optionState.nextOption, firstOption.address);
       });
 
       it("should set the next option twice", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
+        const WETH_STRIKE_PRICE = {
+          [CHAINID.ETH_MAINNET]: 250000000000, // WETH
+          [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+        };
+        const altStrikePrice = "405000000000";
 
-        await depositIntoVault(params.depositAsset, vault, depositAmount);
+        const newStrikePrice =
+          params.asset === WETH_ADDRESS[chainId]
+            ? WETH_STRIKE_PRICE[chainId]
+            : altStrikePrice;
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(depositAsset, vault, depositAmount);
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound({ from: owner });
+
+        await vault.connect(keeperSigner).commitNextOption();
+        let optionState = await vault.optionState();
+
+        assert.equal(optionState.currentOption, constants.AddressZero);
+        assert.equal(optionState.nextOption, firstOption.address);
+
+        await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
+        await vault.connect(keeperSigner).commitNextOption();
+
+        const alternateOptionAddress =
+          await oTokenFactory.getTargetOtokenAddress(
+            params.asset,
+            params.strikeAsset,
+            params.depositAsset,
+            newStrikePrice,
+            firstOptionExpiry,
+            params.isPut
+          );
+
+        optionState = await vault.optionState();
+
+        assert.equal(optionState.currentOption, constants.AddressZero);
+        assert.equal(optionState.nextOption, alternateOptionAddress);
       });
 
       it("sets the correct strike when overriding strike price", async function () {
+        const WETH_STRIKE_PRICE = {
+          [CHAINID.ETH_MAINNET]: 250000000000, // WETH
+          [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+        };
+
+        const altStrikePrice = "405000000000";
         const newStrikePrice =
           params.asset === WETH_ADDRESS[chainId]
-            ? BigNumber.from("250000000000")
-            : BigNumber.from("4050000000000");
+            ? WETH_STRIKE_PRICE[chainId]
+            : altStrikePrice;
+
+        await vault.connect(ownerSigner).closeRound({ from: owner });
 
         await vault.connect(ownerSigner).setStrikePrice(newStrikePrice);
 
-        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "1");
+        assert.equal((await vault.lastStrikeOverrideRound()).toString(), "2");
         assert.equal(
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
         );
-        await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose({ from: owner });
+        await vault.connect(keeperSigner).commitNextOption();
 
         assert.equal(
           (
@@ -1375,117 +1350,18 @@ function behavesLikeRibbonOptionsVault(params: {
           ).toString(),
           newStrikePrice.toString()
         );
-
-        assert.bnEqual(await vault.currentOtokenPremium(), parseEther("0.01"));
-      });
-
-      it("closes short even when otokens are burned", async function () {
-        await assetContract.approve(vault.address, depositAmount);
-        await depositIntoVault(collateralAsset, vault, depositAmount);
-
-        await rollToNextOption();
-
-        await time.increase(auctionDuration);
-
-        // auction settled without any bids
-        // so we return 100% of the tokens
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await vault.optionAuctionID());
-
-        await vault.connect(keeperSigner).burnRemainingOTokens();
-
-        await rollToSecondOption(firstOption.strikePrice);
-
-        const controller = await ethers.getContractAt(
-          "IController",
-          GAMMA_CONTROLLER[chainId]
-        );
-
-        assert.equal(await controller.getAccountVaultCounter(vault.address), 2);
-      });
-
-      it("closes short when otokens are partially burned", async function () {
-        await assetContract.approve(vault.address, depositAmount);
-        await depositIntoVault(collateralAsset, vault, depositAmount);
-
-        await rollToNextOption();
-
-        const bidMultiplier = "1";
-        const latestAuction = (await gnosisAuction.auctionCounter()).toString();
-        const otoken = await ethers.getContractAt(
-          "IERC20",
-          firstOption.address
-        );
-        const initialOtokenBalance = await otoken.balanceOf(
-          gnosisAuction.address
-        );
-
-        const totalOptionsAvailableToBuy = initialOtokenBalance
-          .div(2)
-          .mul(await gnosisAuction.FEE_DENOMINATOR())
-          .div(
-            (await gnosisAuction.FEE_DENOMINATOR()).add(
-              await gnosisAuction.feeNumerator()
-            )
-          )
-          .div(bidMultiplier);
-
-        const bid = wmul(
-          totalOptionsAvailableToBuy.mul(BigNumber.from(10).pow(10)),
-          firstOptionPremium
-        )
-          .div(BigNumber.from(10).pow(18 - params.tokenDecimals))
-          .toString();
-
-        const queueStartElement =
-          "0x0000000000000000000000000000000000000000000000000000000000000001";
-
-        await assetContract
-          .connect(userSigner)
-          .approve(gnosisAuction.address, bid);
-
-        // BID OTOKENS HERE
-        await gnosisAuction
-          .connect(userSigner)
-          .placeSellOrders(
-            latestAuction,
-            [totalOptionsAvailableToBuy.toString()],
-            [bid],
-            [queueStartElement],
-            "0x"
-          );
-
-        await time.increase(auctionDuration);
-
-        // we initiate a complete burn of the otokens
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await vault.optionAuctionID());
-
-        assert.bnLte(
-          await otoken.balanceOf(vault.address),
-          initialOtokenBalance.div(2)
-        );
-
-        await vault.connect(keeperSigner).burnRemainingOTokens();
-
-        await rollToSecondOption(firstOption.strikePrice);
       });
 
       it("fits gas budget [ @skip-on-coverage ]", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+        await vault.connect(ownerSigner).closeRound({ from: owner });
 
-        await depositIntoVault(params.depositAsset, vault, depositAmount);
-        const res = await vault
-          .connect(ownerSigner)
-          .commitAndClose({ from: owner });
+        const res = await vault.connect(keeperSigner).commitNextOption();
 
         const receipt = await res.wait();
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1066401);
-        // console.log("commitAndClose", receipt.gasUsed.toNumber());
+        assert.isAtMost(receipt.gasUsed.toNumber(), 935100);
+        // console.log("commitNextOption", receipt.gasUsed.toNumber());
       });
     });
 
@@ -1505,51 +1381,61 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns all remaining oTokens", async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
-        await vault.connect(keeperSigner).setMinPrice(parseEther("0.00551538"));
-
-        await vault.connect(ownerSigner).commitAndClose();
-
-        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
-
-        await vault.connect(keeperSigner).rollToNextOption();
+        await rollToNextOption();
 
         let bidMultiplier = 2;
 
-        const auctionDetails = await bidForOToken(
-          gnosisAuction,
-          assetContract,
+        const offerId = await vault.optionAuctionID();
+        const offerDetails = await swapContract.swapOffers(offerId);
+        const totalSize = offerDetails.totalSize;
+        const minPrice = offerDetails.minPrice;
+        const buyAmount = totalSize.div(bidMultiplier);
+        const sellAmount = buyAmount
+          .mul(minPrice)
+          .div(10 ** 8)
+          .add(1);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
+
+        const bid: Bid = {
+          swapId: offerId.toString(),
+          nonce: 1,
+          signerWallet: userSigner.address,
+          sellAmount: sellAmount.toString(), // > than the minimumPrice
+          buyAmount: buyAmount.toString(), // > than minimumBid
+          referrer: constants.AddressZero,
+        };
+
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
           userSigner.address,
-          defaultOtokenAddress,
-          firstOptionPremium,
-          tokenDecimals,
-          bidMultiplier.toString(),
-          auctionDuration
+          bid
         );
 
         assert.equal(
           (await defaultOtoken.balanceOf(vault.address)).toString(),
-          "0"
+          totalSize.toString()
         );
 
         const assetBalanceBeforeSettle = await assetContract.balanceOf(
           vault.address
         );
 
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
+        await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
 
-        assert.isAbove(
+        // Asset balance when auction closes only contains auction proceeds
+        // Remaining vault's balance is still in Opyn Gamma Controller
+        let auctionProceeds = await assetContract.balanceOf(vault.address);
+
+        assert.equal(
           parseInt((await defaultOtoken.balanceOf(vault.address)).toString()),
           parseInt(
-            params.expectedMintAmount
-              .div(bidMultiplier)
-              .mul(params.premiumDiscount.sub(1))
-              .div(1000)
-              .toString()
+            params.expectedMintAmount.div(bidMultiplier).add(1).toString()
           )
         );
 
@@ -1557,35 +1443,26 @@ function behavesLikeRibbonOptionsVault(params: {
           parseInt((await assetContract.balanceOf(vault.address)).toString()),
           parseInt(
             (
-              (assetBalanceBeforeSettle.add(BigNumber.from(auctionDetails[2])) *
-                99) /
+              (assetBalanceBeforeSettle.add(auctionProceeds) * 99) /
               100
             ).toString()
           )
         );
 
-        const lockedAmountBeforeBurn = await collateralContract.balanceOf(
-          vault.address
-        );
-
-        const assetBalanceAfterSettle = await collateralContract.balanceOf(
+        const lockedAmountBeforeBurn = (await vault.vaultState()).lockedAmount;
+        const assetBalanceAfterSettle = await assetContract.balanceOf(
           vault.address
         );
         vault.connect(keeperSigner).burnRemainingOTokens();
-        const assetBalanceAfterBurn = await collateralContract.balanceOf(
+        const assetBalanceAfterBurn = await assetContract.balanceOf(
           vault.address
         );
 
-        assert.isAbove(
+        assert.equal(
           parseInt(assetBalanceAfterBurn.toString()),
           parseInt(
             assetBalanceAfterSettle
-              .add(
-                lockedAmountBeforeBurn
-                  .div(bidMultiplier)
-                  .mul(params.premiumDiscount.sub(1))
-                  .div(1000)
-              )
+              .add(lockedAmountBeforeBurn.div(bidMultiplier).add(13)) //there is a slight division issue here so we add 13
               .toString()
           )
         );
@@ -1597,11 +1474,7 @@ function behavesLikeRibbonOptionsVault(params: {
       const depositAmount = params.depositAmount;
 
       time.revertToSnapshotAfterEach(async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
-
-        await depositIntoVault(params.depositAsset, vault, depositAmount);
+        await depositIntoVault(params.collateralAsset, vault, depositAmount);
 
         oracle = await setupOracle(
           params.asset,
@@ -1617,28 +1490,62 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!keeper");
       });
 
+      it("reverts when round is not closed", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToNextOption();
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await expect(
+          vault.connect(keeperSigner).rollToNextOption()
+        ).to.be.revertedWith("!nextOption");
+      });
+
+      it("reverts when next option is not commited", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToNextOption();
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await vault.connect(ownerSigner).closeRound({ from: owner });
+
+        await expect(
+          vault.connect(keeperSigner).rollToNextOption()
+        ).to.be.revertedWith("!nextOption");
+      });
+
+      it("allow rolling to the same option", async function () {
+        await assetContract.approve(vault.address, depositAmount);
+        await depositIntoVault(collateralAsset, vault, depositAmount);
+
+        await rollToNextOption();
+
+        await vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await vault.connect(ownerSigner).closeRound({ from: owner });
+
+        await vault.connect(keeperSigner).commitNextOption();
+
+        await vault.connect(keeperSigner).rollToNextOption();
+      });
+
       it("mints oTokens and deposits collateral into vault", async function () {
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         const res = await vault.connect(keeperSigner).rollToNextOption();
-
-        await expect(res).to.not.emit(vault, "CloseShort");
-
-        const finalMarginPoolBal = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
 
         await expect(res)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            defaultOtokenAddress,
-            finalMarginPoolBal.sub(initialMarginPoolBal),
-            keeper
-          );
+          .withArgs(defaultOtokenAddress, depositAmount, keeper);
 
         const vaultState = await vault.vaultState();
 
@@ -1650,91 +1557,58 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         assert.equal(
-          (await collateralContract.balanceOf(vault.address)).toString(),
-          "0"
+          (await assetContract.balanceOf(MARGIN_POOL[chainId]))
+            .sub(initialMarginPoolBal)
+            .toString(),
+          depositAmount.toString()
         );
 
         assert.bnEqual(
-          await defaultOtoken.balanceOf(GNOSIS_EASY_AUCTION[chainId]),
+          await defaultOtoken.balanceOf(vault.address),
           params.expectedMintAmount
         );
 
         assert.equal(await vault.currentOption(), defaultOtokenAddress);
       });
 
-      it("starts auction with correct parameters", async function () {
+      it("starts offer with correct parameters", async function () {
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
+        await vault.connect(keeperSigner).commitNextOption();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
         await vault.connect(keeperSigner).rollToNextOption();
-
-        const currentAuctionCounter = await gnosisAuction.auctionCounter();
-        const auctionDetails = await gnosisAuction.auctionData(
-          currentAuctionCounter.toString()
-        );
-        const feeNumerator = await gnosisAuction.feeNumerator();
-        const feeDenominator = await gnosisAuction.FEE_DENOMINATOR();
-
-        assert.equal(auctionDetails.auctioningToken, defaultOtokenAddress);
-        assert.equal(auctionDetails.biddingToken, depositAsset);
-        assert.equal(
-          auctionDetails.orderCancellationEndDate.toString(),
-          (await time.now()).add(21600).toString()
-        );
-        assert.equal(
-          auctionDetails.auctionEndDate.toString(),
-          (await time.now()).add(21600).toString()
-        );
-        assert.equal(
-          auctionDetails.minimumBiddingAmountPerOrder.toString(),
-          "1"
-        );
-        assert.equal(auctionDetails.isAtomicClosureAllowed, false);
-        assert.equal(
-          auctionDetails.feeNumerator.toString(),
-          feeNumerator.toString()
-        );
-        assert.equal(auctionDetails.minFundingThreshold.toString(), "0");
-        assert.equal(
-          await gnosisAuction.auctionAccessManager(currentAuctionCounter),
-          constants.AddressZero
-        );
-        assert.equal(
-          await gnosisAuction.auctionAccessData(currentAuctionCounter),
-          "0x"
+        const initialOtokenBalance = await defaultOtoken.balanceOf(
+          vault.address
         );
 
-        const initialAuctionOrder = decodeOrder(
-          auctionDetails.initialAuctionOrder
-        );
+        const offerId = await vault.optionAuctionID();
+        const offerDetails = await swapContract.swapOffers(offerId);
+        const totalSize = offerDetails.totalSize;
+        const minPrice = offerDetails.minPrice;
 
-        const oTokenSellAmount = params.expectedMintAmount
-          .mul(feeDenominator)
-          .div(feeDenominator.add(feeNumerator));
+        assert.equal(offerDetails.oToken, defaultOtokenAddress);
+        assert.equal(offerDetails.biddingToken, depositAsset);
 
+        const minBidSize =
+          totalSize > 10 ** tokenDecimals
+            ? 10 ** tokenDecimals
+            : totalSize / 10;
+        assert.equal(offerDetails.minBidSize.toString(), minBidSize);
+
+        const adjustedOtokenPremium =
+          tokenDecimals > 18
+            ? parseEther("0.01").mul(10 ** (tokenDecimals - 18))
+            : parseEther("0.01").div(10 ** (18 - tokenDecimals));
+
+        assert.equal(initialOtokenBalance.toString(), totalSize.toString());
         assert.equal(
-          initialAuctionOrder.sellAmount.toString(),
-          oTokenSellAmount.toString()
+          initialOtokenBalance.toString(),
+          offerDetails.availableSize.toString()
         );
-        assert.equal(
-          initialAuctionOrder.buyAmount.toString(),
-          wmul(
-            oTokenSellAmount.mul(BigNumber.from(10).pow(10)),
-            parseEther("0.01")
-          )
-            .div(BigNumber.from(10).pow(18 - tokenDecimals))
-            .toString()
-        );
-
-        // Hardcoded
-        // assert.equal(auctionDetails.interimSumBidAmount, 0);
-        // assert.equal(auctionDetails.interimOrder, IterableOrderedOrderSet.QUEUE_START);
-        // assert.equal(auctionDetails.clearingPriceOrder, bytes32(0));
-        // assert.equal(auctionDetails.volumeClearingPriceOrder, 0);
-        // assert.equal(auctionDetails.minFundingThresholdNotReached, false);
+        assert.equal(adjustedOtokenPremium.toString(), minPrice.toString());
       });
 
       it("reverts when calling before expiry", async function () {
@@ -1744,23 +1618,16 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
-
-        const finalMarginPoolBal = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            finalMarginPoolBal.sub(initialMarginPoolBal),
-            keeper
-          );
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1769,7 +1636,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await expect(
-          vault.connect(ownerSigner).commitAndClose()
+          vault.connect(ownerSigner).closeRound()
         ).to.be.revertedWith(EXPECTED_ERROR);
       });
 
@@ -1777,74 +1644,48 @@ function behavesLikeRibbonOptionsVault(params: {
         const firstOptionAddress = firstOption.address;
         const secondOptionAddress = secondOption.address;
 
-        await vault.connect(keeperSigner).setMinPrice(parseEther("0.00551538"));
+        await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
 
         assert.equal(await vault.currentOption(), firstOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), firstOption.expiry);
 
-        const depositAmountInAsset = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
-
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            depositAmountInAsset.sub(initialMarginPoolBal),
-            keeper
-          );
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
-        let bidMultiplier = 1;
+        await time.increaseTo((await provider.getBlock("latest")).timestamp);
 
-        const auctionDetails = await bidForOToken(
-          gnosisAuction,
-          assetContract,
-          userSigner.address,
-          defaultOtokenAddress,
-          firstOptionPremium,
-          tokenDecimals,
-          bidMultiplier.toString(),
-          auctionDuration
-        );
-
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
-
-        // only the premium should be left over because the funds are locked into Opyn
-        assert.isAbove(
-          parseInt((await assetContract.balanceOf(vault.address)).toString()),
-          (parseInt(auctionDetails[2].toString()) * 99) / 100
-        );
+        // We just settle the auction without any bids
+        // So we simulate a loss when the options expire in the money
 
         const settlementPriceITM = isPut
           ? firstOptionStrike.sub(1)
           : firstOptionStrike.add(1);
 
+        // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM,
-          collateralAsset
+          settlementPriceITM
         );
 
+        const beforeBalance = await assetContract.balanceOf(vault.address);
+
+        const firstCloseTx = await vault.connect(ownerSigner).closeRound();
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
-        const beforeBalance = await collateralContract.balanceOf(vault.address);
-
-        const firstCloseTx = await vault.connect(ownerSigner).commitAndClose();
-
-        const afterBalance = await collateralContract.balanceOf(vault.address);
+        const afterBalance = await assetContract.balanceOf(vault.address);
 
         // test that the vault's balance decreased after closing short when ITM
         assert.isAbove(
-          parseInt(depositAmountInAsset.toString()),
+          parseInt(depositAmount.toString()),
           parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
         );
 
@@ -1858,49 +1699,17 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        const currBalance = await vault.totalBalance();
+        const currBalance = await assetContract.balanceOf(vault.address);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-        let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(vault);
-
-        let startMarginBalance = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
+        await vault.connect(keeperSigner).commitNextOption();
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        let endMarginBalance = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
-
-        let vaultFees = secondInitialLockedBalance
-          .add(queuedWithdrawAmount)
-          .sub(pendingAmount)
-          .mul(await vault.managementFee())
-          .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
-        // Performance fee is included because still net positive on week
-        vaultFees = vaultFees.add(
-          secondInitialLockedBalance
-            .add(queuedWithdrawAmount)
-            .sub((await vault.vaultState()).lastLockedAmount)
-            .sub(pendingAmount)
-            .mul(await vault.performanceFee())
-            .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
-        );
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
-        assert.equal(
-          (await vault.vaultState()).lockedAmount.toString(),
-          currBalance.sub(vaultFees).toString()
-        );
 
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            secondOptionAddress,
-            endMarginBalance.sub(startMarginBalance),
-            keeper
-          );
+          .withArgs(secondOptionAddress, currBalance, keeper);
 
         assert.bnEqual(
           await assetContract.balanceOf(vault.address),
@@ -1909,30 +1718,22 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when calling before expiry", async function () {
-        const EXPECTED_ERROR = "31";
+        const EXPECTED_ERROR = "C31";
 
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
 
-        await time.increaseTo(
-          (await vault.nextOptionReadyAt()).toNumber() + 12341 + 1
-        );
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).commitNextOption();
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
-
-        const finalMarginPoolBal = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            finalMarginPoolBal.sub(initialMarginPoolBal),
-            keeper
-          );
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         // 100% of the vault's balance is allocated to short
         assert.bnEqual(
@@ -1941,7 +1742,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
 
         await expect(
-          vault.connect(ownerSigner).commitAndClose()
+          vault.connect(ownerSigner).closeRound()
         ).to.be.revertedWith(EXPECTED_ERROR);
       });
 
@@ -1951,105 +1752,124 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.00551538"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         const firstTx = await vault.connect(keeperSigner).rollToNextOption();
-
-        const finalMarginPoolBal = await assetContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
 
         await expect(firstTx)
           .to.emit(vault, "OpenShort")
-          .withArgs(
-            firstOptionAddress,
-            finalMarginPoolBal.sub(initialMarginPoolBal),
-            keeper
-          );
+          .withArgs(firstOptionAddress, depositAmount, keeper);
 
         let bidMultiplier = 1;
 
-        const auctionDetails = await bidForOToken(
-          gnosisAuction,
-          assetContract,
+        const offerId = await vault.optionAuctionID();
+        const offerDetails = await swapContract.swapOffers(offerId);
+
+        const totalSize = offerDetails.totalSize;
+        const minPrice = offerDetails.minPrice;
+        const buyAmount = totalSize.div(bidMultiplier);
+        const sellAmount = buyAmount
+          .mul(minPrice)
+          .div(10 ** 8)
+          .add(1);
+
+        await assetContract
+          .connect(userSigner)
+          .approve(swapContract.address, sellAmount);
+
+        const bid: Bid = {
+          swapId: offerId.toString(),
+          nonce: 1,
+          signerWallet: userSigner.address,
+          sellAmount: sellAmount.toString(), // > than the minimumPrice
+          buyAmount: buyAmount.toString(), // > than minimumBid
+          referrer: constants.AddressZero,
+        };
+
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
           userSigner.address,
-          defaultOtokenAddress,
-          firstOptionPremium,
-          tokenDecimals,
-          bidMultiplier.toString(),
-          auctionDuration
+          bid
         );
 
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
+        // Check that the vault receives the correct amount of proceeds from the swap
+        const tx = await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
+        let auctionProceeds = await assetContract.balanceOf(vault.address);
 
-        // only the premium should be left over because the funds are locked into Opyn
-        assert.isAbove(
-          parseInt((await assetContract.balanceOf(vault.address)).toString()),
-          (parseInt(auctionDetails[2].toString()) * 99) / 100
+        await expect(tx).to.emit(swapContract, "Swap").withArgs(
+          offerId.toString(),
+          1,
+          userSigner.address,
+          auctionProceeds, // The sell amount from emitted event should equal to the vault's balance
+          buyAmount.toString(),
+          constants.AddressZero,
+          0
         );
 
         const settlementPriceOTM = isPut
-          ? firstOptionStrike.add(10000000000)
-          : firstOptionStrike.sub(10000000000);
+          ? firstOptionStrike.add(1)
+          : firstOptionStrike.sub(1);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM,
-          collateralAsset
+          settlementPriceOTM
         );
 
-        const beforeBalance = await collateralContract.balanceOf(vault.address);
+        const beforeBalance = await assetContract.balanceOf(vault.address);
+        const beforeBalanceAfterFees = beforeBalance
+          .sub(auctionProceeds.mul(await vault.performanceFee()).div(10 ** 8))
+          .sub(
+            auctionProceeds
+              .add(depositAmount)
+              .mul(await vault.managementFee())
+              .div(10 ** 8)
+          );
 
+        const secondInitialTotalBalance = await vault.totalBalance();
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
+        let pendingAmount = (await vault.vaultState()).totalPending;
+
+        const firstCloseTx = await vault.connect(ownerSigner).closeRound();
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
-        const firstCloseTx = await vault.connect(ownerSigner).commitAndClose();
+        const afterBalance = await assetContract.balanceOf(vault.address);
 
-        const afterBalance = await collateralContract.balanceOf(vault.address);
-
-        const depositAmountInAsset = (await collateralContract.balanceOf(
-          vault.address
-        )).sub(beforeBalance);
-
-        // test that the vault's balance decreased after closing short when ITM
+        // test that the vault's balance does not decrease after expiring OTM
+        // we also need to adjust for fees
         assert.equal(
-          parseInt(depositAmountInAsset.toString()),
-          parseInt(BigNumber.from(afterBalance).sub(beforeBalance).toString())
+          parseInt(depositAmount.toString()),
+          parseInt(afterBalance.sub(beforeBalanceAfterFees).toString())
         );
 
         await expect(firstCloseTx)
           .to.emit(vault, "CloseShort")
           .withArgs(
             firstOptionAddress,
-            BigNumber.from(afterBalance).sub(beforeBalance),
+            BigNumber.from(afterBalance.sub(beforeBalanceAfterFees)),
             owner
           );
 
         // Time increase to after next option available
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-        let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(vault);
-
-        let startMarginBalance = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
+        await vault.connect(keeperSigner).commitNextOption();
         const secondTx = await vault.connect(keeperSigner).rollToNextOption();
-        let endMarginBalance = await collateralContract.balanceOf(
-          MARGIN_POOL[chainId]
-        );
 
         let vaultFees = secondInitialLockedBalance
           .add(queuedWithdrawAmount)
           .sub(pendingAmount)
           .mul(await vault.managementFee())
           .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)));
+
         vaultFees = vaultFees.add(
           secondInitialLockedBalance
             .add(queuedWithdrawAmount)
@@ -2059,36 +1879,21 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
         );
 
+        const totalBalanceAfterFee = await vault.totalBalance();
+
         assert.equal(
-          secondInitialLockedBalance
-            .sub((await vault.vaultState()).lockedAmount)
-            .toString(),
+          secondInitialTotalBalance.sub(totalBalanceAfterFee).toString(),
           vaultFees.toString()
         );
 
         assert.equal(await vault.currentOption(), secondOptionAddress);
         assert.equal(await getCurrentOptionExpiry(), secondOption.expiry);
 
-        assert.bnLt(
-          (await vault.vaultState()).lockedAmount,
-          depositAmount.add(beforeBalance).add(auctionDetails[2]).sub(vaultFees).toString()
-        );
-
-        assert.bnGt(
-          (await vault.vaultState()).lockedAmount,
-          depositAmount
-            .add(auctionDetails[2])
-            .sub(vaultFees)
-            .mul(99)
-            .div(100)
-            .toString()
-        );
-
         await expect(secondTx)
           .to.emit(vault, "OpenShort")
           .withArgs(
             secondOptionAddress,
-            endMarginBalance.sub(startMarginBalance),
+            depositAmount.add(auctionProceeds).sub(vaultFees),
             keeper
           );
 
@@ -2105,82 +1910,102 @@ function behavesLikeRibbonOptionsVault(params: {
           depositAmount,
           ownerSigner
         );
-        await vault.connect(keeperSigner).setMinPrice(parseEther("30"));
+        await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
-
         await vault
           .connect(ownerSigner)
           .initiateWithdraw(params.depositAmount.div(2));
+
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike,
-          collateralAsset
+          firstOptionStrike
         );
-        await vault.connect(ownerSigner).commitAndClose();
+
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
+
         let [, queuedWithdrawAmountInitial] = await lockedBalanceForRollover(
           vault
         );
 
         let bidMultiplier = 1;
 
-        const auctionDetails = await bidForOToken(
-          gnosisAuction,
-          assetContract,
-          userSigner.address,
-          await vault.currentOption(),
-          (await vault.currentOtokenPremium()).mul(105).div(100),
-          tokenDecimals,
-          bidMultiplier.toString(),
-          auctionDuration
-        );
+        const offerId = await vault.optionAuctionID();
+        const offerDetails = await swapContract.swapOffers(offerId);
+        const totalSize = offerDetails.totalSize;
+        const minPrice = offerDetails.minPrice;
+        const buyAmount = totalSize.div(bidMultiplier);
+        const sellAmount = buyAmount
+          .mul(minPrice)
+          .div(10 ** 8)
+          .add(1);
 
-        await gnosisAuction
+        await assetContract
           .connect(userSigner)
-          .settleAuction(auctionDetails[0]);
+          .approve(swapContract.address, sellAmount);
 
-        // only the premium should be left over because the funds are locked into Opyn
-        assert.isAbove(
-          parseInt((await assetContract.balanceOf(vault.address)).toString()),
-          (parseInt(auctionDetails[2].toString()) * 99) / 100
+        const bid: Bid = {
+          swapId: offerId.toString(),
+          nonce: 1,
+          signerWallet: userSigner.address,
+          sellAmount: sellAmount.toString(), // > than the minimumPrice
+          buyAmount: buyAmount.toString(), // > than minimumBid
+          referrer: constants.AddressZero,
+        };
+
+        const signedBid = await generateSignedBid(
+          chainId,
+          swapContract.address,
+          userSigner.address,
+          bid
         );
 
+        await vault
+          .connect(keeperSigner)
+          .settleOffer([Object.values(signedBid)]);
+
+        let newOptionStrike = await (
+          await getContractAt("IOtoken", await vault.currentOption())
+        ).strikePrice();
         const settlementPriceOTM = isPut
-          ? firstOptionStrike.add(10000000000)
-          : firstOptionStrike.sub(10000000000);
+          ? newOptionStrike.add(1)
+          : newOptionStrike.sub(1);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceOTM,
-          collateralAsset
+          settlementPriceOTM
         );
 
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
 
         await vault.initiateWithdraw(params.depositAmount.div(2));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        let pendingAmount = (await vault.vaultState()).totalPending;
+        let [secondInitialLockedBalance, queuedWithdrawAmount] =
+          await lockedBalanceForRollover(vault);
+
+        const secondInitialBalance = await vault.totalBalance();
+
+        await vault.connect(ownerSigner).closeRound();
 
         // Time increase to after next option available
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
-        let pendingAmount = (await vault.vaultState()).totalPending;
-
-        let [secondInitialLockedBalance, queuedWithdrawAmount] =
-          await lockedBalanceForRollover(vault);
-        const secondInitialBalance = await vault.totalBalance();
-
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
         let vaultFees = secondInitialLockedBalance
@@ -2197,34 +2022,19 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(BigNumber.from(100).mul(BigNumber.from(10).pow(6)))
         );
 
-        let dustForWithdraw = queuedWithdrawAmount
-          .mul(await vault.YEARN_WITHDRAWAL_BUFFER())
-          .div(10000);
-
-        assert.bnLt(
-          vaultFees,
-          secondInitialBalance
-            .sub(await vault.totalBalance())
-            .add(dustForWithdraw)
-            .mul(110)
-            .div(100)
-        );
-        assert.bnGt(
-          vaultFees,
-          secondInitialBalance
-            .sub(await vault.totalBalance())
-            .add(dustForWithdraw)
-            .mul(90)
-            .div(100)
+        assert.equal(
+          secondInitialBalance.sub(await vault.totalBalance()).toString(),
+          vaultFees.toString()
         );
       });
 
       it("is not able to roll to new option consecutively without setNextOption", async function () {
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
@@ -2232,18 +2042,70 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("!nextOption");
       });
 
+      it("does not debit the user on first deposit", async () => {
+        await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
+
+        await vault.connect(ownerSigner).closeRound();
+        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+
+        // totalBalance should remain the same before and after roll
+        const startBalance = await vault.totalBalance();
+
+        await vault.connect(keeperSigner).commitNextOption();
+        await vault.connect(keeperSigner).rollToNextOption();
+
+        assert.bnEqual(await vault.totalBalance(), startBalance);
+        assert.bnEqual(await vault.accountVaultBalance(user), depositAmount);
+
+        // simulate a profit by transferring some tokens
+        await assetContract
+          .connect(userSigner)
+          .transfer(vault.address, BigNumber.from(1));
+
+        // totalBalance should remain the same before and after roll
+        const secondStartBalance = await vault.totalBalance();
+
+        await rollToSecondOption(firstOptionStrike);
+
+        // After the first round, the user is charged the fee
+        assert.bnLt(await vault.totalBalance(), secondStartBalance);
+        assert.bnLt(await vault.accountVaultBalance(user), depositAmount);
+      });
+
       it("fits gas budget [ @skip-on-coverage ]", async function () {
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
 
+        await vault.connect(keeperSigner).commitNextOption();
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1131000);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 967000); //963542, 1082712
+        // console.log("rollToNextOption", receipt.gasUsed.toNumber());
+      });
+    });
 
-        //console.log("rollToNextOption", receipt.gasUsed.toNumber());
+    describe("#assetBalance", () => {
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(
+          params.collateralAsset,
+          vault,
+          params.depositAmount
+        );
+
+        await rollToNextOption();
+      });
+
+      it("returns the free balance - locked, if free > locked", async function () {
+        const newDepositAmount = BigNumber.from("1000000000000");
+        await depositIntoVault(params.collateralAsset, vault, newDepositAmount);
+
+        assert.bnEqual(
+          await assetContract.balanceOf(vault.address),
+          newDepositAmount
+        );
       });
     });
 
@@ -2305,12 +2167,12 @@ function behavesLikeRibbonOptionsVault(params: {
           await assetContract.balanceOf(vault.address),
           BigNumber.from(0)
         );
-        assert.bnEqual(await vault.balanceOf(user), depositAmount);
+        assert.bnEqual(await vault.balanceOf(user), params.depositAmount);
         assert.bnEqual(await vault.balanceOf(vault.address), BigNumber.from(0));
 
         await expect(tx)
           .to.emit(vault, "Redeem")
-          .withArgs(user, depositAmount, 1);
+          .withArgs(user, params.depositAmount, 1);
 
         const { round, amount, unredeemedShares } = await vault.depositReceipts(
           user
@@ -2390,12 +2252,12 @@ function behavesLikeRibbonOptionsVault(params: {
         await assetContract
           .connect(userSigner)
           .transfer(owner, params.depositAmount);
-
         await vault.connect(ownerSigner).deposit(params.depositAmount);
         await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
 
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
         // Mid-week deposit in round 2
@@ -2408,28 +2270,32 @@ function behavesLikeRibbonOptionsVault(params: {
         ).add(vaultState.lockedAmount);
 
         const beforePps = await vault.pricePerShare();
+
+        const AMOUNT = {
+          [CHAINID.ETH_MAINNET]: "100000000000",
+          [CHAINID.AVAX_MAINNET]: "1000000000",
+        };
+
         const settlementPriceITM = isPut
-          ? firstOptionStrike.sub(100000000000)
-          : firstOptionStrike.add(100000000000);
+          ? firstOptionStrike.sub(AMOUNT[chainId])
+          : firstOptionStrike.add(AMOUNT[chainId]);
 
         // withdraw 100% because it's OTM
         await setOpynOracleExpiryPrice(
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          settlementPriceITM,
-          collateralAsset
+          settlementPriceITM
         );
+
         await strikeSelection.setDelta(params.deltaSecondOption);
-        await vault.connect(ownerSigner).commitAndClose();
+
+        await vault.connect(ownerSigner).closeRound();
         const afterBalance = await assetContract.balanceOf(vault.address);
         const afterPps = await vault.pricePerShare();
         const expectedMintAmountAfterLoss = params.depositAmount
           .mul(BigNumber.from(10).pow(params.tokenDecimals))
           .div(afterPps);
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-        await vault.connect(keeperSigner).rollToNextOption();
 
         assert.bnGt(beforeBalance, afterBalance);
         assert.bnGt(beforePps, afterPps);
@@ -2440,7 +2306,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx1 = await vault.connect(ownerSigner).maxRedeem();
         await expect(tx1)
           .to.emit(vault, "Redeem")
-          .withArgs(owner, depositAmount, 1);
+          .withArgs(owner, params.depositAmount, 1);
 
         const {
           round: round1,
@@ -2450,7 +2316,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(round1, 1);
         assert.bnEqual(amount1, BigNumber.from(0));
         assert.bnEqual(unredeemedShares1, BigNumber.from(0));
-        assert.bnEqual(await vault.balanceOf(owner), depositAmount);
+        assert.bnEqual(await vault.balanceOf(owner), params.depositAmount);
 
         // User deposit in round 2 so no loss
         // we should use the pps after the loss which is the lower pps
@@ -2702,13 +2568,12 @@ function behavesLikeRibbonOptionsVault(params: {
           params.asset,
           oracle,
           await getCurrentOptionExpiry(),
-          firstOptionStrike,
-          collateralAsset
+          firstOptionStrike
         );
-
         await vault.connect(ownerSigner).setStrikePrice(secondOptionStrike);
-        await vault.connect(ownerSigner).commitAndClose();
+        await vault.connect(ownerSigner).closeRound();
         await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+        await vault.connect(keeperSigner).commitNextOption();
         await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(
@@ -2979,100 +2844,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
-    describe("#startAuction", () => {
-      let otoken: Contract;
-      let initialOtokenBalance: BigNumber;
-      let startOtokenPrice: BigNumber;
-      const depositAmount = params.depositAmount;
-
-      time.revertToSnapshotAfterEach(async function () {
-        await depositIntoVault(params.collateralAsset, vault, depositAmount);
-
-        await setupOracle(
-          params.asset,
-          params.underlyingPricer,
-          ownerSigner,
-          OPTION_PROTOCOL.GAMMA
-        );
-
-        await vault.connect(keeperSigner).setMinPrice(parseEther("0.01"));
-        await vault.connect(ownerSigner).commitAndClose();
-        startOtokenPrice = await vault.currentOtokenPremium();
-
-        await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
-
-        await vault.connect(keeperSigner).rollToNextOption();
-        const { currentOption } = await vault.optionState();
-        otoken = await ethers.getContractAt("IERC20", currentOption);
-        initialOtokenBalance = await otoken.balanceOf(gnosisAuction.address);
-      });
-
-      it("restarts the auction process", async () => {
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + auctionDuration
-        );
-
-        // we simulate settling the auction without any bids
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await gnosisAuction.auctionCounter());
-
-        const afterOtokenBalance = await otoken.balanceOf(vault.address);
-        assert.bnEqual(initialOtokenBalance, afterOtokenBalance);
-
-        // We increase the discount so the otoken min price should go down
-        await vault.connect(keeperSigner).setMinPrice(parseEther("0.001"));
-        await vault.connect(keeperSigner).startAuction();
-
-        assert.bnEqual(
-          await otoken.balanceOf(gnosisAuction.address),
-          initialOtokenBalance
-        );
-
-        // otoken price is decreased on the auction
-        const minPrice = await getAuctionMinPrice(gnosisAuction, tokenDecimals);
-        assert.bnLt(minPrice, startOtokenPrice);
-      });
-
-      it("reverts when first auction fully sells out", async () => {
-        await bidForOToken(
-          gnosisAuction,
-          assetContract,
-          userSigner.address,
-          defaultOtokenAddress,
-          parseEther("1"),
-          tokenDecimals,
-          "1",
-          auctionDuration
-        );
-
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + auctionDuration
-        );
-
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await gnosisAuction.auctionCounter());
-
-        await expect(
-          vault.connect(keeperSigner).startAuction()
-        ).to.be.revertedWith("No otokens to sell");
-      });
-
-      it("reverts when not keeper", async () => {
-        await time.increaseTo(
-          (await provider.getBlock("latest")).timestamp + auctionDuration
-        );
-
-        // we simulate settling the auction without any bids
-        await gnosisAuction
-          .connect(userSigner)
-          .settleAuction(await gnosisAuction.auctionCounter());
-
-        await expect(vault.startAuction()).to.be.revertedWith("!keeper");
-      });
-    });
-
     describe("#stake", () => {
       let liquidityGauge: Contract;
 
@@ -3265,24 +3036,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(round2, 1);
         assert.bnEqual(amount2, BigNumber.from(0));
         assert.bnEqual(unredeemedShares2, BigNumber.from(0));
-      });
-    });
-
-    describe("#upgradeYearnVault", () => {
-      const depositAmount = params.depositAmount;
-
-      time.revertToSnapshotAfterEach(async function () {
-        await assetContract
-          .connect(userSigner)
-          .approve(vault.address, params.depositAmount);
-
-        await depositIntoVault(params.depositAsset, vault, depositAmount);
-      });
-
-      it("should revert if not owner", async function () {
-        await expect(
-          vault.connect(userSigner).upgradeYearnVault()
-        ).to.be.revertedWith("Ownable: caller is not the owner");
       });
     });
 
@@ -3748,28 +3501,6 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(await position.round, 0);
         assert.bnEqual(await position.shares, BigNumber.from(0));
       });
-    });
-
-    describe("#yearnPause", () => {
-      time.revertToSnapshotAfterEach();
-
-      it("sets yearnPaused to true initially", async function () {
-        assert.equal(await vault.isYearnPaused(), true);
-      });
-
-      it("should revert if setYearnPaused called by non owner", async function () {
-        await expect(
-          vault.connect(userSigner).setYearnPaused(false)
-        ).to.be.revertedWith("Ownable: caller is not the owner");
-      });
-
-      it("should set isYearnPaused", async function () {
-        await vault.connect(ownerSigner).setYearnPaused(false);
-        assert.equal(await vault.isYearnPaused(), false);
-        await vault.connect(ownerSigner).setYearnPaused(true);
-        assert.equal(await vault.isYearnPaused(), true);
-      });
-
     });
   });
 }
