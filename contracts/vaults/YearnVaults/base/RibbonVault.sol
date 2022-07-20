@@ -105,12 +105,6 @@ contract RibbonVault is
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/MarginPool.sol
     address public immutable MARGIN_POOL;
 
-<<<<<<< HEAD
-=======
-    // Yearn registry contract
-    address public immutable YEARN_REGISTRY;
-
->>>>>>> d492e6e84175bb958443b453fdd38260f6c51e3f
     // SWAP_CONTRACT is a contract for settling bids via signed messages
     // https://github.com/ribbon-finance/ribbon-v2/blob/master/contracts/utils/Swap.sol
     address public immutable SWAP_CONTRACT;
@@ -154,10 +148,6 @@ contract RibbonVault is
      * @param _usdc is the USDC contract
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
-<<<<<<< HEAD
-=======
-     * @param _yearnRegistry is the address of the yearn registry from token to vault token
->>>>>>> d492e6e84175bb958443b453fdd38260f6c51e3f
      * @param _swapContract is the contract address that facilitates bids settlement
      */
     constructor(
@@ -165,10 +155,6 @@ contract RibbonVault is
         address _usdc,
         address _gammaController,
         address _marginPool,
-<<<<<<< HEAD
-=======
-        address _yearnRegistry,
->>>>>>> d492e6e84175bb958443b453fdd38260f6c51e3f
         address _swapContract
     ) {
         require(_weth != address(0), "!_weth");
@@ -181,10 +167,6 @@ contract RibbonVault is
         USDC = _usdc;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
-<<<<<<< HEAD
-=======
-        YEARN_REGISTRY = _yearnRegistry;
->>>>>>> d492e6e84175bb958443b453fdd38260f6c51e3f
         SWAP_CONTRACT = _swapContract;
     }
 
