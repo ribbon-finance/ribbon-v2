@@ -5,9 +5,7 @@ import {
   OTOKEN_FACTORY,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
-  GNOSIS_EASY_AUCTION,
   WETH_ADDRESS,
-  YEARN_REGISTRY_ADDRESS,
 } from "../../constants/constants";
 
 const main = async ({
@@ -21,13 +19,9 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycle = await deployments.get("VaultLifecycleWithSwap");
 
-  const lifecycleYearn = await deploy("VaultLifecycleYearn", {
-    contract: "VaultLifecycleYearn",
-    from: deployer,
-  });
-  console.log(`VaultLifeCycleYearn @ ${lifecycleYearn.address}`);
+  const swapAddress = (await deployments.get("Swap")).address;
 
   const args = [
     WETH_ADDRESS[chainId],
@@ -35,8 +29,7 @@ const main = async ({
     OTOKEN_FACTORY[chainId],
     GAMMA_CONTROLLER[chainId],
     MARGIN_POOL[chainId],
-    GNOSIS_EASY_AUCTION[chainId],
-    YEARN_REGISTRY_ADDRESS,
+    swapAddress
   ];
 
   const vault = await deploy("RibbonThetaVaultYearnLogic", {
@@ -44,20 +37,10 @@ const main = async ({
     from: deployer,
     args,
     libraries: {
-      VaultLifecycle: lifecycle.address,
-      VaultLifecycleYearn: lifecycleYearn.address,
+      VaultLifecycleWithSwap: lifecycle.address
     },
   });
   console.log(`RibbonThetaYearnVaultLogic @ ${vault.address}`);
-
-  try {
-    await run("verify:verify", {
-      address: lifecycleYearn.address,
-      constructorArguments: [],
-    });
-  } catch (error) {
-    console.log(error);
-  }
 
   try {
     await run("verify:verify", {
