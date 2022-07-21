@@ -15,6 +15,7 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import {IYearnVault} from "../../../interfaces/IYearn.sol";
 import {Vault} from "../../../libraries/Vault.sol";
 import {
     VaultLifecycleWithSwap
@@ -67,6 +68,9 @@ contract RibbonVault is
 
     /// @notice Management fee charged on entire AUM in rollToNextOption. Only charged when there is no loss.
     uint256 public managementFee;
+
+    /// @notice Yearn vault contract
+    IYearnVault public collateralToken;
 
     // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
     uint256[30] private ____gap;
