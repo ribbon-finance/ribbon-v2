@@ -96,7 +96,7 @@
         "RibbonThetaVaultAPECall": "0xc0cF10Dd710aefb209D9dc67bc746510ffd98A53",
         "RibbonThetaVaultETHCall": "0x25751853Eab4D0eB3652B5eB6ecB102A2789644B",
         "RibbonThetaVaultETHCallWithSwap": "0xa413CcF8e9EB83c0d50EB8c69C524C927381DCf9",
-        "RibbonThetaVaultETHPutYearn": "0xCc323557c71C0D1D20a1861Dc69c06C5f3cC9624",
+        "RibbonThetaVaultETHPutYearn": "0x678F0D1725D06c13672e117a4125568bEef8a67E",
         "RibbonThetaVaultLogic": "0xbEba74374e7cf9362FdEDD0b9E2Bc4a04549E4ad",
         "RibbonThetaVaultLogic10D": "0x0FF7C2D2a935d31D354bF7ea7FDaD39DE0141a5A",
         "RibbonThetaVaultRETHCall": "0xA1Da0580FA96129E753D736a5901C31Df5eC5edf",
@@ -105,7 +105,7 @@
         "RibbonThetaVaultWBTCCall": "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F",
         "RibbonThetaVaultWBTCCallWithSwap": "0x460e0fC092bEbB74BDd80c593Bad99D97A3A23d0",
         "RibbonThetaVaultWithSwapLogic": "0x7a6A812188D01D08DEF011356b98425997800429",
-        "RibbonThetaVaultYearnLogic": "0xb1AAb30c0Cf2f1E9AD262F2Bf216e9A428B93425",
+        "RibbonThetaVaultYearnLogic": "0x41fDd39De8Ea5530070E1D084c35464Fd37CbD3E",
         "RibbonTreasuryVaultLogic": "0xc92E6B70eB6456171d32C3B5904386c05EC983FF",
         "RibbonVaultPauserETH": "0xE04e8Ae290965AD4F7E40c68041c493d2e89cDC3",
         "STETHDepositHelper": "0x07F36CF3c834E423536680F560b6BaD0319f5411",
@@ -122,6 +122,6 @@
         "VaultLifecycleSTETH": "0x21f0FF1D33F76B938dec63cfFe0eE6171F4Bd6B0",
         "VaultLifecycleTreasury": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
         "VaultLifecycleWithSwap": "0xf7F4260943DB50EEE7e917330C35B460fF70aD54",
-        "VaultLifecycleYearn": "0x2431d422Be262bD522aB8eda9834421F2489b216"
+        "VaultLifecycleYearn": "0xE2635CC6CE168E45b47551a1454ad6f4ee769AB1"
     }
 }
