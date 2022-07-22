@@ -445,14 +445,9 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
      * @notice Burn the remaining oTokens left over
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
-        uint256 unlockedAssetAmount =
-            VaultLifecycleWithSwap.burnOtokens(
-                GAMMA_CONTROLLER,
-                optionState.currentOption
-            );
-
-        vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+        VaultLifecycleWithSwap.burnOtokens(
+            GAMMA_CONTROLLER,
+            optionState.currentOption
         );
     }
 
