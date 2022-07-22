@@ -1758,6 +1758,28 @@ function behavesLikeRibbonOptionsVault(params: {
           )
         );
       });
+
+      it("burns and allow rerun routines without any change", async function () {
+        await rollToFirstOption();
+
+        const oTokenBalanceBeforeBurn = await defaultOtoken.balanceOf(
+          vault.address
+        );
+        const lockedAmountBeforeBurn = (await vault.vaultState()).lockedAmount;
+        const pricePerShareBeforeBurn = await vault.pricePerShare();
+        vault.connect(keeperSigner).burnRemainingOTokens();
+
+        await rollToFirstOption();
+        const lockedAmountAfterReroll = (await vault.vaultState()).lockedAmount;
+        const oTokenBalanceAfterReroll = await defaultOtoken.balanceOf(
+          vault.address
+        );
+        const pricePerShareAfterReroll = await vault.pricePerShare();
+
+        assert.bnEqual(oTokenBalanceBeforeBurn, oTokenBalanceAfterReroll);
+        assert.bnEqual(lockedAmountBeforeBurn, lockedAmountAfterReroll);
+        assert.bnEqual(pricePerShareBeforeBurn, pricePerShareAfterReroll);
+      });
     });
 
     describe("#rollToNextOption", () => {
