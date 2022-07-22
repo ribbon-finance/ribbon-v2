@@ -1760,6 +1760,10 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("burns and allow rerun routines without any change", async function () {
+        const assetBalanceBeforeBurn = await assetContract.balanceOf(
+          vault.address
+        );
+
         await rollToFirstOption();
 
         const oTokenBalanceBeforeBurn = await defaultOtoken.balanceOf(
@@ -1767,8 +1771,12 @@ function behavesLikeRibbonOptionsVault(params: {
         );
         const lockedAmountBeforeBurn = (await vault.vaultState()).lockedAmount;
         const pricePerShareBeforeBurn = await vault.pricePerShare();
+
         vault.connect(keeperSigner).burnRemainingOTokens();
 
+        const assetBalanceBeforeReroll = await assetContract.balanceOf(
+          vault.address
+        );
         await rollToFirstOption();
         const lockedAmountAfterReroll = (await vault.vaultState()).lockedAmount;
         const oTokenBalanceAfterReroll = await defaultOtoken.balanceOf(
@@ -1779,6 +1787,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnEqual(oTokenBalanceBeforeBurn, oTokenBalanceAfterReroll);
         assert.bnEqual(lockedAmountBeforeBurn, lockedAmountAfterReroll);
         assert.bnEqual(pricePerShareBeforeBurn, pricePerShareAfterReroll);
+        assert.bnEqual(assetBalanceBeforeBurn, assetBalanceBeforeReroll);
       });
     });
 
