@@ -2,14 +2,12 @@ import { ethers, network } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import {
   GAMMA_CONTROLLER,
-  GNOSIS_EASY_AUCTION,
   MARGIN_POOL,
   OTOKEN_FACTORY,
   USDC_ADDRESS,
   WETH_ADDRESS,
   WSTETH_ADDRESS,
   LDO_ADDRESS,
-  STETH_ETH_CRV_POOL,
   CHAINLINK_WETH_PRICER_STETH,
   WSTETH_PRICER,
   YEARN_PRICER_OWNER,
