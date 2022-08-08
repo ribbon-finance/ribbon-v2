@@ -75,6 +75,7 @@ describe("RibbonThetaVault upgrade", () => {
       "RibbonThetaVaultWBTCCall",
       "RibbonThetaVaultAAVECall",
       "RibbonThetaVaultAPECall",
+      "RibbonThetaVaultRETHCall",
     ];
     deploymentNames.forEach((name) => vaults.push(deployments.mainnet[name]));
   });

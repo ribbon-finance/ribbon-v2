@@ -36,7 +36,7 @@ const IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14972200;
+const FORK_BLOCK = 15301004;
 
 const TEST_USER = "0xacf9e821c7099f5ba022a7cc5341b8a3b10f0c99";
 
@@ -122,19 +122,23 @@ describe("RibbonThetaSTETHVault upgrade", () => {
 
     variables = await getVariablesFromContract(vault);
 
-    const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+    const VaultLifecycle = await ethers.getContractFactory(
+      "VaultLifecycleWithSwap"
+    );
     const VaultLifecycleLib = await VaultLifecycle.deploy();
 
     const VaultLifecycleSTETH = await ethers.getContractFactory(
       "VaultLifecycleSTETH"
     );
     const VaultLifecycleSTETHLib = await VaultLifecycleSTETH.deploy();
+    const Swap = await ethers.getContractFactory("Swap");
+    const SwapContract = await Swap.deploy();
 
     const RibbonThetaSTETHVault = await ethers.getContractFactory(
       "RibbonThetaSTETHVault",
       {
         libraries: {
-          VaultLifecycle: VaultLifecycleLib.address,
+          VaultLifecycleWithSwap: VaultLifecycleLib.address,
           VaultLifecycleSTETH: VaultLifecycleSTETHLib.address,
         },
       }
@@ -147,8 +151,7 @@ describe("RibbonThetaSTETHVault upgrade", () => {
       OTOKEN_FACTORY[CHAINID],
       GAMMA_CONTROLLER[CHAINID],
       MARGIN_POOL[CHAINID],
-      GNOSIS_EASY_AUCTION[CHAINID],
-      STETH_ETH_CRV_POOL
+      SwapContract.address
     );
     newImplementation = newImplementationContract.address;
 
@@ -235,7 +238,8 @@ New: ${JSON.stringify(newVariables, null, 4)}`
         collateralPricerSigner,
         await getCurrentOptionExpiry()
       );
-      await vault.connect(keeperSigner).commitAndClose();
+      await vault.connect(keeperSigner).closeRound();
+      await vault.connect(keeperSigner).commitNextOption();
       await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
       await vault.connect(keeperSigner).rollToNextOption();
       const balance0 = await steth.balanceOf(TEST_USER);
@@ -255,8 +259,9 @@ New: ${JSON.stringify(newVariables, null, 4)}`
         collateralPricerSigner,
         await getCurrentOptionExpiry()
       );
-      await vault.connect(keeperSigner).commitAndClose();
-      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 1);
+      await vault.connect(keeperSigner).closeRound();
+      await vault.connect(keeperSigner).commitNextOption();
+      await time.increaseTo((await vault.nextOptionReadyAt()).toNumber() + 100);
       await vault.connect(keeperSigner).rollToNextOption();
       await vault.connect(userSigner).completeWithdraw();
 
