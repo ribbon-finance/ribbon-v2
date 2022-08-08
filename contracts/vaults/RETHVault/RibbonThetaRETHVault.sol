@@ -26,7 +26,7 @@ import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
  * Any changes/appends in storage variable needs to happen in RibbonThetaVaultStorage.
  * RibbonThetaVault should not inherit from any other contract aside from RibbonVault, RibbonThetaVaultStorage
  */
-contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
+contract RibbonThetaRETHVault is RibbonVault, RibbonThetaVaultStorage {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
