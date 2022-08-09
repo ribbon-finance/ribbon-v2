@@ -30,7 +30,13 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`07 - Deploying Theta Vault stETH logic on ${network.name}`);
 
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycle = await deployments.get("VaultLifecycleWithSwap");
+  // const lifecycle = await deploy("VaultLifecycleWithSwap", {
+  //   contract: "VaultLifecycle",
+  //   from: deployer,
+  // });
+
+  const swapAddress = (await deployments.get("Swap")).address;
 
   const lifecycleSTETH = await deploy("VaultLifecycleSTETH", {
     contract: "VaultLifecycleSTETH",
@@ -46,7 +52,7 @@ const main = async ({
     OTOKEN_FACTORY[chainId],
     GAMMA_CONTROLLER[chainId],
     MARGIN_POOL[chainId],
-    GNOSIS_EASY_AUCTION[chainId],
+    swapAddress,
   ];
 
   const vault = await deploy("RibbonThetaVaultSTETHLogic", {
@@ -54,7 +60,7 @@ const main = async ({
     from: deployer,
     args,
     libraries: {
-      VaultLifecycle: lifecycle.address,
+      VaultLifecycleWithSwap: lifecycle.address,
       VaultLifecycleSTETH: lifecycleSTETH.address,
     },
   });
