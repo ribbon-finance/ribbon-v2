@@ -27,8 +27,6 @@ import {
   APE_OWNER_ADDRESS,
   APE_PRICER,
   RETH_ADDRESS,
-  RETH_OWNER_ADDRESS,
-  RETH_PRICER,
   GNOSIS_EASY_AUCTION,
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
