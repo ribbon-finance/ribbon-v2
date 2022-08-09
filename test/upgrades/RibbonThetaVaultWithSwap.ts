@@ -6,6 +6,7 @@ import {
   MARGIN_POOL,
   OPTION_PROTOCOL,
   OTOKEN_FACTORY,
+  SWAP_CONTRACT,
   USDC_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
@@ -35,7 +36,7 @@ const USER_ACCOUNT_1 = "0xbA304E6d2bBb7Bc84a247693E34Be1bed2e2cCc2";
 const USER_ACCOUNT_2 = "0xc9596e90ea2b30159889F1883077609eec048dB7";
 
 // UPDATE THESE VALUES BEFORE WE ATTEMPT AN UPGRADE
-const FORK_BLOCK = 14972200;
+const FORK_BLOCK = 15301215;
 
 const CHAINID = process.env.CHAINID ? Number(process.env.CHAINID) : 1;
 
@@ -84,7 +85,7 @@ describe("RibbonThetaVault upgrade", () => {
   checkWithdrawal(deployments.mainnet.RibbonThetaVaultETHCall);
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultWBTCCall);
   checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultAAVECall);
-  checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultAPECall);
+  // checkIfStorageNotCorrupted(deployments.mainnet.RibbonThetaVaultRETHCall);
 });
 
 function checkWithdrawal(vaultAddress: string) {
@@ -308,9 +309,9 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
     "liquidityGauge",
     "optionsPurchaseQueue",
     "currentQueuedWithdrawShares",
+    "vaultPauser",
   ];
-
-  const newVariables = ["offerExecutor"];
+  const newVariables = [];
 
   let variables: Record<string, unknown> = {};
 
@@ -333,14 +334,16 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
 
       variables = await getVariablesFromContract(vault);
 
-      const VaultLifecycle = await ethers.getContractFactory("VaultLifecycle");
+      const VaultLifecycle = await ethers.getContractFactory(
+        "VaultLifecycleWithSwap"
+      );
       const vaultLifecycleLib = await VaultLifecycle.deploy();
 
       const RibbonThetaVault = await ethers.getContractFactory(
-        "RibbonThetaVault",
+        "RibbonThetaVaultWithSwap",
         {
           libraries: {
-            VaultLifecycle: vaultLifecycleLib.address,
+            VaultLifecycleWithSwap: vaultLifecycleLib.address,
           },
         }
       );
@@ -351,7 +354,7 @@ function checkIfStorageNotCorrupted(vaultAddress: string) {
         OTOKEN_FACTORY[CHAINID],
         GAMMA_CONTROLLER[CHAINID],
         MARGIN_POOL[CHAINID],
-        GNOSIS_EASY_AUCTION[CHAINID]
+        SWAP_CONTRACT[CHAINID]
       );
       newImplementation = newImplementationContract.address;
     });
