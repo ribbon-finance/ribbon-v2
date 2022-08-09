@@ -2,7 +2,6 @@ import { ethers, network } from "hardhat";
 import {
   CHAINLINK_WETH_PRICER,
   GAMMA_CONTROLLER,
-  GNOSIS_EASY_AUCTION,
   MARGIN_POOL,
   OPTION_PROTOCOL,
   OTOKEN_FACTORY,
