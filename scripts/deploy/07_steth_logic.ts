@@ -29,11 +29,10 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`07 - Deploying Theta Vault stETH logic on ${network.name}`);
 
-  const lifecycle = await deployments.get("VaultLifecycleWithSwap");
-  // const lifecycle = await deploy("VaultLifecycleWithSwap", {
-  //   contract: "VaultLifecycle",
-  //   from: deployer,
-  // });
+  const lifecycle = await deploy("VaultLifecycleWithSwap", {
+    contract: "VaultLifecycleWithSwap",
+    from: deployer,
+  });
 
   const swapAddress = (await deployments.get("Swap")).address;
 
