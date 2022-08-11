@@ -35,13 +35,13 @@ const main = async ({
   const strikeSelection = "0xab40513b6f0a33a68b59ccf90cb6f892b4be1573"; //await deployments.get("StrikeSelectionETH");
 
   const logicDeployment = await deployments.get("RibbonThetaVaultRETHLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycle = await deployments.get("VaultLifecycleWithSwap");
 
   const RibbonThetaRETHVault = await ethers.getContractFactory(
     "RibbonThetaRETHVault",
     {
       libraries: {
-        VaultLifecycle: lifecycle.address,
+        VaultLifecycleWithSwap: lifecycle.address,
       },
     }
   );
