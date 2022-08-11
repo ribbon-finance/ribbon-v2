@@ -1,12 +1,7 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { CHAINID, WETH_ADDRESS } from "../../constants/constants";
-import {
-  MANAGEMENT_FEE,
-  PERFORMANCE_FEE,
-  PREMIUM_DISCOUNT,
-  AUCTION_DURATION,
-} from "../utils/constants";
+import { MANAGEMENT_FEE, PERFORMANCE_FEE } from "../utils/constants";
 
 const main = async ({
   network,
@@ -31,36 +26,36 @@ const main = async ({
 
   console.log(`08 - Deploying stETH Call Theta Vault on ${network.name}`);
 
-  const pricer = await deployments.get("OptionsPremiumPricerETH");
+  const pricer = await deployments.get("OptionsPremiumPricerETHCall");
 
-  const strikeSelection = await deployments.get("StrikeSelectionETH");
+  const strikeSelection = await deployments.get("StrikeSelectionETHCall");
 
   const logicDeployment = await deployments.get("RibbonThetaVaultSTETHLogic");
-  const lifecycle = await deployments.get("VaultLifecycle");
+  const lifecycle = await deployments.get("VaultLifecycleWithSwap");
   const lifecycleSTETH = await deployments.get("VaultLifecycleSTETH");
 
   const RibbonThetaSTETHVault = await ethers.getContractFactory(
     "RibbonThetaSTETHVault",
     {
       libraries: {
-        VaultLifecycle: lifecycle.address,
+        VaultLifecycleWithSwap: lifecycle.address,
         VaultLifecycleSTETH: lifecycleSTETH.address,
       },
     }
   );
 
   const initArgs = [
-    owner,
-    keeper,
-    feeRecipient,
-    MANAGEMENT_FEE,
-    PERFORMANCE_FEE,
-    "Ribbon stETH Theta Vault",
-    "rstETH-THETA",
-    pricer.address,
-    strikeSelection.address,
-    PREMIUM_DISCOUNT,
-    AUCTION_DURATION,
+    [
+      owner,
+      keeper,
+      feeRecipient,
+      MANAGEMENT_FEE,
+      PERFORMANCE_FEE,
+      "Ribbon stETH Theta Vault",
+      "rstETH-THETA",
+      pricer.address,
+      strikeSelection.address,
+    ],
     {
       isPut: false,
       decimals: 18,
