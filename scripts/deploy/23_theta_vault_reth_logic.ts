@@ -6,7 +6,6 @@ import {
   OTOKEN_FACTORY,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
-  GNOSIS_EASY_AUCTION,
 } from "../../constants/constants";
 
 const main = async ({
@@ -20,11 +19,13 @@ const main = async ({
 
   const chainId = network.config.chainId;
 
-  const lifecycle = await deploy("VaultLifecycle", {
-    contract: "VaultLifecycle",
+  const lifecycle = await deploy("VaultLifecycleWithSwap", {
+    contract: "VaultLifecycleWithSwap",
     from: deployer,
   });
-  console.log(`VaultLifeCycle @ ${lifecycle.address}`);
+  console.log(`VaultLifecycleWithSwap @ ${lifecycle.address}`);
+
+  const swapAddress = (await deployments.get("Swap")).address;
 
   const vault = await deploy("RibbonThetaVaultRETHLogic", {
     contract: "RibbonThetaRETHVault",
@@ -35,10 +36,10 @@ const main = async ({
       OTOKEN_FACTORY[chainId],
       GAMMA_CONTROLLER[chainId],
       MARGIN_POOL[chainId],
-      GNOSIS_EASY_AUCTION[chainId],
+      swapAddress,
     ],
     libraries: {
-      VaultLifecycle: lifecycle.address,
+      VaultLifecycleWithSwap: lifecycle.address,
     },
   });
   console.log(`RibbonThetaVaultRETHLogic @ ${vault.address}`);
@@ -61,7 +62,7 @@ const main = async ({
         OTOKEN_FACTORY[chainId],
         GAMMA_CONTROLLER[chainId],
         MARGIN_POOL[chainId],
-        GNOSIS_EASY_AUCTION[chainId],
+        swapAddress,
       ],
     });
   } catch (error) {
