@@ -14,7 +14,7 @@ abstract contract SwapStorageV1 {
     uint256 public offersCounter;
     // Mapping of swap offer details for a given swapId
     mapping(uint256 => ISwap.Offer) public swapOffers;
-    // Mapping of referral fees for a given address
+    // Mapping of referral fees for a given address, 1000000 = 100%
     mapping(address => uint256) public referralFees;
     // Mapping of authorized delegate for a given address
     mapping(address => address) public authorized;
@@ -26,10 +26,15 @@ abstract contract SwapStorageV1 {
     mapping(address => mapping(uint256 => uint256)) internal _nonceGroups;
 }
 
+abstract contract SwapStorageV2 {
+    // Price feed for looking up value of asset
+    mapping(address => address) public priceFeeds;
+}
+
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of SwapStorage
 // e.g. SwapStorage<versionNumber>, so finally it would look like
 // contract SwapStorage is SwapStorageV1, SwapStorageV2
-abstract contract SwapStorage is SwapStorageV1 {
+abstract contract SwapStorage is SwapStorageV1, SwapStorageV2 {
 
 }
