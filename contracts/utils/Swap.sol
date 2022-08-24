@@ -60,8 +60,8 @@ contract Swap is
             )
         );
 
-    uint256 internal constant MAX_PERCENTAGE = 1000000;
-    uint256 internal constant MAX_FEE = 125000; // 12.5%
+    uint256 public constant MAX_PERCENTAGE = 1000000;
+    uint256 public constant MAX_FEE = 125000; // 12.5%
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
@@ -465,14 +465,13 @@ contract Swap is
             uint256 feePercent = referralFees[bid.referrer];
 
             if (feePercent > 0) {
-                uint256 feeAmount =
+                feeAmount =
                     calculateReferralFee(
                         details.oToken,
                         feePercent,
                         bid.buyAmount,
                         bid.sellAmount
                     );
-                feeAmount = (bid.sellAmount * feePercent) / MAX_PERCENTAGE;
 
                 IERC20(details.biddingToken).safeTransferFrom(
                     bid.signerWallet,
