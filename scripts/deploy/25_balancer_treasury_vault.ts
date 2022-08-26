@@ -107,7 +107,7 @@ const main = async ({
       _owner: owner,
       _keeper: keeper,
       _feeRecipient: feeRecipient,
-      _managementFee: MANAGEMENT_FEE,
+      _managementFee: 0,
       _performanceFee: PERFORMANCE_FEE,
       _tokenName: "Ribbon BAL Treasury Vault",
       _tokenSymbol: "rBAL-TSRY",
