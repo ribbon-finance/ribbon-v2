@@ -11,7 +11,6 @@ import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremi
 import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   AUCTION_DURATION,
-  MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
   STRIKE_STEP,
