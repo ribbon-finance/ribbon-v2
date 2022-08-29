@@ -9,8 +9,10 @@ import * as time from "../helpers/time";
 import { deployProxy, mintToken } from "../helpers/utils";
 import {
   BLOCK_NUMBER,
+  ETH_PRICE_ORACLE,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
+  WBTC_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
 const { getContractAt } = ethers;
@@ -28,6 +30,8 @@ describe("Swap", () => {
   let swap: Contract;
   let usdcAddress: string;
   let wethAddress: string;
+  let wbtcAddress: string;
+  let wethPriceFeed: string;
 
   let wethContract: Contract;
   let usdcContract: Contract;
@@ -145,6 +149,10 @@ describe("Swap", () => {
     // MINT WETH FOR KEEPER AND GIVE ALLOWANCE TO SWAP CONTRACT
     wethAddress = WETH_ADDRESS[chainId];
     wethContract = await getContractAt("IWETH", wethAddress);
+    wbtcAddress = WBTC_ADDRESS[chainId];
+
+    wethPriceFeed = ETH_PRICE_ORACLE[chainId];
+    await swap.connect(ownerSigner).setPriceFeed(wethAddress, wethPriceFeed);
 
     await wethContract
       .connect(keeperSigner)
@@ -979,6 +987,93 @@ describe("Swap", () => {
           parseEther("0.005")
         ),
         parseEther("0.00004")
+      );
+    });
+
+    it("calculates the correct fee for WBTC covered calls using the max fee", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wbtcAddress, false);
+
+      // fee on contracts = 1*0.0004 = 0.0004
+      // fee on premium = 0.001*0.125 = 0.000125
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          BigNumber.from(10).pow(8),
+          parseUnits("0.001", 8)
+        ),
+        parseUnits("0.000125", 8)
+      );
+    });
+
+    it("calculates the correct fee for WBTC covered calls using 4bps", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wbtcAddress, false);
+
+      // fee on contracts = 100*0.0004 = 0.04
+      // fee on premium = 0.05*0.125 = 0.00625
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("0.1", 8),
+          parseUnits("0.005", 8)
+        ),
+        parseUnits("0.00004", 8)
+      );
+    });
+
+    it("calculates the correct fee for ETH puts using the max fee", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, true);
+
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("100", 8),
+          parseUnits("0.1", 6)
+        ),
+        parseUnits("0.0125", 6)
+      );
+    });
+
+    it("calculates the correct fee for ETH puts using 4bps", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, true);
+
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("0.05", 8),
+          parseUnits("10", 6)
+        ),
+        parseUnits("0.061005", 6)
+      );
+    });
+  });
+
+  describe("#setPriceFeed", () => {
+    it("reverts if not owner", async () => {
+      await expect(
+        swap.connect(userSigner).setPriceFeed(wethAddress, wethPriceFeed)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  describe("#getMarketPrice", () => {
+    it("gets the market price from chainlink", async () => {
+      assert.bnEqual(
+        await swap.getMarketPrice(wethAddress),
+        BigNumber.from("305026145262")
+      );
+    });
+
+    it("reverts if no price feed set", async () => {
+      await expect(swap.getMarketPrice(wbtcAddress)).to.be.revertedWith(
+        "NO_PRICE_FEED_SET"
       );
     });
   });
