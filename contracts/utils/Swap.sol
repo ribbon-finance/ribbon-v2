@@ -17,6 +17,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import "hardhat/console.sol";
 
 interface IOtoken {
     function underlyingAsset() external view returns (address);
@@ -574,8 +575,12 @@ contract Swap is
             uint256 notional = (numContracts * marketPrice) / 10**8; // both numContracts and marketPrice are 10**8
             fee = (notional * feePercent) / MAX_PERCENTAGE;
         } else {
-            fee = (numContracts * feePercent) / MAX_PERCENTAGE;
+            IERC20Detailed underlying = IERC20Detailed(otoken.underlyingAsset());
+            uint underlyingDecimals = underlying.decimals();
+            uint numContractsInUnderlying = numContracts * 10**(underlyingDecimals - 8);
+            fee = (numContractsInUnderlying * feePercent) / MAX_PERCENTAGE;
         }
+        console.log(fee, maxFee);
 
         if (fee > maxFee) {
             return maxFee;
