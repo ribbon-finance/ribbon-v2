@@ -363,7 +363,7 @@ contract Swap is
 
         if (
             IOtoken(offer.oToken).isPut() &&
-            priceFeeds[IOtoken(offer.oToken).underlyingAsset()] != address(0)
+            priceFeeds[IOtoken(offer.oToken).underlyingAsset()] == address(0)
         ) {
             errors[errCount] = "NO_PRICE_FEED_SET";
             errCount++;

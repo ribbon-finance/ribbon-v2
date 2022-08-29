@@ -1093,13 +1093,22 @@ describe("Swap", () => {
   });
 
   describe("#check", () => {
+    let otoken: Contract;
+
     time.revertToSnapshotAfterEach(async function () {
       await swap.connect(userSigner).authorize(owner);
+
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      otoken = await MockOtoken.deploy(wethAddress, true);
+      await otoken.connect(keeperSigner).mint(parseUnits("100", 8));
+      await otoken
+        .connect(keeperSigner)
+        .approve(swap.address, parseUnits("100", 8));
 
       await swap
         .connect(keeperSigner)
         .createOffer(
-          wethAddress,
+          otoken.address,
           usdcAddress,
           parseUnits("3", 6),
           parseUnits("0.01", 8),
