@@ -465,13 +465,12 @@ contract Swap is
             uint256 feePercent = referralFees[bid.referrer];
 
             if (feePercent > 0) {
-                feeAmount =
-                    calculateReferralFee(
-                        details.oToken,
-                        feePercent,
-                        bid.buyAmount,
-                        bid.sellAmount
-                    );
+                feeAmount = calculateReferralFee(
+                    details.oToken,
+                    feePercent,
+                    bid.buyAmount,
+                    bid.sellAmount
+                );
 
                 IERC20(details.biddingToken).safeTransferFrom(
                     bid.signerWallet,
@@ -576,13 +575,18 @@ contract Swap is
             uint256 notional = (numContracts * marketPrice) / 10**10;
             fee = (notional * feePercent) / MAX_PERCENTAGE;
         } else {
-            IERC20Detailed underlying = IERC20Detailed(otoken.underlyingAsset());
-            uint underlyingDecimals = underlying.decimals();
-            uint numContractsInUnderlying;
+            IERC20Detailed underlying =
+                IERC20Detailed(otoken.underlyingAsset());
+            uint256 underlyingDecimals = underlying.decimals();
+            uint256 numContractsInUnderlying;
             if (underlyingDecimals < 8) {
-                numContractsInUnderlying = numContracts / 10**(underlyingDecimals-8);
+                numContractsInUnderlying =
+                    numContracts /
+                    10**(underlyingDecimals - 8);
             } else {
-                numContractsInUnderlying = numContracts * 10**(underlyingDecimals - 8);
+                numContractsInUnderlying =
+                    numContracts *
+                    10**(underlyingDecimals - 8);
             }
             fee = (numContractsInUnderlying * feePercent) / MAX_PERCENTAGE;
         }
@@ -614,7 +618,10 @@ contract Swap is
         return uint256(price);
     }
 
-    function setPriceFeed(address asset, address aggregator) external onlyOwner {
+    function setPriceFeed(address asset, address aggregator)
+        external
+        onlyOwner
+    {
         priceFeeds[asset] = aggregator;
         emit SetPriceFeed(asset, aggregator);
     }
