@@ -169,7 +169,7 @@ describe("Swap", () => {
     });
 
     it("reverts when fee more than 100%", async function () {
-      await expect(swap.setFee(keeper, 100000)).to.be.revertedWith(
+      await expect(swap.setFee(keeper, 1000000)).to.be.revertedWith(
         "Fee exceeds maximum"
       );
     });
@@ -944,6 +944,42 @@ describe("Swap", () => {
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
       assert.isAtMost(receipt.gasUsed.toNumber(), 412000);
+    });
+  });
+
+  describe("#calculateReferralFee", () => {
+    it("calculates the correct fee for ETH covered calls using the max fee", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, false);
+
+      // fee on contracts = 1*0.0004 = 0.0004
+      // fee on premium = 0.001*0.125 = 0.000125
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          BigNumber.from(10).pow(8),
+          parseEther("0.001")
+        ),
+        parseEther("0.000125")
+      );
+    });
+
+    it("calculates the correct fee for ETH covered calls using 4bps", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, false);
+
+      // fee on contracts = 100*0.0004 = 0.04
+      // fee on premium = 0.05*0.125 = 0.00625
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("0.1", 8),
+          parseEther("0.005")
+        ),
+        parseEther("0.00004")
+      );
     });
   });
 
