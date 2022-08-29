@@ -323,6 +323,7 @@ describe("Swap", () => {
     const minPrice = parseUnits("3", 6);
     const minBidSize = parseUnits("0.01", 8);
     const totalSize = parseUnits("1", 8);
+    let otoken: Contract;
     let swapId: number;
 
     time.revertToSnapshotAfterEach(async function () {
@@ -330,9 +331,22 @@ describe("Swap", () => {
 
       await swap.connect(userSigner).authorize(owner);
 
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      otoken = await MockOtoken.deploy(wethAddress, true);
+      await otoken.connect(keeperSigner).mint(parseUnits("100", 8));
+      await otoken
+        .connect(keeperSigner)
+        .approve(swap.address, parseUnits("100", 8));
+
       await swap
         .connect(keeperSigner)
-        .createOffer(wethAddress, usdcAddress, minPrice, minBidSize, totalSize);
+        .createOffer(
+          otoken.address,
+          usdcAddress,
+          minPrice,
+          minBidSize,
+          totalSize
+        );
     });
 
     it("reverts when Only seller can settle or offer doesn't exist", async function () {
@@ -708,9 +722,9 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const userStartUsdcBalance = await usdcContract.balanceOf(user);
-      const userStartWethBalance = await wethContract.balanceOf(user);
+      const userStartWethBalance = await otoken.balanceOf(user);
       const keeperStartUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperStartWethBalance = await wethContract.balanceOf(keeper);
+      const keeperStartWethBalance = await otoken.balanceOf(keeper);
 
       const order = {
         swapId,
@@ -742,9 +756,9 @@ describe("Swap", () => {
         .withArgs(swapId, nonce, user, sellAmount, buyAmount, referrer, 0);
 
       const userEndUsdcBalance = await usdcContract.balanceOf(user);
-      const userEndWethBalance = await wethContract.balanceOf(user);
+      const userEndWethBalance = await otoken.balanceOf(user);
       const keeperEndUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperEndWethBalance = await wethContract.balanceOf(keeper);
+      const keeperEndWethBalance = await otoken.balanceOf(keeper);
 
       assert.bnEqual(
         buyAmount,
@@ -807,9 +821,9 @@ describe("Swap", () => {
       swap.setFee(feeRecipient, fee);
 
       const userStartUsdcBalance = await usdcContract.balanceOf(user);
-      const userStartWethBalance = await wethContract.balanceOf(user);
+      const userStartWethBalance = await otoken.balanceOf(user);
       const keeperStartUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperStartWethBalance = await wethContract.balanceOf(keeper);
+      const keeperStartWethBalance = await otoken.balanceOf(keeper);
       const referrerStartUsdcBalance = await usdcContract.balanceOf(referrer);
 
       const order = {
@@ -837,7 +851,7 @@ describe("Swap", () => {
         ],
       ];
 
-      const feeAmount = sellAmount.mul(fee).div(10000);
+      const feeAmount = parseUnits("0.375", 6);
 
       await expect(swap.connect(keeperSigner).settleOffer(swapId, bids))
         .to.emit(swap, "Swap")
@@ -852,9 +866,9 @@ describe("Swap", () => {
         );
 
       const userEndUsdcBalance = await usdcContract.balanceOf(user);
-      const userEndWethBalance = await wethContract.balanceOf(user);
+      const userEndWethBalance = await otoken.balanceOf(user);
       const keeperEndUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperEndWethBalance = await wethContract.balanceOf(keeper);
+      const keeperEndWethBalance = await otoken.balanceOf(keeper);
       const referrerEndUsdcBalance = await usdcContract.balanceOf(referrer);
 
       assert.bnEqual(
@@ -951,7 +965,7 @@ describe("Swap", () => {
       let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 412000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 433305);
     });
   });
 
