@@ -17,12 +17,7 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
-
-interface IOtoken {
-    function underlyingAsset() external view returns (address);
-
-    function isPut() external view returns (bool);
-}
+import {IOtoken} from "../interfaces/GammaInterface.sol";
 
 contract Swap is
     ISwap,
@@ -149,6 +144,22 @@ contract Swap is
         require(minPrice > 0, "MinPrice must be larger than zero");
         require(minBidSize > 0, "MinBidSize must be larger than zero");
         require(minBidSize <= totalSize, "MinBidSize exceeds total size");
+
+        if (IOtoken(oToken).isPut()) {
+            require(
+                priceFeeds[IOtoken(oToken).underlyingAsset()] != address(0),
+                "No price feed set"
+            );
+        }
+
+        // Check seller allowance
+        uint256 sellerAllowance =
+            IERC20(oToken).allowance(msg.sender, address(this));
+        require(sellerAllowance >= totalSize, "Seller allowance low");
+
+        // Check seller balance
+        uint256 sellerBalance = IERC20(oToken).balanceOf(msg.sender);
+        require(sellerBalance >= totalSize, "Seller balance low");
 
         offersCounter += 1;
 
@@ -343,29 +354,6 @@ contract Swap is
             IERC20(offer.biddingToken).balanceOf(bid.signerWallet);
         if (signerBalance < bid.sellAmount) {
             errors[errCount] = "SIGNER_BALANCE_LOW";
-            errCount++;
-        }
-
-        // Check seller allowance
-        uint256 sellerAllowance =
-            IERC20(offer.oToken).allowance(offer.seller, address(this));
-        if (sellerAllowance < bid.buyAmount) {
-            errors[errCount] = "SELLER_ALLOWANCE_LOW";
-            errCount++;
-        }
-
-        // Check seller balance
-        uint256 sellerBalance = IERC20(offer.oToken).balanceOf(offer.seller);
-        if (sellerBalance < bid.buyAmount) {
-            errors[errCount] = "SELLER_BALANCE_LOW";
-            errCount++;
-        }
-
-        if (
-            IOtoken(offer.oToken).isPut() &&
-            priceFeeds[IOtoken(offer.oToken).underlyingAsset()] == address(0)
-        ) {
-            errors[errCount] = "NO_PRICE_FEED_SET";
             errCount++;
         }
 
