@@ -9,8 +9,10 @@ import * as time from "../helpers/time";
 import { deployProxy, mintToken } from "../helpers/utils";
 import {
   BLOCK_NUMBER,
+  ETH_PRICE_ORACLE,
   USDC_ADDRESS,
   USDC_OWNER_ADDRESS,
+  WBTC_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
 const { getContractAt } = ethers;
@@ -28,6 +30,8 @@ describe("Swap", () => {
   let swap: Contract;
   let usdcAddress: string;
   let wethAddress: string;
+  let wbtcAddress: string;
+  let wethPriceFeed: string;
 
   let wethContract: Contract;
   let usdcContract: Contract;
@@ -145,6 +149,10 @@ describe("Swap", () => {
     // MINT WETH FOR KEEPER AND GIVE ALLOWANCE TO SWAP CONTRACT
     wethAddress = WETH_ADDRESS[chainId];
     wethContract = await getContractAt("IWETH", wethAddress);
+    wbtcAddress = WBTC_ADDRESS[chainId];
+
+    wethPriceFeed = ETH_PRICE_ORACLE[chainId];
+    await swap.connect(ownerSigner).setPriceFeed(wethAddress, wethPriceFeed);
 
     await wethContract
       .connect(keeperSigner)
@@ -169,7 +177,7 @@ describe("Swap", () => {
     });
 
     it("reverts when fee more than 100%", async function () {
-      await expect(swap.setFee(keeper, 100000)).to.be.revertedWith(
+      await expect(swap.setFee(keeper, 1000000)).to.be.revertedWith(
         "Fee exceeds maximum"
       );
     });
@@ -182,7 +190,16 @@ describe("Swap", () => {
   });
 
   describe("#createOffer", () => {
-    time.revertToSnapshotAfterTest();
+    let otoken: Contract;
+
+    time.revertToSnapshotAfterEach(async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      otoken = await MockOtoken.deploy(wethAddress, false);
+      await otoken.connect(keeperSigner).mint(parseUnits("100", 8));
+      await otoken
+        .connect(keeperSigner)
+        .approve(swap.address, parseUnits("100", 8));
+    });
 
     it("reverts when offeredToken is zero address", async function () {
       await expect(
@@ -193,7 +210,7 @@ describe("Swap", () => {
             usdcAddress,
             parseUnits("3", 6),
             parseUnits("0.01", 8),
-            parseEther("1")
+            parseUnits("1", 8)
           )
       ).to.be.revertedWith("oToken cannot be the zero address");
     });
@@ -203,11 +220,11 @@ describe("Swap", () => {
         swap
           .connect(keeperSigner)
           .createOffer(
-            wethAddress,
+            otoken.address,
             constants.AddressZero,
             parseUnits("3", 6),
             parseUnits("0.01", 8),
-            parseEther("1")
+            parseUnits("1", 8)
           )
       ).to.be.revertedWith("BiddingToken cannot be the zero address");
     });
@@ -217,11 +234,11 @@ describe("Swap", () => {
         swap
           .connect(keeperSigner)
           .createOffer(
-            wethAddress,
+            otoken.address,
             usdcAddress,
             0,
             parseUnits("0.01", 8),
-            parseEther("1")
+            parseUnits("1", 8)
           )
       ).to.be.revertedWith("MinPrice must be larger than zero");
     });
@@ -231,11 +248,11 @@ describe("Swap", () => {
         swap
           .connect(keeperSigner)
           .createOffer(
-            wethAddress,
+            otoken.address,
             usdcAddress,
             parseUnits("3", 6),
             0,
-            parseUnits("1", 6)
+            parseUnits("1", 8)
           )
       ).to.be.revertedWith("MinBidSize must be larger than zero");
     });
@@ -245,7 +262,7 @@ describe("Swap", () => {
         swap
           .connect(keeperSigner)
           .createOffer(
-            wethAddress,
+            otoken.address,
             usdcAddress,
             parseUnits("3", 6),
             parseUnits("0.01", 8),
@@ -259,7 +276,7 @@ describe("Swap", () => {
         swap
           .connect(keeperSigner)
           .createOffer(
-            wethAddress,
+            otoken.address,
             usdcAddress,
             parseUnits("3", 6),
             parseUnits("1.01", 8),
@@ -275,22 +292,22 @@ describe("Swap", () => {
         await swap
           .connect(keeperSigner)
           .createOffer(
-            wethAddress,
+            otoken.address,
             usdcAddress,
             parseUnits("3", 6),
             parseUnits("0.01", 8),
-            parseEther("1")
+            parseUnits("1", 8)
           )
       )
         .to.emit(swap, "NewOffer")
         .withArgs(
           swapId,
           keeper,
-          wethAddress,
+          otoken.address,
           usdcAddress,
           parseUnits("3", 6),
           parseUnits("0.01", 8),
-          parseEther("1")
+          parseUnits("1", 8)
         );
     });
 
@@ -298,16 +315,16 @@ describe("Swap", () => {
       const tx = await swap
         .connect(keeperSigner)
         .createOffer(
-          wethAddress,
+          otoken.address,
           usdcAddress,
           parseUnits("3", 6),
           parseUnits("0.01", 8),
-          parseEther("1")
+          parseUnits("1", 8)
         );
 
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 150000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 191334);
     });
   });
 
@@ -315,6 +332,7 @@ describe("Swap", () => {
     const minPrice = parseUnits("3", 6);
     const minBidSize = parseUnits("0.01", 8);
     const totalSize = parseUnits("1", 8);
+    let otoken: Contract;
     let swapId: number;
 
     time.revertToSnapshotAfterEach(async function () {
@@ -322,9 +340,22 @@ describe("Swap", () => {
 
       await swap.connect(userSigner).authorize(owner);
 
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      otoken = await MockOtoken.deploy(wethAddress, true);
+      await otoken.connect(keeperSigner).mint(parseUnits("100", 8));
+      await otoken
+        .connect(keeperSigner)
+        .approve(swap.address, parseUnits("100", 8));
+
       await swap
         .connect(keeperSigner)
-        .createOffer(wethAddress, usdcAddress, minPrice, minBidSize, totalSize);
+        .createOffer(
+          otoken.address,
+          usdcAddress,
+          minPrice,
+          minBidSize,
+          totalSize
+        );
     });
 
     it("reverts when Only seller can settle or offer doesn't exist", async function () {
@@ -700,9 +731,9 @@ describe("Swap", () => {
       const referrer = constants.AddressZero;
 
       const userStartUsdcBalance = await usdcContract.balanceOf(user);
-      const userStartWethBalance = await wethContract.balanceOf(user);
+      const userStartWethBalance = await otoken.balanceOf(user);
       const keeperStartUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperStartWethBalance = await wethContract.balanceOf(keeper);
+      const keeperStartWethBalance = await otoken.balanceOf(keeper);
 
       const order = {
         swapId,
@@ -734,9 +765,9 @@ describe("Swap", () => {
         .withArgs(swapId, nonce, user, sellAmount, buyAmount, referrer, 0);
 
       const userEndUsdcBalance = await usdcContract.balanceOf(user);
-      const userEndWethBalance = await wethContract.balanceOf(user);
+      const userEndWethBalance = await otoken.balanceOf(user);
       const keeperEndUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperEndWethBalance = await wethContract.balanceOf(keeper);
+      const keeperEndWethBalance = await otoken.balanceOf(keeper);
 
       assert.bnEqual(
         buyAmount,
@@ -799,9 +830,9 @@ describe("Swap", () => {
       swap.setFee(feeRecipient, fee);
 
       const userStartUsdcBalance = await usdcContract.balanceOf(user);
-      const userStartWethBalance = await wethContract.balanceOf(user);
+      const userStartWethBalance = await otoken.balanceOf(user);
       const keeperStartUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperStartWethBalance = await wethContract.balanceOf(keeper);
+      const keeperStartWethBalance = await otoken.balanceOf(keeper);
       const referrerStartUsdcBalance = await usdcContract.balanceOf(referrer);
 
       const order = {
@@ -829,7 +860,7 @@ describe("Swap", () => {
         ],
       ];
 
-      const feeAmount = sellAmount.mul(fee).div(10000);
+      const feeAmount = parseUnits("0.375", 6);
 
       await expect(swap.connect(keeperSigner).settleOffer(swapId, bids))
         .to.emit(swap, "Swap")
@@ -844,9 +875,9 @@ describe("Swap", () => {
         );
 
       const userEndUsdcBalance = await usdcContract.balanceOf(user);
-      const userEndWethBalance = await wethContract.balanceOf(user);
+      const userEndWethBalance = await otoken.balanceOf(user);
       const keeperEndUsdcBalance = await usdcContract.balanceOf(keeper);
-      const keeperEndWethBalance = await wethContract.balanceOf(keeper);
+      const keeperEndWethBalance = await otoken.balanceOf(keeper);
       const referrerEndUsdcBalance = await usdcContract.balanceOf(referrer);
 
       assert.bnEqual(
@@ -943,18 +974,150 @@ describe("Swap", () => {
       let tx = await swap.connect(keeperSigner).settleOffer(swapId, bids);
       const receipt = await tx.wait();
       // console.log(receipt.gasUsed.toNumber())
-      assert.isAtMost(receipt.gasUsed.toNumber(), 412000);
+      assert.isAtMost(receipt.gasUsed.toNumber(), 433305);
+    });
+  });
+
+  describe("#calculateReferralFee", () => {
+    it("calculates the correct fee for ETH covered calls using the max fee", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, false);
+
+      // fee on contracts = 1*0.0004 = 0.0004
+      // fee on premium = 0.001*0.125 = 0.000125
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          BigNumber.from(10).pow(8),
+          parseEther("0.001")
+        ),
+        parseEther("0.000125")
+      );
+    });
+
+    it("calculates the correct fee for ETH covered calls using 4bps", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, false);
+
+      // fee on contracts = 100*0.0004 = 0.04
+      // fee on premium = 0.05*0.125 = 0.00625
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("0.1", 8),
+          parseEther("0.005")
+        ),
+        parseEther("0.00004")
+      );
+    });
+
+    it("calculates the correct fee for WBTC covered calls using the max fee", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wbtcAddress, false);
+
+      // fee on contracts = 1*0.0004 = 0.0004
+      // fee on premium = 0.001*0.125 = 0.000125
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          BigNumber.from(10).pow(8),
+          parseUnits("0.001", 8)
+        ),
+        parseUnits("0.000125", 8)
+      );
+    });
+
+    it("calculates the correct fee for WBTC covered calls using 4bps", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wbtcAddress, false);
+
+      // fee on contracts = 100*0.0004 = 0.04
+      // fee on premium = 0.05*0.125 = 0.00625
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("0.1", 8),
+          parseUnits("0.005", 8)
+        ),
+        parseUnits("0.00004", 8)
+      );
+    });
+
+    it("calculates the correct fee for ETH puts using the max fee", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, true);
+
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("100", 8),
+          parseUnits("0.1", 6)
+        ),
+        parseUnits("0.0125", 6)
+      );
+    });
+
+    it("calculates the correct fee for ETH puts using 4bps", async () => {
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, true);
+
+      assert.bnEqual(
+        await swap.calculateReferralFee(
+          otoken.address,
+          400, // 4 bps
+          parseUnits("0.05", 8),
+          parseUnits("10", 6)
+        ),
+        parseUnits("0.061005", 6)
+      );
+    });
+  });
+
+  describe("#setPriceFeed", () => {
+    it("reverts if not owner", async () => {
+      await expect(
+        swap.connect(userSigner).setPriceFeed(wethAddress, wethPriceFeed)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  describe("#getMarketPrice", () => {
+    it("gets the market price from chainlink", async () => {
+      assert.bnEqual(
+        await swap.getMarketPrice(wethAddress),
+        BigNumber.from("305026145262")
+      );
+    });
+
+    it("reverts if no price feed set", async () => {
+      await expect(swap.getMarketPrice(wbtcAddress)).to.be.revertedWith(
+        "NO_PRICE_FEED_SET"
+      );
     });
   });
 
   describe("#check", () => {
+    let otoken: Contract;
+
     time.revertToSnapshotAfterEach(async function () {
       await swap.connect(userSigner).authorize(owner);
+
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      otoken = await MockOtoken.deploy(wethAddress, true);
+      await otoken.connect(keeperSigner).mint(parseUnits("100", 8));
+      await otoken
+        .connect(keeperSigner)
+        .approve(swap.address, parseUnits("100", 8));
 
       await swap
         .connect(keeperSigner)
         .createOffer(
-          wethAddress,
+          otoken.address,
           usdcAddress,
           parseUnits("3", 6),
           parseUnits("0.01", 8),
@@ -1106,9 +1269,22 @@ describe("Swap", () => {
     time.revertToSnapshotAfterEach(async function () {
       swapId = (await swap.offersCounter()).add(1);
 
+      const MockOtoken = await ethers.getContractFactory("MockOtoken");
+      const otoken = await MockOtoken.deploy(wethAddress, false);
+      await otoken.connect(keeperSigner).mint(parseUnits("100", 8));
+      await otoken
+        .connect(keeperSigner)
+        .approve(swap.address, parseUnits("100", 8));
+
       await swap
         .connect(keeperSigner)
-        .createOffer(wethAddress, usdcAddress, minPrice, minBidSize, totalSize);
+        .createOffer(
+          otoken.address,
+          usdcAddress,
+          minPrice,
+          minBidSize,
+          totalSize
+        );
     });
 
     it("reverts when offering does not exist", async function () {
