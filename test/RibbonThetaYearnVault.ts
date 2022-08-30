@@ -342,6 +342,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await deployProxy("Swap", adminSigner, swapInitializeArgs)
       ).connect(ownerSigner);
 
+      await swapContract
+        .connect(ownerSigner)
+        .setPriceFeed(WETH_ADDRESS[chainId], ETH_PRICE_ORACLE[chainId]);
+
       const initializeArgs = [
         owner,
         keeper,
