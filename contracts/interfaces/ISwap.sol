@@ -85,6 +85,8 @@ interface ISwap {
 
     event SetFee(address referrer, uint256 fee);
 
+    event SetPriceFeed(address asset, address aggregator);
+
     event SettleOffer(uint256 swapId);
 
     event Cancel(uint256 indexed nonce, address indexed signerWallet);

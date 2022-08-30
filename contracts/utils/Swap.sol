@@ -15,7 +15,9 @@ import {
 import {
     ERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IERC20Detailed} from "../interfaces/IERC20Detailed.sol";
+import {IOtoken} from "../interfaces/GammaInterface.sol";
 
 contract Swap is
     ISwap,
@@ -53,8 +55,8 @@ contract Swap is
             )
         );
 
-    uint256 internal constant MAX_PERCENTAGE = 10000;
-    uint256 internal constant MAX_FEE = 1000;
+    uint256 public constant MAX_PERCENTAGE = 1000000;
+    uint256 public constant MAX_FEE = 125000; // 12.5%
     uint256 internal constant MAX_ERROR_COUNT = 10;
     uint256 internal constant OTOKEN_DECIMALS = 8;
 
@@ -142,6 +144,22 @@ contract Swap is
         require(minPrice > 0, "MinPrice must be larger than zero");
         require(minBidSize > 0, "MinBidSize must be larger than zero");
         require(minBidSize <= totalSize, "MinBidSize exceeds total size");
+
+        if (IOtoken(oToken).isPut()) {
+            require(
+                priceFeeds[IOtoken(oToken).underlyingAsset()] != address(0),
+                "No price feed set"
+            );
+        }
+
+        // Check seller allowance
+        uint256 sellerAllowance =
+            IERC20(oToken).allowance(msg.sender, address(this));
+        require(sellerAllowance >= totalSize, "Seller allowance low");
+
+        // Check seller balance
+        uint256 sellerBalance = IERC20(oToken).balanceOf(msg.sender);
+        require(sellerBalance >= totalSize, "Seller balance low");
 
         offersCounter += 1;
 
@@ -339,21 +357,6 @@ contract Swap is
             errCount++;
         }
 
-        // Check seller allowance
-        uint256 sellerAllowance =
-            IERC20(offer.oToken).allowance(offer.seller, address(this));
-        if (sellerAllowance < bid.buyAmount) {
-            errors[errCount] = "SELLER_ALLOWANCE_LOW";
-            errCount++;
-        }
-
-        // Check seller balance
-        uint256 sellerBalance = IERC20(offer.oToken).balanceOf(offer.seller);
-        if (sellerBalance < bid.buyAmount) {
-            errors[errCount] = "SELLER_BALANCE_LOW";
-            errCount++;
-        }
-
         return (errCount, errors);
     }
 
@@ -450,7 +453,12 @@ contract Swap is
             uint256 feePercent = referralFees[bid.referrer];
 
             if (feePercent > 0) {
-                feeAmount = (bid.sellAmount * feePercent) / MAX_PERCENTAGE;
+                feeAmount = calculateReferralFee(
+                    details.oToken,
+                    feePercent,
+                    bid.buyAmount,
+                    bid.sellAmount
+                );
 
                 IERC20(details.biddingToken).safeTransferFrom(
                     bid.signerWallet,
@@ -531,6 +539,79 @@ contract Swap is
                 bid.r,
                 bid.s
             );
+    }
+
+    /**
+     * This function assumes that all CALL premiums are denominated in the Offer.biddingToken
+     * This could easily change if we enabled Paradigm for Treasury - Calls are sold for USDC.
+     * It assumes that all PUT premiums are denominated in USDC.
+     */
+    function calculateReferralFee(
+        address otokenAddress,
+        uint256 feePercent,
+        uint256 numContracts,
+        uint256 premium
+    ) public view returns (uint256) {
+        IOtoken otoken = IOtoken(otokenAddress);
+        uint256 maxFee = (premium * MAX_FEE) / MAX_PERCENTAGE;
+        uint256 fee;
+
+        if (otoken.isPut()) {
+            uint256 marketPrice = getMarketPrice(otoken.underlyingAsset());
+            // both numContracts and marketPrice are 10**8
+            // then you scale it down to 10**6 because of USDC
+            uint256 notional = (numContracts * marketPrice) / 10**10;
+            fee = (notional * feePercent) / MAX_PERCENTAGE;
+        } else {
+            IERC20Detailed underlying =
+                IERC20Detailed(otoken.underlyingAsset());
+            uint256 underlyingDecimals = underlying.decimals();
+            uint256 numContractsInUnderlying;
+            if (underlyingDecimals < 8) {
+                numContractsInUnderlying =
+                    numContracts /
+                    10**(underlyingDecimals - 8);
+            } else {
+                numContractsInUnderlying =
+                    numContracts *
+                    10**(underlyingDecimals - 8);
+            }
+            fee = (numContractsInUnderlying * feePercent) / MAX_PERCENTAGE;
+        }
+
+        if (fee > maxFee) {
+            return maxFee;
+        }
+        return fee;
+    }
+
+    function getMarketPrice(address asset) public view returns (uint256) {
+        address feed = priceFeeds[asset];
+        require(feed != address(0), "NO_PRICE_FEED_SET");
+        (
+            ,
+            /*uint80 roundID*/
+            int256 price,
+            ,
+            ,
+
+        ) =
+            /*uint startedAt*/
+            /*uint timeStamp*/
+            /*uint80 answeredInRound*/
+            AggregatorV3Interface(feed).latestRoundData();
+
+        require(price > 0, "INVALID_PRICE_FEED");
+
+        return uint256(price);
+    }
+
+    function setPriceFeed(address asset, address aggregator)
+        external
+        onlyOwner
+    {
+        priceFeeds[asset] = aggregator;
+        emit SetPriceFeed(asset, aggregator);
     }
 
     /**
