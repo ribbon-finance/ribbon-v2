@@ -116,6 +116,8 @@ contract RibbonVault is
     // https://github.com/ribbon-finance/ribbon-v2/blob/master/contracts/utils/Swap.sol
     address public immutable SWAP_CONTRACT;
 
+    address public immutable RETH_DEPOSIT_POOL = 0x2cac916b2A963Bf162f076C0a8a4a8200BCFBfb4;
+
     /************************************************
      *  EVENTS
      ***********************************************/
@@ -326,7 +328,7 @@ contract RibbonVault is
         _depositFor(rETHAmount, msg.sender);
 
         // Deposit ETH for rETH
-        IRETHDepositPool(0x4D05E3d48a938db4b7a9A59A802D5b45011BDe58).deposit{
+        IRETHDepositPool(RETH_DEPOSIT_POOL).deposit{
             value: msg.value
         }();
     }
