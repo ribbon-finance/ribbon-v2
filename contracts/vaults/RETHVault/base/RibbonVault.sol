@@ -72,7 +72,8 @@ contract RibbonVault is
     uint256 public managementFee;
 
     /// @notice depositETH transactions within 24hr are paused
-    uint256 public lastrETHMintCutoff;
+    /// DEPRECATED - BUT DO NOT REMOVE
+    uint256 private _lastrETHMintCutoff;
 
     // Gap is left to avoid storage collisions. Though RibbonVault is not upgradeable, we add this as a safety measure.
     uint256[30] private ____gap;
@@ -301,13 +302,6 @@ contract RibbonVault is
         vaultParams.cap = uint104(newCap);
     }
 
-    /**
-     * @notice Sets the new rETH mint cutoff
-     */
-    function updaterETHMintCutoff() external onlyKeeper {
-        lastrETHMintCutoff = block.timestamp;
-    }
-
     /************************************************
      *  DEPOSIT & WITHDRAWALS
      ***********************************************/
@@ -317,11 +311,6 @@ contract RibbonVault is
      */
     function depositETH() external payable nonReentrant {
         require(msg.value > 0, "!value");
-
-        // After minting rETH there is a period of 5760 blocks (~21 hours)
-        // where the minting wallet is not able to transfer any of its rETH tokens.
-        // To allow rollToNexOption to occur we must pause mints
-        require(block.timestamp.sub(lastrETHMintCutoff) >= 1 days, "!cutoff");
 
         uint256 rETHAmount = IRETH(vaultParams.asset).getRethValue(msg.value);
 
