@@ -142,19 +142,6 @@ library VaultLifecycleTreasury {
         return (otokenAddress, premium, strikePrice, delta);
     }
 
-    function getOTokenPremiumInStables(
-        address otokenAddress,
-        address optionsPremiumPricer,
-        uint256 premiumDiscount
-    ) public view returns (uint256) {
-        return
-            GnosisAuction.getOTokenPremiumInStables(
-                otokenAddress,
-                optionsPremiumPricer,
-                premiumDiscount
-            );
-    }
-
     /**
      * @notice Verify the otoken has the correct parameters to prevent vulnerability to opyn contract changes
      * @param otokenAddress is the address of the otoken
