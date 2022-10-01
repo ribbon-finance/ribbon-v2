@@ -880,9 +880,7 @@ contract RibbonTreasuryVault is
             VaultLifecycleTreasury.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
-                // hardcodes to store 100% of the otokenpremium
-                // to currentOtokenPremium as a hack
-                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
+                premiumDiscount,
                 closeParams,
                 vaultParams,
                 vaultState
@@ -966,9 +964,7 @@ contract RibbonTreasuryVault is
     function _startAuction() private {
         GnosisAuction.AuctionDetails memory auctionDetails;
 
-        uint256 currOtokenPremium = currentOtokenPremium.mul(premiumDiscount).div(
-            100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER
-        );
+        uint256 currOtokenPremium = currentOtokenPremium;
 
         require(currOtokenPremium > 0, "!currentOtokenPremium");
 
@@ -1080,6 +1076,10 @@ contract RibbonTreasuryVault is
             _depositors,
             vaultState.round - 1
         );
+    }
+
+    function setCurrentOtokenPremium(uint newOtokenPremium) public onlyOwner {
+        currentOtokenPremium = newOtokenPremium;
     }
 
     /************************************************
