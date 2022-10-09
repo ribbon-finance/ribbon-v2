@@ -7,7 +7,6 @@ import {
   USDC_ADDRESS,
   WETH_ADDRESS,
 } from "../../constants/constants";
-import { formatEther } from "ethers/lib/utils";
 import { Contract } from "ethers/lib/ethers";
 import { assert } from "../helpers/assertions";
 
