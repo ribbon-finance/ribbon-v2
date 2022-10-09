@@ -494,7 +494,7 @@ contract RibbonThetaVaultWithSwap is RibbonVault, RibbonThetaVaultStorage {
 
     function getAssetPerShare() internal view returns(uint) {
             return ShareMath.pricePerShare(
-                totalSupply(),
+                totalSupply() - vaultState.queuedWithdrawShares,
                 totalBalance() - uint(lastQueuedWithdrawAmount),
                 vaultState.totalPending,
                 vaultParams.decimals
