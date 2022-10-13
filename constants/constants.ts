@@ -5,6 +5,7 @@
 export enum CHAINID {
   ETH_MAINNET = 1, // eslint-disable-line no-unused-vars
   ETH_KOVAN = 42, // eslint-disable-line no-unused-vars
+  ETH_GOERLI = 5, // eslint-disable-line no-unused-vars
   AVAX_MAINNET = 43114, // eslint-disable-line no-unused-vars
   AVAX_FUJI = 43113, // eslint-disable-line no-unused-vars
 }
