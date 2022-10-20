@@ -37,6 +37,8 @@ jobs:
           TEST_URI: ${{ secrets.TEST_URI }}
           KOVAN_URI: ${{ secrets.TEST_URI }}
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
+          GOERLI_URI: ${{ secrets.GOERLI_URI }}
+          GOERLI_MNEMONIC: ${{ secrets.GOERLI_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
           AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
@@ -49,6 +51,8 @@ jobs:
           TEST_URI: ${{ secrets.TEST_URI }}
           KOVAN_URI: ${{ secrets.TEST_URI }}
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
+          GOERLI_URI: ${{ secrets.GOERLI_URI }}
+          GOERLI_MNEMONIC: ${{ secrets.GOERLI_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
           AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"

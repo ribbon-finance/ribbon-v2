@@ -142,7 +142,7 @@ export default {
   },
   etherscan: {
     apiKey:
-      CHAINID === 1 || CHAINID === 42
+      CHAINID === 1 || CHAINID === 42 || CHAINID === 5
         ? process.env.ETHERSCAN_API_KEY
         : process.env.SNOWTRACE_API_KEY,
   },
