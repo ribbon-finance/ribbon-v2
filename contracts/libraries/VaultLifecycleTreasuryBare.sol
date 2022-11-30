@@ -129,7 +129,7 @@ library VaultLifecycleTreasuryBare {
         );
 
         // get the black scholes premium of the option
-        premium = optionsPremiumPricer == address(0)
+        premium = optionsPremiumPricer == address(1)
             ? 1
             : GnosisAuction.getOTokenPremiumInStables(
                 otokenAddress,

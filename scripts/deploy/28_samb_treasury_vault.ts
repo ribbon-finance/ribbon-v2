@@ -41,7 +41,7 @@ const main = async ({
     "RibbonTreasuryVault",
     {
       libraries: {
-        VaultLifecycleTreasury: lifecycle.address,
+        VaultLifecycleTreasuryBare: lifecycle.address,
       },
     }
   );
