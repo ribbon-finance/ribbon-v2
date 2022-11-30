@@ -11,6 +11,7 @@ export const STRIKE_STEP = {
   BADGER: 0.1 * 1e8,
   BAL: 0.1 * 1e8,
   SPELL: 1000, // 0.00001 * 1e8
+  SAMB: 100000, // 0.001 * 1e8
 };
 
 export const STRIKE_DELTA = 1000; // 0.1d
@@ -26,3 +27,9 @@ export const PERP_STRIKE_MULTIPLIER = 125;
 export const BADGER_STRIKE_MULTIPLIER = 125;
 export const BAL_STRIKE_MULTIPLIER = 125;
 export const SPELL_STRIKE_MULTIPLIER = 125;
+export const SAMB_STRIKE_MULTIPLIER = 125;
+
+/**
+ * Util Addresses
+ */
+export const ONE_ADDRESS = "0x0000000000000000000000000000000000000001";
