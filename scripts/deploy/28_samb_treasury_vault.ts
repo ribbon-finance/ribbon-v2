@@ -31,10 +31,8 @@ const main = async ({
   }
 
   const logicDeployment = await deployments.get("RibbonTreasuryVaultLogic");
-  const lifecycle = await deploy("VaultLifecycleTreasuryBare", {
-    contract: "VaultLifecycleTreasuryBare",
-    from: deployer,
-  });
+  const lifecycle = await deployments.get("VaultLifecycleTreasuryBare");
+
   console.log(`VaultLifeCycleTreasuryBare @ ${lifecycle.address}`);
 
   const RibbonTreasuryVault = await ethers.getContractFactory(

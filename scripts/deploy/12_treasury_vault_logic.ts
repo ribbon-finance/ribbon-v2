@@ -31,8 +31,8 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
 
-  const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
-    contract: "VaultLifecycleTreasury",
+  const lifecycleTreasury = await deploy("VaultLifecycleTreasuryBare", {
+    contract: "VaultLifecycleTreasuryBare",
     from: deployer,
   });
   console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
@@ -43,13 +43,13 @@ const main = async ({
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      OTOKEN_FACTORY[chainId],
-      GAMMA_CONTROLLER[chainId],
-      MARGIN_POOL[chainId],
-      GNOSIS_EASY_AUCTION[chainId],
+      "0x4114b7C04bBbA682130cae2bA26FC5d2473B4Ddc",
+      "0x4bec71A4Ac41eE9761440F6921DD17bA1C1213B1",
+      "0x3c212A044760DE5a529B3Ba59363ddeCcc2210bE",
+      "0x0b7fFc1f4AD541A4Ed16b40D8c37f0929158D101",
     ],
     libraries: {
-      VaultLifecycleTreasury: lifecycleTreasury.address,
+      VaultLifeCycleTreasuryBare: lifecycleTreasury.address,
     },
   });
 
@@ -70,10 +70,10 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        OTOKEN_FACTORY[chainId],
-        GAMMA_CONTROLLER[chainId],
-        MARGIN_POOL[chainId],
-        GNOSIS_EASY_AUCTION[chainId],
+        "0x4114b7C04bBbA682130cae2bA26FC5d2473B4Ddc",
+        "0x4bec71A4Ac41eE9761440F6921DD17bA1C1213B1",
+        "0x3c212A044760DE5a529B3Ba59363ddeCcc2210bE",
+        "0x0b7fFc1f4AD541A4Ed16b40D8c37f0929158D101",
       ],
     });
   } catch (error) {
