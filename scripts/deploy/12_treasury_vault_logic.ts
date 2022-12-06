@@ -31,10 +31,7 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
 
-  const lifecycleTreasury = await deploy("VaultLifecycleTreasuryBare", {
-    contract: "VaultLifecycleTreasuryBare",
-    from: deployer,
-  });
+  const lifecycleTreasury = "0xB4a1b54141cE6C70b40527CeBd6F00fF70d94eEf"
   console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
 
   const vault = await deploy("RibbonTreasuryVaultLogic", {
@@ -49,7 +46,7 @@ const main = async ({
       "0x0b7fFc1f4AD541A4Ed16b40D8c37f0929158D101",
     ],
     libraries: {
-      VaultLifecycleTreasuryBare: lifecycleTreasury.address,
+      VaultLifecycleTreasuryBare: "0xB4a1b54141cE6C70b40527CeBd6F00fF70d94eEf",
     },
   });
 
