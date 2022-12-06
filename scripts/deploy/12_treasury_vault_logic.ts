@@ -49,7 +49,7 @@ const main = async ({
       "0x0b7fFc1f4AD541A4Ed16b40D8c37f0929158D101",
     ],
     libraries: {
-      VaultLifecycleTreasury: lifecycleTreasury.address,
+      VaultLifecycleTreasuryBare: lifecycleTreasury.address,
     },
   });
 
