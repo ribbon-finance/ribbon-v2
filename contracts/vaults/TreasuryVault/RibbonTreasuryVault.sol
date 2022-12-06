@@ -18,8 +18,8 @@ import {
 
 import {Vault} from "../../libraries/Vault.sol";
 import {
-    VaultLifecycleTreasury
-} from "../../libraries/VaultLifecycleTreasury.sol";
+    VaultLifeCycleTreasuryBare
+} from "../../libraries/VaultLifeCycleTreasuryBare.sol";
 import {
     RibbonTreasuryVaultStorage
 } from "../../storage/RibbonTreasuryVaultStorage.sol";
@@ -196,10 +196,10 @@ contract RibbonTreasuryVault is
      * @notice Initializes the OptionVault contract with storage variables.
      */
     function initialize(
-        VaultLifecycleTreasury.InitParams calldata _initParams,
+        VaultLifeCycleTreasuryBare.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
-        VaultLifecycleTreasury.verifyInitializerParams(
+        VaultLifeCycleTreasuryBare.verifyInitializerParams(
             _initParams,
             _vaultParams,
             MIN_AUCTION_DURATION
@@ -806,9 +806,9 @@ contract RibbonTreasuryVault is
                 newPricePerShare,
                 mintShares,
                 managementFeeInAsset
-            ) = VaultLifecycleTreasury.rollover(
+            ) = VaultLifeCycleTreasuryBare.rollover(
                 vaultState,
-                VaultLifecycleTreasury.RolloverParams(
+                VaultLifeCycleTreasuryBare.RolloverParams(
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
@@ -860,8 +860,8 @@ contract RibbonTreasuryVault is
     function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycleTreasury.CloseParams memory closeParams =
-            VaultLifecycleTreasury.CloseParams({
+        VaultLifeCycleTreasuryBare.CloseParams memory closeParams =
+            VaultLifeCycleTreasuryBare.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
@@ -877,7 +877,7 @@ contract RibbonTreasuryVault is
             uint256 strikePrice,
             uint256 delta
         ) =
-            VaultLifecycleTreasury.commitAndClose(
+            VaultLifeCycleTreasuryBare.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
@@ -922,7 +922,7 @@ contract RibbonTreasuryVault is
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycleTreasury.settleShort(GAMMA_CONTROLLER);
+                VaultLifeCycleTreasuryBare.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -944,7 +944,7 @@ contract RibbonTreasuryVault is
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycleTreasury.createShort(
+        VaultLifeCycleTreasuryBare.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -977,7 +977,7 @@ contract RibbonTreasuryVault is
         auctionDetails.oTokenPremium = currOtokenPremium;
         auctionDetails.duration = auctionDuration;
 
-        optionAuctionID = VaultLifecycleTreasury.startAuction(auctionDetails);
+        optionAuctionID = VaultLifeCycleTreasuryBare.startAuction(auctionDetails);
     }
 
     /**
@@ -985,7 +985,7 @@ contract RibbonTreasuryVault is
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
-            VaultLifecycleTreasury.burnOtokens(
+            VaultLifeCycleTreasuryBare.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
@@ -999,7 +999,7 @@ contract RibbonTreasuryVault is
      * @notice Settles the round's Gnosis auction and distribute the premiums earned
      */
     function concludeOptionsSale() external onlyKeeper nonReentrant {
-        VaultLifecycleTreasury.settleAuction(
+        VaultLifeCycleTreasuryBare.settleAuction(
             GNOSIS_EASY_AUCTION,
             optionAuctionID
         );
