@@ -17,10 +17,7 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const chainId = network.config.chainId;
 
-  if (
-    chainId === CHAINID.AVAX_MAINNET ||
-    chainId === CHAINID.AVAX_FUJI
-  ) {
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
     console.log(
       `12 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );
@@ -31,7 +28,10 @@ const main = async ({
   const { deployer } = await getNamedAccounts();
   console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
 
-  const lifecycleTreasury = "0xB4a1b54141cE6C70b40527CeBd6F00fF70d94eEf"
+  const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
+    contract: "VaultLifecycleTreasury",
+    from: deployer,
+  });
   console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
 
   const vault = await deploy("RibbonTreasuryVaultLogic", {
@@ -40,13 +40,13 @@ const main = async ({
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      "0x4114b7C04bBbA682130cae2bA26FC5d2473B4Ddc",
-      "0x4bec71A4Ac41eE9761440F6921DD17bA1C1213B1",
-      "0x3c212A044760DE5a529B3Ba59363ddeCcc2210bE",
-      "0x0b7fFc1f4AD541A4Ed16b40D8c37f0929158D101",
+      OTOKEN_FACTORY[chainId],
+      GAMMA_CONTROLLER[chainId],
+      MARGIN_POOL[chainId],
+      GNOSIS_EASY_AUCTION[chainId],
     ],
     libraries: {
-      VaultLifecycleTreasuryBare: "0xB4a1b54141cE6C70b40527CeBd6F00fF70d94eEf",
+      VaultLifecycleTreasury: lifecycleTreasury.address,
     },
   });
 
@@ -67,10 +67,10 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        "0x4114b7C04bBbA682130cae2bA26FC5d2473B4Ddc",
-        "0x4bec71A4Ac41eE9761440F6921DD17bA1C1213B1",
-        "0x3c212A044760DE5a529B3Ba59363ddeCcc2210bE",
-        "0x0b7fFc1f4AD541A4Ed16b40D8c37f0929158D101",
+        OTOKEN_FACTORY[chainId],
+        GAMMA_CONTROLLER[chainId],
+        MARGIN_POOL[chainId],
+        GNOSIS_EASY_AUCTION[chainId],
       ],
     });
   } catch (error) {
