@@ -8,7 +8,17 @@ import {
   MARGIN_POOL,
   GNOSIS_EASY_AUCTION,
   WETH_ADDRESS,
+  TD_OTOKEN_FACTORY,
+  TD_CONTROLLER,
+  TD_MARGIN_POOL,
 } from "../../constants/constants";
+
+interface args {
+  protocol: "10D" | "Gamma"; // Will deploy using 10D or Gamma OToken factory, controller and margin pool respectively
+}
+
+// Edit this based on the args you want to use
+const argsToUse: args = { protocol: null };
 
 const main = async ({
   network,
@@ -17,22 +27,19 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const chainId = network.config.chainId;
 
-  if (
-    chainId === CHAINID.AVAX_MAINNET ||
-    chainId === CHAINID.AVAX_FUJI
-  ) {
+  if (chainId === CHAINID.AVAX_MAINNET || chainId === CHAINID.AVAX_FUJI) {
     console.log(
-      `29 - Skipping deployment of Treasury Vault logic on ${network.name}`
+      `00 - Skipping deployment of Treasury Vault logic on ${network.name}`
     );
     return;
   }
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
+  console.log(`00 - Deploying Treasury Vault logic on ${network.name}`);
 
   const lifecycleTreasury = await deploy("VaultLifecycleTreasury", {
-    contract: "VaultLifecycleTreasuryBare",
+    contract: "VaultLifecycleTreasury",
     from: deployer,
   });
   console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
@@ -43,9 +50,15 @@ const main = async ({
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      OTOKEN_FACTORY[chainId],
-      GAMMA_CONTROLLER[chainId],
-      MARGIN_POOL[chainId],
+      argsToUse.protocol == "Gamma"
+        ? OTOKEN_FACTORY[chainId]
+        : TD_OTOKEN_FACTORY[chainId],
+      argsToUse.protocol == "Gamma"
+        ? GAMMA_CONTROLLER[chainId]
+        : TD_CONTROLLER[chainId],
+      argsToUse.protocol == "Gamma"
+        ? MARGIN_POOL[chainId]
+        : TD_MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
     ],
     libraries: {
@@ -70,9 +83,15 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        OTOKEN_FACTORY[chainId],
-        GAMMA_CONTROLLER[chainId],
-        MARGIN_POOL[chainId],
+        argsToUse.protocol == "Gamma"
+          ? OTOKEN_FACTORY[chainId]
+          : TD_OTOKEN_FACTORY[chainId],
+        argsToUse.protocol == "Gamma"
+          ? GAMMA_CONTROLLER[chainId]
+          : TD_CONTROLLER[chainId],
+        argsToUse.protocol == "Gamma"
+          ? MARGIN_POOL[chainId]
+          : TD_MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
       ],
     });
@@ -80,7 +99,7 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["TreasuryVaultBareLogic"];
-main.dependencies = []; //["ManualVolOracle", "RibbonTreasuryVaultLogic"];
+// Deploy with npx hardhat deploy --tags ManualRibbonTreasuryVaultLogic --network mainnet after editing args you want to use
+main.tags = ["ManualRibbonTreasuryVaultLogic"];
 
 export default main;
