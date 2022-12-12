@@ -130,7 +130,7 @@ library VaultLifecycleTreasury {
 
         // get the black scholes premium of the option
         premium = optionsPremiumPricer == address(1)
-            ? 10000000 // Arbitrarily large number which means no options premium pricer, and we just set this as a placeholder to prevent reverting
+            ? 10000000 // Arbitrary which means no pricer, placeholder to prevent reverting
             : GnosisAuction.getOTokenPremiumInStables(
                 otokenAddress,
                 optionsPremiumPricer,
