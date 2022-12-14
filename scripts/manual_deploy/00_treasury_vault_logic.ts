@@ -50,13 +50,13 @@ const main = async ({
     args: [
       WETH_ADDRESS[chainId],
       USDC_ADDRESS[chainId],
-      argsToUse.protocol == "Gamma"
+      argsToUse.protocol === "Gamma"
         ? OTOKEN_FACTORY[chainId]
         : TD_OTOKEN_FACTORY[chainId],
-      argsToUse.protocol == "Gamma"
+      argsToUse.protocol === "Gamma"
         ? GAMMA_CONTROLLER[chainId]
         : TD_CONTROLLER[chainId],
-      argsToUse.protocol == "Gamma"
+      argsToUse.protocol === "Gamma"
         ? MARGIN_POOL[chainId]
         : TD_MARGIN_POOL[chainId],
       GNOSIS_EASY_AUCTION[chainId],
@@ -83,13 +83,13 @@ const main = async ({
       constructorArguments: [
         WETH_ADDRESS[chainId],
         USDC_ADDRESS[chainId],
-        argsToUse.protocol == "Gamma"
+        argsToUse.protocol === "Gamma"
           ? OTOKEN_FACTORY[chainId]
           : TD_OTOKEN_FACTORY[chainId],
-        argsToUse.protocol == "Gamma"
+        argsToUse.protocol === "Gamma"
           ? GAMMA_CONTROLLER[chainId]
           : TD_CONTROLLER[chainId],
-        argsToUse.protocol == "Gamma"
+        argsToUse.protocol === "Gamma"
           ? MARGIN_POOL[chainId]
           : TD_MARGIN_POOL[chainId],
         GNOSIS_EASY_AUCTION[chainId],
