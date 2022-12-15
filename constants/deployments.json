@@ -120,6 +120,7 @@
         "VaultLifecycle": "0x336045401B3dB35a658498e065f881a80E537Fb5",
         "VaultLifecycleSTETH": "0x21f0FF1D33F76B938dec63cfFe0eE6171F4Bd6B0",
         "VaultLifecycleTreasury": "0xcbD9A79Caa0d354C9119039F5004DbCf23489c9a",
+        "VaultLifecycleTreasuryBare": "0xB4a1b54141cE6C70b40527CeBd6F00fF70d94eEf",
         "VaultLifecycleWithSwap": "0xC7654Fd45B96885ba231bb9083D1472E8C9a5e5e",
         "VaultLifecycleYearn": "0xE2635CC6CE168E45b47551a1454ad6f4ee769AB1"
     }

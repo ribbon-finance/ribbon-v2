@@ -1078,6 +1078,10 @@ contract RibbonTreasuryVault is
         );
     }
 
+    function setCurrentOtokenPremium(uint256 newOtokenPremium) public onlyKeeper {
+        currentOtokenPremium = newOtokenPremium;
+    }
+
     /************************************************
      *  GETTERS
      ***********************************************/
