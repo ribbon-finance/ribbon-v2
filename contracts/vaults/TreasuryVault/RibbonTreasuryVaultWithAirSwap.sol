@@ -173,10 +173,10 @@ contract RibbonTreasuryVaultWithAirSwap is
      * @notice Initializes the OptionVault contract with storage variables.
      */
     function initialize(
-        VaultLifecycleTreasuryWithSwap.InitParams calldata _initParams,
+        VaultLifecycleTreasuryWithAirSwap.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
-        VaultLifecycleTreasuryWithSwap.verifyInitializerParams(
+        VaultLifecycleTreasuryWithAirSwap.verifyInitializerParams(
             _initParams,
             _vaultParams
         );
@@ -761,9 +761,9 @@ contract RibbonTreasuryVaultWithAirSwap is
                 newPricePerShare,
                 mintShares,
                 managementFeeInAsset
-            ) = VaultLifecycleTreasuryWithSwap.rollover(
+            ) = VaultLifecycleTreasuryWithAirSwap.rollover(
                 vaultState,
-                VaultLifecycleTreasuryWithSwap.RolloverParams(
+                VaultLifecycleTreasuryWithAirSwap.RolloverParams(
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
@@ -815,8 +815,8 @@ contract RibbonTreasuryVaultWithAirSwap is
     function commitAndClose() external nonReentrant {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycleTreasuryWithSwap.CloseParams memory closeParams =
-            VaultLifecycleTreasuryWithSwap.CloseParams({
+        VaultLifecycleTreasuryWithAirSwap.CloseParams memory closeParams =
+            VaultLifecycleTreasuryWithAirSwap.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
@@ -832,7 +832,7 @@ contract RibbonTreasuryVaultWithAirSwap is
             uint256 strikePrice,
             uint256 delta
         ) =
-            VaultLifecycleTreasuryWithSwap.commitAndClose(
+            VaultLifecycleTreasuryWithAirSwap.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
@@ -877,7 +877,7 @@ contract RibbonTreasuryVaultWithAirSwap is
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycleTreasuryWithSwap.settleShort(GAMMA_CONTROLLER);
+                VaultLifecycleTreasuryWithAirSwap.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -899,7 +899,7 @@ contract RibbonTreasuryVaultWithAirSwap is
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycleTreasuryWithSwap.createShort(
+        VaultLifecycleTreasuryWithAirSwap.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
@@ -914,7 +914,7 @@ contract RibbonTreasuryVaultWithAirSwap is
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
-            VaultLifecycleTreasuryWithSwap.burnOtokens(
+            VaultLifecycleTreasuryWithAirSwap.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
