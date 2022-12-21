@@ -25,7 +25,7 @@ import {
 } from "../../storage/RibbonTreasuryVaultStorage.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
+import {IAirSwap, Types} from "../../interfaces/IAirSwap.sol";
 import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
 
 contract RibbonTreasuryVaultWithAirSwap is
@@ -47,6 +47,10 @@ contract RibbonTreasuryVaultWithAirSwap is
 
     /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
+
+    // AirSwap Swap contract
+    // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
+    IAirSwap public immutable AIRSWAP_CONTRACT;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
     uint256 public constant DELAY = 0;
@@ -154,19 +158,22 @@ contract RibbonTreasuryVaultWithAirSwap is
         address _usdc,
         address _oTokenFactory,
         address _gammaController,
-        address _marginPool
+        address _marginPool,
+        address _airswapContract
     ) {
         require(_weth != address(0), "!_weth");
         require(_usdc != address(0), "!_usdc");
         require(_oTokenFactory != address(0), "!_oTokenFactory");
         require(_gammaController != address(0), "!_gammaController");
         require(_marginPool != address(0), "!_marginPool");
+        require(_airswapContract != address(0), "!_airswapContract");
 
         WETH = _weth;
         USDC = _usdc;
         OTOKEN_FACTORY = _oTokenFactory;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
+        AIRSWAP_CONTRACT = IAirSwap(_airswapContract);
     }
 
     /**
@@ -188,7 +195,6 @@ contract RibbonTreasuryVaultWithAirSwap is
 
         keeper = _initParams._keeper;
         period = _initParams._period;
-        optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
         feeRecipient = _initParams._feeRecipient;
@@ -899,18 +905,46 @@ contract RibbonTreasuryVaultWithAirSwap is
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycleTreasuryWithAirSwap.createShort(
-            GAMMA_CONTROLLER,
-            MARGIN_POOL,
-            newOption,
-            lockedBalance
-        );
+        uint256 mintAmount =
+            VaultLifecycleTreasuryWithAirSwap.createShort(
+                GAMMA_CONTROLLER,
+                MARGIN_POOL,
+                newOption,
+                lockedBalance
+            );
 
-        // TODO add _createOffer() function here
+        IERC20 optionToken = IERC20(newOption);
+        optionToken.safeApprove(address(AIRSWAP_CONTRACT), mintAmount);
     }
 
     /**
-     * @notice Burn the remaining oTokens left over from gnosis auction.
+     * @notice Performs a swap of `currentOption` token to `asset` token with a counterparty
+     * @param order is an AirSwap order
+     */
+    function sellOptions(Types.Order calldata order)
+        external
+        onlyKeeper
+        nonReentrant
+    {
+        require(
+            order.sender.wallet == address(this),
+            "Sender can only be vault"
+        );
+        require(
+            order.sender.token == optionState.currentOption,
+            "Can only sell currentOption"
+        );
+        require(order.sender.token != address(0), "Zero address oToken");
+        require(
+            order.signer.token == vaultParams.asset,
+            "Can only buy with asset token"
+        );
+
+        AIRSWAP_CONTRACT.swap(order);
+    }
+
+    /**
+     * @notice Burn the remaining oTokens left over after AirSwap
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
         uint256 unlockedAssetAmount =
