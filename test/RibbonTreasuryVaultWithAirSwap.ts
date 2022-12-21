@@ -513,7 +513,8 @@ function behavesLikeRibbonOptionsVault(params: {
           deployArgs,
           {
             libraries: {
-              VaultLifecycleTreasuryWithAirSwap: vaultLifecycleTreasuryLib.address,
+              VaultLifecycleTreasuryWithAirSwap:
+                vaultLifecycleTreasuryLib.address,
             },
           }
         )
@@ -723,265 +724,239 @@ function behavesLikeRibbonOptionsVault(params: {
       await time.revertToSnapShot(initSnapshotId);
     });
 
-    // describe("#initialize", () => {
-    //   let testVault: Contract;
+    describe("#initialize", () => {
+      let testVault: Contract;
 
-    //   time.revertToSnapshotAfterEach(async function () {
-    //     const RibbonTreasuryVault = await ethers.getContractFactory(
-    //       "RibbonTreasuryVault",
-    //       {
-    //         libraries: {
-    //           VaultLifecycleTreasury: vaultLifecycleTreasuryLib.address,
-    //         },
-    //       }
-    //     );
-    //     testVault = await RibbonTreasuryVault.deploy(
-    //       WETH_ADDRESS[chainId],
-    //       USDC_ADDRESS[chainId],
-    //       OTOKEN_FACTORY[chainId],
-    //       GAMMA_CONTROLLER[chainId],
-    //       MARGIN_POOL[chainId],
-    //     );
-    //   });
+      time.revertToSnapshotAfterEach(async function () {
+        const RibbonTreasuryVaultWithAirSwap = await ethers.getContractFactory(
+          "RibbonTreasuryVaultWithAirSwap",
+          {
+            libraries: {
+              VaultLifecycleTreasuryWithAirSwap: vaultLifecycleTreasuryLib.address,
+            },
+          }
+        );
+        testVault = await RibbonTreasuryVaultWithAirSwap.deploy(
+          WETH_ADDRESS[chainId],
+          USDC_ADDRESS[chainId],
+          OTOKEN_FACTORY[chainId],
+          GAMMA_CONTROLLER[chainId],
+          MARGIN_POOL[chainId],
+          AIRSWAP_CONTRACT[chainId]
+        );
+      });
 
-    //   it("initializes with correct values", async function () {
-    //     assert.equal((await vault.cap()).toString(), parseEther("2000000"));
-    //     assert.equal(await vault.owner(), owner);
-    //     assert.equal(await vault.keeper(), keeper);
-    //     assert.equal(await vault.feeRecipient(), feeRecipient);
-    //     assert.equal(
-    //       (await vault.managementFee()).toString(),
-    //       managementFee
-    //         .mul(FEE_SCALING)
-    //         .div(
-    //           period % 30 === 0
-    //             ? FEE_SCALING.mul(12 / (period / 30))
-    //             : BigNumber.from(WEEKS_PER_YEAR).div(period / 7)
-    //         )
-    //         .toString()
-    //     );
-    //     assert.equal(
-    //       (await vault.performanceFee()).toString(),
-    //       performanceFee.toString()
-    //     );
+      it("initializes with correct values", async function () {
+        assert.equal((await vault.cap()).toString(), parseEther("2000000"));
+        assert.equal(await vault.owner(), owner);
+        assert.equal(await vault.keeper(), keeper);
+        assert.equal(await vault.feeRecipient(), feeRecipient);
+        assert.equal(
+          (await vault.managementFee()).toString(),
+          managementFee
+            .mul(FEE_SCALING)
+            .div(
+              period % 30 === 0
+                ? FEE_SCALING.mul(12 / (period / 30))
+                : BigNumber.from(WEEKS_PER_YEAR).div(period / 7)
+            )
+            .toString()
+        );
+        assert.equal(
+          (await vault.performanceFee()).toString(),
+          performanceFee.toString()
+        );
 
-    //     const [
-    //       isPut,
-    //       decimals,
-    //       assetFromContract,
-    //       underlying,
-    //       minimumSupply,
-    //       cap,
-    //     ] = await vault.vaultParams();
-    //     assert.equal(await vault.maxDepositors(), maxDepositors);
-    //     assert.equal(await decimals, tokenDecimals);
-    //     assert.equal(decimals, tokenDecimals);
-    //     assert.equal(assetFromContract, collateralAsset);
-    //     assert.equal(underlying, asset);
-    //     assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
-    //     assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
-    //     assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
-    //     assert.equal(minimumSupply, params.minimumSupply);
-    //     assert.equal(isPut, params.isPut);
-    //     assert.equal(
-    //       (await vault.premiumDiscount()).toString(),
-    //       params.premiumDiscount.toString()
-    //     );
-    //     assert.bnEqual(cap, parseEther("2000000"));
-    //     assert.equal(
-    //       await vault.optionsPremiumPricer(),
-    //       optionsPremiumPricer.address
-    //     );
-    //     assert.equal(await vault.strikeSelection(), strikeSelection.address);
-    //     assert.equal(await vault.auctionDuration(), auctionDuration);
-    //   });
+        const [
+          isPut,
+          decimals,
+          assetFromContract,
+          underlying,
+          minimumSupply,
+          cap,
+        ] = await vault.vaultParams();
+        assert.equal(await vault.maxDepositors(), maxDepositors);
+        assert.equal(await decimals, tokenDecimals);
+        assert.equal(decimals, tokenDecimals);
+        assert.equal(assetFromContract, collateralAsset);
+        assert.equal(underlying, asset);
+        assert.equal(await vault.WETH(), WETH_ADDRESS[chainId]);
+        assert.equal(await vault.USDC(), USDC_ADDRESS[chainId]);
+        assert.bnEqual(await vault.totalPending(), BigNumber.from(0));
+        assert.equal(minimumSupply, params.minimumSupply);
+        assert.equal(isPut, params.isPut);
+        assert.bnEqual(cap, parseEther("2000000"));
+        assert.equal(await vault.strikeSelection(), strikeSelection.address);
+      });
 
-    //   it("cannot be initialized twice", async function () {
-    //     await expect(
-    //       vault.initialize(
-    //         [
-    //           owner,
-    //           keeper,
-    //           feeRecipient,
-    //           managementFee,
-    //           performanceFee,
-    //           tokenName,
-    //           tokenSymbol,
-    //           optionsPremiumPricer.address,
-    //           strikeSelection.address,
-    //           premiumDiscount,
-    //           auctionDuration,
-    //           period,
-    //           maxDepositors,
-    //           minDeposit,
-    //         ],
-    //         [
-    //           isPut,
-    //           tokenDecimals,
-    //           isPut ? USDC_ADDRESS[chainId] : asset,
-    //           asset,
-    //           minimumSupply,
-    //           parseEther("2000000"),
-    //         ]
-    //       )
-    //     ).to.be.revertedWith("Initializable: contract is already initialized");
-    //   });
+      it("cannot be initialized twice", async function () {
+        await expect(
+          vault.initialize(
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              strikeSelection.address,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS[chainId] : asset,
+              asset,
+              minimumSupply,
+              parseEther("2000000"),
+            ]
+          )
+        ).to.be.revertedWith("Initializable: contract is already initialized");
+      });
 
-    //   it("reverts when initializing with 0 owner", async function () {
-    //     await expect(
-    //       testVault.initialize(
-    //         [
-    //           constants.AddressZero,
-    //           keeper,
-    //           feeRecipient,
-    //           managementFee,
-    //           performanceFee,
-    //           tokenName,
-    //           tokenSymbol,
-    //           optionsPremiumPricer.address,
-    //           strikeSelection.address,
-    //           premiumDiscount,
-    //           auctionDuration,
-    //           period,
-    //           maxDepositors,
-    //           minDeposit,
-    //         ],
-    //         [
-    //           isPut,
-    //           tokenDecimals,
-    //           isPut ? USDC_ADDRESS[chainId] : asset,
-    //           asset,
-    //           minimumSupply,
-    //           parseEther("2000000"),
-    //         ]
-    //       )
-    //     ).to.be.revertedWith("!_owner");
-    //   });
+      it("reverts when initializing with 0 owner", async function () {
+        await expect(
+          testVault.initialize(
+            [
+              constants.AddressZero,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              strikeSelection.address,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS[chainId] : asset,
+              asset,
+              minimumSupply,
+              parseEther("2000000"),
+            ]
+          )
+        ).to.be.revertedWith("!_owner");
+      });
 
-    //   it("reverts when initializing with 0 keeper", async function () {
-    //     await expect(
-    //       testVault.initialize(
-    //         [
-    //           owner,
-    //           constants.AddressZero,
-    //           feeRecipient,
-    //           managementFee,
-    //           performanceFee,
-    //           tokenName,
-    //           tokenSymbol,
-    //           optionsPremiumPricer.address,
-    //           strikeSelection.address,
-    //           premiumDiscount,
-    //           auctionDuration,
-    //           period,
-    //           maxDepositors,
-    //           minDeposit,
-    //         ],
-    //         [
-    //           isPut,
-    //           tokenDecimals,
-    //           isPut ? USDC_ADDRESS[chainId] : asset,
-    //           asset,
-    //           minimumSupply,
-    //           parseEther("2000000"),
-    //         ]
-    //       )
-    //     ).to.be.revertedWith("!_keeper");
-    //   });
+      it("reverts when initializing with 0 keeper", async function () {
+        await expect(
+          testVault.initialize(
+            [
+              owner,
+              constants.AddressZero,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              strikeSelection.address,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS[chainId] : asset,
+              asset,
+              minimumSupply,
+              parseEther("2000000"),
+            ]
+          )
+        ).to.be.revertedWith("!_keeper");
+      });
 
-    //   it("reverts when initializing with 0 feeRecipient", async function () {
-    //     await expect(
-    //       testVault.initialize(
-    //         [
-    //           owner,
-    //           keeper,
-    //           constants.AddressZero,
-    //           managementFee,
-    //           performanceFee,
-    //           tokenName,
-    //           tokenSymbol,
-    //           optionsPremiumPricer.address,
-    //           strikeSelection.address,
-    //           premiumDiscount,
-    //           auctionDuration,
-    //           period,
-    //           maxDepositors,
-    //           minDeposit,
-    //         ],
-    //         [
-    //           isPut,
-    //           tokenDecimals,
-    //           isPut ? USDC_ADDRESS[chainId] : asset,
-    //           asset,
-    //           minimumSupply,
-    //           parseEther("2000000"),
-    //         ]
-    //       )
-    //     ).to.be.revertedWith("!_feeRecipient");
-    //   });
+      it("reverts when initializing with 0 feeRecipient", async function () {
+        await expect(
+          testVault.initialize(
+            [
+              owner,
+              keeper,
+              constants.AddressZero,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              strikeSelection.address,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS[chainId] : asset,
+              asset,
+              minimumSupply,
+              parseEther("2000000"),
+            ]
+          )
+        ).to.be.revertedWith("!_feeRecipient");
+      });
 
-    //   it("reverts when initializing with 0 initCap", async function () {
-    //     await expect(
-    //       testVault.initialize(
-    //         [
-    //           owner,
-    //           keeper,
-    //           feeRecipient,
-    //           managementFee,
-    //           performanceFee,
-    //           tokenName,
-    //           tokenSymbol,
-    //           optionsPremiumPricer.address,
-    //           strikeSelection.address,
-    //           premiumDiscount,
-    //           auctionDuration,
-    //           period,
-    //           maxDepositors,
-    //           minDeposit,
-    //         ],
-    //         [
-    //           isPut,
-    //           tokenDecimals,
-    //           isPut ? USDC_ADDRESS[chainId] : asset,
-    //           asset,
-    //           minimumSupply,
-    //           0,
-    //         ]
-    //       )
-    //     ).to.be.revertedWith("!cap");
-    //   });
+      it("reverts when initializing with 0 initCap", async function () {
+        await expect(
+          testVault.initialize(
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              strikeSelection.address,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS[chainId] : asset,
+              asset,
+              minimumSupply,
+              0,
+            ]
+          )
+        ).to.be.revertedWith("!cap");
+      });
 
-    //   it("reverts when asset is 0x", async function () {
-    //     await expect(
-    //       testVault.initialize(
-    //         [
-    //           owner,
-    //           keeper,
-    //           feeRecipient,
-    //           managementFee,
-    //           performanceFee,
-    //           tokenName,
-    //           tokenSymbol,
-    //           optionsPremiumPricer.address,
-    //           strikeSelection.address,
-    //           premiumDiscount,
-    //           auctionDuration,
-    //           period,
-    //           maxDepositors,
-    //           minDeposit,
-    //         ],
-    //         [
-    //           isPut,
-    //           tokenDecimals,
-    //           constants.AddressZero,
-    //           asset,
-    //           minimumSupply,
-    //           parseEther("2000000"),
-    //         ]
-    //       )
-    //     ).to.be.revertedWith("!asset");
-    //   });
-    // });
+      it("reverts when asset is 0x", async function () {
+        await expect(
+          testVault.initialize(
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              strikeSelection.address,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              constants.AddressZero,
+              asset,
+              minimumSupply,
+              parseEther("2000000"),
+            ]
+          )
+        ).to.be.revertedWith("!asset");
+      });
+    });
 
     describe("#name", () => {
       it("returns the name", async function () {
