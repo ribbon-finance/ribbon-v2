@@ -56,7 +56,7 @@ library VaultLifecycleTreasuryWithAirSwap {
     }
 
     /**
-     * @notice Sets the next option the vault will be shorting, and calculates its premium for the auction
+     * @notice Sets the next option the vault will be shorting
      * @param strikeSelection is the address of the contract with strike selection logic
      * @param closeParams is the struct with details on previous option and strike selection details
      * @param vaultParams is the struct with vault general data
@@ -74,7 +74,6 @@ library VaultLifecycleTreasuryWithAirSwap {
         external
         returns (
             address otokenAddress,
-            uint256 premium,
             uint256 strikePrice,
             uint256 delta
         )
@@ -480,7 +479,7 @@ library VaultLifecycleTreasuryWithAirSwap {
     }
 
     /**
-     * @notice Burn the remaining oTokens left over from auction. Currently this implementation is simple.
+     * @notice Burn the remaining oTokens left over after airswap. Currently this implementation is simple.
      * It burns oTokens from the most recent vault opened by the contract. This assumes that the contract will
      * only have a single vault open at any given time.
      * @param gammaController is the address of the opyn controller contract
@@ -667,18 +666,8 @@ library VaultLifecycleTreasuryWithAirSwap {
             "!_period"
         );
         require(
-            _initParams._optionsPremiumPricer != address(0),
-            "!_optionsPremiumPricer"
-        );
-        require(
             _initParams._strikeSelection != address(0),
             "!_strikeSelection"
-        );
-        require(
-            _initParams._premiumDiscount > 0 &&
-                _initParams._premiumDiscount <
-                100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "!_premiumDiscount"
         );
         require(_initParams._maxDepositors > 0, "!_maxDepositors");
         require(_initParams._minDeposit > 0, "!_minDeposit");
