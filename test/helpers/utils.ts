@@ -34,8 +34,11 @@ import {
   TD_WHITELIST,
   TD_WHITELIST_OWNER,
   CHAINLINK_WETH_PRICER,
+  TRADER_AFFILIATE,
+  AIRSWAP_CONTRACT,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
+import { createOrder, signTypedDataOrder } from "@airswap/utils";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
 
@@ -571,6 +574,43 @@ export async function bidForOToken(
   );
 
   return [latestAuction, totalOptionsAvailableToBuy, bid];
+}
+
+export interface AirSwapOrderInformation {
+  counterpartyAddress: string;
+  vaultAddress: string;
+  sellToken: string;
+  buyToken: string;
+  sellAmount: string;
+  buyAmount: string;
+  signerPrivateKey: string;
+}
+
+export async function signOrderForAirSwap(
+  swapOrderInformation: AirSwapOrderInformation
+) {
+  let order = createOrder({
+    signer: {
+      wallet: swapOrderInformation.counterpartyAddress,
+      token: swapOrderInformation.buyToken,
+      amount: swapOrderInformation.buyAmount,
+    },
+    sender: {
+      wallet: swapOrderInformation.vaultAddress,
+      token: swapOrderInformation.sellToken,
+      amount: swapOrderInformation.sellAmount,
+    },
+    affiliate: {
+      wallet: TRADER_AFFILIATE[chainId],
+    },
+  });
+
+  const signedOrder = await signTypedDataOrder(
+    order,
+    swapOrderInformation.signerPrivateKey,
+    AIRSWAP_CONTRACT[chainId]
+  );
+  return signedOrder;
 }
 
 export async function lockedBalanceForRollover(vault: Contract) {
