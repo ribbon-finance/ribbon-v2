@@ -48,9 +48,8 @@ contract RibbonTreasuryVaultWithAirSwap is
     /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
 
-    // AirSwap Swap contract
-    // https://github.com/airswap/airswap-protocols/blob/master/source/swap/contracts/interfaces/ISwap.sol
-    IAirSwap public immutable AIRSWAP_CONTRACT;
+    // @notice AirSwap 0x4572f2554421Bd64Bef1c22c8a81840E8D496BeA
+    address public immutable AIRSWAP_CONTRACT;
 
     /// @notice 15 minute timelock between commitAndClose and rollToNexOption.
     uint256 public constant DELAY = 0;
@@ -173,7 +172,7 @@ contract RibbonTreasuryVaultWithAirSwap is
         OTOKEN_FACTORY = _oTokenFactory;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
-        AIRSWAP_CONTRACT = IAirSwap(_airswapContract);
+        AIRSWAP_CONTRACT = _airswapContract;
     }
 
     /**
@@ -196,7 +195,6 @@ contract RibbonTreasuryVaultWithAirSwap is
         keeper = _initParams._keeper;
         period = _initParams._period;
         strikeSelection = _initParams._strikeSelection;
-        premiumDiscount = _initParams._premiumDiscount;
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
         managementFee = _perRoundManagementFee(_initParams._managementFee);
@@ -832,16 +830,9 @@ contract RibbonTreasuryVaultWithAirSwap is
                 period: period
             });
 
-        (
-            address otokenAddress,
-            uint256 premium,
-            uint256 strikePrice,
-            uint256 delta
-        ) =
+        (address otokenAddress, uint256 strikePrice, uint256 delta) =
             VaultLifecycleTreasuryWithAirSwap.commitAndClose(
                 strikeSelection,
-                optionsPremiumPricer,
-                premiumDiscount,
                 closeParams,
                 vaultParams,
                 vaultState
@@ -849,8 +840,6 @@ contract RibbonTreasuryVaultWithAirSwap is
 
         emit NewOptionStrikeSelected(strikePrice, delta);
 
-        ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
 
         uint256 nextOptionReady = block.timestamp.add(DELAY);
@@ -934,13 +923,16 @@ contract RibbonTreasuryVaultWithAirSwap is
             order.sender.token == optionState.currentOption,
             "Can only sell currentOption"
         );
-        require(order.sender.token != address(0), "Zero address oToken");
         require(
-            order.signer.token == vaultParams.asset,
-            "Can only buy with asset token"
+            order.signer.token == USDC,
+            "Can only buy with USDC"
         );
 
-        AIRSWAP_CONTRACT.swap(order);
+        IAirSwap(AIRSWAP_CONTRACT).swap(order);
+        // oTokens have 8 decimals, get the whole number oTokens sold
+        // oToken premium set will be in USDC and 6 decimals as well
+        uint256 oTokenPremiumToSet = order.signer.amount.div((order.sender.amount.div(10**8)));
+        currentOtokenPremium = oTokenPremiumToSet;
     }
 
     /**
