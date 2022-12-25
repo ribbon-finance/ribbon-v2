@@ -46,4 +46,21 @@ interface IAirSwap {
      * @param order Types.Order
      */
     function swap(Types.Order calldata order) external;
+
+    event Swap(
+        uint256 indexed nonce,
+        uint256 timestamp,
+        address indexed signerWallet,
+        uint256 signerAmount,
+        uint256 signerId,
+        address signerToken,
+        address indexed senderWallet,
+        uint256 senderAmount,
+        uint256 senderId,
+        address senderToken,
+        address affiliateWallet,
+        uint256 affiliateAmount,
+        uint256 affiliateId,
+        address affiliateToken
+    );
 }
