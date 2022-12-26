@@ -1505,6 +1505,174 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#sellOptions", () => {
+      time.revertToSnapshotAfterEach(async function () {
+        await depositIntoVault(params.collateralAsset, vault, depositAmount);
+
+        if (params.collateralAsset === WETH_ADDRESS[chainId]) {
+          const weth = assetContract.connect(userSigner);
+          await weth.deposit({ value: depositAmount });
+        }
+        await vault.connect(ownerSigner).commitAndClose();
+
+        await time.increaseTo((await getNextOptionReadyAt()) + DELAY_INCREMENT);
+
+        await vault.connect(keeperSigner).rollToNextOption();
+      });
+      it("completes the trade with the counterparty", async function () {
+        const otoken = await ethers.getContractAt(
+          "IERC20",
+          defaultOtoken.address
+        );
+
+        // Purchase all the oTokens
+        const initialOtokenBalance = await otoken.balanceOf(vault.address);
+        let decimals = premiumInStables ? premiumDecimals : tokenDecimals;
+        const bid = wmul(
+          initialOtokenBalance.mul(BigNumber.from(10).pow(10)),
+          firstOptionPremium
+        )
+          .div(BigNumber.from(10).pow(18 - decimals))
+          .toString();
+        // Assume premium is in stables
+        const signedOrder = await signOrderForAirSwap({
+          vaultAddress: vault.address,
+          counterpartyAddress: userSigner.address,
+          signerPrivateKey: userSignerPrivateKey,
+          sellToken: otoken.address,
+          buyToken: premiumContract.address,
+          sellAmount: initialOtokenBalance.toString(),
+          buyAmount: bid,
+        });
+
+        await premiumContract
+          .connect(userSigner)
+          .approve(airswapContract.address, bid);
+
+        const initialUserSignerBalance = await premiumContract
+          .connect(userSigner)
+          .balanceOf(userSigner.address);
+
+        // Before swapping, assert balances are 0 for accurate checking after
+        assert.bnEqual(
+          await premiumContract.connect(vault.address).balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+        assert.bnEqual(
+          await otoken.connect(userSigner).balanceOf(userSigner.address),
+          BigNumber.from(0)
+        );
+
+        const res = await vault.connect(keeperSigner).sellOptions(signedOrder);
+        await expect(res).to.emit(airswapContract, "Swap");
+        await expect(res)
+          .to.emit(otoken, "Transfer")
+          .withArgs(vault.address, userSigner.address, initialOtokenBalance);
+        await expect(res)
+          .to.emit(premiumContract, "Transfer")
+          .withArgs(userSigner.address, vault.address, bid);
+
+        // Check that userSigner and vault tokens changed as expected
+        assert.bnEqual(
+          await otoken.balanceOf(vault.address),
+          BigNumber.from(0)
+        );
+
+        assert.bnEqual(
+          await premiumContract.connect(vault.address).balanceOf(vault.address),
+          BigNumber.from(bid)
+        );
+
+        assert.bnEqual(
+          await premiumContract
+            .connect(userSigner)
+            .balanceOf(userSigner.address),
+          BigNumber.from(initialUserSignerBalance).sub(bid)
+        );
+
+        assert.bnEqual(
+          await otoken.connect(userSigner).balanceOf(userSigner.address),
+          initialOtokenBalance
+        );
+
+        // Check that currentOTokenPremium is set, truncating premium to 6 decimals
+        // since USDC value
+        assert.bnEqual(
+          await vault.connect(userSigner).currentOtokenPremium(),
+          firstOptionPremium.div(10 ** 12)
+        );
+      });
+      it("reverts when sender is not vault", async function () {
+        const otoken = await ethers.getContractAt(
+          "IERC20",
+          defaultOtoken.address
+        );
+        const signedOrder = await signOrderForAirSwap({
+          vaultAddress: keeperSigner.address, // To simulate non-vault address
+          counterpartyAddress: userSigner.address,
+          signerPrivateKey: userSignerPrivateKey,
+          sellToken: otoken.address,
+          buyToken: premiumContract.address,
+          sellAmount: "10",
+          buyAmount: "10",
+        });
+
+        await premiumContract
+          .connect(userSigner)
+          .approve(airswapContract.address, BigNumber.from(10));
+
+        await expect(
+          vault.connect(keeperSigner).sellOptions(signedOrder)
+        ).to.be.revertedWith("Sender can only be vault");
+      });
+      it("reverts when not buying current oToken", async function () {
+        const otoken = await ethers.getContractAt(
+          "IERC20",
+          defaultOtoken.address
+        );
+        const signedOrder = await signOrderForAirSwap({
+          vaultAddress: vault.address,
+          counterpartyAddress: userSigner.address,
+          signerPrivateKey: userSignerPrivateKey,
+          sellToken: secondOption.address, // To simulate non-current option
+          buyToken: premiumContract.address,
+          sellAmount: "10",
+          buyAmount: "10",
+        });
+
+        await premiumContract
+          .connect(userSigner)
+          .approve(airswapContract.address, BigNumber.from(10));
+
+        await expect(
+          vault.connect(keeperSigner).sellOptions(signedOrder)
+        ).to.be.revertedWith("Can only sell currentOption");
+      });
+      it("reverts when not buying with USDC", async function () {
+        const otoken = await ethers.getContractAt(
+          "IERC20",
+          defaultOtoken.address
+        );
+        const signedOrder = await signOrderForAirSwap({
+          vaultAddress: vault.address,
+          counterpartyAddress: userSigner.address,
+          signerPrivateKey: userSignerPrivateKey,
+          sellToken: otoken.address,
+          buyToken: assetContract.address, // To simulate non-USDC
+          sellAmount: "10",
+          buyAmount: "10",
+        });
+
+        await assetContract
+          .connect(userSigner)
+          .approve(airswapContract.address, BigNumber.from(10));
+
+        await expect(
+          vault.connect(keeperSigner).sellOptions(signedOrder)
+        ).to.be.revertedWith("Can only buy with USDC");
+      });
+    });
+
     describe("#burnRemainingOTokens", () => {
       time.revertToSnapshotAfterEach(async function () {
         await depositIntoVault(params.collateralAsset, vault, depositAmount);
