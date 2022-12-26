@@ -32,8 +32,8 @@ describe("signing an order message", () => {
       vaultAddress: userSigner.address,
       counterpartyAddress: counterpartyWallet.address,
       signerPrivateKey: counterpartyWallet.privateKey,
-      sellToken: sellToken,
-      buyToken: buyToken,
+      sellToken,
+      buyToken,
       sellAmount: sellAmount.toString(),
       buyAmount: buyAmount.toString(),
     });

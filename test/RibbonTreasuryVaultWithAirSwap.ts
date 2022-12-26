@@ -1,6 +1,6 @@
-import { config, ethers, hardhatArguments, network } from "hardhat";
+import { ethers, network } from "hardhat";
 import { expect } from "chai";
-import { BigNumber, BigNumberish, constants, Contract, Wallet } from "ethers";
+import { BigNumber, BigNumberish, constants, Contract } from "ethers";
 import { parseUnits } from "ethers/lib/utils";
 import ManualVolOracle_ABI from "../constants/abis/ManualVolOracle.json";
 import OptionsPremiumPricerInStables_ABI from "../constants/abis/OptionsPremiumPricerInStables.json";
@@ -47,11 +47,8 @@ import {
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
-  bidForOToken,
-  decodeOrder,
   lockedBalanceForRollover,
   addMinter,
-  getAuctionMinPrice,
   getBlockNum,
   signOrderForAirSwap,
 } from "./helpers/utils";
@@ -1626,10 +1623,6 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("Sender can only be vault");
       });
       it("reverts when not buying current oToken", async function () {
-        const otoken = await ethers.getContractAt(
-          "IERC20",
-          defaultOtoken.address
-        );
         const signedOrder = await signOrderForAirSwap({
           vaultAddress: vault.address,
           counterpartyAddress: userSigner.address,
@@ -1785,9 +1778,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterSettle = await tokenContract.balanceOf(
           vault.address
         );
-        const oldLockedAmount = (await vault.connect(ownerSigner).vaultState())[
-          "lockedAmount"
-        ];
+        const oldLockedAmount = (await vault.connect(ownerSigner).vaultState()).lockedAmount;
 
         vault.connect(keeperSigner).burnRemainingOTokens();
         const assetBalanceAfterBurn = await tokenContract.balanceOf(
@@ -1800,9 +1791,7 @@ function behavesLikeRibbonOptionsVault(params: {
           parseInt(assetBalanceAfterSettle.toString())
         );
 
-        const newLockedAmount = (await vault.connect(ownerSigner).vaultState())[
-          "lockedAmount"
-        ];
+        const newLockedAmount = (await vault.connect(ownerSigner).vaultState()).lockedAmount;
 
         // New locked amount should be half old locked amount since half oTokens burnt and half sold
         assert.bnEqual(newLockedAmount, oldLockedAmount.div(2));
@@ -3290,10 +3279,6 @@ function behavesLikeRibbonOptionsVault(params: {
           .to.emit(vault, "OpenShort")
           .withArgs(secondOptionAddress, depositAmount.mul(2), keeper);
 
-        // if (asset === SPELL_ADDRESS[chainId]) {
-        //   firstOptionPremium = firstOptionPremium.mul(3);
-        // }
-
         const secondOptionContract = await getContractAt(
           "IERC20",
           secondOption.address
@@ -3333,10 +3318,6 @@ function behavesLikeRibbonOptionsVault(params: {
         userBalanceAfter = await premiumContract.balanceOf(user);
         ownerBalanceAfter = await premiumContract.balanceOf(owner);
 
-        if (asset == BAL_ADDRESS[chainId]) {
-          totalDistributed = totalDistributed.sub(1);
-        }
-
         assert.bnEqual(
           userBalanceAfter.sub(userBalanceBefore),
           BigNumber.from(0)
@@ -3345,10 +3326,6 @@ function behavesLikeRibbonOptionsVault(params: {
           ownerBalanceAfter.sub(ownerBalanceBefore),
           totalDistributed
         );
-
-        if (asset == BAL_ADDRESS[chainId]) {
-          totalDistributed = totalDistributed.sub(1);
-        }
 
         await expect(tx)
           .to.emit(vault, "DistributePremium")
