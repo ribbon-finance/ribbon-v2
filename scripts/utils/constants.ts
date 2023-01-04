@@ -7,6 +7,7 @@ export const STRIKE_STEP = {
   AVAX: 10 * 1e8,
   AAVE: 10 * 1e8,
   APE: 1 * 1e8,
+  UNI: 0.1 * 1e8,
   PERP: 0.02 * 1e8,
   BADGER: 0.1 * 1e8,
   BAL: 0.1 * 1e8,
