@@ -34,6 +34,11 @@ import {
   TD_WHITELIST,
   TD_WHITELIST_OWNER,
   CHAINLINK_WETH_PRICER,
+  UNI_ADDRESS,
+  WETH_ADDRESS,
+  ETH_PRICE_ORACLE,
+  UNI_PRICE_ORACLE,
+  BTC_PRICE_ORACLE,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -80,6 +85,8 @@ export async function getBlockNum(asset: string, chainId: number) {
     return 15012740;
   } else if (asset === SPELL_ADDRESS[chainId]) {
     return 15140525;
+  } else if (asset === UNI_ADDRESS[chainId]) {
+    return 16000050;
   } else {
     return 14087600;
   }
@@ -445,7 +452,8 @@ export async function mintToken(
     contract.address === BADGER_ADDRESS[chainId] ||
     contract.address === BAL_ADDRESS[chainId] ||
     contract.address === SPELL_ADDRESS[chainId] ||
-    contract.address === RETH_ADDRESS[chainId]
+    contract.address === RETH_ADDRESS[chainId] ||
+    contract.address === UNI_ADDRESS[chainId]
   ) {
     await contract.connect(tokenOwnerSigner).transfer(recipient, amount);
   } else {
@@ -713,6 +721,17 @@ export const getPricerAsset = async (pricer: Contract) => {
       return await pricer.sAVAX();
     default:
       return await pricer.asset();
+  }
+};
+
+export const getPremiumPricerFromAsset = (asset: string) => {
+  switch (asset) {
+    case WETH_ADDRESS[chainId]:
+      return ETH_PRICE_ORACLE[chainId];
+    case UNI_ADDRESS[chainId]:
+      return UNI_PRICE_ORACLE[chainId];
+    default:
+      return BTC_PRICE_ORACLE[chainId];
   }
 };
 
