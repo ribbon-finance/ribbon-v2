@@ -3711,8 +3711,6 @@ function behavesLikeRibbonOptionsVault(params: {
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare < 1
 
-          const oneToken = parseUnits("1", params.tokenDecimals); // 1 token
-
           let withdrawnTokens0 = await assetContract.balanceOf(
             ownerSigner.address
           );
