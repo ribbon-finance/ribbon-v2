@@ -1483,6 +1483,11 @@ function behavesLikeRibbonOptionsVault(params: {
         // since some oTokens sold, we distribute the premiums
         await vault.connect(keeperSigner).chargeAndDistribute();
 
+        assert.bnLte(
+          await otoken.balanceOf(vault.address),
+          initialOtokenBalance.div(2)
+        );
+
         // burn remaining unused oTokens
         await vault.connect(keeperSigner).burnRemainingOTokens();
 
@@ -1522,11 +1527,30 @@ function behavesLikeRibbonOptionsVault(params: {
           defaultOtoken.address
         );
 
-        // Purchase all the oTokens
-        const initialOtokenBalance = await otoken.balanceOf(vault.address);
+        // Get all balances before swapping
+        const vaultOtokenBalanceBefore = await otoken.balanceOf(vault.address);
+
+        const vaultPremiumBalanceBefore = await premiumContract.balanceOf(
+          vault.address
+        );
+
+        const userSignerOtokenBalanceBefore = await otoken.balanceOf(
+          userSigner.address
+        );
+
+        const userSignerPremiumBalanceBefore = await premiumContract.balanceOf(
+          userSigner.address
+        );
+
+        // Before swapping, assert balances are 0 for accurate checking after
+        assert.bnEqual(vaultPremiumBalanceBefore, BigNumber.from(0));
+        assert.bnEqual(userSignerOtokenBalanceBefore, BigNumber.from(0));
+
+        // Create airswap order
+
         let decimals = premiumInStables ? premiumDecimals : tokenDecimals;
         const bid = wmul(
-          initialOtokenBalance.mul(BigNumber.from(10).pow(10)),
+          vaultOtokenBalanceBefore.mul(BigNumber.from(10).pow(10)),
           firstOptionPremium
         )
           .div(BigNumber.from(10).pow(18 - decimals))
@@ -1538,58 +1562,71 @@ function behavesLikeRibbonOptionsVault(params: {
           signerPrivateKey: userSignerPrivateKey,
           sellToken: otoken.address,
           buyToken: premiumContract.address,
-          sellAmount: initialOtokenBalance.toString(),
+          sellAmount: vaultOtokenBalanceBefore.toString(),
           buyAmount: bid,
         });
 
+        // Approve airswap contract for oToken purchase
         await premiumContract
           .connect(userSigner)
           .approve(airswapContract.address, bid);
 
-        const initialUserSignerBalance = await premiumContract
-          .connect(userSigner)
-          .balanceOf(userSigner.address);
-
-        // Before swapping, assert balances are 0 for accurate checking after
-        assert.bnEqual(
-          await premiumContract.connect(vault.address).balanceOf(vault.address),
-          BigNumber.from(0)
-        );
-        assert.bnEqual(
-          await otoken.connect(userSigner).balanceOf(userSigner.address),
-          BigNumber.from(0)
-        );
-
+        // Sell oTokens
         const res = await vault.connect(keeperSigner).sellOptions(signedOrder);
+
         await expect(res).to.emit(airswapContract, "Swap");
         await expect(res)
           .to.emit(otoken, "Transfer")
-          .withArgs(vault.address, userSigner.address, initialOtokenBalance);
+          .withArgs(
+            vault.address,
+            userSigner.address,
+            vaultOtokenBalanceBefore
+          );
         await expect(res)
           .to.emit(premiumContract, "Transfer")
           .withArgs(userSigner.address, vault.address, bid);
 
-        // Check that userSigner and vault tokens changed as expected
-        assert.bnEqual(
-          await otoken.balanceOf(vault.address),
-          BigNumber.from(0)
+        // Get all balances after swapping
+        const vaultOtokenBalanceAfter = await otoken.balanceOf(vault.address);
+
+        const vaultPremiumBalanceAfter = await premiumContract.balanceOf(
+          vault.address
         );
 
+        const userSignerOtokenBalanceAfter = await otoken.balanceOf(
+          userSigner.address
+        );
+
+        const userSignerPremiumBalanceAfter = await premiumContract.balanceOf(
+          userSigner.address
+        );
+
+        // Vault checks
+
+        // All oTokens transferred out from vault, no oTokens left in vault
         assert.bnEqual(
-          await premiumContract.connect(vault.address).balanceOf(vault.address),
+          vaultOtokenBalanceBefore.sub(vaultOtokenBalanceAfter),
+          vaultOtokenBalanceBefore
+        );
+
+        // Premium is transferred to vault
+        assert.bnEqual(
+          vaultPremiumBalanceAfter.sub(vaultPremiumBalanceBefore),
           BigNumber.from(bid)
         );
 
+        // userSigner checks
+
+        // oTokens are transferred to userSigner
         assert.bnEqual(
-          await premiumContract
-            .connect(userSigner)
-            .balanceOf(userSigner.address),
-          BigNumber.from(initialUserSignerBalance).sub(bid)
+          userSignerOtokenBalanceAfter.sub(userSignerOtokenBalanceBefore),
+          vaultOtokenBalanceBefore
         );
 
+        // Premium is transferred out from userSigner
         assert.bnEqual(
-          await otoken.connect(userSigner).balanceOf(userSigner.address),
-          initialOtokenBalance
+          userSignerPremiumBalanceBefore.sub(userSignerPremiumBalanceAfter),
+          BigNumber.from(bid)
         );
 
         // Check that currentOTokenPremium is set, truncating premium to 6 decimals
@@ -1778,7 +1815,8 @@ function behavesLikeRibbonOptionsVault(params: {
         const assetBalanceAfterSettle = await tokenContract.balanceOf(
           vault.address
         );
-        const oldLockedAmount = (await vault.connect(ownerSigner).vaultState()).lockedAmount;
+        const oldLockedAmount = (await vault.connect(ownerSigner).vaultState())
+          .lockedAmount;
 
         vault.connect(keeperSigner).burnRemainingOTokens();
         const assetBalanceAfterBurn = await tokenContract.balanceOf(
@@ -1791,7 +1829,8 @@ function behavesLikeRibbonOptionsVault(params: {
           parseInt(assetBalanceAfterSettle.toString())
         );
 
-        const newLockedAmount = (await vault.connect(ownerSigner).vaultState()).lockedAmount;
+        const newLockedAmount = (await vault.connect(ownerSigner).vaultState())
+          .lockedAmount;
 
         // New locked amount should be half old locked amount since half oTokens burnt and half sold
         assert.bnEqual(newLockedAmount, oldLockedAmount.div(2));
@@ -3314,6 +3353,11 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(performanceFee)
           .div(FEE_SCALING.mul(100));
         totalDistributed = BigNumber.from(bid).sub(performanceFeeInAsset);
+
+        // Leftover 1 due to rounding gets distributed in second round instead
+        if (asset === BAL_ADDRESS[chainId]) {
+          totalDistributed = totalDistributed.add(1);
+        }
 
         userBalanceAfter = await premiumContract.balanceOf(user);
         ownerBalanceAfter = await premiumContract.balanceOf(owner);
