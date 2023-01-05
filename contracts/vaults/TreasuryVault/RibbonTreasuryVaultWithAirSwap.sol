@@ -129,11 +129,6 @@ contract RibbonTreasuryVaultWithAirSwap is
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
 
-    event PremiumDiscountSet(
-        uint256 premiumDiscount,
-        uint256 newPremiumDiscount
-    );
-
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
@@ -902,8 +897,7 @@ contract RibbonTreasuryVaultWithAirSwap is
                 lockedBalance
             );
 
-        IERC20 optionToken = IERC20(newOption);
-        optionToken.safeApprove(address(AIRSWAP_CONTRACT), mintAmount);
+        IERC20(newOption).safeApprove(address(AIRSWAP_CONTRACT), mintAmount);
     }
 
     /**
@@ -923,16 +917,14 @@ contract RibbonTreasuryVaultWithAirSwap is
             order.sender.token == optionState.currentOption,
             "Can only sell currentOption"
         );
-        require(
-            order.signer.token == USDC,
-            "Can only buy with USDC"
-        );
+        require(order.signer.token == USDC, "Can only buy with USDC");
 
         IAirSwap(AIRSWAP_CONTRACT).swap(order);
         // oTokens have 8 decimals, get the whole number oTokens sold
         // oToken premium set will be in USDC and 6 decimals as well
-        uint256 oTokenPremiumToSet = order.signer.amount.div((order.sender.amount.div(10**8)));
-        currentOtokenPremium = oTokenPremiumToSet;
+        currentOtokenPremium = order.signer.amount.mul(10**8).div(
+            order.sender.amount
+        );
     }
 
     /**
