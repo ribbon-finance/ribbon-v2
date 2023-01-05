@@ -105,7 +105,7 @@ const main = async ({
       _tokenSymbol: "rBTC-THETA",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
-      _premiumDiscount: PREMIUM_DISCOUNT,
+      _premiumDiscount: PREMIUM_DISCOUNT, // deprecated in future swap vault scripts since using paradigm (e.g. 29_uni)
     },
     {
       isPut: false,

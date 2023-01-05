@@ -109,7 +109,7 @@ describe("RibbonThetaVaultWithSwap", () => {
       depositBestCase: 90033,
     },
     mintConfig: {
-      amount: parseEther("2000000"),
+      amount: parseEther("200"),
       contractOwnerAddress: UNI_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.ETH_MAINNET],
