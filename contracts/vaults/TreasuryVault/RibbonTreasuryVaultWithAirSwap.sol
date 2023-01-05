@@ -307,21 +307,6 @@ contract RibbonTreasuryVaultWithAirSwap is
     }
 
     /**
-     * @notice Sets the new options premium pricer contract
-     * @param newOptionsPremiumPricer is the address of the new strike selection contract
-     */
-    function setOptionsPremiumPricer(address newOptionsPremiumPricer)
-        external
-        onlyOwner
-    {
-        require(
-            newOptionsPremiumPricer != address(0),
-            "!newOptionsPremiumPricer"
-        );
-        optionsPremiumPricer = newOptionsPremiumPricer;
-    }
-
-    /**
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
