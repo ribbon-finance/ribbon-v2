@@ -1483,7 +1483,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // since some oTokens sold, we distribute the premiums
         await vault.connect(keeperSigner).chargeAndDistribute();
 
-        assert.bnLte(
+        assert.bnEqual(
           await otoken.balanceOf(vault.address),
           initialOtokenBalance.div(2)
         );
