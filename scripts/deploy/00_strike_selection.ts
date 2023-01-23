@@ -19,6 +19,7 @@ const ASSETS = {
     "ETH Put",
     "WBTC Call",
     "APE Call",
+    "UNI Call",
     "PERP Call",
     "BADGER Call",
     "BAL Call",
