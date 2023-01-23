@@ -63,6 +63,13 @@ export default {
         mnemonic: process.env.KOVAN_MNEMONIC,
       },
     },
+    goerli: {
+      url: process.env.GOERLI_URI,
+      chainId: 5,
+      accounts: {
+        mnemonic: process.env.GOERLI_MNEMONIC,
+      },
+    },
     avax: {
       url: process.env.AVAX_URI,
       chainId: 43114,
@@ -82,6 +89,7 @@ export default {
     deployer: {
       default: 0,
       1: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
+      5: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43113: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
@@ -91,6 +99,7 @@ export default {
     owner: {
       default: 0,
       1: "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4",
+      5: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
@@ -100,6 +109,7 @@ export default {
     keeper: {
       default: 0,
       1: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      5: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
       42: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
       43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
@@ -109,6 +119,7 @@ export default {
     admin: {
       default: 0,
       1: "0x223d59FA315D7693dF4238d1a5748c964E615923",
+      5: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43114: "0x31351f2BD9e94813BCf0cA04B5E6e2b7ceAFC7c6",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
@@ -118,6 +129,7 @@ export default {
     feeRecipient: {
       default: 0,
       1: "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674", // Ribbon DAO
+      5: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
@@ -130,7 +142,7 @@ export default {
   },
   etherscan: {
     apiKey:
-      CHAINID === 1 || CHAINID === 42
+      CHAINID === 1 || CHAINID === 42 || CHAINID === 5
         ? process.env.ETHERSCAN_API_KEY
         : process.env.SNOWTRACE_API_KEY,
   },
