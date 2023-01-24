@@ -63,6 +63,20 @@ export default {
         mnemonic: process.env.KOVAN_MNEMONIC,
       },
     },
+    bsc_mainnet: {
+      url: process.env.BSC_MAINNET_URI,
+      chainId: 56,
+      accounts: {
+        mnemonic: process.env.BSC_MAINNET_MNEMONIC,
+      },
+    },
+    bsc_testnet: {
+      url: process.env.BSC_TESTNET_URI,
+      chainId: 97,
+      accounts: {
+        mnemonic: process.env.BSC_TESTNET_MNEMONIC,
+      },
+    },
     avax: {
       url: process.env.AVAX_URI,
       chainId: 43114,
@@ -83,6 +97,8 @@ export default {
       default: 0,
       1: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
+      56: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
+      97: "0xaa2Cd8976412FC5303788Df013B8F0aD6b05D55a",
       43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43113: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
@@ -92,6 +108,8 @@ export default {
       default: 0,
       1: "0x77DA011d5314D80BE59e939c2f7EC2F702E1DCC4",
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
+      56: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
+      97: "0xaa2Cd8976412FC5303788Df013B8F0aD6b05D55a",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
@@ -101,6 +119,8 @@ export default {
       default: 0,
       1: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
       42: "0x691c87dc570563D1D0AD7Fd0bb099ED367858863",
+      56: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
+      97: "0xaa2Cd8976412FC5303788Df013B8F0aD6b05D55a",
       43114: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0xA4290C9EAe274c7A8FbC57A1E68AdC3E95E7C67e",
@@ -110,6 +130,8 @@ export default {
       default: 0,
       1: "0x223d59FA315D7693dF4238d1a5748c964E615923",
       42: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
+      56: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
+      97: "0xaa2Cd8976412FC5303788Df013B8F0aD6b05D55a",
       43114: "0x31351f2BD9e94813BCf0cA04B5E6e2b7ceAFC7c6",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
@@ -119,6 +141,8 @@ export default {
       default: 0,
       1: "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674", // Ribbon DAO
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
+      56: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
+      97: "0xaa2Cd8976412FC5303788Df013B8F0aD6b05D55a",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
@@ -130,9 +154,12 @@ export default {
   },
   etherscan: {
     apiKey:
+      // eslint-disable-next-line no-nested-ternary
       CHAINID === 1 || CHAINID === 42
         ? process.env.ETHERSCAN_API_KEY
-        : process.env.SNOWTRACE_API_KEY,
+        : CHAINID === 56
+          ? process.env.BSCSCAN_API_KEY
+          : process.env.SNOWTRACE_API_KEY,
   },
   gasReporter: {
     enabled: true,
