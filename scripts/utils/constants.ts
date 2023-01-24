@@ -3,6 +3,7 @@
  */
 export const STRIKE_STEP = {
   ETH: 100 * 1e8, // ETH strike prices move in increments of 100
+  BNB: 10 * 1e8, // BNB strike prices move in increments of 10
   WBTC: 1000 * 1e8, // WBTC strike prices move in increments of 1000
   AVAX: 10 * 1e8,
   AAVE: 10 * 1e8,
