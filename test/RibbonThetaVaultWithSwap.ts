@@ -8,6 +8,7 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
+  CHAINLINK_WETH_PRICER,
   CHAINID,
   OPTION_PROTOCOL,
   BLOCK_NUMBER,
@@ -80,6 +81,33 @@ describe("RibbonThetaVaultWithSwap", () => {
       contractOwnerAddress: WBTC_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.ETH_MAINNET],
+    protocol: OPTION_PROTOCOL.GAMMA,
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon BNB Theta Vault (Call)`,
+    tokenName: "Ribbon BNB Theta Vault",
+    tokenSymbol: "rBNB-THETA",
+    asset: WETH_ADDRESS[chainId],
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: WETH_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: getDeltaStep("WETH"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from(10).pow(10).toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 101510,
+      depositBestCase: 90000,
+    },
+    availableChains: [CHAINID.BSC_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
   });
 });
@@ -400,7 +428,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks") // To be adjusted for BSC
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -430,7 +458,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks")
+        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks") // To be adjusted for BSC
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -1513,6 +1541,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+        //[CHAINID.BSC_MAINNET]: TBD, // WBNB
         };
         const altStrikePrice = "405000000000";
 
@@ -1555,6 +1584,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+        //[CHAINID.BSC_MAINNET]: TBD, // WBNB
         };
 
         const altStrikePrice = "405000000000";
@@ -2556,6 +2586,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
+        //[CHAINID.BSC_MAINNET]: TBD,
         };
 
         const settlementPriceITM = isPut
@@ -3481,6 +3512,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
+        //[CHAINID.BSC_MAINNET]: TBD,
         };
 
         const settlementPriceITM = isPut
