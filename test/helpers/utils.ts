@@ -691,6 +691,9 @@ export const getDeltaStep = (asset: string) => {
       if (chainId === CHAINID.AVAX_MAINNET) {
         return BigNumber.from("3");
       }
+      if (chainId === CHAINID.BSC_MAINNET) {
+        return BigNumber.from("10");
+      }
       return BigNumber.from("100");
     default:
       throw new Error(`Delta Step not found for asset: ${asset}`);
