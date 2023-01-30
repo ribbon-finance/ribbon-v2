@@ -1,8 +1,8 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
-  WBTC_ADDRESS,
-  BTC_PRICE_ORACLE,
+  UNI_ADDRESS,
+  UNI_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   OptionsPremiumPricerInStables_BYTECODE,
 } from "../../constants/constants";
@@ -11,7 +11,6 @@ import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
-  PREMIUM_DISCOUNT,
   STRIKE_DELTA,
   STRIKE_STEP,
 } from "../utils/constants";
@@ -29,12 +28,12 @@ const main = async ({
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
   console.log(
-    `19 - Deploying WBTC Call Theta Vault With Swap on ${network.name}`
+    `29 - Deploying UNI Call Theta Vault With Swap on ${network.name}`
   );
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
   const chainId = network.config.chainId;
-  const underlyingOracle = BTC_PRICE_ORACLE[chainId];
+  const underlyingOracle = UNI_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
 
   const manualVolOracleContract = await ethers.getContractAt(
@@ -42,13 +41,13 @@ const main = async ({
     manualVolOracle.address
   );
   const optionId = await manualVolOracleContract.getOptionId(
-    getDeltaStep("WBTC"),
-    WBTC_ADDRESS[chainId],
-    WBTC_ADDRESS[chainId],
+    getDeltaStep("UNI"),
+    UNI_ADDRESS[chainId],
+    UNI_ADDRESS[chainId],
     false
   );
 
-  const pricer = await deploy("OptionsPremiumPricerWBTCWithSwap", {
+  const pricer = await deploy("OptionsPremiumPricerUNIWithSwap", {
     from: deployer,
     contract: {
       abi: OptionsPremiumPricerInStables_ABI,
@@ -57,24 +56,24 @@ const main = async ({
     args: [optionId, manualVolOracle.address, underlyingOracle, stablesOracle],
   });
 
-  console.log(`RibbonThetaVaultWBTCCall pricer @ ${pricer.address}`);
+  console.log(`RibbonThetaVaultUNICall pricer @ ${pricer.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionWBTCWithSwap", {
+  const strikeSelection = await deploy("StrikeSelectionUNIWithSwap", {
     contract: "DeltaStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
+    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.UNI],
   });
 
   console.log(
-    `RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`
+    `RibbonThetaVaultUNICall strikeSelection @ ${strikeSelection.address}`
   );
 
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
+      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.UNI],
     });
   } catch (error) {
     console.log(error);
@@ -101,19 +100,18 @@ const main = async ({
       _feeRecipient: feeRecipient,
       _managementFee: MANAGEMENT_FEE,
       _performanceFee: PERFORMANCE_FEE,
-      _tokenName: "Ribbon BTC Theta Vault",
-      _tokenSymbol: "rBTC-THETA",
+      _tokenName: "Ribbon UNI Theta Vault",
+      _tokenSymbol: "rUNI-THETA",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
-      _premiumDiscount: PREMIUM_DISCOUNT, // deprecated in future swap vault scripts since using paradigm (e.g. 29_uni)
     },
     {
       isPut: false,
-      decimals: 8,
-      asset: WBTC_ADDRESS[chainId],
-      underlying: WBTC_ADDRESS[chainId],
-      minimumSupply: BigNumber.from(10).pow(3),
-      cap: parseUnits("5", 8),
+      decimals: 18,
+      asset: UNI_ADDRESS[chainId],
+      underlying: UNI_ADDRESS[chainId],
+      minimumSupply: BigNumber.from(10).pow(10),
+      cap: parseUnits("750000", 18),
     },
   ];
   const initData = RibbonThetaVault.interface.encodeFunctionData(
@@ -121,13 +119,13 @@ const main = async ({
     initArgs
   );
 
-  const proxy = await deploy("RibbonThetaVaultWBTCCallWithSwap", {
+  const proxy = await deploy("RibbonThetaVaultUNICallWithSwap", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
   });
 
-  console.log(`RibbonThetaVaultWBTCCallWithSwap @ ${proxy.address}`);
+  console.log(`RibbonThetaVaultUNICallWithSwap @ ${proxy.address}`);
 
   try {
     await run("verify:verify", {
@@ -138,7 +136,7 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonThetaVaultWBTCCallWithSwap"];
-// main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
+main.tags = ["RibbonThetaVaultUNICallWithSwap"];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
 
 export default main;
