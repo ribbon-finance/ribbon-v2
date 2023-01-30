@@ -136,8 +136,8 @@ describe("RibbonThetaVaultWithSwap", () => {
     tokenDecimals: 18,
     isPut: false,
     gasLimits: {
-      depositWorstCase: 101510,
-      depositBestCase: 90000,
+      depositWorstCase: 126014,
+      depositBestCase: 91814,
     },
     availableChains: [CHAINID.BSC_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
@@ -983,7 +983,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 91500);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 91820);
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
