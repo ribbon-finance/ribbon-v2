@@ -11,7 +11,6 @@ import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
-  PREMIUM_DISCOUNT,
   STRIKE_DELTA,
   STRIKE_STEP,
 } from "../utils/constants";
@@ -105,7 +104,6 @@ const main = async ({
       _tokenSymbol: "rBNB-THETA",
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
-      _premiumDiscount: PREMIUM_DISCOUNT,
     },
     {
       isPut: false,
