@@ -29,7 +29,7 @@ const main = async ({
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
   console.log(
-    `29 - Deploying BNB Call Theta Vault With Swap on ${network.name}`
+    `30 - Deploying BNB Call Theta Vault With Swap on ${network.name}`
   );
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
@@ -113,7 +113,7 @@ const main = async ({
       asset: WETH_ADDRESS[chainId],
       underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
-      cap: parseUnits("20000", 18), // Approx. 5M USD
+      cap: parseUnits("20000", 18),
     },
   ];
   const initData = RibbonThetaVault.interface.encodeFunctionData(
@@ -139,6 +139,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultBNBCallWithSwap"];
-// main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
+main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
 
 export default main;

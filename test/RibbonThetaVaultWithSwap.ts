@@ -11,9 +11,6 @@ import {
   CHAINLINK_WETH_PRICER,
   CHAINID,
   OPTION_PROTOCOL,
-  BLOCK_NUMBER,
-  ETH_PRICE_ORACLE,
-  BTC_PRICE_ORACLE,
   USDC_PRICE_ORACLE,
   USDC_ADDRESS,
   WBTC_ADDRESS,
@@ -22,6 +19,9 @@ import {
   ManualVolOracle_BYTECODE,
   OptionsPremiumPricerInStables_BYTECODE,
   STETH_ADDRESS,
+  UNI_ADDRESS,
+  CHAINLINK_UNI_PRICER,
+  UNI_OWNER_ADDRESS,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -34,6 +34,8 @@ import {
   lockedBalanceForRollover,
   getDeltaStep,
   getProtocolAddresses,
+  getBlockNum,
+  getPremiumPricerFromAsset,
 } from "./helpers/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
@@ -79,6 +81,36 @@ describe("RibbonThetaVaultWithSwap", () => {
     mintConfig: {
       amount: parseEther("200"),
       contractOwnerAddress: WBTC_OWNER_ADDRESS[chainId],
+    },
+    availableChains: [CHAINID.ETH_MAINNET],
+    protocol: OPTION_PROTOCOL.GAMMA,
+  });
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon UNI Theta Vault (Call)`,
+    tokenName: "Ribbon UNI Theta Vault",
+    tokenSymbol: "rUNI-THETA",
+    asset: UNI_ADDRESS[chainId],
+    assetContractName: "IWBTC", // Since same ERC20 interface
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: UNI_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_UNI_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"), // 0.1d
+    deltaSecondOption: BigNumber.from("1000"), // 0.1d
+    deltaStep: getDeltaStep("UNI"),
+    tokenDecimals: 18,
+    depositAmount: parseEther("1"), // 1 UNI
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    minimumSupply: BigNumber.from("10").pow("10").toString(), // Any arbitrarily small number
+    expectedMintAmount: BigNumber.from("10").pow("8"), // since oTokens have 8 decimals, and we deposit 1 UNI
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 106482,
+      depositBestCase: 90033,
+    },
+    mintConfig: {
+      amount: parseEther("200"),
+      contractOwnerAddress: UNI_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
@@ -284,7 +316,7 @@ function behavesLikeRibbonOptionsVault(params: {
           {
             forking: {
               jsonRpcUrl: TEST_URI[chainId],
-              blockNumber: BLOCK_NUMBER[chainId],
+              blockNumber: await getBlockNum(asset, chainId),
             },
           },
         ],
@@ -333,9 +365,7 @@ function behavesLikeRibbonOptionsVault(params: {
       optionsPremiumPricer = await OptionsPremiumPricer.deploy(
         optionId,
         volOracle.address,
-        params.asset === WETH_ADDRESS[chainId]
-          ? ETH_PRICE_ORACLE[chainId]
-          : BTC_PRICE_ORACLE[chainId],
+        getPremiumPricerFromAsset(params.asset),
         USDC_PRICE_ORACLE[chainId]
       );
 
@@ -428,7 +458,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create first option
       firstOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks") // To be adjusted for BSC
+        .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -458,7 +488,7 @@ function behavesLikeRibbonOptionsVault(params: {
       // Create second option
       secondOptionExpiry = moment(latestTimestamp * 1000)
         .startOf("isoWeek")
-        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks") // To be adjusted for BSC
+        .add(chainId === CHAINID.AVAX_MAINNET ? 1 : 2, "weeks")
         .day("friday")
         .hours(8)
         .minutes(0)
@@ -3613,7 +3643,10 @@ function behavesLikeRibbonOptionsVault(params: {
             .connect(adminSigner)
             .transfer(vault.address, premiumAmount); // Transfer 50 tokens to vault
 
-          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
+          const user0WithdrawAmount = depositAmount.div(2);
+          await vault
+            .connect(ownerSigner)
+            .initiateWithdraw(user0WithdrawAmount); // User 0 initiates 2500 share withdraw, has 2500 unwithdrawn
 
           assert.bnEqual(
             await vault.totalBalance(),
@@ -3640,10 +3673,13 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.connect(ownerSigner).completeWithdraw();
           withdrawnTokens0 = (
             await assetContract.balanceOf(ownerSigner.address)
-          ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
-          // User 0 receives ~5038.063 tokens (5000 tokens + 38.063 premiums)
+          ).sub(withdrawnTokens0); // User 0 completes withdraw of 2500 shares
+          // User 0 receives ~2519.0315 tokens (5000 tokens + 19.0315 premiums)
           // console.log(withdrawnTokens0.toString());
-          assert.bnGt(withdrawnTokens0, depositAmount.add(tenTokens.mul(3))); // withdrawnTokens0 > 5030 tokens
+          assert.bnGt(
+            withdrawnTokens0,
+            user0WithdrawAmount.add(tenTokens.mul(1)).add(oneToken.mul(9))
+          ); // withdrawnTokens0 > 2519 tokens
 
           let withdrawnTokens1 = await assetContract.balanceOf(
             userSigner.address
@@ -3654,10 +3690,17 @@ function behavesLikeRibbonOptionsVault(params: {
           ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
           assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
 
-          // Vault has ~0.000022 in tokens leftover
+          // Vault has ~2519.0315 in tokens leftover
           // console.log((await vault.totalBalance()).toString());
-          assert.bnLt(await vault.totalBalance(), oneToken); // totalBalance < 1 tokens
-          assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
+          assert.bnLt(
+            await vault.totalBalance(),
+            user0WithdrawAmount.add(tenTokens.mul(2))
+          ); // totalBalance between 2519 and 2520 tokens
+          assert.bnGt(
+            await vault.totalBalance(),
+            user0WithdrawAmount.add(tenTokens.mul(1)).add(oneToken.mul(9))
+          );
+          assert.bnEqual(await vault.totalSupply(), user0WithdrawAmount); // 2500 shares
         });
 
         it("vault losses locking up withdraws", async function () {
@@ -3674,7 +3717,10 @@ function behavesLikeRibbonOptionsVault(params: {
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare == 1
 
-          await vault.connect(ownerSigner).initiateWithdraw(depositAmount); // User 0 initiates 5000 share withdraw
+          const user0WithdrawAmount = depositAmount.div(2);
+          await vault
+            .connect(ownerSigner)
+            .initiateWithdraw(user0WithdrawAmount); // User 0 initiates 2500 share withdraw, has 2500 unwithdrawn
 
           const newStrike = isPut
             ? firstOptionStrike.mul(9).div(11)
@@ -3696,18 +3742,16 @@ function behavesLikeRibbonOptionsVault(params: {
             parseUnits("1", params.tokenDecimals)
           ); // pricePerShare < 1
 
-          const oneToken = parseUnits("1", params.tokenDecimals); // 1 token
-
           let withdrawnTokens0 = await assetContract.balanceOf(
             ownerSigner.address
           );
           await vault.connect(ownerSigner).completeWithdraw();
           withdrawnTokens0 = (
             await assetContract.balanceOf(ownerSigner.address)
-          ).sub(withdrawnTokens0); // User 0 completes withdraw of 5000 shares
-          // User 0 receives ~4545.4545 tokens
+          ).sub(withdrawnTokens0); // User 0 completes withdraw of 2500 shares
+          // User 0 receives ~2272.7272 tokens
           // console.log(withdrawnTokens0.toString());
-          assert.bnLt(withdrawnTokens0, depositAmount); // withdrawnTokens0 < 5000 tokens
+          assert.bnLt(withdrawnTokens0, user0WithdrawAmount); // withdrawnTokens0 < 2500 tokens
 
           const { round, shares } = await vault.withdrawals(userSigner.address);
           const roundPricePerShare = await vault.roundPricePerShare(round);
@@ -3726,10 +3770,17 @@ function behavesLikeRibbonOptionsVault(params: {
           ).sub(withdrawnTokens1); // User 1 completes withdraw of 5000 shares
           assert.bnEqual(withdrawnTokens1, depositAmount); // User 1 receives 5000 tokens
 
-          // Vault has ~0.00004545 in tokens leftover
+          // Vault has ~2272.7272 in tokens leftover
           // console.log((await vault.totalBalance()).toString());
-          assert.bnLt(await vault.totalBalance(), oneToken); // totalBalance < 1 tokens
-          assert.bnEqual(await vault.totalSupply(), BigNumber.from(0)); // 0 shares
+          assert.bnLt(
+            await vault.totalBalance(),
+            user0WithdrawAmount.sub(parseUnits("227", params.tokenDecimals))
+          ); // totalBalance between 2272 and 2273 tokens
+          assert.bnGt(
+            await vault.totalBalance(),
+            user0WithdrawAmount.sub(parseUnits("228", params.tokenDecimals))
+          );
+          assert.bnEqual(await vault.totalSupply(), user0WithdrawAmount); // 2500 shares
         });
       });
     }
