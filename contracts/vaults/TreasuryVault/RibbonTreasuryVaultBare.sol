@@ -28,7 +28,8 @@ import {IWETH} from "../../interfaces/IWETH.sol";
 import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
 
-contract RibbonTreasuryVault is
+// USED FOR TREASURY ASSETS WITHOUT CHAINLINK ORACLE
+contract RibbonTreasuryVaultBare is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
     ERC20Upgradeable,
