@@ -106,8 +106,6 @@ library VaultLifecycleTreasury {
             );
         }
 
-        IStrikeSelection selection = IStrikeSelection(strikeSelection);
-
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
         address asset = vaultParams.asset;
@@ -115,7 +113,7 @@ library VaultLifecycleTreasury {
         (strikePrice, delta) = closeParams.lastStrikeOverrideRound ==
             vaultState.round
             ? (closeParams.overriddenStrikePrice, 0)
-            : selection.getStrikePrice(expiry, isPut);
+            : IStrikeSelection(strikeSelection).getStrikePrice(expiry, isPut);
 
         require(strikePrice != 0, "!strikePrice");
 
@@ -131,11 +129,13 @@ library VaultLifecycleTreasury {
         );
 
         // get the black scholes premium of the option
-        premium = GnosisAuction.getOTokenPremiumInStables(
-            otokenAddress,
-            optionsPremiumPricer,
-            premiumDiscount
-        );
+        premium = optionsPremiumPricer == address(1)
+            ? 10000000 // Arbitrary which means no pricer, placeholder to prevent reverting
+            : GnosisAuction.getOTokenPremiumInStables(
+                otokenAddress,
+                optionsPremiumPricer,
+                premiumDiscount
+            );
 
         require(premium > 0, "!premium");
 
