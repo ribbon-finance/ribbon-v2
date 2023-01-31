@@ -156,7 +156,7 @@ export const SAMB_ADDRESS = {
 };
 
 export const SAMB_OWNER_ADDRESS = {
-  [CHAINID.ETH_MAINNET]: "0x39f36935e07f283cf1fd58984c3ed2e63e8b5ccd",
+  [CHAINID.ETH_MAINNET]: "0xa0b4ed5ccfc91ef092636aa33807962fc3ace05c",
 };
 
 /**
