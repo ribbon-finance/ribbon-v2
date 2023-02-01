@@ -11,11 +11,9 @@ import {
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
-  STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
 } from "../utils/constants";
 
 const TOKEN_NAME = {
@@ -32,12 +30,14 @@ const TOKEN_SYMBOL = {
   [CHAINID.AVAX_FUJI]: "rAVAX-THETA",
 };
 
-const STRIKE_STEPS = {
-  [CHAINID.ETH_MAINNET]: STRIKE_STEP.ETH,
-  [CHAINID.ETH_KOVAN]: STRIKE_STEP.ETH,
-  [CHAINID.AVAX_MAINNET]: STRIKE_STEP.AVAX,
-  [CHAINID.AVAX_FUJI]: STRIKE_STEP.AVAX,
-};
+// Deprecated, used for DeltaStrikeSelection
+
+// const STRIKE_STEPS = {
+//   [CHAINID.ETH_MAINNET]: STRIKE_STEP.ETH,
+//   [CHAINID.ETH_KOVAN]: STRIKE_STEP.ETH,
+//   [CHAINID.AVAX_MAINNET]: STRIKE_STEP.AVAX,
+//   [CHAINID.AVAX_FUJI]: STRIKE_STEP.AVAX,
+// };
 
 const main = async ({
   network,

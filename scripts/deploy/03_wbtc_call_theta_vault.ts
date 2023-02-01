@@ -13,8 +13,6 @@ import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
-  STRIKE_STEP,
 } from "../utils/constants";
 
 const main = async ({

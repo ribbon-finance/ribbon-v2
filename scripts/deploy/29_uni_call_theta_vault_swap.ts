@@ -11,8 +11,6 @@ import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
-  STRIKE_DELTA,
-  STRIKE_STEP,
 } from "../utils/constants";
 import { getDeltaStep } from "../../test/helpers/utils";
 

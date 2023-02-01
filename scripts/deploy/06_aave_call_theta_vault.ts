@@ -10,12 +10,10 @@ import {
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
-  STRIKE_STEP,
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
 } from "../utils/constants";
 
 const main = async ({
