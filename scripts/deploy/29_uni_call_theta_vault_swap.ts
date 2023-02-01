@@ -60,10 +60,10 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionUNIWithSwap", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionUNICall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.UNI],
+    args: [],
   });
 
   console.log(
@@ -73,7 +73,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.UNI],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
