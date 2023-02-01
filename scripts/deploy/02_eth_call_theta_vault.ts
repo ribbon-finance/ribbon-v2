@@ -76,10 +76,35 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionETH", {
-    contract: "DeltaStrikeSelection",
+  // The following is deprecated, we have switched to using the manual strike selection
+
+  // const strikeSelection = await deploy("StrikeSelectionETH", {
+  //   contract: "DeltaStrikeSelection",
+  //   from: deployer,
+  //   args: [pricer.address, STRIKE_DELTA, STRIKE_STEPS[chainId]],
+  // });
+
+  // console.log(
+  //   `RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`
+  // );
+
+  // try {
+  //   await run("verify:verify", {
+  //     address: strikeSelection.address,
+  //     constructorArguments: [
+  //       pricer.address,
+  //       STRIKE_DELTA,
+  //       STRIKE_STEPS[chainId],
+  //     ],
+  //   });
+  // } catch (error) {
+  //   console.log(error);
+  // }
+
+  const strikeSelection = await deploy("ManualStrikeSelectionUNICall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEPS[chainId]],
+    args: [],
   });
 
   console.log(
@@ -89,11 +114,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [
-        pricer.address,
-        STRIKE_DELTA,
-        STRIKE_STEPS[chainId],
-      ],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
