@@ -30,15 +30,6 @@ const TOKEN_SYMBOL = {
   [CHAINID.AVAX_FUJI]: "rAVAX-THETA",
 };
 
-// Deprecated, used for DeltaStrikeSelection
-
-// const STRIKE_STEPS = {
-//   [CHAINID.ETH_MAINNET]: STRIKE_STEP.ETH,
-//   [CHAINID.ETH_KOVAN]: STRIKE_STEP.ETH,
-//   [CHAINID.AVAX_MAINNET]: STRIKE_STEP.AVAX,
-//   [CHAINID.AVAX_FUJI]: STRIKE_STEP.AVAX,
-// };
-
 const main = async ({
   network,
   deployments,
@@ -75,31 +66,6 @@ const main = async ({
   console.log(`RibbonThetaVaultETHCall pricer @ ${pricer.address}`);
 
   // Can't verify pricer because it's compiled with 0.7.3
-
-  // The following is deprecated, we have switched to using the manual strike selection
-
-  // const strikeSelection = await deploy("StrikeSelectionETH", {
-  //   contract: "DeltaStrikeSelection",
-  //   from: deployer,
-  //   args: [pricer.address, STRIKE_DELTA, STRIKE_STEPS[chainId]],
-  // });
-
-  // console.log(
-  //   `RibbonThetaVaultETHCall strikeSelection @ ${strikeSelection.address}`
-  // );
-
-  // try {
-  //   await run("verify:verify", {
-  //     address: strikeSelection.address,
-  //     constructorArguments: [
-  //       pricer.address,
-  //       STRIKE_DELTA,
-  //       STRIKE_STEPS[chainId],
-  //     ],
-  //   });
-  // } catch (error) {
-  //   console.log(error);
-  // }
 
   const strikeSelection = await deploy("ManualStrikeSelectionUNICall", {
     contract: "ManualStrikeSelection",

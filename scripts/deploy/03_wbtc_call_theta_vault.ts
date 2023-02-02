@@ -51,27 +51,6 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  // The following is deprecated, we have switched to using the manual strike selection
-
-  // const strikeSelection = await deploy("StrikeSelectionWBTC", {
-  //   contract: "DeltaStrikeSelection",
-  //   from: deployer,
-  //   args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
-  // });
-
-  // console.log(
-  //   `RibbonThetaVaultWBTCCall strikeSelection @ ${strikeSelection.address}`
-  // );
-
-  // try {
-  //   await run("verify:verify", {
-  //     address: strikeSelection.address,
-  //     constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
-  //   });
-  // } catch (error) {
-  //   console.log(error);
-  // }
-
   const strikeSelection = await deploy("ManualStrikeSelectionWBTCCall", {
     contract: "ManualStrikeSelection",
     from: deployer,

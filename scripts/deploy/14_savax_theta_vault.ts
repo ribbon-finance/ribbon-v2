@@ -77,25 +77,6 @@ const main = async ({
 
   // The following is deprecated, we have switched to using the manual strike selection
 
-  // const strikeSelection = await deploy("StrikeSelectionAVAX", {
-  //   contract: "DeltaStrikeSelection",
-  //   from: deployer,
-  //   args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AVAX],
-  // });
-
-  // console.log(
-  //   `RibbonThetaVaultSAVAXCall strikeSelection @ ${strikeSelection.address}`
-  // );
-
-  // try {
-  //   await run("verify:verify", {
-  //     address: strikeSelection.address,
-  //     constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AVAX],
-  //   });
-  // } catch (error) {
-  //   console.log(error);
-  // }
-
   const strikeSelection = await deploy("ManualStrikeSelectionAVAXCall", {
     contract: "ManualStrikeSelection",
     from: deployer,
