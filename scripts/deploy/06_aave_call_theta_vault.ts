@@ -10,12 +10,10 @@ import {
 } from "../../constants/constants";
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
-  STRIKE_STEP,
   AUCTION_DURATION,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
 } from "../utils/constants";
 
 const main = async ({
@@ -60,10 +58,10 @@ const main = async ({
 
   console.log(`RibbonThetaVaultAAVECall pricer @ ${pricer.address}`);
 
-  const strikeSelection = await deploy("StrikeSelectionAAVE", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionAAVECall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AAVE],
+    args: [],
   });
 
   console.log(
@@ -73,7 +71,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.AAVE],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
