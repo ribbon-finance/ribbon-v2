@@ -117,7 +117,7 @@ export default {
     },
     feeRecipient: {
       default: 0,
-      1: "0xf2E186D6F3cafe17BCc89c50133CFbc2DB6CF55a", // Fee Custody
+      1: "0xdaeada3d210d2f45874724beea03c7d4bbd41674", // Ribbon DAO
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
