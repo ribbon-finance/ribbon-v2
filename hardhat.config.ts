@@ -128,7 +128,7 @@ export default {
     },
     feeRecipient: {
       default: 0,
-      1: "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674", // Ribbon DAO
+      1: "0xdaeada3d210d2f45874724beea03c7d4bbd41674", // Ribbon DAO
       42: "0x92Dd37fbc36cB7260F0d2BD09F9672525a028fB8",
       56: "0xDAEada3d210D2f45874724BeEa03C7d4BBD41674",
       43114: "0x939cbb6BaBAad2b0533C2CACa8a4aFEc3ae06492",
