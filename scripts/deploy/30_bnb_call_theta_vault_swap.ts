@@ -11,8 +11,6 @@ import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
-  STRIKE_DELTA,
-  STRIKE_STEP,
 } from "../utils/constants";
 import { getDeltaStep } from "../../test/helpers/utils";
 
@@ -60,10 +58,10 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionBNBWithSwap", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionBNBCall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.BNB],
+    args: [],
   });
 
   console.log(
@@ -73,7 +71,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.BNB],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
