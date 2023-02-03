@@ -11,11 +11,9 @@ import {
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
-  STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
 } from "../utils/constants";
 
 const TOKEN_NAME = {
@@ -70,10 +68,10 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionAPE", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionAPECall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.APE],
+    args: [],
   });
 
   console.log(
@@ -83,11 +81,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [
-        pricer.address,
-        STRIKE_DELTA,
-        STRIKE_STEP.APE,
-      ],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);

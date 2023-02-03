@@ -36,7 +36,7 @@ const main = async ({
   console.log(`VaultLifeCycleTreasuryBare @ ${lifecycleAddress}`);
 
   const RibbonTreasuryVault = await ethers.getContractFactory(
-    "RibbonTreasuryVault",
+    "RibbonTreasuryVaultBare",
     {
       libraries: {
         VaultLifecycleTreasury: lifecycleAddress,

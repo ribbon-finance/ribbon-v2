@@ -11,11 +11,9 @@ import {
 import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
 import {
   AUCTION_DURATION,
-  STRIKE_STEP,
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
 } from "../utils/constants";
 
 const TOKEN_NAME = {
@@ -30,13 +28,6 @@ const TOKEN_SYMBOL = {
   [CHAINID.ETH_KOVAN]: "rETH-THETA",
   [CHAINID.AVAX_MAINNET]: "rAVAX-THETA",
   [CHAINID.AVAX_FUJI]: "rAVAX-THETA",
-};
-
-const STRIKE_STEPS = {
-  [CHAINID.ETH_MAINNET]: STRIKE_STEP.ETH,
-  [CHAINID.ETH_KOVAN]: STRIKE_STEP.ETH,
-  [CHAINID.AVAX_MAINNET]: STRIKE_STEP.AVAX,
-  [CHAINID.AVAX_FUJI]: STRIKE_STEP.AVAX,
 };
 
 const main = async ({
@@ -76,10 +67,10 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionETH", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionUNICall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEPS[chainId]],
+    args: [],
   });
 
   console.log(
@@ -89,11 +80,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [
-        pricer.address,
-        STRIKE_DELTA,
-        STRIKE_STEPS[chainId],
-      ],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);

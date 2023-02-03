@@ -12,8 +12,6 @@ import {
   MANAGEMENT_FEE,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_DELTA,
-  STRIKE_STEP,
 } from "../utils/constants";
 import { getDeltaStep } from "../../test/helpers/utils";
 
@@ -61,10 +59,10 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionWBTCWithSwap", {
-    contract: "DeltaStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionWBTCCall", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
+    args: [],
   });
 
   console.log(
@@ -74,7 +72,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [pricer.address, STRIKE_DELTA, STRIKE_STEP.WBTC],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
