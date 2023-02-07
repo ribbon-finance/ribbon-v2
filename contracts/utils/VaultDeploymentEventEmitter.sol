@@ -23,12 +23,30 @@ contract VaultDeploymentEventEmitter is Ownable {
     enum VaultType {
         normal,
         earn,
-        vip,
-        treasury
+        treasury,
+        vip
     }
 
     /// @notice Stores the vault addresses for each vault type
     mapping(VaultType => address[]) vaultAddresses;
+
+    /************************************************
+     *  CONSTRUCTOR
+     ***********************************************/
+
+    /**
+     * @notice Initializes the contract with existing vault addresses
+     * @param existingVaultAddresses array with the existing vault addresses
+     * @param existingVaultTypes array with the existing vault types
+     */
+    constructor(
+        address[] memory existingVaultAddresses,
+        VaultType[] memory existingVaultTypes
+    ) {
+        for (uint256 i = 0; i < existingVaultAddresses.length; i++) {
+            _newVault(existingVaultAddresses[i], existingVaultTypes[i]);
+        }
+    }
 
     /************************************************
      *  VAULT OPERATIONS
@@ -42,6 +60,12 @@ contract VaultDeploymentEventEmitter is Ownable {
     function newVault(address _newVaultAddress, VaultType _vaultType)
         external
         onlyOwner
+    {
+        _newVault(_newVaultAddress, _vaultType);
+    }
+
+    function _newVault(address _newVaultAddress, VaultType _vaultType)
+        internal
     {
         require(_newVaultAddress != address(0), "!_newVaultAddress");
 
