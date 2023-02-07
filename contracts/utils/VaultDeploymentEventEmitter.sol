@@ -20,12 +20,7 @@ contract VaultDeploymentEventEmitter is Ownable {
      ***********************************************/
 
     /// @notice Enum describing the types of vault
-    enum VaultType {
-        normal,
-        earn,
-        treasury,
-        vip
-    }
+    enum VaultType {normal, earn, treasury, vip}
 
     /// @notice Stores the vault addresses for each vault type
     mapping(VaultType => address[]) vaultAddresses;
