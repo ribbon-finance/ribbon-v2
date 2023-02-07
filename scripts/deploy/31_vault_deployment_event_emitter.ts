@@ -22,6 +22,7 @@ const main = async ({
     "0x65a833afDc250D9d38f8CD9bC2B1E3132dB13B2F", // Normal - WBTC Covered Call V2
     "0xCc323557c71C0D1D20a1861Dc69c06C5f3cC9624", // Normal - ETH Put-Selling Vault V2
     "0xA1Da0580FA96129E753D736a5901C31Df5eC5edf", // Normal - rETH Covered Call V2
+    "0xDD9d1B7dEaB1A843A1B584d2CA5903B8A4735deF", // Normal - UNI Theta Vault (rUNI-THETA)
 
     "0x84c2b16fa6877a8ff4f3271db7ea837233dfd6f0", // Earn - Ribbon USDC Earn Vault
     "0xce5513474e077f5336cf1b33c1347fdd8d48ae8c", // Earn - Ribbon stETH Earn Vault
@@ -39,7 +40,7 @@ const main = async ({
     "0x0dD119Bea1BF0eDc4fd9C7E96bB829eC3f5013A1", // VIP - Ribbon VIP VOL Vault Two
   ];
   const existingVaultTypes = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3,
   ];
 
   const vaultDeploymentEventEmitter = await deploy(
