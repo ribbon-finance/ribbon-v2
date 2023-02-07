@@ -131,7 +131,7 @@ const main = async ({
     args: [logicDeployment.address, admin, initData],
   });
 
-  await vaultDeploymentEventEmitterContract.newVault(proxy.address);
+  await vaultDeploymentEventEmitterContract.newVault(proxy.address, 0); // Always adjust to the correct type of vault: 0-normal; 1-earn; 2-vip; 3-treasury
 
   console.log(`RibbonThetaVaultWBTCCallWithSwap @ ${proxy.address}`);
 
