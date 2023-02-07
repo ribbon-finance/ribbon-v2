@@ -3,7 +3,7 @@ pragma solidity =0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract VaultDeploymentHelper is Ownable {
+contract VaultDeploymentEventEmitter is Ownable {
     /**
      * @notice Emitted when a new vault is deployed
      * @param vaultAddress the address of the new vault

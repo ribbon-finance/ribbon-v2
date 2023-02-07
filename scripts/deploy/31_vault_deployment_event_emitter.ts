@@ -8,23 +8,23 @@ const main = async ({
 }: HardhatRuntimeEnvironment) => {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log("31 - Deploying VaultDeploymentHelper on", network.name);
+  console.log("31 - Deploying VaultDeploymentEventEmitter on", network.name);
 
-  const vaultDeploymentHelper = await deploy("VaultDeploymentHelper", {
-    contract: "VaultDeploymentHelper",
+  const vaultDeploymentEventEmitter = await deploy("VaultDeploymentEventEmitter", {
+    contract: "VaultDeploymentEventEmitter",
     from: deployer,
   });
 
-  console.log(`VaultDeploymentHelper @ ${vaultDeploymentHelper.address}`);
+  console.log(`VaultDeploymentEventEmitter @ ${vaultDeploymentEventEmitter.address}`);
 
   try {
     await run("verify:verify", {
-      address: vaultDeploymentHelper.address,
+      address: vaultDeploymentEventEmitter.address,
     });
   } catch (error) {
     console.log(error);
   }
 };
-main.tags = ["VaultDeploymentHelper"];
+main.tags = ["VaultDeploymentEventEmitter"];
 
 export default main;

@@ -4,8 +4,8 @@ import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { NULL_ADDR, PLACEHOLDER_ADDR } from "../../constants/constants";
 
-describe("VaultDeploymentHelper", () => {
-  let vaultDeploymentHelper: Contract;
+describe("VaultDeploymentEventEmitter", () => {
+  let vaultDeploymentEventEmitter: Contract;
   let owner: SignerWithAddress;
   let account: SignerWithAddress;
 
@@ -24,29 +24,29 @@ describe("VaultDeploymentHelper", () => {
 
     [owner, account] = await ethers.getSigners();
 
-    const VaultDeploymentHelper = await ethers.getContractFactory(
-      "VaultDeploymentHelper"
+    const VaultDeploymentEventEmitter = await ethers.getContractFactory(
+      "VaultDeploymentEventEmitter"
     );
-    vaultDeploymentHelper = await VaultDeploymentHelper.connect(owner).deploy();
+    vaultDeploymentEventEmitter = await VaultDeploymentEventEmitter.connect(owner).deploy();
   });
 
   it("reverts when the caller is not the owner", async () => {
     await expect(
-      vaultDeploymentHelper.connect(account).newVault(PLACEHOLDER_ADDR)
+      vaultDeploymentEventEmitter.connect(account).newVault(PLACEHOLDER_ADDR)
     ).to.be.revertedWith("caller is not the owner");
   });
   it("reverts when address zero is passed", async () => {
     await expect(
-      vaultDeploymentHelper.connect(owner).newVault(NULL_ADDR)
+      vaultDeploymentEventEmitter.connect(owner).newVault(NULL_ADDR)
     ).to.be.revertedWith("!_newVaultAddress");
   });
   it("successfully emits the event with the new vault address", async () => {
-    const tx = await vaultDeploymentHelper
+    const tx = await vaultDeploymentEventEmitter
       .connect(owner)
       .newVault(PLACEHOLDER_ADDR);
 
     await expect(tx)
-      .to.emit(vaultDeploymentHelper, "NewVault")
+      .to.emit(vaultDeploymentEventEmitter, "NewVault")
       .withArgs(PLACEHOLDER_ADDR);
   });
 });
