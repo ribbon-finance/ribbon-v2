@@ -31,6 +31,7 @@ const main = async ({
   );
 
   const manualVolOracle = await deployments.get("ManualVolOracle");
+  const vaultDeploymentEventEmitter = await deployments.get("VaultDeploymentEventEmitter");
   const chainId = network.config.chainId;
   const underlyingOracle = BTC_PRICE_ORACLE[chainId];
   const stablesOracle = USDC_PRICE_ORACLE[chainId];
@@ -38,6 +39,11 @@ const main = async ({
   const manualVolOracleContract = await ethers.getContractAt(
     ManualVolOracle_ABI,
     manualVolOracle.address
+  );
+
+  const vaultDeploymentEventEmitterContract = await ethers.getContractAt(
+    "IVaultDeploymentEventEmitter",
+    vaultDeploymentEventEmitter.address
   );
   const optionId = await manualVolOracleContract.getOptionId(
     getDeltaStep("WBTC"),
@@ -125,6 +131,8 @@ const main = async ({
     args: [logicDeployment.address, admin, initData],
   });
 
+  await vaultDeploymentEventEmitterContract.newVault(proxy.address, 0); // Always adjust to the correct type of vault: 0-normal; 1-earn; 2-vip; 3-treasury
+
   console.log(`RibbonThetaVaultWBTCCallWithSwap @ ${proxy.address}`);
 
   try {
@@ -137,6 +145,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultWBTCCallWithSwap"];
-// main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
+// main.dependencies = ["VaultDeploymentEventEmitter", "ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
 
 export default main;
