@@ -57,6 +57,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: vaultDeploymentEventEmitter.address,
+      constructorArguments: [existingVaultAddresses, existingVaultTypes],
     });
   } catch (error) {
     console.log(error);
