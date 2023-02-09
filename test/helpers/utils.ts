@@ -39,6 +39,7 @@ import {
   ETH_PRICE_ORACLE,
   UNI_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
+  BLOCK_NUMBER,
 } from "../../constants/constants";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
@@ -87,6 +88,8 @@ export async function getBlockNum(asset: string, chainId: number) {
     return 15140525;
   } else if (asset === UNI_ADDRESS[chainId]) {
     return 16000050;
+  } else if (asset === WETH_ADDRESS[chainId]) {
+    return BLOCK_NUMBER[chainId];
   } else {
     return 14087600;
   }
@@ -699,6 +702,9 @@ export const getDeltaStep = (asset: string) => {
     case "WETH":
       if (chainId === CHAINID.AVAX_MAINNET) {
         return BigNumber.from("3");
+      }
+      if (chainId === CHAINID.BSC_MAINNET) {
+        return BigNumber.from("10");
       }
       return BigNumber.from("100");
     default:

@@ -39,6 +39,8 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          BSC_MAINNET_URI: "https://bsc-mainnet.public.blastapi.io"
+          BSC_MAINNET_MNEMONIC: ${{ secrets.BSC_MAINNET_MNEMONIC }}
           AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
@@ -51,6 +53,8 @@ jobs:
           KOVAN_MNEMONIC: ${{ secrets.KOVAN_MNEMONIC }}
           MAINNET_URI: ${{ secrets.MAINNET_URI }}
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
+          BSC_MAINNET_URI: "https://bsc-mainnet.public.blastapi.io"
+          BSC_MAINNET_MNEMONIC: ${{ secrets.BSC_MAINNET_MNEMONIC }}
           AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"

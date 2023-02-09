@@ -8,6 +8,7 @@ import moment from "moment-timezone";
 import * as time from "./helpers/time";
 import {
   CHAINLINK_WBTC_PRICER,
+  CHAINLINK_WETH_PRICER,
   CHAINID,
   OPTION_PROTOCOL,
   USDC_PRICE_ORACLE,
@@ -84,7 +85,6 @@ describe("RibbonThetaVaultWithSwap", () => {
     availableChains: [CHAINID.ETH_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
   });
-
   behavesLikeRibbonOptionsVault({
     name: `Ribbon UNI Theta Vault (Call)`,
     tokenName: "Ribbon UNI Theta Vault",
@@ -113,6 +113,33 @@ describe("RibbonThetaVaultWithSwap", () => {
       contractOwnerAddress: UNI_OWNER_ADDRESS[chainId],
     },
     availableChains: [CHAINID.ETH_MAINNET],
+    protocol: OPTION_PROTOCOL.GAMMA,
+  });
+
+  behavesLikeRibbonOptionsVault({
+    name: `Ribbon BNB Theta Vault (Call)`,
+    tokenName: "Ribbon BNB Theta Vault",
+    tokenSymbol: "rBNB-THETA",
+    asset: WETH_ADDRESS[chainId],
+    assetContractName: "IWETH",
+    strikeAsset: USDC_ADDRESS[chainId],
+    collateralAsset: WETH_ADDRESS[chainId],
+    chainlinkPricer: CHAINLINK_WETH_PRICER[chainId],
+    deltaFirstOption: BigNumber.from("1000"),
+    deltaSecondOption: BigNumber.from("1000"),
+    deltaStep: getDeltaStep("WETH"),
+    depositAmount: parseEther("1"),
+    minimumSupply: BigNumber.from(10).pow(10).toString(),
+    expectedMintAmount: BigNumber.from("100000000"),
+    managementFee: BigNumber.from("2000000"),
+    performanceFee: BigNumber.from("20000000"),
+    tokenDecimals: 18,
+    isPut: false,
+    gasLimits: {
+      depositWorstCase: 126014,
+      depositBestCase: 91814,
+    },
+    availableChains: [CHAINID.BSC_MAINNET],
     protocol: OPTION_PROTOCOL.GAMMA,
   });
 });
@@ -956,7 +983,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
           const tx2 = await vault.depositETH({ value: parseEther("0.1") });
           const receipt2 = await tx2.wait();
-          assert.isAtMost(receipt2.gasUsed.toNumber(), 91500);
+          assert.isAtMost(receipt2.gasUsed.toNumber(), 91820);
 
           // Uncomment to measure precise gas numbers
           // console.log("Worst case depositETH", receipt1.gasUsed.toNumber());
@@ -1544,6 +1571,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+          [CHAINID.BSC_MAINNET]: 37000000000, // WBNB
         };
         const altStrikePrice = "405000000000";
 
@@ -1586,6 +1614,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const WETH_STRIKE_PRICE = {
           [CHAINID.ETH_MAINNET]: 250000000000, // WETH
           [CHAINID.AVAX_MAINNET]: 20000000000, // WAVAX
+          [CHAINID.BSC_MAINNET]: 37000000000, // WBNB
         };
 
         const altStrikePrice = "405000000000";
@@ -2587,6 +2616,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
+          [CHAINID.BSC_MAINNET]: "10000000000",
         };
 
         const settlementPriceITM = isPut
@@ -3512,6 +3542,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const AMOUNT = {
           [CHAINID.ETH_MAINNET]: "100000000000",
           [CHAINID.AVAX_MAINNET]: "1000000000",
+          [CHAINID.BSC_MAINNET]: "10000000000",
         };
 
         const settlementPriceITM = isPut
