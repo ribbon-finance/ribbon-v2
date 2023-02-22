@@ -67,7 +67,7 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("ManualStrikeSelectionUNICall", {
+  const strikeSelection = await deploy("ManualStrikeSelectionETHCall", {
     contract: "ManualStrikeSelection",
     from: deployer,
     args: [],
