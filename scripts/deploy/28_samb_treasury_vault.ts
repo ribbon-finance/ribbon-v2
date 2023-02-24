@@ -59,7 +59,7 @@ const main = async ({
       _auctionDuration: AUCTION_DURATION,
       _period: 30,
       _maxDepositors: 30,
-      _minDeposit: parseEther("50000"),
+      _minDeposit: parseEther("5"),
     },
     {
       isPut: false,
