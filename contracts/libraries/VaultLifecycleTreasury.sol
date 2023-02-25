@@ -94,17 +94,15 @@ library VaultLifecycleTreasury {
             uint256 delta
         )
     {
-        uint256 expiry;
-
-        // uninitialized state
+        uint256 currentExpiryTimestamp;
         if (closeParams.currentOption == address(0)) {
-            expiry = getNextExpiry(block.timestamp, closeParams.period);
+            currentExpiryTimestamp = block.timestamp;
         } else {
-            expiry = getNextExpiry(
-                IOtoken(closeParams.currentOption).expiryTimestamp(),
-                closeParams.period
-            );
+            currentExpiryTimestamp = IOtoken(closeParams.currentOption)
+                .expiryTimestamp();
         }
+        uint256 expiry =
+            getNextExpiry(currentExpiryTimestamp, closeParams.period);
 
         bool isPut = vaultParams.isPut;
         address underlying = vaultParams.underlying;
@@ -784,13 +782,12 @@ library VaultLifecycleTreasury {
     }
 
     /**
-     * @notice Gets the next options expiry timestamp, this function should be called
-     when there is sufficient guard to ensure valid period
+     * @notice Gets the next options expiry timestamp for the specified period
      * @param timestamp is the expiry timestamp of the current option
-     * @param period is no. of days in between option sales. Available periods are: 
+     * @param period is no. of days in between option sales. Available periods are:
      * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
      */
-    function getNextExpiry(uint256 timestamp, uint256 period)
+    function getNextExpiryForPeriod(uint256 timestamp, uint256 period)
         internal
         pure
         returns (uint256 nextExpiry)
@@ -804,7 +801,7 @@ library VaultLifecycleTreasury {
             nextExpiry = DateTime.getNextFriday(timestamp);
             nextExpiry = nextExpiry <= timestamp
                 ? nextExpiry + 2 weeks
-                : nextExpiry;
+                : nextExpiry + 1 weeks;
         } else if (period == 30) {
             nextExpiry = DateTime.getMonthLastFriday(timestamp);
             nextExpiry = nextExpiry <= timestamp
@@ -823,5 +820,25 @@ library VaultLifecycleTreasury {
         }
 
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
+    }
+
+    /**
+     * @notice Gets the next options expiry timestamp adjusting for unwritten periods
+     * @param timestamp is the expiry timestamp of the current option
+     * @param period is no. of days in between option sales. Available periods are:
+     * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
+     */
+    function getNextExpiry(uint256 timestamp, uint256 period)
+        internal
+        view
+        returns (uint256 expiry)
+    {
+        expiry = getNextExpiryForPeriod(timestamp, period);
+        // After options expiry if no options are written for >period
+        // We need to give the ability to continue writing options
+        if (expiry < block.timestamp) {
+            expiry = getNextExpiryForPeriod(block.timestamp, period);
+        }
+        return expiry;
     }
 }
