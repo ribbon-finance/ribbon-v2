@@ -27,6 +27,7 @@ describe("VaultLifecycleTreasury", () => {
     const VaultLifecycleTreasury = await ethers.getContractFactory(
       "VaultLifecycleTreasury"
     );
+
     await VaultLifecycleTreasury.deploy();
 
     const TestVaultLifecycleTreasury = await ethers.getContractFactory(
@@ -35,7 +36,7 @@ describe("VaultLifecycleTreasury", () => {
     lifecycle = await TestVaultLifecycleTreasury.deploy();
   });
 
-  describe("getNextExpiry", () => {
+  describe("getNextExpiryForPeriod", () => {
     time.revertToSnapshotAfterEach(async () => {
       const { timestamp } = await provider.getBlock("latest");
 
@@ -64,7 +65,10 @@ describe("VaultLifecycleTreasury", () => {
       for (let i = 0; i < 4; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -92,7 +96,10 @@ describe("VaultLifecycleTreasury", () => {
       for (let i = 4; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -114,12 +121,16 @@ describe("VaultLifecycleTreasury", () => {
       let correctExpiryDate = moment(currentTime)
         .startOf("isoWeek")
         .day(weekday)
+        .add(1, "week")
         .hour(8);
 
       for (let i = 0; i < 4; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -146,7 +157,10 @@ describe("VaultLifecycleTreasury", () => {
 
       inputTime = moment(currentTime).add(weekday - 1, "day");
 
-      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+      nextExpiry = await lifecycle.getNextExpiryForPeriod(
+        inputTime.unix(),
+        period
+      );
 
       nextExpiryDate = moment.unix(nextExpiry);
 
@@ -166,14 +180,17 @@ describe("VaultLifecycleTreasury", () => {
 
       let correctExpiryDate = moment(currentTime)
         .startOf("isoWeek")
-        .add(1, "week")
+        .add(2, "weeks")
         .day(weekday)
         .hour(8);
 
       for (let i = 5; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -200,7 +217,10 @@ describe("VaultLifecycleTreasury", () => {
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -227,7 +247,10 @@ describe("VaultLifecycleTreasury", () => {
       for (let i = 0; i < 7; i++) {
         inputTime = moment(currentTime).add(Number(i) + 18, "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -258,7 +281,10 @@ describe("VaultLifecycleTreasury", () => {
           .date(6)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -289,7 +315,10 @@ describe("VaultLifecycleTreasury", () => {
           .date(5)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -321,7 +350,10 @@ describe("VaultLifecycleTreasury", () => {
           .date(10)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -349,7 +381,10 @@ describe("VaultLifecycleTreasury", () => {
 
       inputTime = moment(currentTime).month("march").year(2021).date(26);
 
-      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+      nextExpiry = await lifecycle.getNextExpiryForPeriod(
+        inputTime.unix(),
+        period
+      );
 
       nextExpiryDate = moment.unix(nextExpiry);
 
@@ -376,7 +411,10 @@ describe("VaultLifecycleTreasury", () => {
 
       inputTime = moment(currentTime).month("december").date(31);
 
-      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+      nextExpiry = await lifecycle.getNextExpiryForPeriod(
+        inputTime.unix(),
+        period
+      );
 
       nextExpiryDate = moment.unix(nextExpiry);
 
@@ -407,7 +445,10 @@ describe("VaultLifecycleTreasury", () => {
           .date(22)
           .add(Number(i), "day");
 
-        nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+        nextExpiry = await lifecycle.getNextExpiryForPeriod(
+          inputTime.unix(),
+          period
+        );
 
         nextExpiryDate = moment.unix(nextExpiry);
 
@@ -435,12 +476,208 @@ describe("VaultLifecycleTreasury", () => {
 
       inputTime = moment(currentTime).month("dec").year(2020).date(25);
 
-      nextExpiry = await lifecycle.getNextExpiry(inputTime.unix(), period);
+      nextExpiry = await lifecycle.getNextExpiryForPeriod(
+        inputTime.unix(),
+        period
+      );
 
       nextExpiryDate = moment.unix(nextExpiry);
 
       assert.equal(nextExpiryDate.weekday(), weekday);
       assert.isTrue(nextExpiryDate.isSame(correctExpiryDate));
+    });
+  });
+
+  describe("getNextExpiry", () => {
+    const fridayNum = 5;
+    time.revertToSnapshotAfterEach(async () => {
+      const { timestamp } = await provider.getBlock("latest");
+
+      const now = moment.unix(timestamp);
+
+      const startDate = moment(now).startOf("isoWeek").add(1, "week").hour(9); // needs to be 8am UTC
+
+      await time.increaseTo(startDate.unix()); // May 31, 2021
+    });
+
+    it("Gets the correct Friday expiry for period 7 when no options written in previous period", async () => {
+      const fridayNum = 5;
+      const period = 7;
+      const { timestamp } = await provider.getBlock("latest");
+      const referenceTime = moment.unix(timestamp); // Mon Nov 01 2021 09:00:00
+
+      // We assume a scenario where we already minted options that expire at the end of the current period
+      // Based on our referenceTime, Fri Nov 05 2021 08:00:00 is the current options expiry
+      const currOptionExpiry = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8);
+
+      // Previously, we would need to roll within 1 period of expiry (anytime from Fri Nov 05 2021 08:00:01 to Fri Nov 12 2021 07:59:00)
+      // Thus we need to simulate a time after Fri Nov 12 2021 08:00:00 (but before the next period)
+      const startDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .add(2, "weeks"); // Mon Nov 15 2021 00:00:00
+      await time.increaseTo(startDate.unix());
+
+      // The correct expiry would be the nearest period from the current time
+      const correctExpiryDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(2, "weeks"); // Fri Nov 19 2021 08:00:00
+
+      const calculatedExpiry = await lifecycle.getNextExpiry(
+        currOptionExpiry.unix(),
+        period
+      );
+      const calculatedExpiryDate = moment.unix(calculatedExpiry);
+
+      assert.equal(calculatedExpiryDate.weekday(), fridayNum);
+      assert.isTrue(calculatedExpiryDate.isSame(correctExpiryDate));
+    });
+
+    it("Gets the correct Friday expiry for period 14 when no options written in previous period", async () => {
+      const period = 14;
+      const { timestamp } = await provider.getBlock("latest");
+      const referenceTime = moment.unix(timestamp); // Mon Nov 01 2021 09:00:00
+
+      // We assume a scenario where we already minted options that expire at the end of the current period
+      // Based on our referenceTime, Fri Nov 05 2021 08:00:00 is the current options expiry
+      const currOptionExpiry = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8);
+
+      // Previously, we would need to roll within 1 period of expiry (anytime from Fri Nov 05 2021 08:00:01 to Fri Nov 19 2021 07:59:00)
+      // Thus we need to simulate a time after Fri Nov 19 2021 08:00:00 (but before the next period)
+      const startDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .add(3, "weeks"); // Mon Nov 22 2021 00:00:00
+      await time.increaseTo(startDate.unix());
+
+      const correctExpiryDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(4, "weeks"); // Fri Dec 03 2021 08:00:00
+
+      const calculatedExpiry = await lifecycle.getNextExpiry(
+        currOptionExpiry.unix(),
+        period
+      );
+      const calculatedExpiryDate = moment.unix(calculatedExpiry);
+
+      assert.equal(calculatedExpiryDate.weekday(), fridayNum);
+      assert.isTrue(calculatedExpiryDate.isSame(correctExpiryDate));
+    });
+
+    it("Gets the correct Friday expiry for period 30 when no options written in previous period", async () => {
+      const period = 30;
+      const { timestamp } = await provider.getBlock("latest");
+      const referenceTime = moment.unix(timestamp); // Mon Nov 01 2021 09:00:00
+
+      // We assume a scenario where we already minted options that expire at the end of the current period
+      // Based on our referenceTime, Fri Nov 26 2021 08:00:00 is the current options expiry
+      const currOptionExpiry = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(3, "weeks");
+
+      // Previously, we would need to roll within 1 period of expiry (anytime from Fri Nov 26 2021 08:00:01 to Fri Dec 31 2021 07:59:00)
+      // Thus we need to simulate a time after Fri Dec 31 2021 08:00:00 (but before the next period)
+      const startDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .add(9, "weeks"); // Mon Jan 03 2022 00:00:00
+      await time.increaseTo(startDate.unix());
+
+      const correctExpiryDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(12, "weeks"); // Fri Jan 28 2022 08:00:00
+
+      const calculatedExpiry = await lifecycle.getNextExpiry(
+        currOptionExpiry.unix(),
+        period
+      );
+      const calculatedExpiryDate = moment.unix(calculatedExpiry);
+
+      assert.equal(calculatedExpiryDate.weekday(), fridayNum);
+      assert.isTrue(calculatedExpiryDate.isSame(correctExpiryDate));
+    });
+
+    it("Gets the correct Friday expiry for period 90 when no options written in previous period", async () => {
+      const period = 90;
+      const { timestamp } = await provider.getBlock("latest");
+      const referenceTime = moment.unix(timestamp); // Mon Nov 01 2021 09:00:00
+
+      // We assume a scenario where we already minted options that expire at the end of the current period
+      // Based on our referenceTime, Fri Dec 31 2021 08:00:00 is the current options expiry
+      const currOptionExpiry = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(8, "weeks");
+
+      // Previously, we would need to roll within 1 period of expiry (anytime from Fri Dec 31 2021 08:00:01 to Fri Mar 25 2022 07:59:00)
+      // Thus we need to simulate a time after Fri Mar 25 2022 08:00:00 (but before the next period)
+      const startDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .add(21, "weeks"); // Mon Mar 28 2022 00:00:00
+      await time.increaseTo(startDate.unix());
+
+      const correctExpiryDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(33, "weeks"); // Fri Jun 24 2022 08:00:00
+
+      const calculatedExpiry = await lifecycle.getNextExpiry(
+        currOptionExpiry.unix(),
+        period
+      );
+      const calculatedExpiryDate = moment.unix(calculatedExpiry);
+
+      assert.equal(calculatedExpiryDate.weekday(), fridayNum);
+      assert.isTrue(calculatedExpiryDate.isSame(correctExpiryDate));
+    });
+
+    it("Gets the correct Friday expiry for period 180 when no options written in previous period", async () => {
+      const period = 180;
+      const { timestamp } = await provider.getBlock("latest");
+      const referenceTime = moment.unix(timestamp); // Mon Nov 01 2021 09:00:00
+
+      // We assume a scenario where we already minted options that expire at the end of the current period
+      // Based on our referenceTime, Fri Dec 31 2021 08:00:00 is the current options expiry
+      const currOptionExpiry = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(8, "weeks");
+
+      // Previously, we would need to roll within 1 period of expiry (anytime from Fri Dec 31 2021 08:00:01 to Fri Jun 24 2022 07:59:00)
+      // Thus we need to simulate a time after Fri Jun 24 2022 08:00:00 (but before the next period)
+      const startDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .add(34, "weeks"); // Mon Jun 27 2022 00:00:00
+      await time.increaseTo(startDate.unix());
+
+      const correctExpiryDate = moment(referenceTime)
+        .startOf("isoWeek")
+        .day(fridayNum)
+        .hour(8)
+        .add(60, "weeks"); // Fri Dec 30 2022 08:00:00
+
+      const calculatedExpiry = await lifecycle.getNextExpiry(
+        currOptionExpiry.unix(),
+        period
+      );
+      const calculatedExpiryDate = moment.unix(calculatedExpiry);
+
+      assert.equal(calculatedExpiryDate.weekday(), fridayNum);
+      assert.isTrue(calculatedExpiryDate.isSame(correctExpiryDate));
     });
   });
 });
