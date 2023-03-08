@@ -13,6 +13,7 @@ const ASSETS = {
   ],
   [CHAINID.AVAX_MAINNET]: ["AVAX Call", "AVAX Put"],
   [CHAINID.BSC_MAINNET]: ["BNB Call"],
+  [CHAINID.BSC_TESTNET]: ["BNB Call"],
 };
 
 const main = async ({
