@@ -70,6 +70,13 @@ export default {
         mnemonic: process.env.BSC_MAINNET_MNEMONIC,
       },
     },
+    bsc_testnet: {
+      url: process.env.BSC_TESTNET_URI,
+      chainId: 97,
+      accounts: {
+        mnemonic: process.env.BSC_TESTNET_MNEMONIC,
+      },
+    },
     avax: {
       url: process.env.AVAX_URI,
       chainId: 43114,
