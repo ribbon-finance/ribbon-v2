@@ -135,6 +135,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonThetaVaultBNBCallWithSwap"];
-main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
+// main.dependencies = ["ManualVolOracle", "RibbonThetaVaultWithSwapLogic"];
 
 export default main;
