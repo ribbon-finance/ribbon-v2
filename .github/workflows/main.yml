@@ -41,6 +41,8 @@ jobs:
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
           BSC_MAINNET_URI: "https://bsc-mainnet.public.blastapi.io"
           BSC_MAINNET_MNEMONIC: ${{ secrets.BSC_MAINNET_MNEMONIC }}
+          BSC_TESTNET_URI: "https://data-seed-prebsc-2-s1.binance.org:8545"
+          BSC_TESTNET_MNEMONIC: ${{ secrets.BSC_TESTNET_MNEMONIC }}
           AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
@@ -55,6 +57,8 @@ jobs:
           MAINNET_MNEMONIC: ${{ secrets.MAINNET_MNEMONIC }}
           BSC_MAINNET_URI: "https://bsc-mainnet.public.blastapi.io"
           BSC_MAINNET_MNEMONIC: ${{ secrets.BSC_MAINNET_MNEMONIC }}
+          BSC_TESTNET_URI: "https://data-seed-prebsc-2-s1.binance.org:8545"
+          BSC_TESTNET_MNEMONIC: ${{ secrets.BSC_TESTNET_MNEMONIC }}
           AVAX_URI: "https://api.avax.network/ext/bc/C/rpc"
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
