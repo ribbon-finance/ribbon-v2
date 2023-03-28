@@ -368,7 +368,7 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function _commitAndClose() internal nonReentrant {
+    function commitAndClose() internal nonReentrant {
       _commitAndClose();
     }
 
