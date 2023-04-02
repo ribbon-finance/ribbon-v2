@@ -224,6 +224,11 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
         _commitAndCloseDigital(expiry, strikePrice);
         // Return coupons
         _returnCoupons(autocallTimestamp);
+
+        autocallBarrierPCT = pendingAutocallBarrierPCT;
+        couponBarrierPCT = pendingCouponBarrierPCT;
+        observationPeriodFreq = pendingObservationPeriodFreq;
+        numTotalObservationPeriods = period / observationPeriodFreq;
     }
 
     /**

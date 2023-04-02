@@ -8,10 +8,16 @@ abstract contract AutocallVaultStorageV1 {
   DigitalOption public digitalOption;
   // Includes 2 decimals (i.e. 10500 = 105%)
   uint256 public autocallBarrierPCT;
+  // Pending autocall barrrier PCT
+  uint256 private pendingAutocallBarrierPCT;
   // Includes 2 decimals (i.e. 10500 = 105%)
   uint256 public couponBarrierPCT;
+  // Pending coupon barrrier PCT
+  uint256 private pendingCouponBarrierPCT;
   // 1 day, 7 days, 1 month, etc in seconds
   uint256 public observationPeriodFreq;
+  // Pending observation period freq
+  uint256 private pendingObservationPeriodFreq;
   // Total num observation periods during epoch
   uint256 public numTotalObservationPeriods;
   // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
