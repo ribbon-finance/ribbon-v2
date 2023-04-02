@@ -34,6 +34,10 @@ interface IOtoken {
     function expiryTimestamp() external view returns (uint256);
 
     function isPut() external view returns (bool);
+
+    function balanceOf(address) external view returns (uint256);
+
+    function totalSupply() external view returns (uint256);
 }
 
 interface IOtokenFactory {
@@ -160,4 +164,6 @@ interface IOracle {
     function updateAssetPricer(address _asset, address _pricer) external;
 
     function getPrice(address _asset) external view returns (uint256);
+
+    function getExpiryPrice(address _asset, uint256 _expiryTimestamp) external view returns (uint256);
 }
