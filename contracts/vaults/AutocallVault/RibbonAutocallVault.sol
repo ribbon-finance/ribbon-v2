@@ -7,9 +7,13 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {
+    AutocallVaultStorage
+} from "../../storage/AutocallVaultStorage.sol";
+import {
     VaultLifecycleTreasury
 } from "../../libraries/VaultLifecycleTreasury.sol";
 import {Vault} from "../../libraries/Vault.sol";
+import {DigitalOption} from "../libraries/OptionType.sol";
 import {RibbonTreasuryVault} from "../TreasuryVault/RibbonTreasuryVault.sol";
 
 import {
@@ -18,24 +22,11 @@ import {
     IOracle
   } from "../interfaces/GammaInterface.sol";
 
-contract RibbonAutocallVault is RibbonTreasuryVault {
+contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
     // Denominator for all pct calculations
     uint256 internal constant PCT_MULTIPLIER = 100**2;
 
     IOracle public immutable ORACLE;
-
-    // State of current round's digital option (if DIP)
-    DigitalOption public digitalOption;
-    // Includes 2 decimals (i.e. 10500 = 105%)
-    uint256 public autocallBarrierPCT;
-    // Includes 2 decimals (i.e. 10500 = 105%)
-    uint256 public couponBarrierPCT;
-    // 1 day, 7 days, 1 month, etc in seconds
-    uint256 public observationPeriodFreq;
-    // Total num observation periods during epoch
-    uint256 public numTotalObservationPeriods;
-    // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
-    address public autocallSeller;
 
     /************************************************
      *  EVENTS
@@ -60,19 +51,6 @@ contract RibbonAutocallVault is RibbonTreasuryVault {
          uint256 observationPeriodFreq,
          uint256 newObservationPeriodFreq
      );
-
-    /************************************************
-     *  STRUCTS
-     ***********************************************/
-
-     struct DigitalOption {
-       // Includes 2 decimals (i.e. 10500 = 105%)
-       uint256 payoffPCT;
-       // Payoff denominated in vault collateral asset, changes every round
-       uint256 payoff;
-       // Strike of digital option, changes every round
-       uint256 strike;
-     }
 
     /************************************************
      *  CONSTRUCTOR & INITIALIZATION
