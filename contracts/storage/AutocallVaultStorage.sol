@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {DigitalOption} from "../libraries/OptionType.sol";
+import {OptionType} from "../libraries/OptionType.sol";
 
 abstract contract AutocallVaultStorageV1 {
   // State of current round's digital option (if DIP)
-  DigitalOption public digitalOption;
+  OptionType.DigitalOption public digitalOption;
   // Includes 2 decimals (i.e. 10500 = 105%)
   uint256 public autocallBarrierPCT;
   // Pending autocall barrrier PCT
-  uint256 private pendingAutocallBarrierPCT;
+  uint256 internal pendingAutocallBarrierPCT;
   // Includes 2 decimals (i.e. 10500 = 105%)
   uint256 public couponBarrierPCT;
   // Pending coupon barrrier PCT
-  uint256 private pendingCouponBarrierPCT;
+  uint256 internal pendingCouponBarrierPCT;
   // 1 day, 7 days, 1 month, etc in seconds
   uint256 public observationPeriodFreq;
   // Pending observation period freq
-  uint256 private pendingObservationPeriodFreq;
+  uint256 internal pendingObservationPeriodFreq;
   // Total num observation periods during epoch
   uint256 public numTotalObservationPeriods;
   // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
