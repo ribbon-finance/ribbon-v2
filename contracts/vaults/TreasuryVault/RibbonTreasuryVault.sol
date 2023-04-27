@@ -858,14 +858,6 @@ contract RibbonTreasuryVault is
      *         This allows all the users to withdraw if the next option is malicious.
      */
     function commitAndClose() external nonReentrant {
-      _commitAndClose();
-    }
-
-    /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short.
-     *         This allows all the users to withdraw if the next option is malicious.
-     */
-    function _commitAndClose() internal {
         address oldOption = optionState.currentOption;
 
         VaultLifecycleTreasury.CloseParams memory closeParams =
@@ -992,7 +984,15 @@ contract RibbonTreasuryVault is
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
-      _burnRemainingOTokens();
+        uint256 unlockedAssetAmount =
+            VaultLifecycleTreasury.burnOtokens(
+                GAMMA_CONTROLLER,
+                optionState.currentOption
+            );
+
+        vaultState.lockedAmount = uint104(
+            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+        );
     }
 
     /**
@@ -1014,21 +1014,6 @@ contract RibbonTreasuryVault is
      */
     function chargeAndDistribute() external onlyKeeper nonReentrant {
         _chargeAndDistribute();
-    }
-
-    /**
-     * @notice Burn the remaining oTokens left over from gnosis auction.
-     */
-    function _burnRemainingOTokens() internal {
-      uint256 unlockedAssetAmount =
-          VaultLifecycleTreasury.burnOtokens(
-              GAMMA_CONTROLLER,
-              optionState.currentOption
-          );
-
-      vaultState.lockedAmount = uint104(
-          uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
-      );
     }
 
     /**
