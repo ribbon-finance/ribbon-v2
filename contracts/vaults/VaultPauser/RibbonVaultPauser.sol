@@ -7,7 +7,7 @@ import {
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVaultPauser} from "../../interfaces/IVaultPauser.sol";
 import {Vault} from "../../libraries/Vault.sol";
-import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {IRibbonSTETHVault} from "../../interfaces/IRibbonThetaVault.sol";
 import {IWETH} from "../../interfaces/IWETH.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
 
@@ -134,7 +134,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
         override
     {
         address currentVaultAddress = msg.sender;
-        IRibbonThetaVault currentVault = IRibbonThetaVault(currentVaultAddress);
+        IRibbonSTETHVault currentVault = IRibbonSTETHVault(currentVaultAddress);
 
         // check if vault is registered
         require(
@@ -177,7 +177,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
      * @param _vaultAddress vault's address
      */
     function resumePosition(address _vaultAddress) external override {
-        IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
+        IRibbonSTETHVault currentVault = IRibbonSTETHVault(_vaultAddress);
 
         // check if vault is registered
         require(registeredVaults[_vaultAddress], "Vault is not registered");
@@ -231,7 +231,7 @@ contract RibbonVaultPauser is Ownable, IVaultPauser {
      * @param _vaultAddress vault's address to be processed
      */
     function processWithdrawal(address _vaultAddress) external onlyKeeper {
-        IRibbonThetaVault currentVault = IRibbonThetaVault(_vaultAddress);
+        IRibbonSTETHVault currentVault = IRibbonSTETHVault(_vaultAddress);
         // we can only process withdrawal after closing the previous round
         // hence round should be - 1
         emit ProcessWithdrawal(

@@ -9,8 +9,11 @@ import {
 import {
     AutocallVaultStorage
 } from "../../storage/AutocallVaultStorage.sol";
-import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
-import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {
+    VaultLifecycleTreasury
+} from "../../libraries/VaultLifecycleTreasury.sol";
+import {Vault} from "../../libraries/Vault.sol";
+import {RibbonTreasuryVaultLite} from "./RibbonTreasuryVaultLite.sol";
 
 import {
     IOtoken,
@@ -18,12 +21,11 @@ import {
     IOracle
   } from "../../interfaces/GammaInterface.sol";
 
-contract RibbonAutocallVault is AutocallVaultStorage {
+contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     // Denominator for all pct calculations
     uint256 internal constant PCT_MULTIPLIER = 100**2;
 
     IOracle public immutable ORACLE;
-    IRibbonThetaVault public immutable TREASURY_THETA_VAULT;
 
     /************************************************
      *  EVENTS
@@ -54,13 +56,25 @@ contract RibbonAutocallVault is AutocallVaultStorage {
 
     /**
      * @notice Initializes the contract with immutable variables
-     * @param _treasuryThetaVault is the contract address of the treasury theta vault
+     * @param _usdc is the USDC contract
+     * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
+     * @param _gammaController is the contract address for opyn actions
+     * @param _marginPool is the contract address for providing collateral to opyn
      */
     constructor(
-        IRibbonThetaVault _treasuryThetaVault
+        address _usdc,
+        address _oTokenFactory,
+        address _gammaController,
+        address _marginPool
     )
+        RibbonTreasuryVaultLite(
+            _usdc,
+            _oTokenFactory,
+            _gammaController,
+            _marginPool
+        )
     {
-        ORACLE = IOracle(IController(_treasuryThetaVault.GAMMA_CONTROLLER()).oracle());
+        ORACLE = IOracle(IController(_gammaController).oracle());
     }
 
     /**
@@ -103,7 +117,7 @@ contract RibbonAutocallVault is AutocallVaultStorage {
     /**
      * @dev Returns whether vault autocallable
      */
-    function autocallable() external returns (uint256)
+    function autocallable() external view returns (uint256)
     {
       uint256 expiry = IOtoken(optionState.currentOption).expiryTimestamp();
       uint256 strikePrice = IOtoken(optionState.currentOption).strikePrice();
@@ -193,7 +207,7 @@ contract RibbonAutocallVault is AutocallVaultStorage {
         }
 
         // Commit and close vanilla put
-        RibbonTreasuryVault._commitAndClose();
+        super._commitAndClose();
         // Commit and close digital put
         _commitAndCloseDigital(expiry, strikePrice);
         // Return coupons
@@ -256,7 +270,7 @@ contract RibbonAutocallVault is AutocallVaultStorage {
      * @param _expiry is the expiry of the current option
      * @param _strikePrice is the strike of the current option
      */
-    function _autocallable(uint256 _expiry, uint256 _strikePrice) internal returns (uint256)
+    function _autocallable(uint256 _expiry, uint256 _strikePrice) internal view returns (uint256)
     {
       uint256 _numTotalObservationPeriods = numTotalObservationPeriods;
       uint256 _observationPeriodFreq = observationPeriodFreq;

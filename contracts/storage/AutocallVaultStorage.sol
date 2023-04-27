@@ -2,6 +2,7 @@
 pragma solidity =0.8.4;
 
 import {OptionType} from "../libraries/OptionType.sol";
+import {RibbonThetaVaultStorageV4} from "./RibbonThetaVaultStorage.sol";
 
 abstract contract AutocallVaultStorageV1 {
   // State of current round's digital option (if DIP)
