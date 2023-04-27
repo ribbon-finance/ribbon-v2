@@ -31,4 +31,8 @@ interface IRibbonThetaVault {
     function depositYieldTokenFor(uint256 amount, address creditor) external;
 
     function symbol() external view returns (string calldata);
+
+    function commitAndClose() external;
+
+    function GAMMA_CONTROLLER() external view returns (address);
 }

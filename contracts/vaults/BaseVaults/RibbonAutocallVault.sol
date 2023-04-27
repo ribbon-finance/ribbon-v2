@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.10;
+pragma solidity =0.8.4;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -9,32 +9,28 @@ import {
 import {
     AutocallVaultStorage
 } from "../../storage/AutocallVaultStorage.sol";
-import {
-    VaultLifecycleTreasury
-} from "../../libraries/VaultLifecycleTreasury.sol";
-import {Vault} from "../../libraries/Vault.sol";
-import {DigitalOption} from "../libraries/OptionType.sol";
-import {RibbonTreasuryVault} from "../TreasuryVault/RibbonTreasuryVault.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
+import {IRibbonThetaVault} from "../../interfaces/IRibbonThetaVault.sol";
 
 import {
     IOtoken,
     IController,
     IOracle
-  } from "../interfaces/GammaInterface.sol";
+  } from "../../interfaces/GammaInterface.sol";
 
-contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
+contract RibbonAutocallVault is AutocallVaultStorage {
     // Denominator for all pct calculations
     uint256 internal constant PCT_MULTIPLIER = 100**2;
 
     IOracle public immutable ORACLE;
+    IRibbonThetaVault public immutable TREASURY_THETA_VAULT;
 
     /************************************************
      *  EVENTS
      ***********************************************/
 
-     event DigitalOptionPayoffPCTSet(
-         uint256 digitalOptionPayoffPCT,
-         uint256 newDigitalOptionPayoffPCT
+     event DigitalOptionSet(
+         bool hasDigital
      );
 
      event AutocallBarrierPCTSet(
@@ -58,38 +54,20 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
 
     /**
      * @notice Initializes the contract with immutable variables
-     * @param _weth is the Wrapped Ether contract
-     * @param _usdc is the USDC contract
-     * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
-     * @param _gammaController is the contract address for opyn actions
-     * @param _marginPool is the contract address for providing collateral to opyn
-     * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
+     * @param _treasuryThetaVault is the contract address of the treasury theta vault
      */
     constructor(
-        address _weth,
-        address _usdc,
-        address _oTokenFactory,
-        address _gammaController,
-        address _marginPool,
-        address _gnosisEasyAuction
+        IRibbonThetaVault _treasuryThetaVault
     )
-        RibbonTreasuryVault(
-            _weth,
-            _usdc,
-            _oTokenFactory,
-            _gammaController,
-            _marginPool,
-            _gnosisEasyAuction
-        )
-
-        ORACLE = IOracle(IController(_gammaController).oracle())
-    {}
+    {
+        ORACLE = IOracle(IController(_treasuryThetaVault.GAMMA_CONTROLLER()).oracle());
+    }
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      * @param _initParams is the struct with vault initialization parameters
      * @param _vaultParams is the struct with vault general data
-     * @param _digitalOptionPayoffPCT is percentage payoff compared to notional, of digital put
+     * @param _hasDigital is whether it includes digital put
      * @param _autocallBarrierPCT is autocall barrier
      * @param _couponBarrierPCT is coupon barrier
      * @param _observationPeriodFreq is frequency of observation period
@@ -98,13 +76,13 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
     function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams,
-        uint256 _digitalOptionPayoffPCT,
+        bool _hasDigital,
         uint256 _autocallBarrierPCT,
         uint256 _couponBarrierPCT,
         uint256 _observationPeriodFreq,
         address _autocallSeller
-    ) external override(RibbonTreasuryVault) initializer {
-        RibbonTreasuryVault.initialize(
+    ) external initializer {
+        _initialize(
             _initParams,
             _vaultParams
         );
@@ -114,7 +92,7 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
         require(_autocallSeller != address(0), "!_autocallSeller");
         require(_observationPeriodFreq > 0 && _observationPeriodFreq <= period, "!_observationPeriodFreq");
 
-        digitalOption.payoffPCT = _digitalOptionPayoffPCT;
+        digitalOption.hasDigital = _hasDigital;
         autocallBarrierPCT = _autocallBarrierPCT;
         couponBarrierPCT = _couponBarrierPCT;
         observationPeriodFreq = _observationPeriodFreq;
@@ -125,27 +103,23 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
     /**
      * @dev Returns whether vault autocallable
      */
-    function autocallable() external returns uint256
+    function autocallable() external returns (uint256)
     {
-      uint256 expiry = IOtoken(optionState.currentOption).expiryTimestamp()
-      uint256 strikePrice = IOtoken(optionState.currentOption).strikePrice()
+      uint256 expiry = IOtoken(optionState.currentOption).expiryTimestamp();
+      uint256 strikePrice = IOtoken(optionState.currentOption).strikePrice();
       return _autocallable(expiry, strikePrice);
     }
 
     /**
-     * @notice Sets the new digital option payoff pct
-     * @param _digitalOptionPayoffPCT is the digital option payoff pct
+     * @notice Adds/removes digital option component
      */
-    function setDigitalOptionPayoffPCT(uint256 _payoffPCT)
+    function setHasDigitalOption(bool _hasDigital)
         external
         onlyOwner
     {
-        emit DigitalOptionPayoffPCTSet(digitalOption.payoffPCT, _payoffPCT);
-        if(_payoffPCT = 0){
-          digitalOption = DigitalOption()
-        }else{
-          digitalOption.payoffPCT = _payoffPCT;
-        }
+        digitalOption.hasDigital = _hasDigital;
+        emit DigitalOptionSet(_hasDigital);
+
     }
 
     /**
@@ -160,7 +134,7 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
 
         emit AutocallBarrierPCTSet(autocallBarrierPCT, _autocallBarrierPCT);
 
-        autocallBarrierPCT = _autocallBarrierPCT;
+        pendingAutocallBarrierPCT = _autocallBarrierPCT;
     }
 
     /**
@@ -175,7 +149,7 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
 
         emit CouponBarrierPCTSet(couponBarrierPCT, _couponBarrierPCT);
 
-        couponBarrierPCT = _couponBarrierPCT;
+        pendingCouponBarrierPCT = _couponBarrierPCT;
     }
 
     /**
@@ -190,15 +164,15 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
 
         emit ObservationPeriodFreqSet(observationPeriodFreq, _observationPeriodFreq);
 
-        observationPeriodFreq = _observationPeriodFreq;
+        pendingObservationPeriodFreq = _observationPeriodFreq;
     }
 
     /**
      * @dev overrides RibbonTreasuryVault commitAndClose()
      */
     function commitAndClose()
+        override
         external
-        override(RibbonTreasuryVault)
         nonReentrant
     {
 
@@ -212,10 +186,10 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
           autocallTimestamp = _autocallable(expiry, strikePrice);
           // Require autocall barrier hit at least once
           require(autocallTimestamp > 0, "!autocall");
-          // Require vault possesses all oTokens sold to counterparties
-          require(currentOToken.balanceOf(address(this)) == currentOToken.totalSupply());
           // Burn the unexpired oTokens
           _burnRemainingOTokens();
+          // Require vault possessed all oTokens sold to counterparties
+          require(vaultState.lockedAmount == 0, "!withdrawnCollateral");
         }
 
         // Commit and close vanilla put
@@ -239,20 +213,20 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
     function _commitAndCloseDigital(uint256 _expiry, uint256 _strikePrice) internal
     {
       // If there is no digital put, return
-      if(digitalOption.payoff == 0){
+      if(digitalOption.payoffITM == 0){
         return;
       }
 
       // If digital put ITM, transfer to autocall seller
       if (_expiry > block.timestamp && ORACLE.getExpiryPrice(vaultParams.underlying, _expiry) <= _strikePrice){
         // Transfer current digital option payoff
-        transferAsset(autocallSeller, digitalOption.payoff);
+        transferAsset(autocallSeller, digitalOption.payoffITM);
       }
 
       // Set next digital option payoff, strike
-      if (digitalOption.digitalOptionPayoffPCT > 0){
+      if (digitalOption.hasDigital){
         // TODO: ADD MATH
-        digitalOption.payoff = 0
+        digitalOption.payoffITM = 0;
         digitalOption.strike = IOtoken(optionState.nextOption).strikePrice();
       }
     }
@@ -282,10 +256,13 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
      * @param _expiry is the expiry of the current option
      * @param _strikePrice is the strike of the current option
      */
-    function _autocallable(uint256 _expiry, uint256 _strikePrice) internal returns uint256
+    function _autocallable(uint256 _expiry, uint256 _strikePrice) internal returns (uint256)
     {
-      for(uint i = numTotalObservationPeriods; i > 0; i--){
-        uint256 observationPeriodTimestamp = _getObservationPeriodTimestamp(i);
+      uint256 _numTotalObservationPeriods = numTotalObservationPeriods;
+      uint256 _observationPeriodFreq = observationPeriodFreq;
+      for(uint i = _numTotalObservationPeriods; i > 0; i--){
+        // Gets observation timestamp of observation index
+        uint256 observationPeriodTimestamp = _expiry - (_numTotalObservationPeriods - i) * _observationPeriodFreq;
         uint256 observationPeriodPrice = ORACLE.getExpiryPrice(vaultParams.underlying, observationPeriodTimestamp);
         if(observationPeriodPrice >= _strikePrice * autocallBarrierPCT / PCT_MULTIPLIER){
           return observationPeriodTimestamp;
@@ -293,14 +270,5 @@ contract RibbonAutocallVault is RibbonTreasuryVault, AutocallVaultStorage {
       }
 
       return 0;
-    }
-
-    /**
-     * @dev Gets observation timestamp of observation index
-     * @param _observationIndex observation index
-     */
-    function _getObservationPeriodTimestamp(uint256 _observationIndex) internal
-    {
-      return oTokenExpiry - (numTotalObservationPeriods - _observationIndex) * observationPeriodFreq;
     }
 }
