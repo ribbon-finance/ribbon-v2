@@ -787,7 +787,7 @@ library VaultLifecycleTreasury {
      * @notice Gets the next options expiry timestamp, this function should be called
      when there is sufficient guard to ensure valid period
      * @param timestamp is the expiry timestamp of the current option
-     * @param period is no. of days in between option sales. Available periods are: 
+     * @param period is no. of days in between option sales. Available periods are:
      * 7(1w), 14(2w), 30(1m), 90(3m), 180(6m)
      */
     function getNextExpiry(uint256 timestamp, uint256 period)
@@ -795,32 +795,10 @@ library VaultLifecycleTreasury {
         pure
         returns (uint256 nextExpiry)
     {
-        if (period == 7) {
-            nextExpiry = DateTime.getNextFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? nextExpiry + 1 weeks
-                : nextExpiry;
-        } else if (period == 14) {
-            nextExpiry = DateTime.getNextFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? nextExpiry + 2 weeks
-                : nextExpiry;
-        } else if (period == 30) {
-            nextExpiry = DateTime.getMonthLastFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? DateTime.getMonthLastFriday(nextExpiry + 1 weeks)
-                : nextExpiry;
-        } else if (period == 90) {
-            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? DateTime.getQuarterLastFriday(nextExpiry + 1 weeks)
-                : nextExpiry;
-        } else if (period == 180) {
-            nextExpiry = DateTime.getBiannualLastFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? DateTime.getBiannualLastFriday(nextExpiry + 1 weeks)
-                : nextExpiry;
-        }
+      nextExpiry = DateTime.getNextFriday(timestamp);
+      nextExpiry = nextExpiry <= timestamp
+          ? nextExpiry + period * 1 days
+          : nextExpiry;
 
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
     }
