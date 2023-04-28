@@ -14,15 +14,15 @@ abstract contract AutocallVaultStorageV1 {
 
     /**
      * FIXED: no coupon barrier. Get all coupons until autocall
-     * VANILLA: coupon barrier = autocall barrier.
-     *           Get all coupons only upon autocall
      * PHOENIX: coupon barrier < autocall barrier.
      *           Get coupons only on observation periods when spot > coupon barrier
      * PHOENIX_MEMORY: coupon barrier < autocall barrier.
      *           Get all coupons on previous observation periods if current observation period
      *           spot > coupon barrier
+     * VANILLA: coupon barrier = autocall barrier.
+     *           Get all coupons only upon autocall
      */
-    enum CouponType {FIXED, VANILLA, PHOENIX, PHOENIX_MEMORY}
+    enum CouponType {FIXED, PHOENIX, PHOENIX_MEMORY, VANILLA}
 
     struct PutOption {
         // Current round option type
@@ -50,6 +50,8 @@ abstract contract AutocallVaultStorageV1 {
         uint256 nextCouponBarrierPCT;
     }
 
+    // Spot price
+    uint256 public initialSpotPrice;
     // Vault put option
     PutOption public putOption;
     // Vault coupon state

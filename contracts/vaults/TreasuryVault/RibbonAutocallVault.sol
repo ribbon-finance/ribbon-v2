@@ -95,7 +95,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         require(_autocallSeller != address(0), "!_autocallSeller");
         require(
-            _observationPeriodFreq > 0 && _observationPeriodFreq <= period,
+            _observationPeriodFreq > 0 &&
+                _observationPeriodFreq % 1 days == 0 &&
+                _observationPeriodFreq <= period,
             "!_observationPeriodFreq"
         );
 
@@ -110,12 +112,30 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev Returns whether vault autocallable
+     * @dev Checks if vault autocallable
+     * @return observation timestamp if autocallable, otherwise 0
+     * @return the number of coupons earned
+     * @return last observation to hit coupon barrier
      */
-    function autocallable() external view returns (uint256) {
-        uint256 expiry = IOtoken(optionState.currentOption).expiryTimestamp();
-        uint256 strikePrice = IOtoken(optionState.currentOption).strikePrice();
-        return _autocallable(expiry, strikePrice);
+    function autocallable()
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        (
+            uint256 autocallTimestamp,
+            uint256 numCouponsEarned,
+            uint256 lastCouponBarrierBreachObservation
+        ) = _autocallable(IOtoken(optionState.currentOption).expiryTimestamp());
+        return (
+            autocallTimestamp,
+            numCouponsEarned,
+            lastCouponBarrierBreachObservation
+        );
     }
 
     /**
@@ -152,35 +172,19 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @notice Sets the new observation period frequency
-     * @param _observationPeriodFreq is the observation period frequency
-     */
-    function setObservationPeriodFrequency(uint256 _observationPeriodFreq)
-        external
-        onlyOwner
-    {
-        require(_observationPeriodFreq > 0, "!_observationPeriodFreq");
-
-        emit ObservationPeriodFreqSet(
-            observationPeriodFreq,
-            _observationPeriodFreq
-        );
-
-        nextObservationPeriodFreq = _observationPeriodFreq;
-    }
-
-    /**
      * @notice Sets the new period and observation period frequency
      * @param _period is the period
      * @param _observationPeriodFreq is the observation period frequency
      */
-    function setPeriod(uint256 _period, uint256 _observationPeriodFreq)
-        external
-        onlyOwner
-    {
+    function setPeriodAndObservationFrequency(
+        uint256 _period,
+        uint256 _observationPeriodFreq
+    ) external onlyOwner {
         require(_period > 0, "!_period");
         require(
-            _observationPeriodFreq > 0 && _observationPeriodFreq <= _period,
+            _observationPeriodFreq > 0 &&
+                _observationPeriodFreq % 1 days == 0 &&
+                _observationPeriodFreq <= _period,
             "!_observationPeriodFreq"
         );
 
@@ -205,23 +209,27 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             // Commit and close vanilla put
             super._commitAndClose();
             // Commit and close enhanced put
-            _commitAndCloseEnhancedPut(
-                ORACLE.getPrice(vaultParams.underlying),
-                0
-            );
+            _commitAndCloseEnhancedPut(0, 0);
             return;
         }
 
         IOtoken currentOToken = IOtoken(currentOption);
         uint256 expiry = currentOToken.expiryTimestamp();
-        uint256 strikePrice = currentOToken.strikePrice();
 
-        uint256 autocallTimestamp = expiry;
+        uint256 numCouponsEarned;
+        uint256 lastCouponBarrierBreachObservation;
+
         // If before expiry, attempt to autocall
         if (block.timestamp < expiry) {
-            autocallTimestamp = _autocallable(expiry, strikePrice);
+            (
+                uint256 _autocallTimestamp,
+                uint256 _numCouponsEarned,
+                uint256 _lastCouponBarrierBreachObservation
+            ) = _autocallable(expiry);
+            numCouponsEarned = _numCouponsEarned;
+            lastCouponBarrierBreachObservation = _lastCouponBarrierBreachObservation;
             // Require autocall barrier hit at least once
-            require(autocallTimestamp > 0, "!autocall");
+            require(_autocallTimestamp > 0, "!autocall");
             // Burn the unexpired oTokens
             _burnRemainingOTokens();
             // Require vault possessed all oTokens sold to counterparties
@@ -232,10 +240,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         super._commitAndClose();
 
         // Commit and close enhanced put
-        _commitAndCloseEnhancedPut(expiry, strikePrice);
+        _commitAndCloseEnhancedPut(expiry, currentOToken.strikePrice());
 
-        // Return coupons
-        _returnCoupons(autocallTimestamp);
+        // Return coupons to issuer
+        _returnCoupons(numCouponsEarned, lastCouponBarrierBreachObservation);
 
         // Set coupon state
         CouponState memory _couponState = couponState;
@@ -271,24 +279,28 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             );
         }
 
+        uint256 _spotPrice = ORACLE.getPrice(vaultParams.underlying);
+
         // Set next option payoff
         putOption.payoffITM = _setPutOptionPayoff(
             _putOption.nextOptionType,
-            expiryPrice,
+            _spotPrice,
             IOtoken(optionState.nextOption).strikePrice()
         );
         putOption.currentOptionType = _putOption.nextOptionType;
+
+        initialSpotPrice = _spotPrice;
     }
 
     /**
      * @dev Sets the option payoff
      * @param _nextOptionType is the type of the next option
-     * @param _expiryPrice is the expiry price of the current option
+     * @param _price is the spot price of the new option
      * @param _nextStrikePrice is the strike price of the next option
      */
     function _setPutOptionPayoff(
         OptionType _nextOptionType,
-        uint256 _expiryPrice,
+        uint256 _price,
         uint256 _nextStrikePrice
     ) internal pure returns (uint256) {
         /**
@@ -300,61 +312,127 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         if (_nextOptionType == OptionType.VANILLA) {
             return 0;
         } else if (_nextOptionType == OptionType.DIP) {
-            return _expiryPrice - _nextStrikePrice;
+            return _price - _nextStrikePrice;
         }
 
         return 0;
     }
 
     /**
-     * @dev Returns coupons back to autocall seller
-     *      based on barriers hit
-     *
-     *      If coupon barrier = autocall barrier, return all future coupons
-     *      from point of autocall barrier being hit
-     *
-     *      If coupon barrier < autocall barrier, return all coupons of
-     *      observation periods where coupon barrier < spot < autocall barrier.
-     *      If autocall barrier also hit, return all future coupons from point
-     *      of autocall barrier being hit
-     *
-     * @param _autocallTimestamp is the timestamp of observation
+     * @dev Returns coupons back to autocall seller based on coupon type
+     * @param numCouponsEarned is the number of coupons above the coupon barrier
      * period which breached autocall barrier
      */
-    function _returnCoupons(uint256 _autocallTimestamp) internal {}
+    function _returnCoupons(
+        uint256 numCouponsEarned,
+        uint256 lastCouponBarrierBreachObservation
+    ) internal {
+        uint256 couponTotal =
+            IERC20(vaultParams.asset).balanceOf(address(this)) -
+                vaultState.totalPending;
+        uint256 _numTotalObservationPeriods = numTotalObservationPeriods;
+
+        uint256 couponEarnedAmount;
+
+        /**
+         * FIXED: coupon barrier is 0, so the last coupon barrier breach observation will
+         *        simply give us the latest observation
+         * PHOENIX: only get the coupon for observations where the spot was above coupon barrier
+         * PHOENIX_MEMORY: the last coupon barrier breach observation will get us the total coupons
+         *                 earned which is all the previous observations as well
+         * VANILLA: coupon barrier = autocall barrier so the last coupon barrier breach observation
+         *                 being non-zero means autocall barrier has been hit and we get all previous coupons
+         */
+        if (couponState.currentCouponType == CouponType.PHOENIX) {
+            couponEarnedAmount =
+                (couponTotal * numCouponsEarned) /
+                _numTotalObservationPeriods;
+        } else if (
+            couponState.currentCouponType == CouponType.FIXED ||
+            couponState.currentCouponType == CouponType.PHOENIX_MEMORY ||
+            couponState.currentCouponType == CouponType.VANILLA
+        ) {
+            couponEarnedAmount =
+                (couponTotal * lastCouponBarrierBreachObservation) /
+                _numTotalObservationPeriods;
+        }
+
+        // Transfer unearned coupons back to autocall seller
+        transferAsset(autocallSeller, couponTotal - couponEarnedAmount);
+    }
 
     /**
-     * @dev Returns timestamp of first autocallable observation period, otherwise returns 0
+     * @dev Checks if vault autocallable
      * @param _expiry is the expiry of the current option
-     * @param _strikePrice is the strike of the current option
+     * @return autocallTimestamp the timestamp of first autocallable observation period, otherwise returns 0
+     * @return numCouponsEarned the number of coupons earned
+     * @return lastCouponBarrierBreachObservation the last observation to breach coupon barrier
      */
-    function _autocallable(uint256 _expiry, uint256 _strikePrice)
+    function _autocallable(uint256 _expiry)
         internal
         view
-        returns (uint256)
+        returns (
+            uint256 autocallTimestamp,
+            uint256 numCouponsEarned,
+            uint256 lastCouponBarrierBreachObservation
+        )
     {
-        uint256 _numTotalObservationPeriods = numTotalObservationPeriods;
         uint256 _observationPeriodFreq = observationPeriodFreq;
-        for (uint256 i = _numTotalObservationPeriods; i > 0; i--) {
+        uint256 _numTotalObservationPeriods = numTotalObservationPeriods;
+
+        uint256 currentObservation =
+            (_expiry - block.timestamp) / _observationPeriodFreq + 1;
+        address underlying = vaultParams.underlying;
+
+        uint256 autocallObservation = currentObservation;
+
+        // For every previous observation timestamp
+        for (uint256 i = currentObservation; i > 0; i--) {
             // Gets observation timestamp of observation index
             uint256 observationPeriodTimestamp =
                 _expiry -
                     (_numTotalObservationPeriods - i) *
                     _observationPeriodFreq;
+
             uint256 observationPeriodPrice =
-                ORACLE.getExpiryPrice(
-                    vaultParams.underlying,
-                    observationPeriodTimestamp
-                );
+                ORACLE.getExpiryPrice(underlying, observationPeriodTimestamp);
+
+            // Check if autocallable
             if (
                 observationPeriodPrice >=
-                (_strikePrice * couponState.autocallBarrierPCT) / PCT_MULTIPLIER
+                (initialSpotPrice * couponState.autocallBarrierPCT) /
+                    PCT_MULTIPLIER
             ) {
-                return observationPeriodTimestamp;
+                autocallObservation = i;
+                autocallTimestamp = observationPeriodTimestamp;
+                break;
             }
         }
 
-        return 0;
+        // For every observation timestamp before autocall
+        for (uint256 i = autocallObservation; i > 0; i--) {
+            // Gets observation timestamp of observation index
+            uint256 observationPeriodTimestamp =
+                _expiry -
+                    (_numTotalObservationPeriods - i) *
+                    _observationPeriodFreq;
+
+            uint256 observationPeriodPrice =
+                ORACLE.getExpiryPrice(underlying, observationPeriodTimestamp);
+
+            // Check if coupon barrier hit
+            if (
+                observationPeriodPrice >=
+                (initialSpotPrice * couponState.couponBarrierPCT) /
+                    PCT_MULTIPLIER
+            ) {
+                numCouponsEarned += 1;
+                // Get latest observation to hit coupon barrier
+                if (lastCouponBarrierBreachObservation == 0) {
+                    lastCouponBarrierBreachObservation = i;
+                }
+            }
+        }
     }
 
     /**
@@ -373,7 +451,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         if (_couponType == CouponType.FIXED) {
             // Coupon Barrier = 0
             require(_couponBarrierPCT == 0, "!FIXED");
-        } else if (_couponType == CouponType.VANILLA) {
+        } else if (
+            _couponType == CouponType.VANILLA || _couponType == CouponType.FIXED
+        ) {
             // Coupon Barrier = Autocall Barrier
             require(_couponBarrierPCT == _autocallBarrierPCT, "!VANILLA");
         } else {
