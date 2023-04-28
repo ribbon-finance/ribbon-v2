@@ -77,7 +77,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @notice Initializes the OptionVault contract with storage variables.
      * @param _initParams is the struct with vault initialization parameters
      * @param _vaultParams is the struct with vault general data
-     * @param _hasDigital is whether it includes digital put
+     * @param _optionType is type of the next put option
      * @param _autocallBarrierPCT is autocall barrier
      * @param _couponBarrierPCT is coupon barrier
      * @param _observationPeriodFreq is frequency of observation period
@@ -86,7 +86,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams,
-        OptionType optionType,
+        OptionType _optionType,
         uint256 _autocallBarrierPCT,
         uint256 _couponBarrierPCT,
         uint256 _observationPeriodFreq,
@@ -106,7 +106,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             "!_observationPeriodFreq"
         );
 
-        digitalOption.hasDigital = _hasDigital;
+        putOption.nextOptionType = _optionType;
         autocallBarrierPCT = _autocallBarrierPCT;
         couponBarrierPCT = _couponBarrierPCT;
         observationPeriodFreq = _observationPeriodFreq;
@@ -128,7 +128,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @param _optionType is the next option type
      */
     function setOptionType(OptionType _optionType) external onlyOwner {
-        nextOptionType = _optionType;
+        putOption.nextOptionType = _optionType;
         emit OptionTypeSet(_optionType);
     }
 
@@ -191,7 +191,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             // Commit and close vanilla put
             super._commitAndClose();
             // Commit and close enhanced put
-            _commitAndCloseEnhancedPut(, 0);
+            _commitAndCloseEnhancedPut(
+                ORACLE.getPrice(vaultParams.underlying),
+                0
+            );
             return;
         }
 
@@ -237,7 +240,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 expiryPrice =
             ORACLE.getExpiryPrice(vaultParams.underlying, _expiry);
 
-        PutOption _putOption = putOption;
+        PutOption memory _putOption = putOption;
 
         // If put ITM, transfer to autocall seller
         if (_putOption.payoffITM > 0 && expiryPrice <= _strikePrice) {
@@ -267,17 +270,17 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         OptionType _nextOptionType,
         uint256 _expiryPrice,
         uint256 _nextStrikePrice
-    ) internal returns (uint256) {
-        /*
-        VANILLA: enhanced payout is 0 since the oToken is already vanilla
-        DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
-        SPREAD: TBD
-        LEVERAGED: TBD
-      */
+    ) internal pure returns (uint256) {
+        /**
+         * VANILLA: enhanced payout is 0 since the oToken is already vanilla
+         * DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
+         * SPREAD: TBD
+         * LEVERAGED: TBD
+         */
 
-        if (_nextOptionType == VANILLA) {
+        if (_nextOptionType == OptionType.VANILLA) {
             return 0;
-        } else if (_nextOptionType == DIP) {
+        } else if (_nextOptionType == OptionType.DIP) {
             return _expiryPrice - _nextStrikePrice;
         }
 

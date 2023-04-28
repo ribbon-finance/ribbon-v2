@@ -792,12 +792,8 @@ library VaultLifecycleTreasury {
         pure
         returns (uint256 nextExpiry)
     {
-      nextExpiry = DateTime.getNextFriday(timestamp);
-      nextExpiry = nextExpiry <= timestamp
-          ? nextExpiry + period * 1 days
-          : nextExpiry;
-
-        nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
+      nextExpiry = timestamp + period * 1 days;
+      nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
     }
 
     /**

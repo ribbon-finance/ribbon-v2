@@ -4,7 +4,7 @@ pragma solidity =0.8.4;
 import {RibbonThetaVaultStorageV4} from "./RibbonThetaVaultStorage.sol";
 
 abstract contract AutocallVaultStorageV1 {
-    enum OptionType {VANILLA, SPREAD, DIP, LEVERAGED}
+    enum OptionType {VANILLA, DIP, SPREAD, LEVERAGED}
 
     struct PutOption {
         // Current round option type
