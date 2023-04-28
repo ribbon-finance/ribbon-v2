@@ -76,16 +76,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @param _initParams is the struct with vault initialization parameters
      * @param _vaultParams is the struct with vault general data
      * @param _optionType is type of the next put option
-     * @param _autocallBarrierPCT is autocall barrier
-     * @param _couponBarrierPCT is coupon barrier
-     * @param _observationPeriodFreq is frequency of observation period
-     * @param _autocallSeller is counterparty of short vanilla put & digital put
+     * @param _couponState is the coupon state
      */
     function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams,
         OptionType _optionType,
-        CouponState _couponState,
+        CouponState calldata _couponState,
         uint256 _observationPeriodFreq,
         address _autocallSeller
     ) external initializer {
@@ -240,8 +237,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Return coupons
         _returnCoupons(autocallTimestamp);
 
-        autocallBarrierPCT = nextAutocallBarrierPCT;
-        couponBarrierPCT = nextCouponBarrierPCT;
+        // Set coupon state
+        CouponState memory _couponState = couponState;
+        couponState.currentCouponType = _couponState.nextCouponType;
+        couponState.autocallBarrierPCT = _couponState.nextAutocallBarrierPCT;
+        couponState.couponBarrierPCT = _couponState.nextCouponBarrierPCT;
+
+        // Set observation period frequency
         observationPeriodFreq = nextObservationPeriodFreq;
         period = nextPeriod;
         numTotalObservationPeriods = period / observationPeriodFreq;
@@ -346,7 +348,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
                 );
             if (
                 observationPeriodPrice >=
-                (_strikePrice * autocallBarrierPCT) / PCT_MULTIPLIER
+                (_strikePrice * couponState.autocallBarrierPCT) / PCT_MULTIPLIER
             ) {
                 return observationPeriodTimestamp;
             }
@@ -366,10 +368,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _autocallBarrierPCT,
         uint256 _couponBarrierPCT
     ) internal pure {
-        require(
-            _couponState.autocallBarrierPCT > PCT_MULTIPLIER,
-            "!_autocallBarrierPCT"
-        );
+        require(_autocallBarrierPCT > PCT_MULTIPLIER, "!_autocallBarrierPCT");
 
         if (_couponType == CouponType.FIXED) {
             // Coupon Barrier = 0
