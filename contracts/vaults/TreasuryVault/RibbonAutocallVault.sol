@@ -31,15 +31,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
     event OptionTypeSet(OptionType optionType);
 
-    event AutocallBarrierPCTSet(
-        uint256 autocallBarrierPCT,
-        uint256 newAutocallBarrierPCT
-    );
-
-    event CouponBarrierPCTSet(
-        uint256 couponBarrierPCT,
+    event CouponStateSet(
+        CouponType couponType,
+        uint256 newAutocallBarrierPCT,
         uint256 newCouponBarrierPCT
     );
+
+    event PeriodSet(uint256 period, uint256 newPeriod);
 
     event ObservationPeriodFreqSet(
         uint256 observationPeriodFreq,
@@ -87,19 +85,17 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams,
         OptionType _optionType,
-        uint256 _autocallBarrierPCT,
-        uint256 _couponBarrierPCT,
+        CouponState _couponState,
         uint256 _observationPeriodFreq,
         address _autocallSeller
     ) external initializer {
         _initialize(_initParams, _vaultParams);
-
-        require(_autocallBarrierPCT > PCT_MULTIPLIER, "!_autocallBarrierPCT");
-        require(
-            _couponBarrierPCT > PCT_MULTIPLIER &&
-                _couponBarrierPCT <= _autocallBarrierPCT,
-            "!_couponBarrierPCT"
+        _verifyCouponState(
+            _couponState.nextCouponType,
+            _couponState.nextAutocallBarrierPCT,
+            _couponState.nextCouponBarrierPCT
         );
+
         require(_autocallSeller != address(0), "!_autocallSeller");
         require(
             _observationPeriodFreq > 0 && _observationPeriodFreq <= period,
@@ -107,9 +103,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         );
 
         putOption.nextOptionType = _optionType;
-        autocallBarrierPCT = _autocallBarrierPCT;
-        couponBarrierPCT = _couponBarrierPCT;
-        observationPeriodFreq = _observationPeriodFreq;
+        couponState.nextCouponType = _couponState.nextCouponType;
+        couponState.nextAutocallBarrierPCT = _couponState.autocallBarrierPCT;
+        couponState.nextCouponBarrierPCT = _couponState.couponBarrierPCT;
+
+        nextObservationPeriodFreq = _observationPeriodFreq;
         autocallSeller = _autocallSeller;
         numTotalObservationPeriods = period / _observationPeriodFreq;
     }
@@ -133,34 +131,27 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @notice Sets the new autocall barrier pct
-     * @param _autocallBarrierPCT is the autocall payoff pct
-     */
-    function setAutocallBarrietPCT(uint256 _autocallBarrierPCT)
-        external
-        onlyOwner
-    {
-        require(_autocallBarrierPCT > PCT_MULTIPLIER, "!_autocallBarrierPCT");
-
-        emit AutocallBarrierPCTSet(autocallBarrierPCT, _autocallBarrierPCT);
-
-        pendingAutocallBarrierPCT = _autocallBarrierPCT;
-    }
-
-    /**
-     * @notice Sets the new coupon barrier pct
+     * @notice Sets the new coupon state
+     * @param _couponType is the coupon type
+     * @param _autocallBarrierPCT is the autocall barrier pct
      * @param _couponBarrierPCT is the coupon barrier pct
      */
-    function setCouponBarrietPCT(uint256 _couponBarrierPCT) external onlyOwner {
-        require(
-            _couponBarrierPCT > PCT_MULTIPLIER &&
-                _couponBarrierPCT <= autocallBarrierPCT,
-            "!_couponBarrierPCT"
+    function setCouponState(
+        CouponType _couponType,
+        uint256 _autocallBarrierPCT,
+        uint256 _couponBarrierPCT
+    ) external onlyOwner {
+        _verifyCouponState(_couponType, _autocallBarrierPCT, _couponBarrierPCT);
+
+        couponState.nextCouponType = _couponType;
+        couponState.nextAutocallBarrierPCT = _autocallBarrierPCT;
+        couponState.nextCouponBarrierPCT = _couponBarrierPCT;
+
+        emit CouponStateSet(
+            _couponType,
+            _autocallBarrierPCT,
+            _couponBarrierPCT
         );
-
-        emit CouponBarrierPCTSet(couponBarrierPCT, _couponBarrierPCT);
-
-        pendingCouponBarrierPCT = _couponBarrierPCT;
     }
 
     /**
@@ -178,7 +169,33 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _observationPeriodFreq
         );
 
-        pendingObservationPeriodFreq = _observationPeriodFreq;
+        nextObservationPeriodFreq = _observationPeriodFreq;
+    }
+
+    /**
+     * @notice Sets the new period and observation period frequency
+     * @param _period is the period
+     * @param _observationPeriodFreq is the observation period frequency
+     */
+    function setPeriod(uint256 _period, uint256 _observationPeriodFreq)
+        external
+        onlyOwner
+    {
+        require(_period > 0, "!_period");
+        require(
+            _observationPeriodFreq > 0 && _observationPeriodFreq <= _period,
+            "!_observationPeriodFreq"
+        );
+
+        emit ObservationPeriodFreqSet(
+            observationPeriodFreq,
+            _observationPeriodFreq
+        );
+
+        emit PeriodSet(period, _period);
+
+        nextObservationPeriodFreq = _observationPeriodFreq;
+        nextPeriod = _period;
     }
 
     /**
@@ -223,9 +240,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Return coupons
         _returnCoupons(autocallTimestamp);
 
-        autocallBarrierPCT = pendingAutocallBarrierPCT;
-        couponBarrierPCT = pendingCouponBarrierPCT;
-        observationPeriodFreq = pendingObservationPeriodFreq;
+        autocallBarrierPCT = nextAutocallBarrierPCT;
+        couponBarrierPCT = nextCouponBarrierPCT;
+        observationPeriodFreq = nextObservationPeriodFreq;
+        period = nextPeriod;
         numTotalObservationPeriods = period / observationPeriodFreq;
     }
 
@@ -277,7 +295,6 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
          * SPREAD: TBD
          * LEVERAGED: TBD
          */
-
         if (_nextOptionType == OptionType.VANILLA) {
             return 0;
         } else if (_nextOptionType == OptionType.DIP) {
@@ -336,5 +353,34 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         }
 
         return 0;
+    }
+
+    /**
+     * @dev Verifies the coupon state is valid
+     * @param _couponType is the coupon type
+     * @param _autocallBarrierPCT is the autocall barrier pct
+     * @param _couponBarrierPCT is the coupon barrier pct
+     */
+    function _verifyCouponState(
+        CouponType _couponType,
+        uint256 _autocallBarrierPCT,
+        uint256 _couponBarrierPCT
+    ) internal pure {
+        require(
+            _couponState.autocallBarrierPCT > PCT_MULTIPLIER,
+            "!_autocallBarrierPCT"
+        );
+
+        if (_couponType == CouponType.FIXED) {
+            // Coupon Barrier = 0
+            require(_couponBarrierPCT == 0, "!FIXED");
+        } else if (_couponType == CouponType.VANILLA) {
+            // Coupon Barrier = Autocall Barrier
+            require(_couponBarrierPCT == _autocallBarrierPCT, "!VANILLA");
+        } else {
+            // Coupon Barrier < Autocall Barrier
+            require(_couponBarrierPCT > PCT_MULTIPLIER, "!_autocallBarrierPCT");
+            require(_couponBarrierPCT < _autocallBarrierPCT, "!PHOENIX");
+        }
     }
 }
