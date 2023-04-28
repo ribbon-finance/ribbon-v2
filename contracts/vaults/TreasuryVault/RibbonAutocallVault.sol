@@ -199,7 +199,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         uint256 autocallTimestamp = expiry;
         // If before expiry, attempt to autocall
-        if (expiry < block.timestamp) {
+        if (block.timestamp < expiry) {
             autocallTimestamp = _autocallable(expiry, strikePrice);
             // Require autocall barrier hit at least once
             require(autocallTimestamp > 0, "!autocall");
@@ -212,7 +212,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Commit and close vanilla put
         super._commitAndClose();
 
-        if (digitalOption.payoffITM > 0) {
+        if (digitalOption.hasDigital || digitalOption.payoffITM > 0) {
             // Commit and close digital put
             _commitAndCloseDigital(expiry, strikePrice);
         }
@@ -238,7 +238,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             ORACLE.getExpiryPrice(vaultParams.underlying, _expiry);
 
         // If digital put ITM, transfer to autocall seller
-        if (_expiry > block.timestamp && expiryPrice <= _strikePrice) {
+        if (expiryPrice <= _strikePrice) {
             // Transfer current digital option payoff
             transferAsset(autocallSeller, oTokenMintAmount * digitalOption.payoffITM);
         }
