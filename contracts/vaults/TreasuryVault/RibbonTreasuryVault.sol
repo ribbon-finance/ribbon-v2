@@ -944,7 +944,7 @@ contract RibbonTreasuryVault is
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        VaultLifecycleTreasury.createShort(
+        oTokenMintAmount = VaultLifecycleTreasury.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
