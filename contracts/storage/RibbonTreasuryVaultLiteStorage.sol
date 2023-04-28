@@ -58,6 +58,9 @@ abstract contract RibbonTreasuryVaultLiteStorageV1 {
 
     /// @notice Last round id at which the strike was manually overridden
     uint16 public lastStrikeOverrideRound;
+
+    /// @notice Amount of otokens minted in current round
+    uint256 public oTokenMintAmount;
 }
 
 // We are following Compound's method of upgrading new contract implementations

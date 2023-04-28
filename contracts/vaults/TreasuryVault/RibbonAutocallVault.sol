@@ -240,7 +240,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // If digital put ITM, transfer to autocall seller
         if (_expiry > block.timestamp && expiryPrice <= _strikePrice) {
             // Transfer current digital option payoff
-            transferAsset(autocallSeller, digitalOption.payoffITM);
+            transferAsset(autocallSeller, oTokenMintAmount * digitalOption.payoffITM);
         }
 
         uint256 nextStrikePrice = IOtoken(optionState.nextOption).strikePrice();
