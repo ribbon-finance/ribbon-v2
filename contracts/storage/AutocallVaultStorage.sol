@@ -1,34 +1,45 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {OptionType} from "../libraries/OptionType.sol";
 import {RibbonThetaVaultStorageV4} from "./RibbonThetaVaultStorage.sol";
 
 abstract contract AutocallVaultStorageV1 {
-  // State of current round's digital option (if DIP)
-  OptionType.DigitalOption public digitalOption;
-  // Includes 2 decimals (i.e. 10500 = 105%)
-  uint256 public autocallBarrierPCT;
-  // Pending autocall barrrier PCT
-  uint256 internal pendingAutocallBarrierPCT;
-  // Includes 2 decimals (i.e. 10500 = 105%)
-  uint256 public couponBarrierPCT;
-  // Pending coupon barrrier PCT
-  uint256 internal pendingCouponBarrierPCT;
-  // 1 day, 7 days, 1 month, etc in seconds
-  uint256 public observationPeriodFreq;
-  // Pending observation period freq
-  uint256 internal pendingObservationPeriodFreq;
-  // Total num observation periods during epoch
-  uint256 public numTotalObservationPeriods;
-  // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
-  address public autocallSeller;
+    enum OptionType {VANILLA, SPREAD, DIP, LEVERAGED}
+
+    struct PutOption {
+        // Current round option type
+        OptionType currentOptionType;
+        // Next round option type
+        OptionType nextOptionType;
+        // Payoff of the option if ITM, denominated in vault collateral asset
+        uint256 payoffITM;
+    }
+
+    // Vault put option
+    PutOption public putOption;
+    // Current downside type
+    // Includes 2 decimals (i.e. 10500 = 105%)
+    uint256 public autocallBarrierPCT;
+    // Pending autocall barrrier PCT
+    uint256 internal pendingAutocallBarrierPCT;
+    // Includes 2 decimals (i.e. 10500 = 105%)
+    uint256 public couponBarrierPCT;
+    // Pending coupon barrrier PCT
+    uint256 internal pendingCouponBarrierPCT;
+    // 1 day, 7 days, 1 month, etc in seconds
+    uint256 public observationPeriodFreq;
+    // Pending observation period freq
+    uint256 internal pendingObservationPeriodFreq;
+    // Total num observation periods during epoch
+    uint256 public numTotalObservationPeriods;
+    // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
+    address public autocallSeller;
 }
 
 // We are following Compound's method of upgrading new contract implementations
 // When we need to add new storage variables, we create a new version of RibbonAutocallVaultStorage
 // e.g. RibbonAutocallVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonAutocallVaultStorage is RibbonAutocallVaultStorageV1, RibbonAutocallVaultStorageV2
-abstract contract AutocallVaultStorage is AutocallVaultStorageV1{
+abstract contract AutocallVaultStorage is AutocallVaultStorageV1 {
 
 }

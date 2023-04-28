@@ -12,7 +12,6 @@ import {
 } from "../../libraries/VaultLifecycleTreasury.sol";
 import {Vault} from "../../libraries/Vault.sol";
 import {RibbonTreasuryVaultLite} from "./RibbonTreasuryVaultLite.sol";
-import {OptionType} from "../libraries/OptionType.sol";
 
 import {
     IOtoken,
@@ -30,7 +29,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      *  EVENTS
      ***********************************************/
 
-    event DigitalOptionSet(bool hasDigital);
+    event OptionTypeSet(OptionType optionType);
 
     event AutocallBarrierPCTSet(
         uint256 autocallBarrierPCT,
@@ -87,7 +86,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams,
-        bool _hasDigital,
+        OptionType optionType,
         uint256 _autocallBarrierPCT,
         uint256 _couponBarrierPCT,
         uint256 _observationPeriodFreq,
@@ -125,11 +124,12 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @notice Adds/removes digital option component
+     * @notice Sets next option type
+     * @param _optionType is the next option type
      */
-    function setHasDigitalOption(bool _hasDigital) external onlyOwner {
-        digitalOption = _hasDigital;
-        emit DigitalOptionSet(_hasDigital);
+    function setOptionType(OptionType _optionType) external onlyOwner {
+        nextOptionType = _optionType;
+        emit OptionTypeSet(_optionType);
     }
 
     /**
@@ -182,7 +182,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev overrides RibbonTreasuryVault commitAndClose()
+     * @dev Overrides RibbonTreasuryVault commitAndClose()
      */
     function commitAndClose() external override nonReentrant {
         address currentOption = optionState.currentOption;
@@ -190,6 +190,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         if (currentOption == address(0)) {
             // Commit and close vanilla put
             super._commitAndClose();
+            // Commit and close enhanced put
+            _commitAndCloseEnhancedPut(, 0);
             return;
         }
 
@@ -212,10 +214,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Commit and close vanilla put
         super._commitAndClose();
 
-        if (digitalOption.hasDigital || digitalOption.payoffITM > 0) {
-            // Commit and close digital put
-            _commitAndCloseDigital(expiry, strikePrice);
-        }
+        // Commit and close enhanced put
+        _commitAndCloseEnhancedPut(expiry, strikePrice);
 
         // Return coupons
         _returnCoupons(autocallTimestamp);
@@ -227,31 +227,61 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev settles the digital put
+     * @dev Settles the enhanced put
      * @param _expiry is the expiry of the current option
      * @param _strikePrice is the strike of the current option
      */
-    function _commitAndCloseDigital(uint256 _expiry, uint256 _strikePrice)
+    function _commitAndCloseEnhancedPut(uint256 _expiry, uint256 _strikePrice)
         internal
     {
         uint256 expiryPrice =
             ORACLE.getExpiryPrice(vaultParams.underlying, _expiry);
 
-        // If digital put ITM, transfer to autocall seller
-        if (expiryPrice <= _strikePrice) {
+        PutOption _putOption = putOption;
+
+        // If put ITM, transfer to autocall seller
+        if (_putOption.payoffITM > 0 && expiryPrice <= _strikePrice) {
             // Transfer current digital option payoff
-            transferAsset(autocallSeller, oTokenMintAmount * digitalOption.payoffITM);
+            transferAsset(
+                autocallSeller,
+                oTokenMintAmount * _putOption.payoffITM
+            );
         }
 
-        uint256 nextStrikePrice = IOtoken(optionState.nextOption).strikePrice();
-        // Set next digital option payoff, strike
-        digitalOption = digitalOption.hasDigital
-            ? OptionType.DigitalOption(
-                true,
-                expiryPrice.sub(nextStrikePrice),
-                nextStrikePrice
-            )
-            : OptionType.DigitalOption();
+        // Set next option payoff
+        putOption.payoffITM = _setPutOptionPayoff(
+            _putOption.nextOptionType,
+            expiryPrice,
+            IOtoken(optionState.nextOption).strikePrice()
+        );
+        putOption.currentOptionType = _putOption.nextOptionType;
+    }
+
+    /**
+     * @dev Sets the option payoff
+     * @param _nextOptionType is the type of the next option
+     * @param _expiryPrice is the expiry price of the current option
+     * @param _nextStrikePrice is the strike price of the next option
+     */
+    function _setPutOptionPayoff(
+        OptionType _nextOptionType,
+        uint256 _expiryPrice,
+        uint256 _nextStrikePrice
+    ) internal returns (uint256) {
+        /*
+        VANILLA: enhanced payout is 0 since the oToken is already vanilla
+        DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
+        SPREAD: TBD
+        LEVERAGED: TBD
+      */
+
+        if (_nextOptionType == VANILLA) {
+            return 0;
+        } else if (_nextOptionType == DIP) {
+            return _expiryPrice - _nextStrikePrice;
+        }
+
+        return 0;
     }
 
     /**
