@@ -216,20 +216,16 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         IOtoken currentOToken = IOtoken(currentOption);
         uint256 expiry = currentOToken.expiryTimestamp();
 
-        uint256 numCouponsEarned;
-        uint256 lastCouponBarrierBreachObservation;
+        (
+            uint256 autocallTimestamp,
+            uint256 numCouponsEarned,
+            uint256 lastCouponBarrierBreachObservation
+        ) = _autocallable(expiry);
 
         // If before expiry, attempt to autocall
         if (block.timestamp < expiry) {
-            (
-                uint256 _autocallTimestamp,
-                uint256 _numCouponsEarned,
-                uint256 _lastCouponBarrierBreachObservation
-            ) = _autocallable(expiry);
-            numCouponsEarned = _numCouponsEarned;
-            lastCouponBarrierBreachObservation = _lastCouponBarrierBreachObservation;
             // Require autocall barrier hit at least once
-            require(_autocallTimestamp > 0, "!autocall");
+            require(autocallTimestamp > 0, "!autocall");
             // Burn the unexpired oTokens
             _burnRemainingOTokens();
             // Require vault possessed all oTokens sold to counterparties
