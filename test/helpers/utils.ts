@@ -41,7 +41,7 @@ import {
   UNI_PRICE_ORACLE,
   BTC_PRICE_ORACLE,
 } from "../../constants/constants";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { BigNumber, BigNumberish, Contract } from "ethers";
 import { wmul } from "../helpers/math";
 
