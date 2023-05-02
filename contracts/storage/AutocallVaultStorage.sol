@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {RibbonThetaVaultStorageV4} from "./RibbonThetaVaultStorage.sol";
-
 abstract contract AutocallVaultStorageV1 {
     /**
      * VANILLA: normal oToken
@@ -26,28 +24,28 @@ abstract contract AutocallVaultStorageV1 {
 
     struct PutOption {
         // Current round option type
-        OptionType currentOptionType;
+        OptionType optionType;
         // Next round option type
-        OptionType nextOptionType;
+        OptionType nOptionType;
         // Payoff of the option if ITM, denominated in vault collateral asset
-        uint256 payoffITM;
+        uint256 payoff;
     }
 
     struct CouponState {
         // Current round coupon type
-        CouponType currentCouponType;
+        CouponType couponType;
         // Next round coupon type
-        CouponType nextCouponType;
+        CouponType nCouponType;
         // Current round autocall barrier PCT.
         // Includes 2 decimals (i.e. 10500 = 105%)
-        uint256 autocallBarrierPCT;
+        uint256 AB;
         // Next round autocall barrier PCT
-        uint256 nextAutocallBarrierPCT;
+        uint256 nextAB;
         // Current round coupon barrier PCT.
         // Includes 2 decimals (i.e. 10500 = 105%)
-        uint256 couponBarrierPCT;
+        uint256 CB;
         // Next round coupon barrier pct
-        uint256 nextCouponBarrierPCT;
+        uint256 nextCB;
     }
 
     // Spot price
@@ -57,15 +55,15 @@ abstract contract AutocallVaultStorageV1 {
     // Vault coupon state
     CouponState public couponState;
     // 1 day, 7 days, 1 month, etc in seconds
-    uint256 public observationPeriodFreq;
+    uint256 public obsFreq;
     // Next observation period freq
-    uint256 internal nextObservationPeriodFreq;
+    uint256 internal nextObsFreq;
     // Total num observation periods during epoch
-    uint256 public numTotalObservationPeriods;
+    uint256 public nTotalObs;
+    // Next period
+    uint256 internal nextPeriod;
     // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
     address public autocallSeller;
-    // Next period
-    uint256 public nextPeriod;
 }
 
 // We are following Compound's method of upgrading new contract implementations
