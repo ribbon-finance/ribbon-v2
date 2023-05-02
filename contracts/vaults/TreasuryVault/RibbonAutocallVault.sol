@@ -77,6 +77,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @param _vaultParams is the struct with vault general data
      * @param _optionType is type of the next put option
      * @param _couponState is the coupon state
+     * @param _obsFreq is the observation frequency of autocall
+     * @param _autocallSeller is the autocall seller
      */
     function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
@@ -94,10 +96,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         );
 
         require(_autocallSeller != address(0), "!_autocallSeller");
-        require(
-            _obsFreq > 0 && _obsFreq % 1 days == 0 && _obsFreq <= period,
-            "!_obsFreq"
-        );
+        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "!_obsFreq");
 
         putOption.nOptionType = _optionType;
         couponState.nCouponType = _couponState.nCouponType;
@@ -186,10 +185,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         onlyOwner
     {
         require(_period > 0, "!_period");
-        require(
-            _obsFreq > 0 && _obsFreq % 1 days == 0 && _obsFreq <= _period,
-            "!_obsFreq"
-        );
+        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "!_obsFreq");
 
         emit ObservationPeriodFreqSet(obsFreq, _obsFreq);
 

@@ -234,10 +234,10 @@ contract RibbonTreasuryVaultLite is
 
     /**
      * @notice Internal function to set the management fee for the vault
-     * @param managementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2
+     * @param _managementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      * @return perRoundManagementFee is the management divided by the number of rounds per year
      */
-    function _perRoundManagementFee(uint256 managementFee)
+    function _perRoundManagementFee(uint256 _managementFee)
         internal
         view
         returns (uint256)
@@ -249,7 +249,7 @@ contract RibbonTreasuryVaultLite is
                 : WEEKS_PER_YEAR / (_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
-        return managementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
+        return _managementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
     }
 
     /**
@@ -289,7 +289,7 @@ contract RibbonTreasuryVaultLite is
 
     /**
      * @notice Sets the new options premium pricer contract
-     * @param newOptionsPremiumPricer is the address of the new strike selection contract
+     * @param newOptionsPremiumPricer is the address of the new options premium pricer contract
      */
     function setOptionsPremiumPricer(address newOptionsPremiumPricer)
         external
@@ -309,7 +309,6 @@ contract RibbonTreasuryVaultLite is
     function setStrikePrice(uint128 strikePrice)
         external
         onlyOwner
-        nonReentrant
     {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
@@ -405,9 +404,8 @@ contract RibbonTreasuryVaultLite is
         // This caches the `round` variable used in shareBalances
         uint256 currentRound = vaultState.round;
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
-        uint256 withdrawalRound = withdrawal.round;
 
-        bool withdrawalIsSameRound = withdrawalRound == currentRound;
+        bool withdrawalIsSameRound = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, numShares, currentRound);
 
@@ -573,12 +571,12 @@ contract RibbonTreasuryVaultLite is
     /*
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
-     * @param lastQueuedWithdrawAmount is old queued withdraw amount
+     * @param _lastQueuedWithdrawAmount is old queued withdraw amount
      * @return newOption is the new option address
      * @return lockedBalance is the new balance used to calculate next option purchase size or collateral size
      * @return queuedWithdrawAmount is the new queued withdraw amount for this round
      */
-    function _rollToNextOption(uint256 lastQueuedWithdrawAmount)
+    function _rollToNextOption(uint256 _lastQueuedWithdrawAmount)
         internal
         returns (
             address newOption,
@@ -609,7 +607,7 @@ contract RibbonTreasuryVaultLite is
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
-                    lastQueuedWithdrawAmount,
+                    _lastQueuedWithdrawAmount,
                     currentRound != 1 ? managementFee : 0
                 )
             );
