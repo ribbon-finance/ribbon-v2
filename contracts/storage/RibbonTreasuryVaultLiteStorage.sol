@@ -67,6 +67,8 @@ abstract contract RibbonTreasuryVaultLiteStorageV1 {
 // When we need to add new storage variables, we create a new version of RibbonTreasuryVaultStorage
 // e.g. RibbonTreasuryVaultStorage<versionNumber>, so finally it would look like
 // contract RibbonTreasuryVaultStorage is RibbonTreasuryVaultStorageV1, RibbonTreasuryVaultStorageV2
-abstract contract RibbonTreasuryVaultLiteStorage is RibbonTreasuryVaultLiteStorageV1 {
+abstract contract RibbonTreasuryVaultLiteStorage is
+    RibbonTreasuryVaultLiteStorageV1
+{
 
 }

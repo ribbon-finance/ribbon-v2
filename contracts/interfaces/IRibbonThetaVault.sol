@@ -38,9 +38,9 @@ interface IRibbonThetaVault {
 }
 
 interface IRibbonTreasuryVault is IRibbonThetaVault {
-  function period() external view returns (uint256);
+    function period() external view returns (uint256);
 }
 
 interface IRibbonSTETHVault is IRibbonThetaVault {
-  function depositYieldTokenFor(uint256 amount, address creditor) external;
+    function depositYieldTokenFor(uint256 amount, address creditor) external;
 }
