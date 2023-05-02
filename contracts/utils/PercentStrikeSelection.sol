@@ -106,10 +106,6 @@ contract PercentStrikeSelection is Ownable {
         external
         onlyOwner
     {
-        require(
-            newStrikeMultiplier > STRIKE_MULTIPLIER,
-            "Multiplier must be bigger than 1!"
-        );
         strikeMultiplier = newStrikeMultiplier;
     }
 
