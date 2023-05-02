@@ -337,20 +337,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
          *                 being non-zero means autocall barrier has been hit and we get all previous
          *                 coupons
          */
-        if (
-            couponState.couponType == CouponType.FIXED ||
-            couponState.couponType == CouponType.PHOENIX
-        ) {
-            nCouponsEarned = nCBBreaches;
-            earnedAmt = (totalPremium * nCBBreaches) / nTotalObs;
-        } else if (
-            couponState.couponType == CouponType.PHOENIX_MEMORY ||
-            couponState.couponType == CouponType.VANILLA
-        ) {
-            nCouponsEarned = lastCBBreach;
-            earnedAmt = (totalPremium * lastCBBreach) / nTotalObs;
-        }
-
+        bool hasMemory =
+            (couponState.couponType == CouponType.PHOENIX_MEMORY ||
+                couponState.couponType == CouponType.VANILLA)
+                ? true
+                : false;
+        nCouponsEarned = hasMemory ? lastCBBreach : nCBBreaches;
+        earnedAmt = (totalPremium * nCouponsEarned) / nTotalObs;
         returnAmt = totalPremium - earnedAmt;
     }
 
@@ -405,8 +398,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     /**
      * @dev Returns the last observation timestamp and index
      * @param _expiry is current option expiry
-     * @return index is last observation timestamp
-     * @return ts is last observation index
+     * @return index is last observation index
+     * @return ts is last observation timestamp
      */
     function _lastObservation(uint256 _expiry)
         internal

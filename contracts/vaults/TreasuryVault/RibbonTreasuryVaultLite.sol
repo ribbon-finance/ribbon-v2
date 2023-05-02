@@ -146,7 +146,7 @@ contract RibbonTreasuryVaultLite is
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
-      _initialize(_initParams, _vaultParams);
+        _initialize(_initParams, _vaultParams);
     }
 
     /**
@@ -156,34 +156,33 @@ contract RibbonTreasuryVaultLite is
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) internal {
+        VaultLifecycleTreasury.verifyInitializerParams(
+            _initParams,
+            _vaultParams,
+            1
+        );
 
-      VaultLifecycleTreasury.verifyInitializerParams(
-          _initParams,
-          _vaultParams,
-          1
-      );
+        __ReentrancyGuard_init();
+        __ERC20_init(_initParams._tokenName, _initParams._tokenSymbol);
+        __Ownable_init();
+        transferOwnership(_initParams._owner);
 
-      __ReentrancyGuard_init();
-      __ERC20_init(_initParams._tokenName, _initParams._tokenSymbol);
-      __Ownable_init();
-      transferOwnership(_initParams._owner);
+        keeper = _initParams._keeper;
+        period = _initParams._period;
+        optionsPremiumPricer = _initParams._optionsPremiumPricer;
+        strikeSelection = _initParams._strikeSelection;
+        premiumDiscount = _initParams._premiumDiscount;
+        feeRecipient = _initParams._feeRecipient;
+        performanceFee = _initParams._performanceFee;
+        managementFee = _perRoundManagementFee(_initParams._managementFee);
 
-      keeper = _initParams._keeper;
-      period = _initParams._period;
-      optionsPremiumPricer = _initParams._optionsPremiumPricer;
-      strikeSelection = _initParams._strikeSelection;
-      premiumDiscount = _initParams._premiumDiscount;
-      feeRecipient = _initParams._feeRecipient;
-      performanceFee = _initParams._performanceFee;
-      managementFee = _perRoundManagementFee(_initParams._managementFee);
+        vaultParams = _vaultParams;
+        vaultState.round = 1;
 
-      vaultParams = _vaultParams;
-      vaultState.round = 1;
-
-      uint256 assetBalance =
-          IERC20(vaultParams.asset).balanceOf(address(this));
-      ShareMath.assertUint104(assetBalance);
-      vaultState.lastLockedAmount = uint104(assetBalance);
+        uint256 assetBalance =
+            IERC20(vaultParams.asset).balanceOf(address(this));
+        ShareMath.assertUint104(assetBalance);
+        vaultState.lastLockedAmount = uint104(assetBalance);
     }
 
     /**
@@ -306,10 +305,7 @@ contract RibbonTreasuryVaultLite is
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-    {
+    function setStrikePrice(uint128 strikePrice) external onlyOwner {
         require(strikePrice > 0, "!strikePrice");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
@@ -652,8 +648,8 @@ contract RibbonTreasuryVaultLite is
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() virtual external nonReentrant {
-      _commitAndClose();
+    function commitAndClose() external virtual nonReentrant {
+        _commitAndClose();
     }
 
     /**
@@ -746,29 +742,38 @@ contract RibbonTreasuryVaultLite is
             newOption,
             lockedBalance
         );
+    }
 
+    /**
+     * @notice Sends oToken to buyer
+     * @param buyer is the buyer of the oToken
+     */
+    function sendOTokens(address buyer) external onlyKeeper nonReentrant {
+        require(buyer != address(0), "!buyer");
+        IERC20 oToken = IERC20(optionState.currentOption);
+        oToken.safeTransfer(buyer, oToken.balanceOf(address(this)));
     }
 
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
-      _burnRemainingOTokens();
+        _burnRemainingOTokens();
     }
 
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function _burnRemainingOTokens() internal {
-      uint256 unlockedAssetAmount =
-          VaultLifecycleTreasury.burnOtokens(
-              GAMMA_CONTROLLER,
-              optionState.currentOption
-          );
+        uint256 unlockedAssetAmount =
+            VaultLifecycleTreasury.burnOtokens(
+                GAMMA_CONTROLLER,
+                optionState.currentOption
+            );
 
-      vaultState.lockedAmount = uint104(
-          uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
-      );
+        vaultState.lockedAmount = uint104(
+            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+        );
     }
 
     /************************************************
