@@ -91,8 +91,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         _initialize(_initParams, _vaultParams);
         _verifyCouponState(
             _couponState.nCouponType,
-            _couponState.nextAB,
-            _couponState.nextCB
+            _couponState.nAB,
+            _couponState.nCB
         );
 
         require(_autocallSeller != address(0), "!_autocallSeller");
@@ -100,10 +100,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         putOption.nOptionType = _optionType;
         couponState.nCouponType = _couponState.nCouponType;
-        couponState.nextAB = _couponState.AB;
-        couponState.nextCB = _couponState.CB;
+        couponState.nAB = _couponState.AB;
+        couponState.nCB = _couponState.CB;
 
         nextObsFreq = _obsFreq;
+        nextPeriod = period;
         autocallSeller = _autocallSeller;
         nTotalObs = period / _obsFreq;
     }
@@ -169,8 +170,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         _verifyCouponState(_couponType, _AB, _CB);
 
         couponState.nCouponType = _couponType;
-        couponState.nextAB = _AB;
-        couponState.nextCB = _CB;
+        couponState.nAB = _AB;
+        couponState.nCB = _CB;
 
         emit CouponStateSet(_couponType, _AB, _CB);
     }
@@ -201,16 +202,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     function commitAndClose() external override nonReentrant {
         address currentOption = optionState.currentOption;
 
-        if (currentOption == address(0)) {
-            // Commit and close vanilla put
-            super._commitAndClose();
-            // Commit and close enhanced put
-            _commitAndCloseEnhancedPut(0, 0);
-            return;
-        }
-
         IOtoken currentOToken = IOtoken(currentOption);
-        uint256 expiry = currentOToken.expiryTimestamp();
+        uint256 expiry =
+            currentOption == address(0) ? 0 : currentOToken.expiryTimestamp();
+        uint256 strikePrice =
+            currentOption == address(0) ? 0 : currentOToken.strikePrice();
 
         (uint256 autocallTS, uint256 nCBBreaches, uint256 lastCBBreach) =
             _autocallState(expiry);
@@ -225,22 +221,25 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             require(vaultState.lockedAmount == 0, "!withdrawnCollateral");
         }
 
+        // Calculate coupons earned
+        (, , uint256 returnAmt) = _couponsEarned(nCBBreaches, lastCBBreach);
+
+        if (returnAmt > 0) {
+            // Transfer unearned coupons back to autocall seller
+            transferAsset(autocallSeller, returnAmt);
+        }
+
         // Commit and close vanilla put
         super._commitAndClose();
 
         // Commit and close enhanced put
-        _commitAndCloseEnhancedPut(expiry, currentOToken.strikePrice());
-
-        (, , uint256 returnAmt) = _couponsEarned(nCBBreaches, lastCBBreach);
-
-        // Transfer unearned coupons back to autocall seller
-        transferAsset(autocallSeller, returnAmt);
+        _commitAndCloseEnhancedPut(expiry, strikePrice);
 
         // Set coupon state
         CouponState memory _couponState = couponState;
         couponState.couponType = _couponState.nCouponType;
-        couponState.AB = _couponState.nextAB;
-        couponState.CB = _couponState.nextCB;
+        couponState.AB = _couponState.nAB;
+        couponState.CB = _couponState.nCB;
 
         // Set observation period frequency
         obsFreq = nextObsFreq;

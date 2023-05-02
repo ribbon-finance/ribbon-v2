@@ -40,12 +40,12 @@ abstract contract AutocallVaultStorageV1 {
         // Includes 2 decimals (i.e. 10500 = 105%)
         uint256 AB;
         // Next round autocall barrier PCT
-        uint256 nextAB;
+        uint256 nAB;
         // Current round coupon barrier PCT.
         // Includes 2 decimals (i.e. 10500 = 105%)
         uint256 CB;
         // Next round coupon barrier pct
-        uint256 nextCB;
+        uint256 nCB;
     }
 
     // Spot price
