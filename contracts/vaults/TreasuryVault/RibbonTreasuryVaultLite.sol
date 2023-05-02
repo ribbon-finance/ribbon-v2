@@ -746,12 +746,12 @@ contract RibbonTreasuryVaultLite is
 
     /**
      * @notice Sends oToken to buyer
-     * @param buyer is the buyer of the oToken
+     * @param _buyer is the buyer of the oToken
      */
-    function sendOTokens(address buyer) external onlyKeeper nonReentrant {
-        require(buyer != address(0), "!buyer");
+    function sendOTokens(address _buyer) external onlyKeeper nonReentrant {
+        require(_buyer != address(0), "!buyer");
         IERC20 oToken = IERC20(optionState.currentOption);
-        oToken.safeTransfer(buyer, oToken.balanceOf(address(this)));
+        oToken.safeTransfer(_buyer, oToken.balanceOf(address(this)));
     }
 
     /**
