@@ -28,10 +28,8 @@ import {
   whitelistProduct,
   mintToken,
   lockedBalanceForRollover,
-  addMinter,
   getBlockNum,
 } from "./helpers/utils";
-import { wmul } from "./helpers/math";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
@@ -84,7 +82,6 @@ describe("RibbonTreasuryVaultLite", () => {
     oracle: ETH_PRICE_ORACLE[chainId],
     premiumInStables: true,
     multiplier: ETH_STRIKE_MULTIPLIER,
-    premiumDecimals: 6,
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
     availableChains: [CHAINID.ETH_MAINNET],
@@ -121,7 +118,6 @@ type Option = {
  * @param {BigNumber} params.performanceFee - PerformanceFee fee (6 decimals)
  * @param {boolean} params.isPut - Boolean flag for if the vault sells call or put options
  * @param {number[]} params.availableChains - ChainIds where the tests for the vault will be executed
- * @param {number} params.premiumDecimals: - Decimals of premiumAsset
  * @param {number} params.maxDepositors: - Max. depositors allowed
  * @param {BigNumber} params.minDeposit: - Minimum deposit per depositor
  * @param {number} params.premiumInStables: - Boolean flag whether premium is denominated in stables
@@ -156,7 +152,6 @@ function behavesLikeRibbonOptionsVault(params: {
   mintConfig?: {
     contractOwnerAddress: string;
   };
-  premiumDecimals: number;
   manualStrikePrice: BigNumber;
   period: number;
   oracle: string;
@@ -198,7 +193,6 @@ function behavesLikeRibbonOptionsVault(params: {
   // let expectedMintAmount = params.expectedMintAmount;
   let auctionDuration = params.auctionDuration;
   let isPut = params.isPut;
-  let premiumDecimals = params.premiumDecimals;
   let period = params.period;
   let oraclePricer = params.oracle;
   let premiumAsset = USDC_ADDRESS[chainId];
@@ -221,7 +215,6 @@ function behavesLikeRibbonOptionsVault(params: {
   // Variables
   let defaultOtokenAddress: string;
   let firstOptionStrike: BigNumber;
-  let firstOptionPremium: BigNumber;
   let firstOptionExpiry: number;
   let secondOptionStrike: BigNumber;
   let secondOptionExpiry: number;
@@ -414,14 +407,6 @@ function behavesLikeRibbonOptionsVault(params: {
       [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
         params.isPut
-      );
-
-      firstOptionPremium = BigNumber.from(
-        await optionsPremiumPricer.getPremiumInStables(
-          firstOptionStrike,
-          firstOptionExpiry,
-          params.isPut
-        )
       );
 
       const firstOptionAddress = await oTokenFactory.getTargetOtokenAddress(
@@ -1176,10 +1161,6 @@ function behavesLikeRibbonOptionsVault(params: {
           ).toString(),
           newStrikePrice.toString()
         );
-
-        const expiryTimestampOfNewOption = await (
-          await getContractAt("IOtoken", await vault.nextOption())
-        ).expiryTimestamp();
       });
 
       it("closes short even when otokens are burned", async function () {
