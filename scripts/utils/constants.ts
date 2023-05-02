@@ -29,6 +29,7 @@ export const BADGER_STRIKE_MULTIPLIER = 125;
 export const BAL_STRIKE_MULTIPLIER = 125;
 export const SPELL_STRIKE_MULTIPLIER = 125;
 export const SAMB_STRIKE_MULTIPLIER = 125;
+export const ETH_STRIKE_MULTIPLIER = 75;
 
 /**
  * Util Addresses
