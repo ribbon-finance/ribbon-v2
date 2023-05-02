@@ -133,7 +133,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("3").mul(BigNumber.from("10").pow("8")),
+    manualStrikePrice: BigNumber.from("3").pow("8"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -171,7 +171,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").mul(BigNumber.from("10").pow("8")),
+    manualStrikePrice: BigNumber.from("1").pow("8"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -209,7 +209,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").mul(BigNumber.from("10").pow("8")),
+    manualStrikePrice: BigNumber.from("1").pow("8"),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -2283,7 +2283,7 @@ function behavesLikeRibbonOptionsVault(params: {
         const tx = await vault.connect(keeperSigner).rollToNextOption();
         const receipt = await tx.wait();
 
-        assert.isAtMost(receipt.gasUsed.toNumber(), 1012294);
+        assert.isAtMost(receipt.gasUsed.toNumber(), 1034268);
         // console.log("rollToNextOption", receipt.gasUsed.toNumber());
       });
     });

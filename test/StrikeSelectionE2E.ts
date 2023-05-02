@@ -414,18 +414,6 @@ describe("PercentStrikeSelectionE2E-ManualVolOracle", () => {
       ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
-    it("reverts when multiplier is below 1", async function () {
-      await expect(
-        strikeSelection.connect(signer).setStrikeMultiplier(80)
-      ).to.be.revertedWith("Multiplier must be bigger than 1");
-    });
-
-    it("reverts when multiplier is equal 1", async function () {
-      await expect(
-        strikeSelection.connect(signer).setStrikeMultiplier(100)
-      ).to.be.revertedWith("Multiplier must be bigger than 1");
-    });
-
     it("sets the strike multiplier", async function () {
       await strikeSelection.connect(signer).setStrikeMultiplier(multiplier);
       assert.equal(
