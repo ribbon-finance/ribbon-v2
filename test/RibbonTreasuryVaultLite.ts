@@ -30,7 +30,7 @@ import {
   lockedBalanceForRollover,
   getBlockNum,
 } from "./helpers/utils";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
