@@ -55,7 +55,7 @@ import {
   getBlockNum,
 } from "./helpers/utils";
 import { wmul } from "./helpers/math";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { assert } from "./helpers/assertions";
 import { TEST_URI } from "../scripts/helpers/getDefaultEthersProvider";
 import {
@@ -95,7 +95,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").pow("8"),
+    manualStrikePrice: BigNumber.from("1").mul(BigNumber.from("10").pow("8")),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -133,7 +133,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("3").pow("8"),
+    manualStrikePrice: BigNumber.from("3").mul(BigNumber.from("10").pow("8")),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -171,7 +171,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").pow("8"),
+    manualStrikePrice: BigNumber.from("1").mul(BigNumber.from("10").pow("8")),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -209,7 +209,7 @@ describe("RibbonTreasuryVault", () => {
     premiumDiscount: BigNumber.from("997"),
     managementFee: BigNumber.from("0"),
     performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").pow("8"),
+    manualStrikePrice: BigNumber.from("1").mul(BigNumber.from("10").pow("8")),
     auctionDuration: 21600,
     tokenDecimals: 18,
     isPut: false,
@@ -557,33 +557,10 @@ function behavesLikeRibbonOptionsVault(params: {
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
 
       // Create first option
-      if (period === 30) {
-        firstOptionExpiry = moment(latestTimestamp * 1000)
-          .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
-          .endOf("month")
-          .day(5)
-          .add(-7, "day")
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      } else if (period === 90 || period === 180) {
-        firstOptionExpiry = moment(latestTimestamp * 1000)
-          .month("dec")
-          .date(31)
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      } else {
-        firstOptionExpiry = moment(latestTimestamp * 1000)
-          .startOf("isoWeek")
-          .day(5)
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      }
+      firstOptionExpiry = moment(latestTimestamp * 1000).add(period, "days").hours(8)
+                .minutes(0)
+                .seconds(0)
+                .unix();
 
       [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
@@ -614,46 +591,10 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      if (period === 30) {
-        secondOptionExpiry = moment(latestTimestamp * 1000)
-          .endOf("month")
-          .add(chainId === CHAINID.AVAX_MAINNET ? 0 : 1, "weeks")
-          .add(asset === SPELL_ADDRESS[chainId] ? 0 : 1, "month")
-          .endOf("month")
-          .add(-1, "week")
-          .day(5)
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      } else if (period === 90) {
-        secondOptionExpiry = moment(latestTimestamp * 1000)
-          .year(2022)
-          .month("march")
-          .date(25)
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      } else if (period === 180) {
-        secondOptionExpiry = moment(latestTimestamp * 1000)
-          .year(2022)
-          .month("june")
-          .date(24)
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      } else {
-        secondOptionExpiry = moment(latestTimestamp * 1000)
-          .startOf("isoWeek")
-          .add(period / 7, "weeks")
-          .day(5)
-          .hours(8)
-          .minutes(0)
-          .seconds(0)
-          .unix();
-      }
+      secondOptionExpiry = moment(latestTimestamp * 1000).add(period * 2, "days").hours(8)
+                .minutes(0)
+                .seconds(0)
+                .unix();
 
       [secondOptionStrike] = await strikeSelection.getStrikePrice(
         secondOptionExpiry,
@@ -3091,11 +3032,6 @@ function behavesLikeRibbonOptionsVault(params: {
         const receipt = await tx.wait();
 
         assert.isAtMost(receipt.gasUsed.toNumber(), 151803);
-        // console.log(
-        //   params.name,
-        //   "completeWithdraw",
-        //   receipt.gasUsed.toNumber()
-        // );
       });
     });
 
@@ -3370,7 +3306,7 @@ function behavesLikeRibbonOptionsVault(params: {
           );
       });
 
-      it("charge the correct fees", async function () {
+      it("charge and collect fees", async function () {
         const firstOptionAddress = firstOption.address;
 
         await vault.connect(ownerSigner).commitAndClose();
