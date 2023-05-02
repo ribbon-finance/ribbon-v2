@@ -47,10 +47,6 @@ contract PercentStrikeSelection is Ownable {
         uint256 _step
     ) {
         require(_optionsPremiumPricer != address(0), "!_optionsPremiumPricer");
-        require(
-            _strikeMultiplier > STRIKE_MULTIPLIER,
-            "Multiplier must be bigger than 1!"
-        );
         require(_step > 0, "!_step");
 
         optionsPremiumPricer = IOptionsPremiumPricer(_optionsPremiumPricer);
