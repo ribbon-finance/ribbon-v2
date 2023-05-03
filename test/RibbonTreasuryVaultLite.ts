@@ -1205,7 +1205,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
       it("should revert if zero address", async function () {
         await expect(
-          vault.connect(keeperSigner).sendOTokens(constants.AddressZero)
+          vault.connect(ownerSigner).sendOTokens(constants.AddressZero)
         ).to.be.revertedWith("!buyer");
       });
 
@@ -1222,7 +1222,7 @@ function behavesLikeRibbonOptionsVault(params: {
             keeperSigner.address
           );
 
-          await vault.connect(keeperSigner).sendOTokens(keeperSigner.address);
+          await vault.connect(ownerSigner).sendOTokens(keeperSigner.address);
 
           const oTokenBalanceAfterSend = await defaultOtoken.balanceOf(
             keeperSigner.address
