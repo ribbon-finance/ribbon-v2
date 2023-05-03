@@ -106,7 +106,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         nextObsFreq = _obsFreq;
         nextPeriod = period;
         autocallSeller = _autocallSeller;
-        nTotalObs = period / _obsFreq;
+        numTotalObs = period / _obsFreq;
     }
 
     /**
@@ -244,7 +244,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Set observation period frequency
         obsFreq = nextObsFreq;
         period = nextPeriod;
-        nTotalObs = period / obsFreq;
+        numTotalObs = period / obsFreq;
     }
 
     /**
@@ -342,7 +342,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
                 ? true
                 : false;
         nCouponsEarned = hasMemory ? lastCBBreach : nCBBreaches;
-        earnedAmt = (totalPremium * nCouponsEarned) / nTotalObs;
+        earnedAmt = (totalPremium * nCouponsEarned) / numTotalObs;
         returnAmt = totalPremium - earnedAmt;
     }
 
@@ -362,7 +362,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             uint256 lastCBBreach
         )
     {
-        uint256 startTS = _expiry - (nTotalObs - 1) * obsFreq;
+        uint256 startTS = _expiry - (numTotalObs - 1) * obsFreq;
         (, uint256 lastTS) = _lastObservation(_expiry);
         address underlying = vaultParams.underlying;
 
@@ -391,7 +391,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         }
 
         // Convert to index
-        lastCBBreach = nTotalObs - (_expiry - lastCBBreach) / obsFreq - 1;
+        lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / obsFreq - 1;
     }
 
     /**
@@ -406,13 +406,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         returns (uint256 index, uint256 ts)
     {
         index =
-            nTotalObs -
+            numTotalObs -
             (
                 _expiry > block.timestamp
                     ? (_expiry - block.timestamp + obsFreq) / obsFreq
                     : 0
             );
-        ts = _expiry - (nTotalObs - index) * obsFreq;
+        ts = _expiry - (numTotalObs - index) * obsFreq;
     }
 
     /**
