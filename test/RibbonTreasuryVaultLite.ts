@@ -1200,7 +1200,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("should revert if not keeper", async function () {
         await expect(
           vault.connect(userSigner).sendOTokens(userSigner.address)
-        ).to.be.revertedWith("!keeper");
+        ).to.be.revertedWith("Ownable: caller is not the owner");
       });
 
       it("should revert if zero address", async function () {
@@ -1262,7 +1262,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.connect(keeperSigner).rollToNextOption();
 
-        await vault.connect(keeperSigner).sendOTokens(keeperSigner.address);
+        await vault.connect(ownerSigner).sendOTokens(keeperSigner.address);
 
         await expect(
           vault.connect(keeperSigner).burnRemainingOTokens()
