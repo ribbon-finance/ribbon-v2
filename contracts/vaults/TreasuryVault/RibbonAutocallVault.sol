@@ -371,7 +371,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // For every previous observation timestamp
         for (uint256 ts = startTS; ts <= lastTS; ts += obsFreq) {
             uint256 obsPrice = ORACLE.getExpiryPrice(underlying, ts);
-
+            require(obsPrice > 0, "!obsPrice");
             // Check if coupon barrier breached
             if (
                 obsPrice >= (initialSpotPrice * couponState.CB) / PCT_MULTIPLIER
