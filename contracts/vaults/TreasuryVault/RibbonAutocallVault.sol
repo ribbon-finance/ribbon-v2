@@ -106,7 +106,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         nextObsFreq = _obsFreq;
         nextPeriod = period;
         autocallSeller = _autocallSeller;
-        numTotalObs = period / _obsFreq;
+        numTotalObs = period * 1 days / _obsFreq;
     }
 
     /**
@@ -244,7 +244,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Set observation period frequency
         obsFreq = nextObsFreq;
         period = nextPeriod;
-        numTotalObs = period / obsFreq;
+        numTotalObs = period * 1 days / obsFreq;
     }
 
     /**
