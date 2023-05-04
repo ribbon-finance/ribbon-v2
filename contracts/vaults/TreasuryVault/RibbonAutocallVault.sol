@@ -21,7 +21,7 @@ import {
 
 contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     // Denominator for all pct calculations
-    uint256 internal constant PCT_MULTIPLIER = 100**2;
+    uint256 internal constant PCT_MULTIPLIER = 100 * 10 **2;
 
     IOracle public immutable ORACLE;
 
@@ -436,7 +436,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             require(_CB == _AB, "!VANILLA");
         } else {
             // Coupon Barrier < Autocall Barrier
-            require(_CB > PCT_MULTIPLIER, "!_CB");
+            require(_CB > 0, "!_CB");
             require(_CB < _AB, "!PHOENIX");
         }
     }
