@@ -103,8 +103,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         couponState.nAB = _couponState.AB;
         couponState.nCB = _couponState.CB;
 
-        nextObsFreq = _obsFreq;
-        nextPeriod = period;
+        nObsFreq = _obsFreq;
+        nPeriod = period;
         autocallSeller = _autocallSeller;
         numTotalObs = period * 1 days / _obsFreq;
     }
@@ -192,8 +192,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         emit PeriodSet(period, _period);
 
-        nextObsFreq = _obsFreq;
-        nextPeriod = _period;
+        nObsFreq = _obsFreq;
+        nPeriod = _period;
     }
 
     /**
@@ -242,8 +242,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         couponState.CB = _couponState.nCB;
 
         // Set observation period frequency
-        obsFreq = nextObsFreq;
-        period = nextPeriod;
+        obsFreq = nObsFreq;
+        period = nPeriod;
         numTotalObs = period * 1 days / obsFreq;
     }
 

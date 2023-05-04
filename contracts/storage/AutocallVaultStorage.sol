@@ -57,11 +57,11 @@ abstract contract AutocallVaultStorageV1 {
     // 1 day, 7 days, 1 month, etc in seconds
     uint256 public obsFreq;
     // Next observation period freq
-    uint256 internal nextObsFreq;
+    uint256 internal nObsFreq;
     // Total num observation periods during epoch
     uint256 public numTotalObs;
     // Next period
-    uint256 internal nextPeriod;
+    uint256 internal nPeriod;
     // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
     address public autocallSeller;
 }
