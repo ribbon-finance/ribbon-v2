@@ -78,6 +78,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @param _optionType is type of the next put option
      * @param _couponState is the coupon state
      * @param _obsFreq is the observation frequency of autocall
+     * @param _autocallBuyer is the autocall buyer
      * @param _autocallSeller is the autocall seller
      */
     function initialize(
@@ -86,6 +87,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         OptionType _optionType,
         CouponState calldata _couponState,
         uint256 _obsFreq,
+        address _autocallBuyer,
         address _autocallSeller
     ) external initializer {
         _initialize(_initParams, _vaultParams);
@@ -95,6 +97,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _couponState.nCB
         );
 
+        require(_autocallBuyer != address(0), "!_autocallBuyer");
         require(_autocallSeller != address(0), "!_autocallSeller");
         require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "!_obsFreq");
 
@@ -105,8 +108,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         nObsFreq = _obsFreq;
         nPeriod = period;
+        autocallBuyer = _autocallBuyer;
         autocallSeller = _autocallSeller;
-        numTotalObs = period * 1 days / _obsFreq;
+        numTotalObs = (period * 1 days) / _obsFreq;
     }
 
     /**
@@ -213,7 +217,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
                 _autocallState(expiry);
 
             // Calculate coupons earned
-            (, , uint256 returnAmt) = _couponsEarned(nCBBreaches, lastCBBreach);
+            (, uint256 earnedAmt, uint256 returnAmt) =
+                _couponsEarned(nCBBreaches, lastCBBreach);
 
             // If before expiry, attempt to autocall
             if (block.timestamp < expiry) {
@@ -226,6 +231,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             }
 
             if (returnAmt > 0) {
+                // Transfer earned coupons to autocall buyer
+                transferAsset(autocallBuyer, earnedAmt);
                 // Transfer unearned coupons back to autocall seller
                 transferAsset(autocallSeller, returnAmt);
             }
@@ -246,7 +253,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // Set observation period frequency
         obsFreq = nObsFreq;
         period = nPeriod;
-        numTotalObs = period * 1 days / obsFreq;
+        numTotalObs = (period * 1 days) / obsFreq;
     }
 
     /**
