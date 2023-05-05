@@ -21,7 +21,7 @@ import {
 
 contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     // Denominator for all pct calculations
-    uint256 internal constant PCT_MULTIPLIER = 100 * 10 **2;
+    uint256 internal constant PCT_MULTIPLIER = 100 * 10**2;
 
     IOracle public immutable ORACLE;
 
@@ -208,25 +208,27 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 strikePrice =
             currentOption == address(0) ? 0 : currentOToken.strikePrice();
 
-        (uint256 autocallTS, uint256 nCBBreaches, uint256 lastCBBreach) =
-            _autocallState(expiry);
+        if (currentOption != address(0)) {
+            (uint256 autocallTS, uint256 nCBBreaches, uint256 lastCBBreach) =
+                _autocallState(expiry);
 
-        // If before expiry, attempt to autocall
-        if (block.timestamp < expiry) {
-            // Require autocall barrier hit at least once
-            require(autocallTS < block.timestamp, "!autocall");
-            // Burn the unexpired oTokens
-            _burnRemainingOTokens();
-            // Require vault possessed all oTokens sold to counterparties
-            require(vaultState.lockedAmount == 0, "!withdrawnCollateral");
-        }
+            // Calculate coupons earned
+            (, , uint256 returnAmt) = _couponsEarned(nCBBreaches, lastCBBreach);
 
-        // Calculate coupons earned
-        (, , uint256 returnAmt) = _couponsEarned(nCBBreaches, lastCBBreach);
+            // If before expiry, attempt to autocall
+            if (block.timestamp < expiry) {
+                // Require autocall barrier hit at least once
+                require(autocallTS < block.timestamp, "!autocall");
+                // Burn the unexpired oTokens
+                _burnRemainingOTokens();
+                // Require vault possessed all oTokens sold to counterparties
+                require(vaultState.lockedAmount == 0, "!withdrawnCollateral");
+            }
 
-        if (returnAmt > 0) {
-            // Transfer unearned coupons back to autocall seller
-            transferAsset(autocallSeller, returnAmt);
+            if (returnAmt > 0) {
+                // Transfer unearned coupons back to autocall seller
+                transferAsset(autocallSeller, returnAmt);
+            }
         }
 
         // Commit and close vanilla put
@@ -391,7 +393,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         }
 
         // Convert to index
-        lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / obsFreq - 1;
+        if (lastCBBreach > 0) {
+            lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / obsFreq;
+        }
     }
 
     /**

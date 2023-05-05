@@ -142,12 +142,12 @@ contract RibbonTreasuryVaultLite is
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      */
-    function initialize(
+/*      function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
         _initialize(_initParams, _vaultParams);
-    }
+    }  */
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
