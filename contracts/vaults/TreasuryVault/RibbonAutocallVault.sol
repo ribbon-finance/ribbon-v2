@@ -298,7 +298,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         OptionType _nOptionType,
         uint256 _price,
         uint256 _nextStrikePrice
-    ) internal pure returns (uint256 payoff) {
+    ) internal view returns (uint256 payoff) {
         /**
          * VANILLA: enhanced payout is 0 since the oToken is already vanilla
          * DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
