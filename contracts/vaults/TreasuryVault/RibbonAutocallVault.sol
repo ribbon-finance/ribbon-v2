@@ -272,7 +272,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // If put ITM, transfer to autocall seller
         if (_putOption.payoff > 0 && expiryPrice <= _strikePrice) {
             // Transfer current digital option payoff
-            transferAsset(autocallSeller, oTokenMintAmount * _putOption.payoff);
+            transferAsset(autocallSeller, oTokenMintAmount * _putOption.payoff / 10 ** 8);
         }
 
         uint256 _spotPrice = ORACLE.getPrice(vaultParams.underlying);
@@ -298,20 +298,19 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         OptionType _nOptionType,
         uint256 _price,
         uint256 _nextStrikePrice
-    ) internal pure returns (uint256) {
+    ) internal pure returns (uint256 payoff) {
         /**
          * VANILLA: enhanced payout is 0 since the oToken is already vanilla
          * DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
          * SPREAD: TBD
          * LEVERAGED: TBD
          */
-        if (_nOptionType == OptionType.VANILLA) {
-            return 0;
-        } else if (_nOptionType == OptionType.DIP) {
-            return _price - _nextStrikePrice;
+        if (_nOptionType == OptionType.DIP) {
+            payoff = _price - _nextStrikePrice;
         }
 
-        return 0;
+        uint256 decimals = vaultParams.decimals;
+        payoff = decimals > 8 ? payoff * 10 ** (decimals - 8) : payoff / 10 ** (8 - decimals);
     }
 
     /**
