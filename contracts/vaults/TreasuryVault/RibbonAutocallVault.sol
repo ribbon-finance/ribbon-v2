@@ -19,6 +19,22 @@ import {
     IOracle
 } from "../../interfaces/GammaInterface.sol";
 
+/**
+ * Earn Vault Error Codes
+ * R1: !_AB
+ * R2: !FIXED
+ * R3: !VANILLA
+ * R4: !_CB
+ * R5: !PHOENIX
+ * R6: !_autocallBuyer
+ * R7: !_autocallSeller
+ * R8: !_obsFreq
+ * R9: !_period
+ * R10: !autocall
+ * R11: !withdrawnCollateral
+ * R12: !obsPrice
+ */
+
 contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     // Denominator for all pct calculations
     uint256 internal constant PCT_MULTIPLIER = 100 * 10**2;
@@ -97,9 +113,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _couponState.nCB
         );
 
-        require(_autocallBuyer != address(0), "!_autocallBuyer");
-        require(_autocallSeller != address(0), "!_autocallSeller");
-        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "!_obsFreq");
+        require(_autocallBuyer != address(0), "R6");
+        require(_autocallSeller != address(0), "R7");
+        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "R8");
 
         putOption.nOptionType = _optionType;
         couponState.nCouponType = _couponState.nCouponType;
@@ -189,8 +205,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         external
         onlyOwner
     {
-        require(_period > 0, "!_period");
-        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "!_obsFreq");
+        require(_period > 0, "R9");
+        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "R8");
 
         emit ObservationPeriodFreqSet(obsFreq, _obsFreq);
 
@@ -203,7 +219,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     /**
      * @dev Overrides RibbonTreasuryVault commitAndClose()
      */
-    function commitAndClose() external override nonReentrant {
+    function commitAndClose() public override nonReentrant {
         address currentOption = optionState.currentOption;
 
         IOtoken currentOToken = IOtoken(currentOption);
@@ -223,11 +239,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             // If before expiry, attempt to autocall
             if (block.timestamp < expiry) {
                 // Require autocall barrier hit at least once
-                require(autocallTS < block.timestamp, "!autocall");
+                require(autocallTS < block.timestamp, "R10");
                 // Burn the unexpired oTokens
                 _burnRemainingOTokens();
                 // Require vault possessed all oTokens sold to counterparties
-                require(vaultState.lockedAmount == 0, "!withdrawnCollateral");
+                require(vaultState.lockedAmount == 0, "R11");
             }
 
             if (returnAmt > 0) {
@@ -239,7 +255,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         }
 
         // Commit and close vanilla put
-        super._commitAndClose();
+        super.commitAndClose();
 
         // Commit and close enhanced put
         _commitAndCloseEnhancedPut(expiry, strikePrice);
@@ -259,33 +275,69 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     /**
      * @dev Settles the enhanced put
      * @param _expiry is the expiry of the current option
-     * @param _strikePrice is the strike of the current option
+     * @param _oldStrikePrice is the strike of the current option
      */
-    function _commitAndCloseEnhancedPut(uint256 _expiry, uint256 _strikePrice)
-        internal
-    {
+    function _commitAndCloseEnhancedPut(
+        uint256 _expiry,
+        uint256 _oldStrikePrice
+    ) internal {
         uint256 expiryPrice =
             ORACLE.getExpiryPrice(vaultParams.underlying, _expiry);
 
         PutOption memory _putOption = putOption;
 
         // If put ITM, transfer to autocall seller
-        if (_putOption.payoff > 0 && expiryPrice <= _strikePrice) {
+        if (_putOption.payoff > 0 && expiryPrice <= _oldStrikePrice) {
             // Transfer current digital option payoff
-            transferAsset(autocallSeller, oTokenMintAmount * _putOption.payoff / 10 ** 8);
+            transferAsset(
+                autocallSeller,
+                (oTokenMintAmount * _putOption.payoff) / 10**8
+            );
         }
 
         uint256 _spotPrice = ORACLE.getPrice(vaultParams.underlying);
+        uint256 _strikePrice = IOtoken(optionState.nextOption).strikePrice();
+
+        // Set next option reserve ration
+        _setReserveRatio(_putOption.nOptionType, _spotPrice, _strikePrice);
 
         // Set next option payoff
         putOption.payoff = _setPutOptionPayoff(
             _putOption.nOptionType,
             _spotPrice,
-            IOtoken(optionState.nextOption).strikePrice()
+            _strikePrice
         );
         putOption.optionType = _putOption.nOptionType;
 
         initialSpotPrice = _spotPrice;
+    }
+
+    /**
+     * @dev Sets the reserve ratio
+     * @param _nOptionType is the type of the next option
+     * @param _price is the spot price of the new option
+     * @param _nextStrikePrice is the strike price of the next option
+     */
+    function _setReserveRatio(
+        OptionType _nOptionType,
+        uint256 _price,
+        uint256 _nextStrikePrice
+    ) internal {
+        /**
+         * VANILLA: only lock lockedBalance * strike / initial spot price
+         * DIP: only lock lockedBalance * strike / initial spot price
+         * LEVERAGED: lock lockedBalance (default is leveraged put)
+         * SPREAD: TBD
+         */
+        if (
+            _nOptionType == OptionType.VANILLA || _nOptionType == OptionType.DIP
+        ) {
+            reserveRatio =
+                ((_price - _nextStrikePrice) / _price) *
+                10**Vault.OTOKEN_DECIMALS;
+        } else {
+            reserveRatio = 0;
+        }
     }
 
     /**
@@ -300,17 +352,20 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _nextStrikePrice
     ) internal view returns (uint256 payoff) {
         /**
-         * VANILLA: enhanced payout is 0 since the oToken is already vanilla
+         * VANILLA: enhanced payout is 0
          * DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
+         * LEVERAGED: enhanced payout is 0
          * SPREAD: TBD
-         * LEVERAGED: TBD
          */
+
         if (_nOptionType == OptionType.DIP) {
             payoff = _price - _nextStrikePrice;
         }
 
         uint256 decimals = vaultParams.decimals;
-        payoff = decimals > 8 ? payoff * 10 ** (decimals - 8) : payoff / 10 ** (8 - decimals);
+        payoff = decimals > Vault.OTOKEN_DECIMALS
+            ? payoff * 10**(decimals - Vault.OTOKEN_DECIMALS)
+            : payoff / 10**(Vault.OTOKEN_DECIMALS - decimals);
     }
 
     /**
@@ -379,7 +434,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // For every previous observation timestamp
         for (uint256 ts = startTS; ts <= lastTS; ts += obsFreq) {
             uint256 obsPrice = ORACLE.getExpiryPrice(underlying, ts);
-            require(obsPrice > 0, "!obsPrice");
+            require(obsPrice > 0, "R12");
             // Check if coupon barrier breached
             if (
                 obsPrice >= (initialSpotPrice * couponState.CB) / PCT_MULTIPLIER
@@ -436,18 +491,18 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _AB,
         uint256 _CB
     ) internal pure {
-        require(_AB > PCT_MULTIPLIER, "!_AB");
+        require(_AB > PCT_MULTIPLIER, "R1");
 
         if (_couponType == CouponType.FIXED) {
             // Coupon Barrier = 0
-            require(_CB == 0, "!FIXED");
+            require(_CB == 0, "R2");
         } else if (_couponType == CouponType.VANILLA) {
             // Coupon Barrier = Autocall Barrier
-            require(_CB == _AB, "!VANILLA");
+            require(_CB == _AB, "R3");
         } else {
             // Coupon Barrier < Autocall Barrier
-            require(_CB > 0, "!_CB");
-            require(_CB < _AB, "!PHOENIX");
+            require(_CB > 0, "R4");
+            require(_CB < _AB, "R5");
         }
     }
 }

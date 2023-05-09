@@ -142,7 +142,7 @@ contract RibbonTreasuryVaultLite is
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      */
-/*      function initialize(
+    /*      function initialize(
         VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
@@ -631,6 +631,10 @@ contract RibbonTreasuryVaultLite is
             transferAsset(payable(recipient), managementFeeInAsset);
         }
 
+        lockedBalance = lockedBalance.sub(
+            lockedBalance.mul(reserveRatio).div(10**Vault.OTOKEN_DECIMALS)
+        );
+
         return (newOption, lockedBalance, queuedWithdrawAmount);
     }
 
@@ -648,15 +652,7 @@ contract RibbonTreasuryVaultLite is
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external virtual nonReentrant {
-        _commitAndClose();
-    }
-
-    /**
-     * @notice Sets the next option the vault will be shorting, and closes the existing short.
-     *         This allows all the users to withdraw if the next option is malicious.
-     */
-    function _commitAndClose() internal {
+    function commitAndClose() public virtual nonReentrant {
         address oldOption = optionState.currentOption;
 
         VaultLifecycleTreasury.CloseParams memory closeParams =

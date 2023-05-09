@@ -2,11 +2,11 @@
 pragma solidity =0.8.4;
 
 import {
-    RibbonTreasuryVaultLiteStorage
+    RibbonTreasuryVaultLiteStorageV1
 } from "./RibbonTreasuryVaultLiteStorage.sol";
 
 abstract contract RibbonTreasuryVaultStorageV1 is
-    RibbonTreasuryVaultLiteStorage
+    RibbonTreasuryVaultLiteStorageV1
 {
     /// @notice Mapping of depositors in the vault
     mapping(address => bool) public depositorsMap;

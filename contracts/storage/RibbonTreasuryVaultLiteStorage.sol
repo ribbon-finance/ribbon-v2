@@ -61,6 +61,9 @@ abstract contract RibbonTreasuryVaultLiteStorageV1 {
 
     /// @notice Amount of otokens minted in current round
     uint256 public oTokenMintAmount;
+
+    /// @notice Reserve ratio, scaled by 10 ** 8
+    uint256 internal reserveRatio;
 }
 
 // We are following Compound's method of upgrading new contract implementations
