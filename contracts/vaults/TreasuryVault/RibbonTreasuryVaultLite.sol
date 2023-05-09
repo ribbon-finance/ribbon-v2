@@ -652,7 +652,15 @@ contract RibbonTreasuryVaultLite is
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() public virtual nonReentrant {
+    function commitAndClose() external virtual nonReentrant {
+        _commitAndClose();
+    }
+
+    /**
+     * @notice Sets the next option the vault will be shorting, and closes the existing short.
+     *         This allows all the users to withdraw if the next option is malicious.
+     */
+    function _commitAndClose() internal {
         address oldOption = optionState.currentOption;
 
         VaultLifecycleTreasury.CloseParams memory closeParams =

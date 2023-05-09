@@ -23,6 +23,7 @@ import {
   ManualVolOracle_BYTECODE,
   NULL_ADDR,
   ORACLE_OWNER,
+  ORACLE_DISPUTE_PERIOD,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -367,11 +368,13 @@ function behavesLikeRibbonOptionsVault(params: {
       );
       vaultLifecycleTreasuryLib = await VaultLifecycleTreasury.deploy();
 
-      const initializeOptionType = 3; // VANILLA
+      const initializeOptionType = 0; // VANILLA
+      const initializeCouponType = 3; // VANILLA
       const initializeAB = 10500;
       const initializeNAB = 10500;
       const initializenCB = 10500;
       const initializenNCB = 10500;
+      const autocallBuyer = user;
 
       const obsFreq = 518400; // 6 days
 
@@ -402,14 +405,15 @@ function behavesLikeRibbonOptionsVault(params: {
         ],
         initializeOptionType,
         [
-          initializeOptionType,
-          initializeOptionType,
+          initializeCouponType,
+          initializeCouponType,
           initializeAB,
           initializeNAB,
           initializenCB,
           initializenNCB,
         ],
         obsFreq,
+        autocallBuyer,
         autocallSeller,
       ];
 
@@ -629,10 +633,11 @@ function behavesLikeRibbonOptionsVault(params: {
           optionsPremiumPricer.address
         );
         assert.equal(await vault.strikeSelection(), strikeSelection.address);
-        assert.equal((await vault.putOption())[1], 3);
+        assert.equal((await vault.putOption())[1], 0);
         assert.equal((await vault.couponState())[1], 3);
         assert.equal((await vault.couponState())[3], 10500);
         assert.equal((await vault.couponState())[5], 10500);
+        assert.equal(await vault.autocallBuyer(), user);
         assert.equal(await vault.autocallSeller(), autocallSeller);
         assert.equal(await vault.numTotalObs(), 5);
       });
@@ -674,6 +679,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             autocallSeller
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
@@ -716,6 +722,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             autocallSeller
           )
         ).to.be.revertedWith("!_owner");
@@ -758,6 +765,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             autocallSeller
           )
         ).to.be.revertedWith("!_keeper");
@@ -800,6 +808,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             autocallSeller
           )
         ).to.be.revertedWith("!_feeRecipient");
@@ -842,6 +851,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             autocallSeller
           )
         ).to.be.revertedWith("!cap");
@@ -884,6 +894,7 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             autocallSeller
           )
         ).to.be.revertedWith("!asset");
@@ -926,9 +937,53 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             obsFreq,
+            user,
             NULL_ADDR
           )
-        ).to.be.revertedWith("!_autocallSeller");
+        ).to.be.revertedWith("R7");
+      });
+
+      it("reverts when autocallBuyer is 0", async function () {
+        await expect(
+          testVault.initialize(
+            [
+              owner,
+              keeper,
+              feeRecipient,
+              managementFee,
+              performanceFee,
+              tokenName,
+              tokenSymbol,
+              optionsPremiumPricer.address,
+              strikeSelection.address,
+              premiumDiscount,
+              auctionDuration,
+              period,
+              maxDepositors,
+              minDeposit,
+            ],
+            [
+              isPut,
+              tokenDecimals,
+              isPut ? USDC_ADDRESS[chainId] : asset,
+              asset,
+              minimumSupply,
+              parseEther("2000000"),
+            ],
+            initializeOptionType,
+            [
+              initializeOptionType,
+              initializeOptionType,
+              initializeAB,
+              initializeNAB,
+              initializenCB,
+              initializenNCB,
+            ],
+            obsFreq,
+            NULL_ADDR,
+            autocallSeller
+          )
+        ).to.be.revertedWith("R6");
       });
 
       it("reverts when observation frequency is 0 or not a multiple of period", async function () {
@@ -968,9 +1023,10 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             0,
+            user,
             autocallSeller
           )
-        ).to.be.revertedWith("!_obsFreq");
+        ).to.be.revertedWith("R8");
 
         await expect(
           testVault.initialize(
@@ -1008,13 +1064,15 @@ function behavesLikeRibbonOptionsVault(params: {
               initializenNCB,
             ],
             345600, // 4 days
+            user,
             autocallSeller
           )
-        ).to.be.revertedWith("!_obsFreq");
+        ).to.be.revertedWith("R8");
       });
     });
 
-    describe("#lastObservation", () => {
+    // eslint-disable-next-line multiline-comment-style
+    /*     describe("#lastObservation", () => {
       time.revertToSnapshotAfterTest();
       let expiry;
       let numTotalObs;
@@ -1093,7 +1151,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(index, 5);
         assert.equal(ts.toString(), timestamp.toString());
       });
-    });
+    }); */
 
     describe("#setOptionType", () => {
       time.revertToSnapshotAfterEach();
@@ -1104,7 +1162,7 @@ function behavesLikeRibbonOptionsVault(params: {
         );
       });
       it("successfully sets option type", async function () {
-        assert.equal((await vault.putOption())[1], 3);
+        assert.equal((await vault.putOption())[1], 0);
 
         const tx = await vault.connect(ownerSigner).setOptionType(2);
 
@@ -1152,16 +1210,16 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts if period is zero", async function () {
         await expect(
           vault.connect(ownerSigner).setPeriodAndObservationFrequency(0, 100000)
-        ).to.be.revertedWith("!_period");
+        ).to.be.revertedWith("R9");
       });
       it("reverts when observation sequence is 0 or not a multiple of period", async function () {
         await expect(
           vault.connect(ownerSigner).setPeriodAndObservationFrequency(60, 0)
-        ).to.be.revertedWith("!_obsFreq");
+        ).to.be.revertedWith("R8");
 
         await expect(
           vault.connect(ownerSigner).setPeriodAndObservationFrequency(60, 7)
-        ).to.be.revertedWith("!_obsFreq");
+        ).to.be.revertedWith("R8");
       });
       it("successfully sets period and observation frequency type", async function () {
         const tx = await vault
@@ -1169,10 +1227,8 @@ function behavesLikeRibbonOptionsVault(params: {
           .setPeriodAndObservationFrequency(60, 86400); // 60 days - daily observation
 
         await expect(tx)
-          .to.emit(vault, "ObservationPeriodFreqSet")
-          .withArgs(0, 86400);
-
-        await expect(tx).to.emit(vault, "PeriodSet").withArgs(30, 60);
+          .to.emit(vault, "PeriodAndObsFreqSet")
+          .withArgs(0, 86400, 30, 60);
       });
     });
 
@@ -1235,7 +1291,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increase(obsFreq.add(1));
 
-        await expect(vault.couponsEarned()).to.be.revertedWith("!obsPrice");
+        await expect(vault.couponsEarned()).to.be.revertedWith("R12");
 
         await time.revertToSnapShot(snapshot0);
       });
@@ -1518,9 +1574,10 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(userSigner).deposit(depositAmount);
         await rollToNextOption();
 
-        await expect(vault.commitAndClose()).to.be.revertedWith("!autocall");
+        await expect(vault.commitAndClose()).to.be.revertedWith("R10");
       });
       it("WIP - reverts before expiry if locked amount > 0", async function () {});
+
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside earlier than maturity", async function () {
         // balances before
         const mmUSDCBalBefore = await premiumContract.balanceOf(autocallSeller);
@@ -1596,32 +1653,655 @@ function behavesLikeRibbonOptionsVault(params: {
           returnAmt.sub(premiumAmount).toString()
         );
 
-        // user transfer the deposit amount
-        assert.equal(
-          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
-          depositAmount.toString()
-        );
-
-        // vault receives deposit amount plus the 3 coupons earned
+        // user transfers the deposit amount and receives 3 coupons earned
         const earnedAmt = premiumAmount.div(numTotalObs).mul(3);
         assert.equal(
+          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
+          depositAmount.sub(earnedAmt).toString()
+        );
+
+        // vault receives deposit
+        assert.equal(
           vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
-          depositAmount.add(earnedAmt).toString()
+          depositAmount.toString()
         );
 
         // since it was an early termination all unexpired oTokens were burned
         assert.bnGt(vaultOtokenBalBefore, 0);
         assert.equal(vaultOtokenBalAfter, 0);
 
-        // user vault account balance increased correctly
+        // user vault account balance stays the same since coupons were directly transferred to autocall buyer
         assert.equal(
           (await vault.accountVaultBalance(user)).toString(),
-          depositAmount.add(earnedAmt).toString()
+          depositAmount.toString()
         );
       });
-      it("WIP - successfully commit and closes an autocall with VANILLA coupon and DIP downside earlier than maturity", async function () {});
-      it("WIP - successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity", async function () {});
-      it("WIP - successfully commit and closes an autocall with VANILLA coupon and DIP downside after maturity", async function () {});
+
+      it("successfully commit and closes an autocall with VANILLA coupon and DIP downside earlier than maturity", async function () {
+        // balances before
+        const mmUSDCBalBefore = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalBefore = await premiumContract.balanceOf(user);
+        const vaultUSDCBalBefore = await premiumContract.balanceOf(
+          vault.address
+        );
+
+        await approve(assetContract, vault, depositAmount, userSigner);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await vault.connect(ownerSigner).setOptionType(1);
+        await rollToNextOption();
+
+        const currentOtoken = await getContractAt(
+          "IOtoken",
+          await vault.currentOption()
+        );
+
+        const vaultOtokenBalBefore = await currentOtoken.balanceOf(
+          vault.address
+        );
+
+        const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
+        const numTotalObs = await vault.numTotalObs(); // 5 total observations
+        const obsFreq = BigNumber.from("518400"); // 6 days
+
+        await premiumContract
+          .connect(autocallSellerSigner)
+          .transfer(vault.address, premiumAmount);
+
+        const initialSpotPrice = await vault.initialSpotPrice();
+        const AB = (await vault.couponState())[2]
+          .mul(initialSpotPrice)
+          .div(PCT_MULTIPLIER);
+
+        // set prices for observation such that autocall barrier is hit on observation 3
+
+        const expiry = await currentOtoken.expiryTimestamp();
+        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
+        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
+        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs3, AB.add(1));
+
+        await vault.commitAndClose();
+
+        const mmUSDCBalAfter = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalAfter = await premiumContract.balanceOf(user);
+        const vaultUSDCBalAfter = await premiumContract.balanceOf(
+          vault.address
+        );
+        const vaultOtokenBalAfter = await currentOtoken.balanceOf(
+          vault.address
+        );
+
+        // Out of 5 coupons 3 went to the user and 2 are returned to the MM/autocall seller
+        const returnAmt = premiumAmount.div(numTotalObs).mul(2);
+        assert.equal(
+          mmUSDCBalAfter.sub(mmUSDCBalBefore).toString(),
+          returnAmt.sub(premiumAmount).toString()
+        );
+
+        // user transfers the deposit amount and receives 3 coupons earned
+        const earnedAmt = premiumAmount.div(numTotalObs).mul(3);
+        assert.equal(
+          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
+          depositAmount.sub(earnedAmt).toString()
+        );
+
+        // vault receives deposit
+        assert.equal(
+          vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
+          depositAmount.toString()
+        );
+
+        // since it was an early termination all unexpired oTokens were burned
+        assert.bnGt(vaultOtokenBalBefore, 0);
+        assert.equal(vaultOtokenBalAfter, 0);
+
+        // user vault account balance stays the same since coupons were directly transferred to autocall buyer
+        assert.equal(
+          (await vault.accountVaultBalance(user)).toString(),
+          depositAmount.toString()
+        );
+      });
+
+      it("WIP - successfully commit and closes an autocall with VANILLA coupon and LEVERED downside earlier than maturity", async function () {});
+
+      it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity OTM", async function () {
+        // balances before
+        const mmUSDCBalBefore = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalBefore = await premiumContract.balanceOf(user);
+        const vaultUSDCBalBefore = await premiumContract.balanceOf(
+          vault.address
+        );
+
+        await approve(assetContract, vault, depositAmount, userSigner);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const currentOtoken = await getContractAt(
+          "IOtoken",
+          await vault.currentOption()
+        );
+
+        const vaultOtokenBalBefore = await currentOtoken.balanceOf(
+          vault.address
+        );
+
+        const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
+        const numTotalObs = await vault.numTotalObs(); // 5 total observations
+        const obsFreq = BigNumber.from("518400"); // 6 days
+
+        await premiumContract
+          .connect(autocallSellerSigner)
+          .transfer(vault.address, premiumAmount);
+
+        const initialSpotPrice = await vault.initialSpotPrice();
+        const AB = (await vault.couponState())[2]
+          .mul(initialSpotPrice)
+          .div(PCT_MULTIPLIER);
+
+        // set prices for observation such that autocall barrier is hit on the last observation (observation 5)
+
+        const expiry = await currentOtoken.expiryTimestamp();
+        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
+        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
+        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
+        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
+        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs3, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs4, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs5, AB.add(1));
+
+        // Increase beyond dispute period
+        await time.increase(ORACLE_DISPUTE_PERIOD);
+
+        // otokens are sent to MM
+        await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        await vault.commitAndClose();
+
+        const mmUSDCBalAfter = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalAfter = await premiumContract.balanceOf(user);
+        const vaultUSDCBalAfter = await premiumContract.balanceOf(
+          vault.address
+        );
+        const vaultOtokenBalAfter = await currentOtoken.balanceOf(
+          vault.address
+        );
+        const mmOtokenBal = await currentOtoken.balanceOf(autocallSeller);
+
+        // Out of 5 coupons all 5 went to the user and none are returned to the MM/autocall seller
+        assert.equal(
+          mmUSDCBalBefore.sub(mmUSDCBalAfter).toString(),
+          premiumAmount.toString()
+        );
+
+        // user transfers the deposit amount and receives the full coupon value
+        assert.equal(
+          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
+          depositAmount.sub(premiumAmount).toString()
+        );
+
+        // vault receives deposit
+        assert.equal(
+          vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
+          depositAmount.toString()
+        );
+
+        // user vault account balance stays the same as the deposited amount
+        assert.equal(
+          (await vault.accountVaultBalance(user)).toString(),
+          depositAmount.toString()
+        );
+
+        // otokens are not burned and are sent from the vault to MM/autocall seller
+        assert.equal(mmOtokenBal.toString(), vaultOtokenBalBefore.toString());
+        assert.equal(vaultOtokenBalAfter, 0);
+      });
+
+      it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity ITM", async function () {
+        // balances before
+        const mmUSDCBalBefore = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalBefore = await premiumContract.balanceOf(user);
+        const vaultUSDCBalBefore = await premiumContract.balanceOf(
+          vault.address
+        );
+
+        await approve(assetContract, vault, depositAmount, userSigner);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await rollToNextOption();
+
+        const currentOtoken = await getContractAt(
+          "IOtoken",
+          await vault.currentOption()
+        );
+
+        const vaultOtokenBalBefore = await currentOtoken.balanceOf(
+          vault.address
+        );
+
+        const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
+        const numTotalObs = await vault.numTotalObs(); // 5 total observations
+        const obsFreq = BigNumber.from("518400"); // 6 days
+
+        await premiumContract
+          .connect(autocallSellerSigner)
+          .transfer(vault.address, premiumAmount);
+
+        const initialSpotPrice = await vault.initialSpotPrice();
+        const AB = (await vault.couponState())[2]
+          .mul(initialSpotPrice)
+          .div(PCT_MULTIPLIER);
+
+        // set prices for observation such that autocall barrier is never it and last observation is below strike price
+
+        const expiry = await currentOtoken.expiryTimestamp();
+        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
+        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
+        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
+        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
+        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs3, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs4, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        const strikePrice = await currentOtoken.strikePrice();
+        const priceAtExpiry = strikePrice.div(2);
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs5, priceAtExpiry);
+
+        // Increase beyond dispute period
+        await time.increase(ORACLE_DISPUTE_PERIOD);
+
+        // otokens are sent to MM
+        await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        await vault.commitAndClose();
+
+        const mmUSDCBalAfter = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalAfter = await premiumContract.balanceOf(user);
+        const vaultUSDCBalAfter = await premiumContract.balanceOf(
+          vault.address
+        );
+        const vaultOtokenBalAfter = await currentOtoken.balanceOf(
+          vault.address
+        );
+        const mmOtokenBal = await currentOtoken.balanceOf(autocallSeller);
+
+        // Out of 5 coupons all 0 went to the user and all are returned to the MM/autocall seller
+        assert.equal(mmUSDCBalAfter.sub(mmUSDCBalBefore).toString(), 0);
+
+        // user transfers the deposit amount
+        assert.equal(
+          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
+          depositAmount.toString()
+        );
+
+        // vault receives deposit and loses the ITM payout to MM
+        const payoutITM = mmOtokenBal
+          .mul(strikePrice.sub(priceAtExpiry))
+          .div(10 ** (8 + 8 - params.tokenDecimals)); // 10**8 is otoken and price decimals, 10
+
+        assert.equal(
+          vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
+          depositAmount.sub(payoutITM).toString()
+        );
+
+        // user vault account balance decreases by the ITM payout amount
+        assert.bnLt(
+          await vault.accountVaultBalance(user),
+          depositAmount.sub(payoutITM).mul(100001).div(100000)
+        );
+
+        assert.bnGt(
+          await vault.accountVaultBalance(user),
+          depositAmount.sub(payoutITM).mul(99999).div(100000)
+        );
+
+        // otokens are not burned and are sent from the vault and to MM/autocall seller
+        assert.equal(mmOtokenBal.toString(), vaultOtokenBalBefore.toString());
+        assert.equal(vaultOtokenBalAfter, 0);
+        const oTokenBal = depositAmount.mul(10 ** 10).div(initialSpotPrice);
+        assert.bnLt(mmOtokenBal, oTokenBal.mul(100001).div(100000));
+        assert.bnGt(mmOtokenBal, oTokenBal.mul(99999).div(100000));
+
+        console.log("initialSpotPrice", initialSpotPrice.toString());
+        console.log("strikePrice", strikePrice.toString());
+        console.log("priceAtExpiry", priceAtExpiry.toString());
+        console.log("depositAmount", depositAmount.toString());
+        console.log("mmOtokenBal", mmOtokenBal.toString());
+        console.log("vaultUSDCBalAfter", vaultUSDCBalAfter.toString());
+        console.log("payoutITM", payoutITM.toString());
+      });
+
+      it("successfully commit and closes an autocall with VANILLA coupon and DIP downside after maturity OTM", async function () {
+        // balances before
+        const mmUSDCBalBefore = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalBefore = await premiumContract.balanceOf(user);
+        const vaultUSDCBalBefore = await premiumContract.balanceOf(
+          vault.address
+        );
+
+        await approve(assetContract, vault, depositAmount, userSigner);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await vault.connect(ownerSigner).setOptionType(1);
+        await rollToNextOption();
+
+        const currentOtoken = await getContractAt(
+          "IOtoken",
+          await vault.currentOption()
+        );
+
+        const vaultOtokenBalBefore = await currentOtoken.balanceOf(
+          vault.address
+        );
+
+        const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
+        const numTotalObs = await vault.numTotalObs(); // 5 total observations
+        const obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
+
+        await premiumContract
+          .connect(autocallSellerSigner)
+          .transfer(vault.address, premiumAmount);
+
+        const initialSpotPrice = await vault.initialSpotPrice();
+        const AB = (await vault.couponState())[2]
+          .mul(initialSpotPrice)
+          .div(PCT_MULTIPLIER);
+
+        // set prices for observation such that autocall barrier is never and last ovbservation is just above strike price (observation 5)
+
+        const expiry = await currentOtoken.expiryTimestamp();
+        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
+        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
+        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
+        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
+        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs3, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs4, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs5, strikePrice.add(1));
+
+        // Increase beyond dispute period
+        await time.increase(ORACLE_DISPUTE_PERIOD);
+
+        // otokens are sent to MM
+        await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        await vault.commitAndClose();
+
+        const mmUSDCBalAfter = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalAfter = await premiumContract.balanceOf(user);
+        const vaultUSDCBalAfter = await premiumContract.balanceOf(
+          vault.address
+        );
+        const vaultOtokenBalAfter = await currentOtoken.balanceOf(
+          vault.address
+        );
+        const mmOtokenBal = await currentOtoken.balanceOf(autocallSeller);
+
+        // Out of 5 coupons zero went to the user and all 5 are returned to the MM/autocall seller
+        assert.equal(mmUSDCBalBefore.sub(mmUSDCBalAfter).toString(), 0);
+
+        // user transfers the deposit amount
+        assert.equal(
+          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
+          depositAmount.toString()
+        );
+
+        // vault receives deposit
+        assert.equal(
+          vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
+          depositAmount.toString()
+        );
+
+        // user vault account balance stays the same as the deposited amount
+        assert.equal(
+          (await vault.accountVaultBalance(user)).toString(),
+          depositAmount.toString()
+        );
+
+        // otokens are not burned and are sent from the vault and to MM/autocall seller
+        assert.equal(mmOtokenBal.toString(), vaultOtokenBalBefore.toString());
+        assert.equal(vaultOtokenBalAfter, 0);
+      });
+
+      it("successfully commit and closes an autocall with VANILLA coupon and DIP downside after maturity ITM", async function () {
+        // balances before
+        const mmUSDCBalBefore = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalBefore = await premiumContract.balanceOf(user);
+        const vaultUSDCBalBefore = await premiumContract.balanceOf(
+          vault.address
+        );
+
+        await approve(assetContract, vault, depositAmount, userSigner);
+        await vault.connect(userSigner).deposit(depositAmount);
+
+        await vault.connect(ownerSigner).setOptionType(1);
+        await rollToNextOption();
+
+        const currentOtoken = await getContractAt(
+          "IOtoken",
+          await vault.currentOption()
+        );
+
+        const vaultOtokenBalBefore = await currentOtoken.balanceOf(
+          vault.address
+        );
+
+        const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
+        const numTotalObs = await vault.numTotalObs(); // 5 total observations
+        const obsFreq = BigNumber.from("518400"); // 6 days
+
+        await premiumContract
+          .connect(autocallSellerSigner)
+          .transfer(vault.address, premiumAmount);
+
+        const initialSpotPrice = await vault.initialSpotPrice();
+        const AB = (await vault.couponState())[2]
+          .mul(initialSpotPrice)
+          .div(PCT_MULTIPLIER);
+
+        // set prices for observation such that autocall barrier is never it and last observation is below strike price
+
+        const expiry = await currentOtoken.expiryTimestamp();
+        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
+        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
+        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
+        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
+        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs3, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs4, AB.sub(1));
+
+        await time.increase(obsFreq.add(1));
+        const strikePrice = await currentOtoken.strikePrice();
+        const priceAtExpiry = strikePrice.div(2);
+        await oracle
+          .connect(pricerSigner)
+          .setExpiryPrice(params.asset, obs5, priceAtExpiry);
+
+        // Increase beyond dispute period
+        await time.increase(ORACLE_DISPUTE_PERIOD);
+
+        // otokens are sent to MM
+        await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        await vault.commitAndClose();
+
+        const mmUSDCBalAfter = await premiumContract.balanceOf(autocallSeller);
+        const userUSDCBalAfter = await premiumContract.balanceOf(user);
+        const vaultUSDCBalAfter = await premiumContract.balanceOf(
+          vault.address
+        );
+        const vaultOtokenBalAfter = await currentOtoken.balanceOf(
+          vault.address
+        );
+        const mmOtokenBal = await currentOtoken.balanceOf(autocallSeller);
+
+        const payoutITM = mmOtokenBal
+          .mul(strikePrice.sub(priceAtExpiry))
+          .div(10 ** (8 + 8 - params.tokenDecimals)); // 10**8 is otoken and price decimals
+
+        const additionalPayoutDIP = mmOtokenBal
+          .mul(initialSpotPrice.sub(strikePrice))
+          .div(10 ** (8 + 8 - params.tokenDecimals));
+
+        // Out of 5 coupons all 0 went to the user and all are returned to the MM/autocall seller plus the DIP payoff which is sent directly to him/her
+        assert.equal(
+          mmUSDCBalAfter.sub(mmUSDCBalBefore).toString(),
+          additionalPayoutDIP.toString()
+        );
+
+        // user transfers the deposit amount
+        assert.equal(
+          userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
+          depositAmount.toString()
+        );
+
+        // vault receives deposit and loses the ITM payout to MM
+        assert.equal(
+          vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
+          depositAmount.sub(payoutITM).sub(additionalPayoutDIP).toString()
+        );
+
+        // user vault account balance decreases by the ITM VANILLA payout plus DIP payout amount
+        assert.bnLt(
+          await vault.accountVaultBalance(user),
+          depositAmount
+            .sub(payoutITM)
+            .sub(additionalPayoutDIP)
+            .mul(100001)
+            .div(100000)
+        );
+
+        assert.bnGt(
+          await vault.accountVaultBalance(user),
+          depositAmount
+            .sub(payoutITM)
+            .sub(additionalPayoutDIP)
+            .mul(99999)
+            .div(100000)
+        );
+
+        // otokens are not burned and are sent from the vault and to MM/autocall seller
+        assert.equal(mmOtokenBal.toString(), vaultOtokenBalBefore.toString());
+        assert.equal(vaultOtokenBalAfter, 0);
+
+        const oTokenBal = depositAmount.mul(10 ** 10).div(initialSpotPrice); // 8 decimals for price plus 2 decimals to adjust for USDC that only has 6 decimals
+        assert.bnLt(mmOtokenBal, oTokenBal.mul(100001).div(100000));
+        assert.bnGt(mmOtokenBal, oTokenBal.mul(99999).div(100000));
+
+        console.log("initialSpotPrice", initialSpotPrice.toString());
+        console.log("strikePrice", strikePrice.toString());
+        console.log("priceAtExpiry", priceAtExpiry.toString());
+        console.log("depositAmount", depositAmount.toString());
+        console.log("mmOtokenBal", mmOtokenBal.toString());
+        console.log("vaultUSDCBalAfter", vaultUSDCBalAfter.toString());
+        console.log("payoutITM (1/2)", payoutITM.toString());
+        console.log(
+          "additionalPayoutDIP (2/2)",
+          additionalPayoutDIP.toString()
+        );
+      });
+
+      it("WIP - successfully commit and closes an autocall with VANILLA coupon and LEVERED downside after maturity ITM", async function () {});
     });
   });
 }

@@ -53,11 +53,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 newCouponBarrierPCT
     );
 
-    event PeriodSet(uint256 period, uint256 newPeriod);
-
-    event ObservationPeriodFreqSet(
+    event PeriodAndObsFreqSet(
         uint256 obsFreq,
-        uint256 newObservationPeriodFreq
+        uint256 newObservationPeriodFreq,
+        uint256 period,
+        uint256 newPeriod
     );
 
     /************************************************
@@ -134,12 +134,12 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @return the last observation timestamp
      * @return the last observation index
      */
-    function lastObservation() external view returns (uint256, uint256) {
+    /*     function lastObservation() external view returns (uint256, uint256) {
         return
             _lastObservation(
                 IOtoken(optionState.currentOption).expiryTimestamp()
             );
-    }
+    } 
 
     /**
      * @dev Gets coupons earned
@@ -208,9 +208,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         require(_period > 0, "R9");
         require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "R8");
 
-        emit ObservationPeriodFreqSet(obsFreq, _obsFreq);
-
-        emit PeriodSet(period, _period);
+        emit PeriodAndObsFreqSet(obsFreq, _obsFreq, period, _period);
 
         nObsFreq = _obsFreq;
         nPeriod = _period;
@@ -219,7 +217,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     /**
      * @dev Overrides RibbonTreasuryVault commitAndClose()
      */
-    function commitAndClose() public override nonReentrant {
+    function commitAndClose() external override nonReentrant {
         address currentOption = optionState.currentOption;
 
         IOtoken currentOToken = IOtoken(currentOption);
@@ -228,34 +226,36 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 strikePrice =
             currentOption == address(0) ? 0 : currentOToken.strikePrice();
 
-        if (currentOption != address(0)) {
-            (uint256 autocallTS, uint256 nCBBreaches, uint256 lastCBBreach) =
-                _autocallState(expiry);
+        
+        (uint256 autocallTS, uint256 nCBBreaches, uint256 lastCBBreach) =
+            _autocallState(expiry);
 
-            // Calculate coupons earned
-            (, uint256 earnedAmt, uint256 returnAmt) =
-                _couponsEarned(nCBBreaches, lastCBBreach);
+        // Calculate coupons earned
+        (, uint256 earnedAmt, uint256 returnAmt) =
+            _couponsEarned(nCBBreaches, lastCBBreach);
 
-            // If before expiry, attempt to autocall
-            if (block.timestamp < expiry) {
-                // Require autocall barrier hit at least once
-                require(autocallTS < block.timestamp, "R10");
-                // Burn the unexpired oTokens
-                _burnRemainingOTokens();
-                // Require vault possessed all oTokens sold to counterparties
-                require(vaultState.lockedAmount == 0, "R11");
-            }
+        // If before expiry, attempt to autocall
+        if (block.timestamp < expiry) {
+            // Require autocall barrier hit at least once
+            require(autocallTS < block.timestamp, "R10");
+            // Burn the unexpired oTokens
+            _burnRemainingOTokens();
+            // Require vault possessed all oTokens sold to counterparties
+            require(vaultState.lockedAmount == 0, "R11");
+        }
 
-            if (returnAmt > 0) {
-                // Transfer earned coupons to autocall buyer
-                transferAsset(autocallBuyer, earnedAmt);
-                // Transfer unearned coupons back to autocall seller
-                transferAsset(autocallSeller, returnAmt);
-            }
+        if (earnedAmt > 0) {
+            // Transfer earned coupons to autocall buyer
+            transferAsset(autocallBuyer, earnedAmt);
+        }
+
+        if (returnAmt > 0) {
+            // Transfer unearned coupons back to autocall seller
+            transferAsset(autocallSeller, returnAmt);
         }
 
         // Commit and close vanilla put
-        super.commitAndClose();
+        super._commitAndClose();
 
         // Commit and close enhanced put
         _commitAndCloseEnhancedPut(expiry, strikePrice);
@@ -287,7 +287,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         PutOption memory _putOption = putOption;
 
         // If put ITM, transfer to autocall seller
-        if (_putOption.payoff > 0 && expiryPrice <= _oldStrikePrice) {
+        if (
+            _putOption.payoff > 0 &&
+            expiryPrice <= _oldStrikePrice &&
+            block.timestamp > _expiry
+        ) {
             // Transfer current digital option payoff
             transferAsset(
                 autocallSeller,
@@ -298,7 +302,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _spotPrice = ORACLE.getPrice(vaultParams.underlying);
         uint256 _strikePrice = IOtoken(optionState.nextOption).strikePrice();
 
-        // Set next option reserve ration
+        // Set next option reserve ratio
         _setReserveRatio(_putOption.nOptionType, _spotPrice, _strikePrice);
 
         // Set next option payoff
@@ -385,9 +389,12 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             uint256 returnAmt
         )
     {
-        uint256 totalPremium =
+        uint256 nonLockedAmt = (vaultState.lockedAmount * reserveRatio) /
+            (10**Vault.OTOKEN_DECIMALS - reserveRatio);
+
+        uint256 totalPremium = 
             IERC20(vaultParams.asset).balanceOf(address(this)) -
-                vaultState.totalPending;
+                vaultState.totalPending - nonLockedAmt;
 
         /**
          * FIXED: coupon barrier is 0, so nCBBreaches will always equal
@@ -425,6 +432,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             uint256 lastCBBreach
         )
     {
+        if (_expiry == 0) {
+            return (0, 0, 0);
+        }
+
         uint256 startTS = _expiry - (numTotalObs - 1) * obsFreq;
         (, uint256 lastTS) = _lastObservation(_expiry);
         address underlying = vaultParams.underlying;
