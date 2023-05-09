@@ -333,8 +333,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _nOptionType == OptionType.VANILLA || _nOptionType == OptionType.DIP
         ) {
             reserveRatio =
-                ((_price - _nextStrikePrice) / _price) *
-                10**Vault.OTOKEN_DECIMALS;
+                ((_price - _nextStrikePrice) * 10**Vault.OTOKEN_DECIMALS) /
+                _price;
         } else {
             reserveRatio = 0;
         }
