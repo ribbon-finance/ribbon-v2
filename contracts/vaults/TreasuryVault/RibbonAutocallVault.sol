@@ -295,7 +295,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             // Transfer current digital option payoff
             transferAsset(
                 autocallSeller,
-                (oTokenMintAmount * _putOption.payoff) / 10**8
+                (oTokenMintAmount * _putOption.payoff) / 10**Vault.OTOKEN_DECIMALS
             );
         }
 
