@@ -115,6 +115,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         require(_autocallBuyer != address(0), "A6");
         require(_autocallSeller != address(0), "A7");
+
+        // Observation frequency must evenly divide the period
         require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
 
         putOption.nOptionType = _optionType;
@@ -130,7 +132,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev Returns the last observation timestamp and index
+     * @dev Returns the last autocall observation timestamp and index
      * @return the last observation timestamp
      * @return the last observation index
      */
@@ -142,10 +144,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev Gets coupons earned
+     * @dev Gets coupons earned so far
      * @return the number of coupons earned
-     * @return earned amount in USDC
-     * @return observation timestamp if autocallable, otherwise expiry
+     * @return coupons earned in USDC
+     * @return minimum between autocall timestamp and expiry
      */
     function couponsEarned()
         external
@@ -197,9 +199,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @notice Sets the new period and observation period frequency
+     * @notice Sets the new period and autocall observation period frequency
      * @param _period is the period
-     * @param _obsFreq is the observation period frequency
+     * @param _obsFreq is the autocall observation period frequency
      */
     function setPeriodAndObservationFrequency(uint256 _period, uint256 _obsFreq)
         external
@@ -243,17 +245,17 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             require(vaultState.lockedAmount == 0, "A11");
         }
 
+        // Transfer earned coupons to autocall buyer
         if (earnedAmt > 0) {
-            // Transfer earned coupons to autocall buyer
             transferAsset(autocallBuyer, earnedAmt);
         }
 
+        // Transfer unearned coupons back to autocall seller
         if (returnAmt > 0) {
-            // Transfer unearned coupons back to autocall seller
             transferAsset(autocallSeller, returnAmt);
         }
 
-        // Commit and close vanilla put
+        // Commit and close otoken put
         super._commitAndClose();
 
         // Commit and close enhanced put
@@ -272,7 +274,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev Settles the enhanced put
+     * @dev Commit and close the enhanced put
      * @param _expiry is the expiry of the current option
      * @param _oldStrikePrice is the strike of the current option
      */
@@ -285,13 +287,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         PutOption memory _putOption = putOption;
 
-        // If put ITM, transfer to autocall seller
+        // If enhanced put ITM, transfer to autocall seller
         if (
             _putOption.payoff > 0 &&
             expiryPrice <= _oldStrikePrice &&
             block.timestamp > _expiry
         ) {
-            // Transfer current digital option payoff
+            // Transfer current downside option payoff
             transferAsset(
                 autocallSeller,
                 (oTokenMintAmount * _putOption.payoff) /
@@ -328,10 +330,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _nextStrikePrice
     ) internal {
         /**
-         * VANILLA: only lock lockedBalance * strike / initial spot price
-         * DIP: only lock lockedBalance * strike / initial spot price
-         * LEVERAGED: lock lockedBalance (default is leveraged put)
-         * SPREAD: TBD
+         * VANILLA:     only lock lockedBalance * strike / initial spot price
+         * DIP:         only lock lockedBalance * strike / initial spot price
+         * LEVERAGED:   lock lockedBalance (default is leveraged put)
          */
         if (
             _nOptionType == OptionType.VANILLA || _nOptionType == OptionType.DIP
@@ -356,10 +357,12 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _nextStrikePrice
     ) internal view returns (uint256 payoff) {
         /**
-         * VANILLA: enhanced payout is 0
-         * DIP: enhanced payout is expiry of previous option - current strike price (barrier of DIP = strike of vanilla put)
-         * LEVERAGED: enhanced payout is 0
-         * SPREAD: TBD
+         * VANILLA:   enhanced payout is: 0
+         * DIP:       enhanced payout is:
+         *            expiry of previous option -
+         *            current strike price
+         *            (DIP barrier = strike of vanilla put)
+         * LEVERAGED: enhanced payout is: 0
          */
 
         if (_nOptionType == OptionType.DIP) {
@@ -399,14 +402,16 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
                 nonLockedAmt;
 
         /**
-         * FIXED: coupon barrier is 0, so nCBBreaches will always equal
-         *        total number of observations
-         * PHOENIX: only get the coupon for observations where the spot was above coupon barrier
-         * PHOENIX_MEMORY: the last coupon barrier breach observation will get us the total coupons
-         *                 earned
-         * VANILLA: coupon barrier = autocall barrier so the last coupon barrier breach observation
-         *                 being non-zero means autocall barrier has been hit and we get all previous
-         *                 coupons
+         * FIXED:           coupon barrier is 0, so nCBBreaches will always equal
+         *                  total number of observations
+         * PHOENIX:         only get the coupon for observations where
+         *                  the spot was above coupon barrier
+         * PHOENIX_MEMORY:  the last coupon barrier breach observation
+         *                  will get us the total coupons earned
+         * VANILLA:         coupon barrier = autocall barrier so
+         *                  the last coupon barrier breach observation being non-zero
+         *                  means autocall barrier has been hit and we get all previous
+         *                  coupons
          */
         bool hasMemory =
             (couponState.couponType == CouponType.PHOENIX_MEMORY ||
@@ -448,14 +453,14 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         for (uint256 ts = startTS; ts <= lastTS; ts += obsFreq) {
             uint256 obsPrice = ORACLE.getExpiryPrice(underlying, ts);
             require(obsPrice > 0, "A12");
-            // Check if coupon barrier breached
+            // If coupon barrier breached
             if (
                 obsPrice >= (initialSpotPrice * couponState.CB) / PCT_MULTIPLIER
             ) {
                 nCBBreaches += 1;
                 lastCBBreach = ts;
 
-                // Check if autocall barrier breached
+                // If autocall barrier breached
                 if (
                     obsPrice >=
                     (initialSpotPrice * couponState.AB) / PCT_MULTIPLIER

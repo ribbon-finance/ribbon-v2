@@ -5,10 +5,9 @@ abstract contract AutocallVaultStorageV1 {
     /**
      * VANILLA: normal oToken
      * DIP: down-and-in put. Upon barrier reach digital put is ITM
-     * SPREAD: vertical spread
      * LEVERAGED: levered put which magnifies losses depending on how far spot is to 0
      */
-    enum OptionType {VANILLA, DIP, SPREAD, LEVERAGED}
+    enum OptionType {VANILLA, DIP, LEVERAGED}
 
     /**
      * FIXED: no coupon barrier. Get all coupons until autocall
