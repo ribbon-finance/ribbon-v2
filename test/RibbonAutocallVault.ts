@@ -1627,7 +1627,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(autocallSellerSigner)
           .transfer(vault.address, 1);
 
-        await expect(vault.commitAndClose()).to.be.revertedWith("A1");
+        await expect(vault.commitAndClose()).to.be.revertedWith("A11");
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside earlier than maturity", async function () {
