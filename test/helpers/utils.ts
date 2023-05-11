@@ -79,6 +79,36 @@ export async function deployProxy(
   return await ethers.getContractAt(logicContractName, proxy.address);
 }
 
+export async function deployProxyAutocall(
+  logicContractName: string,
+  adminSigner: SignerWithAddress,
+  initializeArgs: any[], // eslint-disable-line @typescript-eslint/no-explicit-any
+  logicDeployParams = [],
+  factoryOptions = {}
+) {
+  const AdminUpgradeabilityProxy = await ethers.getContractFactory(
+    "AdminUpgradeabilityProxy",
+    adminSigner
+  );
+  const LogicContract = await ethers.getContractFactory(
+    logicContractName,
+    factoryOptions || {}
+  );
+  const logic = await LogicContract.deploy(...logicDeployParams);
+
+  const initBytes = LogicContract.interface.encodeFunctionData(
+    "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)",
+    initializeArgs
+  );
+
+  const proxy = await AdminUpgradeabilityProxy.deploy(
+    logic.address,
+    await adminSigner.getAddress(),
+    initBytes
+  );
+  return await ethers.getContractAt(logicContractName, proxy.address);
+}
+
 export async function getBlockNum(asset: string, chainId: number) {
   if (asset === PERP_ADDRESS[chainId]) {
     return 14087600;

@@ -25,12 +25,12 @@ import {
   ORACLE_DISPUTE_PERIOD,
 } from "../constants/constants";
 import {
-  deployProxy,
   setupOracle,
   setOpynOracleExpiryPrice,
   whitelistProduct,
   mintToken,
   getBlockNum,
+  deployProxyAutocall,
 } from "./helpers/utils";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signers";
 import { assert } from "./helpers/assertions";
@@ -420,7 +420,7 @@ function behavesLikeRibbonOptionsVault(params: {
       ];
 
       vault = (
-        await deployProxy(
+        await deployProxyAutocall(
           "RibbonAutocallVault",
           adminSigner,
           initializeArgs,
@@ -556,7 +556,8 @@ function behavesLikeRibbonOptionsVault(params: {
     describe("#initialize", () => {
       let testVault: Contract;
 
-      const initializeOptionType = 3; // VANILLA
+      const initializeOptionType = 0; // VANILLA
+      const initializeCouponType = 3; // VANILLA
       const initializeAB = 10500;
       const initializeNAB = 10500;
       const initializenCB = 10500;
@@ -638,41 +639,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("cannot be initialized twice", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          vault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          vault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             autocallSeller
@@ -681,41 +690,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when initializing with 0 owner", async function () {
+        const initializeArgs1 = [
+          NULL_ADDR,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              NULL_ADDR,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             autocallSeller
@@ -724,41 +741,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when initializing with 0 keeper", async function () {
+        const initializeArgs1 = [
+          owner,
+          NULL_ADDR,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              NULL_ADDR,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             autocallSeller
@@ -767,41 +792,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when initializing with 0 feeRecipient", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          NULL_ADDR,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              NULL_ADDR,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             autocallSeller
@@ -810,41 +843,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when initializing with 0 initCap", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          0,
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              0,
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             autocallSeller
@@ -853,41 +894,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when asset is 0x", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          NULL_ADDR,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              NULL_ADDR,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             autocallSeller
@@ -896,41 +945,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when autocallSeller is 0", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             user,
             NULL_ADDR
@@ -939,41 +996,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when autocallBuyer is 0", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             obsFreq,
             NULL_ADDR,
             autocallSeller
@@ -982,41 +1047,49 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when observation frequency is 0 or not a multiple of period", async function () {
+        const initializeArgs1 = [
+          owner,
+          keeper,
+          feeRecipient,
+          managementFee,
+          performanceFee,
+          tokenName,
+          tokenSymbol,
+          optionsPremiumPricer.address,
+          strikeSelection.address,
+          premiumDiscount,
+          auctionDuration,
+          period,
+          maxDepositors,
+          minDeposit,
+        ];
+
+        const initializeArgs2 = [
+          isPut,
+          tokenDecimals,
+          isPut ? USDC_ADDRESS[chainId] : asset,
+          asset,
+          minimumSupply,
+          parseEther("2000000"),
+        ];
+
+        const initializeArgs3 = [
+          initializeCouponType,
+          initializeCouponType,
+          initializeAB,
+          initializeNAB,
+          initializenCB,
+          initializenNCB,
+        ];
+
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
+            initializeArgs3,
             0,
             user,
             autocallSeller
@@ -1024,41 +1097,14 @@ function behavesLikeRibbonOptionsVault(params: {
         ).to.be.revertedWith("A8");
 
         await expect(
-          testVault.initialize(
-            [
-              owner,
-              keeper,
-              feeRecipient,
-              managementFee,
-              performanceFee,
-              tokenName,
-              tokenSymbol,
-              optionsPremiumPricer.address,
-              strikeSelection.address,
-              premiumDiscount,
-              auctionDuration,
-              period,
-              maxDepositors,
-              minDeposit,
-            ],
-            [
-              isPut,
-              tokenDecimals,
-              isPut ? USDC_ADDRESS[chainId] : asset,
-              asset,
-              minimumSupply,
-              parseEther("2000000"),
-            ],
+          testVault[
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+          ](
+            initializeArgs1,
+            initializeArgs2,
             initializeOptionType,
-            [
-              initializeOptionType,
-              initializeOptionType,
-              initializeAB,
-              initializeNAB,
-              initializenCB,
-              initializenNCB,
-            ],
-            345600, // 4 days
+            initializeArgs3,
+            345600,
             user,
             autocallSeller
           )
@@ -1286,7 +1332,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.increase(obsFreq.add(1));
 
-        await expect(vault.couponsEarned()).to.be.revertedWith("R12");
+        await expect(vault.couponsEarned()).to.be.revertedWith("A12");
 
         await time.revertToSnapShot(snapshot0);
       });
@@ -1840,7 +1886,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await approve(assetContract, vault, depositAmount, userSigner);
         await vault.connect(userSigner).deposit(depositAmount);
 
-        await vault.connect(ownerSigner).setOptionType(3);
+        await vault.connect(ownerSigner).setOptionType(2);
         await rollToNextOption();
 
         const currentOtoken = await getContractAt(
@@ -2462,7 +2508,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await approve(assetContract, vault, depositAmount, userSigner);
         await vault.connect(userSigner).deposit(depositAmount);
 
-        await vault.connect(ownerSigner).setOptionType(3);
+        await vault.connect(ownerSigner).setOptionType(2);
         await rollToNextOption();
 
         const currentOtoken = await getContractAt(
