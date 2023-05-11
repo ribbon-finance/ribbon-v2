@@ -1067,7 +1067,7 @@ function behavesLikeRibbonOptionsVault(params: {
     });
 
     // eslint-disable-next-line multiline-comment-style
-    /*     describe("#lastObservation", () => {
+    describe("#lastObservation", () => {
       time.revertToSnapshotAfterTest();
       let expiry;
       let numTotalObs;
@@ -1146,7 +1146,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal(index, 5);
         assert.equal(ts.toString(), timestamp.toString());
       });
-    }); */
+    });
 
     describe("#setOptionType", () => {
       time.revertToSnapshotAfterEach();
