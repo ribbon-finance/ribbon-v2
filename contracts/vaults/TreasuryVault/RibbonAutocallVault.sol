@@ -20,19 +20,19 @@ import {
 } from "../../interfaces/GammaInterface.sol";
 
 /**
- * Earn Vault Error Codes
- * R1: !_AB
- * R2: !FIXED
- * R3: !VANILLA
- * R4: !_CB
- * R5: !PHOENIX
- * R6: !_autocallBuyer
- * R7: !_autocallSeller
- * R8: !_obsFreq
- * R9: !_period
- * R10: !autocall
- * R11: !withdrawnCollateral
- * R12: !obsPrice
+ * Autocall Vault Error Codes
+ * A1: !_AB
+ * A2: !FIXED
+ * A3: !VANILLA
+ * A4: !_CB
+ * A5: !PHOENIX
+ * A6: !_autocallBuyer
+ * A7: !_autocallSeller
+ * A8: !_obsFreq
+ * A9: !_period
+ * A10: !autocall
+ * A11: !withdrawnCollateral
+ * A12: !obsPrice
  */
 
 contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
@@ -113,9 +113,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _couponState.nCB
         );
 
-        require(_autocallBuyer != address(0), "R6");
-        require(_autocallSeller != address(0), "R7");
-        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "R8");
+        require(_autocallBuyer != address(0), "A6");
+        require(_autocallSeller != address(0), "A7");
+        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
 
         putOption.nOptionType = _optionType;
         couponState.nCouponType = _couponState.nCouponType;
@@ -134,12 +134,12 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @return the last observation timestamp
      * @return the last observation index
      */
-    /*     function lastObservation() external view returns (uint256, uint256) {
+    function lastObservation() external view returns (uint256, uint256) {
         return
             _lastObservation(
                 IOtoken(optionState.currentOption).expiryTimestamp()
             );
-    } 
+    }
 
     /**
      * @dev Gets coupons earned
@@ -205,8 +205,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         external
         onlyOwner
     {
-        require(_period > 0, "R9");
-        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "R8");
+        require(_period > 0, "A9");
+        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
 
         emit PeriodAndObsFreqSet(obsFreq, _obsFreq, period, _period);
 
@@ -226,7 +226,6 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 strikePrice =
             currentOption == address(0) ? 0 : currentOToken.strikePrice();
 
-        
         (uint256 autocallTS, uint256 nCBBreaches, uint256 lastCBBreach) =
             _autocallState(expiry);
 
@@ -237,11 +236,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // If before expiry, attempt to autocall
         if (block.timestamp < expiry) {
             // Require autocall barrier hit at least once
-            require(autocallTS < block.timestamp, "R10");
+            require(autocallTS < block.timestamp, "A10");
             // Burn the unexpired oTokens
             _burnRemainingOTokens();
             // Require vault possessed all oTokens sold to counterparties
-            require(vaultState.lockedAmount == 0, "R11");
+            require(vaultState.lockedAmount == 0, "A11");
         }
 
         if (earnedAmt > 0) {
@@ -295,7 +294,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             // Transfer current digital option payoff
             transferAsset(
                 autocallSeller,
-                (oTokenMintAmount * _putOption.payoff) / 10**Vault.OTOKEN_DECIMALS
+                (oTokenMintAmount * _putOption.payoff) /
+                    10**Vault.OTOKEN_DECIMALS
             );
         }
 
@@ -389,12 +389,14 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             uint256 returnAmt
         )
     {
-        uint256 nonLockedAmt = (vaultState.lockedAmount * reserveRatio) /
-            (10**Vault.OTOKEN_DECIMALS - reserveRatio);
+        uint256 nonLockedAmt =
+            (vaultState.lockedAmount * reserveRatio) /
+                (10**Vault.OTOKEN_DECIMALS - reserveRatio);
 
-        uint256 totalPremium = 
+        uint256 totalPremium =
             IERC20(vaultParams.asset).balanceOf(address(this)) -
-                vaultState.totalPending - nonLockedAmt;
+                vaultState.totalPending -
+                nonLockedAmt;
 
         /**
          * FIXED: coupon barrier is 0, so nCBBreaches will always equal
@@ -445,7 +447,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         // For every previous observation timestamp
         for (uint256 ts = startTS; ts <= lastTS; ts += obsFreq) {
             uint256 obsPrice = ORACLE.getExpiryPrice(underlying, ts);
-            require(obsPrice > 0, "R12");
+            require(obsPrice > 0, "A12");
             // Check if coupon barrier breached
             if (
                 obsPrice >= (initialSpotPrice * couponState.CB) / PCT_MULTIPLIER
@@ -502,18 +504,18 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _AB,
         uint256 _CB
     ) internal pure {
-        require(_AB > PCT_MULTIPLIER, "R1");
+        require(_AB > PCT_MULTIPLIER, "A1");
 
         if (_couponType == CouponType.FIXED) {
             // Coupon Barrier = 0
-            require(_CB == 0, "R2");
+            require(_CB == 0, "A2");
         } else if (_couponType == CouponType.VANILLA) {
             // Coupon Barrier = Autocall Barrier
-            require(_CB == _AB, "R3");
+            require(_CB == _AB, "A3");
         } else {
             // Coupon Barrier < Autocall Barrier
-            require(_CB > 0, "R4");
-            require(_CB < _AB, "R5");
+            require(_CB > 0, "A4");
+            require(_CB < _AB, "A5");
         }
     }
 }

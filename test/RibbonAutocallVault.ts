@@ -935,7 +935,7 @@ function behavesLikeRibbonOptionsVault(params: {
             user,
             NULL_ADDR
           )
-        ).to.be.revertedWith("R7");
+        ).to.be.revertedWith("A7");
       });
 
       it("reverts when autocallBuyer is 0", async function () {
@@ -978,7 +978,7 @@ function behavesLikeRibbonOptionsVault(params: {
             NULL_ADDR,
             autocallSeller
           )
-        ).to.be.revertedWith("R6");
+        ).to.be.revertedWith("A6");
       });
 
       it("reverts when observation frequency is 0 or not a multiple of period", async function () {
@@ -1021,7 +1021,7 @@ function behavesLikeRibbonOptionsVault(params: {
             user,
             autocallSeller
           )
-        ).to.be.revertedWith("R8");
+        ).to.be.revertedWith("A8");
 
         await expect(
           testVault.initialize(
@@ -1062,7 +1062,7 @@ function behavesLikeRibbonOptionsVault(params: {
             user,
             autocallSeller
           )
-        ).to.be.revertedWith("R8");
+        ).to.be.revertedWith("A8");
       });
     });
 
@@ -1205,16 +1205,16 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts if period is zero", async function () {
         await expect(
           vault.connect(ownerSigner).setPeriodAndObservationFrequency(0, 100000)
-        ).to.be.revertedWith("R9");
+        ).to.be.revertedWith("A9");
       });
       it("reverts when observation sequence is 0 or not a multiple of period", async function () {
         await expect(
           vault.connect(ownerSigner).setPeriodAndObservationFrequency(60, 0)
-        ).to.be.revertedWith("R8");
+        ).to.be.revertedWith("A8");
 
         await expect(
           vault.connect(ownerSigner).setPeriodAndObservationFrequency(60, 7)
-        ).to.be.revertedWith("R8");
+        ).to.be.revertedWith("A8");
       });
       it("successfully sets period and observation frequency type", async function () {
         const tx = await vault
@@ -1569,7 +1569,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(userSigner).deposit(depositAmount);
         await rollToNextOption();
 
-        await expect(vault.commitAndClose()).to.be.revertedWith("R10");
+        await expect(vault.commitAndClose()).to.be.revertedWith("A10");
       });
       it("reverts before expiry if locked amount > 0", async function () {
         await approve(assetContract, vault, depositAmount, userSigner);
@@ -1627,7 +1627,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(autocallSellerSigner)
           .transfer(vault.address, 1);
 
-        await expect(vault.commitAndClose()).to.be.revertedWith("R11");
+        await expect(vault.commitAndClose()).to.be.revertedWith("A1");
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside earlier than maturity", async function () {

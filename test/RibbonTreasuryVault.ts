@@ -557,10 +557,12 @@ function behavesLikeRibbonOptionsVault(params: {
       const latestTimestamp = (await provider.getBlock("latest")).timestamp;
 
       // Create first option
-      firstOptionExpiry = moment(latestTimestamp * 1000).add(period, "days").hours(8)
-                .minutes(0)
-                .seconds(0)
-                .unix();
+      firstOptionExpiry = moment(latestTimestamp * 1000)
+        .add(period, "days")
+        .hours(8)
+        .minutes(0)
+        .seconds(0)
+        .unix();
 
       [firstOptionStrike] = await strikeSelection.getStrikePrice(
         firstOptionExpiry,
@@ -591,10 +593,12 @@ function behavesLikeRibbonOptionsVault(params: {
       };
 
       // Create second option
-      secondOptionExpiry = moment(latestTimestamp * 1000).add(period * 2, "days").hours(8)
-                .minutes(0)
-                .seconds(0)
-                .unix();
+      secondOptionExpiry = moment(latestTimestamp * 1000)
+        .add(period * 2, "days")
+        .hours(8)
+        .minutes(0)
+        .seconds(0)
+        .unix();
 
       [secondOptionStrike] = await strikeSelection.getStrikePrice(
         secondOptionExpiry,
@@ -1062,7 +1066,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when setting 0x0 as feeRecipient", async function () {
         await expect(
           vault.connect(ownerSigner).setFeeRecipient(constants.AddressZero)
-        ).to.be.revertedWith("!newFeeRecipient");
+        ).to.be.revertedWith("T7");
       });
 
       it("reverts when not owner call", async function () {
@@ -1290,7 +1294,7 @@ function behavesLikeRibbonOptionsVault(params: {
           vault
             .connect(userSigner)
             .deposit(BigNumber.from(minimumSupply).sub(BigNumber.from("1")))
-        ).to.be.revertedWith("Insufficient balance");
+        ).to.be.revertedWith("T17");
       });
 
       it("updates the previous deposit receipt", async function () {
@@ -1566,7 +1570,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault.connect(ownerSigner).burnRemainingOTokens()
-        ).to.be.revertedWith("!keeper");
+        ).to.be.revertedWith("T5");
       });
 
       it("reverts when trying to burn 0 OTokens", async function () {
@@ -1735,7 +1739,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not called with keeper", async function () {
         await expect(
           vault.connect(ownerSigner).rollToNextOption()
-        ).to.be.revertedWith("!keeper");
+        ).to.be.revertedWith("T5");
       });
 
       it("mints oTokens and deposits collateral into vault", async function () {
@@ -2506,7 +2510,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.deposit(depositAmount);
         await rollToNextOption();
-        await expect(vault.redeem(0)).to.be.revertedWith("!numShares");
+        await expect(vault.redeem(0)).to.be.revertedWith("T18");
       });
 
       it("reverts when redeeming more than available", async function () {
@@ -2516,7 +2520,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await expect(vault.redeem(depositAmount.add(1))).to.be.revertedWith(
-          "Exceeds available"
+          "T21"
         );
       });
 
@@ -2568,7 +2572,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await approve(assetContract, vault, depositAmount, userSigner);
         await vault.deposit(depositAmount);
 
-        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("!amount");
+        await expect(vault.withdrawInstantly(0)).to.be.revertedWith("T15");
       });
 
       it("reverts when withdrawing more than available", async function () {
@@ -2694,9 +2698,7 @@ function behavesLikeRibbonOptionsVault(params: {
       });
 
       it("reverts when passed 0 shares", async function () {
-        await expect(vault.initiateWithdraw(0)).to.be.revertedWith(
-          "!numShares"
-        );
+        await expect(vault.initiateWithdraw(0)).to.be.revertedWith("T18");
       });
 
       it("reverts when withdrawing more than unredeemed balance", async function () {
@@ -2936,13 +2938,11 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not initiated", async function () {
         await expect(
           vault.connect(ownerSigner).completeWithdraw()
-        ).to.be.revertedWith("Not initiated");
+        ).to.be.revertedWith("T20");
       });
 
       it("reverts when round not closed", async function () {
-        await expect(vault.completeWithdraw()).to.be.revertedWith(
-          "Round not closed"
-        );
+        await expect(vault.completeWithdraw()).to.be.revertedWith("T21");
       });
 
       it("reverts when calling completeWithdraw twice", async function () {
@@ -2950,9 +2950,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await vault.completeWithdraw();
 
-        await expect(vault.completeWithdraw()).to.be.revertedWith(
-          "Not initiated"
-        );
+        await expect(vault.completeWithdraw()).to.be.revertedWith("T20");
       });
 
       it("completes the withdrawal", async function () {
@@ -3064,7 +3062,7 @@ function behavesLikeRibbonOptionsVault(params: {
       it("reverts when not called with keeper", async function () {
         await expect(
           vault.connect(ownerSigner).chargeAndDistribute()
-        ).to.be.revertedWith("!keeper");
+        ).to.be.revertedWith("T5");
       });
 
       it("reverts when there is no premium to distribute", async function () {
@@ -3545,7 +3543,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .connect(userSigner)
           .settleAuction(await gnosisAuction.auctionCounter());
 
-        await expect(vault.startAuction()).to.be.revertedWith("!keeper");
+        await expect(vault.startAuction()).to.be.revertedWith("T5");
       });
     });
 
