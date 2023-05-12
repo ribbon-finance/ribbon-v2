@@ -1975,7 +1975,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await rollToNextOption();
 
         await expect(vault.redeem(depositAmount.add(1))).to.be.revertedWith(
-          "T21"
+          "T23"
         );
       });
 
@@ -2175,7 +2175,7 @@ function behavesLikeRibbonOptionsVault(params: {
         await vault.connect(keeperSigner).rollToNextOption();
 
         await expect(vault.initiateWithdraw(withdrawAmount)).to.be.revertedWith(
-          "Existing withdraw"
+          "T19"
         );
       });
 
@@ -2476,9 +2476,7 @@ function behavesLikeRibbonOptionsVault(params: {
           await weth.approve(vault.address, depositAmount);
         }
 
-        await expect(vault.deposit(depositAmount)).to.be.revertedWith(
-          "Exceed cap"
-        );
+        await expect(vault.deposit(depositAmount)).to.be.revertedWith("T16");
       });
     });
 
