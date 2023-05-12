@@ -350,6 +350,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @param _nOptionType is the type of the next option
      * @param _price is the spot price of the new option
      * @param _nextStrikePrice is the strike price of the next option
+     * @return payoff is the enhanced payoff amount
      */
     function _setPutOptionPayoff(
         OptionType _nOptionType,
