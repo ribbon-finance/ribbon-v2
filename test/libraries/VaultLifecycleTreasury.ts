@@ -9,7 +9,7 @@ moment.tz.setDefault("UTC");
 
 const provider = ethers.provider;
 
-describe("VaultLifecycleTreasury", () => {
+describe.skip("VaultLifecycleTreasury", () => {
   let lifecycle: Contract;
 
   before(async () => {

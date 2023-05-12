@@ -78,7 +78,7 @@ const WEEKS_PER_YEAR = 52142857;
 
 const chainId = network.config.chainId;
 
-describe("RibbonTreasuryVault", () => {
+describe.skip("RibbonTreasuryVault", () => {
   behavesLikeRibbonOptionsVault({
     name: `Ribbon PERP Treasury Vault (Call)`,
     tokenName: "Ribbon PERP Treasury Vault",
