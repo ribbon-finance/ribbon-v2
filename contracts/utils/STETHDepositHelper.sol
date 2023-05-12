@@ -2,7 +2,7 @@
 pragma solidity =0.8.4;
 
 import {ICurveETHSTETHPool} from "../interfaces/ICurveETHSTETHPool.sol";
-import {IRibbonThetaVault} from "../interfaces/IRibbonThetaVault.sol";
+import {IRibbonSTETHVault} from "../interfaces/IRibbonThetaVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
@@ -12,7 +12,7 @@ contract STETHDepositHelper {
     using SafeERC20 for IERC20;
 
     ICurveETHSTETHPool public immutable curveETHSTETHPool;
-    IRibbonThetaVault public immutable stETHVault;
+    IRibbonSTETHVault public immutable stETHVault;
     IERC20 public immutable stETH;
 
     constructor(
@@ -25,7 +25,7 @@ contract STETHDepositHelper {
         require(_stETH != address(0), "!_stETH");
 
         curveETHSTETHPool = ICurveETHSTETHPool(_curveETHSTETHPool);
-        stETHVault = IRibbonThetaVault(_stETHVault);
+        stETHVault = IRibbonSTETHVault(_stETHVault);
         stETH = IERC20(_stETH);
     }
 

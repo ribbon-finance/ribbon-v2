@@ -4,6 +4,8 @@ pragma solidity =0.8.4;
 import {Vault} from "../libraries/Vault.sol";
 
 interface IRibbonThetaVault {
+    function GAMMA_CONTROLLER() external view returns (address);
+
     function currentOption() external view returns (address);
 
     function nextOption() external view returns (address);
@@ -20,6 +22,8 @@ interface IRibbonThetaVault {
 
     function roundPricePerShare(uint256) external view returns (uint256);
 
+    function symbol() external view returns (string calldata);
+
     function depositFor(uint256 amount, address creditor) external;
 
     function initiateWithdraw(uint256 numShares) external;
@@ -28,7 +32,15 @@ interface IRibbonThetaVault {
 
     function maxRedeem() external;
 
-    function depositYieldTokenFor(uint256 amount, address creditor) external;
+    function commitAndClose() external;
 
-    function symbol() external view returns (string calldata);
+    function burnRemainingOTokens() external;
+}
+
+interface IRibbonTreasuryVault is IRibbonThetaVault {
+    function period() external view returns (uint256);
+}
+
+interface IRibbonSTETHVault is IRibbonThetaVault {
+    function depositYieldTokenFor(uint256 amount, address creditor) external;
 }

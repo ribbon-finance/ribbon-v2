@@ -18,22 +18,53 @@ import {
 
 import {Vault} from "../../libraries/Vault.sol";
 import {
-    VaultLifecycleTreasuryBare
-} from "../../libraries/VaultLifecycleTreasuryBare.sol";
+    VaultLifecycleTreasury
+} from "../../libraries/VaultLifecycleTreasury.sol";
 import {
-    RibbonTreasuryVaultStorage
-} from "../../storage/RibbonTreasuryVaultStorage.sol";
+    RibbonTreasuryVaultLiteStorage
+} from "../../storage/RibbonTreasuryVaultLiteStorage.sol";
 import {ShareMath} from "../../libraries/ShareMath.sol";
-import {IWETH} from "../../interfaces/IWETH.sol";
-import {GnosisAuction} from "../../libraries/GnosisAuction.sol";
 import {IERC20Detailed} from "../../interfaces/IERC20Detailed.sol";
 
-// USED FOR TREASURY ASSETS WITHOUT CHAINLINK ORACLE
-contract RibbonTreasuryVaultBare is
+/**
+ * Treasury Vault Error Codes
+ * T1: !_usdc
+ * T2: !_oTokenFactory
+ * T3: !_gammaController
+ * T4: !_marginPool
+ * T5: !keeper
+ * T6: !newKeeper
+ * T7: !newFeeRecipient
+ * T8: Must be new feeRecipient
+ * T9: Invalid management fee
+ * T10: Invalid performance fee
+ * T11: !newCap
+ * T12: !newStrikeSelection
+ * T13: !newOptionsPremiumPricer
+ * T14: !strikePrice
+ * T15: !amount
+ * T16: !Exceed cap
+ * T17: Insufficient balance
+ * T18: !numShares
+ * T19: !Existing withdraw
+ * T20: Not initiated
+ * T21: Round not closed
+ * T22: !withdrawAmount
+ * T23: Exceeds available
+ * T24: Invalid round
+ * T25: Exceed amount
+ * T26: !ready
+ * T27: !nextOption
+ * T28: Overflow nextOptionReady
+ * T29: !buyer
+ * T30: Treasury rToken is not transferrable
+ */
+
+contract RibbonTreasuryVaultLite is
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,
     ERC20Upgradeable,
-    RibbonTreasuryVaultStorage
+    RibbonTreasuryVaultLiteStorage
 {
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
@@ -42,9 +73,6 @@ contract RibbonTreasuryVaultBare is
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
-
-    /// @notice WETH9 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-    address public immutable WETH;
 
     /// @notice USDC 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
     address public immutable USDC;
@@ -66,18 +94,8 @@ contract RibbonTreasuryVaultBare is
     // https://github.com/opynfinance/GammaProtocol/blob/master/contracts/core/MarginPool.sol
     address public immutable MARGIN_POOL;
 
-    // GNOSIS_EASY_AUCTION is Gnosis protocol's contract for initiating auctions and placing bids
-    // https://github.com/gnosis/ido-contracts/blob/main/contracts/EasyAuction.sol
-    address public immutable GNOSIS_EASY_AUCTION;
-
     /// OTOKEN_FACTORY is the factory contract used to spawn otokens. Used to lookup otokens.
     address public immutable OTOKEN_FACTORY;
-
-    // The minimum duration for an option auction.
-    uint256 private constant MIN_AUCTION_DURATION = 5 minutes;
-
-    // The minimum amount above which premium distribution will occur during commitAndClose
-    uint256 private constant MIN_DUST_AMOUNT = 10000000;
 
     /************************************************
      *  EVENTS
@@ -107,19 +125,6 @@ contract RibbonTreasuryVaultBare is
         address indexed feeRecipient
     );
 
-    event CollectPerformanceFee(
-        uint256 performanceFee,
-        uint256 round,
-        address indexed feeRecipient
-    );
-
-    event DistributePremium(
-        uint256 amount,
-        uint256[] amounts,
-        address[] recipients,
-        uint256 round
-    );
-
     event OpenShort(
         address indexed options,
         uint256 depositAmount,
@@ -134,27 +139,10 @@ contract RibbonTreasuryVaultBare is
 
     event NewOptionStrikeSelected(uint256 strikePrice, uint256 delta);
 
-    event PremiumDiscountSet(
-        uint256 premiumDiscount,
-        uint256 newPremiumDiscount
-    );
-
-    event AuctionDurationSet(
-        uint256 auctionDuration,
-        uint256 newAuctionDuration
-    );
-
     event InstantWithdraw(
         address indexed account,
         uint256 amount,
         uint256 round
-    );
-
-    event InitiateGnosisAuction(
-        address indexed auctioningToken,
-        address indexed biddingToken,
-        uint256 auctionCounter,
-        address indexed manager
     );
 
     /************************************************
@@ -163,47 +151,49 @@ contract RibbonTreasuryVaultBare is
 
     /**
      * @notice Initializes the contract with immutable variables
-     * @param _weth is the Wrapped Ether contract
      * @param _usdc is the USDC contract
      * @param _oTokenFactory is the contract address for minting new opyn option types (strikes, asset, expiry)
      * @param _gammaController is the contract address for opyn actions
      * @param _marginPool is the contract address for providing collateral to opyn
-     * @param _gnosisEasyAuction is the contract address that facilitates gnosis auctions
      */
     constructor(
-        address _weth,
         address _usdc,
         address _oTokenFactory,
         address _gammaController,
-        address _marginPool,
-        address _gnosisEasyAuction
+        address _marginPool
     ) {
-        require(_weth != address(0), "!_weth");
-        require(_usdc != address(0), "!_usdc");
-        require(_oTokenFactory != address(0), "!_oTokenFactory");
-        require(_gammaController != address(0), "!_gammaController");
-        require(_marginPool != address(0), "!_marginPool");
-        require(_gnosisEasyAuction != address(0), "!_gnosisEasyAuction");
+        require(_usdc != address(0), "T1");
+        require(_oTokenFactory != address(0), "T2");
+        require(_gammaController != address(0), "T3");
+        require(_marginPool != address(0), "T4");
 
-        WETH = _weth;
         USDC = _usdc;
         OTOKEN_FACTORY = _oTokenFactory;
         GAMMA_CONTROLLER = _gammaController;
         MARGIN_POOL = _marginPool;
-        GNOSIS_EASY_AUCTION = _gnosisEasyAuction;
     }
 
     /**
      * @notice Initializes the OptionVault contract with storage variables.
      */
     function initialize(
-        VaultLifecycleTreasuryBare.InitParams calldata _initParams,
+        VaultLifecycleTreasury.InitParams calldata _initParams,
         Vault.VaultParams calldata _vaultParams
     ) external initializer {
-        VaultLifecycleTreasuryBare.verifyInitializerParams(
+        _initialize(_initParams, _vaultParams);
+    }
+
+    /**
+     * @notice Initializes the OptionVault contract with storage variables.
+     */
+    function _initialize(
+        VaultLifecycleTreasury.InitParams calldata _initParams,
+        Vault.VaultParams calldata _vaultParams
+    ) internal {
+        VaultLifecycleTreasury.verifyInitializerParams(
             _initParams,
             _vaultParams,
-            MIN_AUCTION_DURATION
+            1
         );
 
         __ReentrancyGuard_init();
@@ -216,12 +206,9 @@ contract RibbonTreasuryVaultBare is
         optionsPremiumPricer = _initParams._optionsPremiumPricer;
         strikeSelection = _initParams._strikeSelection;
         premiumDiscount = _initParams._premiumDiscount;
-        auctionDuration = _initParams._auctionDuration;
         feeRecipient = _initParams._feeRecipient;
         performanceFee = _initParams._performanceFee;
         managementFee = _perRoundManagementFee(_initParams._managementFee);
-        maxDepositors = _initParams._maxDepositors;
-        minDeposit = _initParams._minDeposit;
 
         vaultParams = _vaultParams;
         vaultState.round = 1;
@@ -236,7 +223,7 @@ contract RibbonTreasuryVaultBare is
      * @dev Throws if called by any account other than the keeper.
      */
     modifier onlyKeeper() {
-        require(msg.sender == keeper, "!keeper");
+        require(msg.sender == keeper, "T5");
         _;
     }
 
@@ -249,7 +236,7 @@ contract RibbonTreasuryVaultBare is
      * @param newKeeper is the address of the new keeper
      */
     function setNewKeeper(address newKeeper) external onlyOwner {
-        require(newKeeper != address(0), "!newKeeper");
+        require(newKeeper != address(0), "T6");
         keeper = newKeeper;
     }
 
@@ -258,8 +245,8 @@ contract RibbonTreasuryVaultBare is
      * @param newFeeRecipient is the address of the new fee recipient
      */
     function setFeeRecipient(address newFeeRecipient) external onlyOwner {
-        require(newFeeRecipient != address(0), "!newFeeRecipient");
-        require(newFeeRecipient != feeRecipient, "Must be new feeRecipient");
+        require(newFeeRecipient != address(0), "T7");
+        require(newFeeRecipient != feeRecipient, "T8");
         feeRecipient = newFeeRecipient;
     }
 
@@ -268,10 +255,7 @@ contract RibbonTreasuryVaultBare is
      * @param newManagementFee is the management fee (6 decimals). ex: 2 * 10 ** 6 = 2%
      */
     function setManagementFee(uint256 newManagementFee) external onlyOwner {
-        require(
-            newManagementFee < 100 * Vault.FEE_MULTIPLIER,
-            "Invalid management fee"
-        );
+        require(newManagementFee < 100 * Vault.FEE_MULTIPLIER, "T9");
 
         managementFee = _perRoundManagementFee(newManagementFee);
 
@@ -303,10 +287,7 @@ contract RibbonTreasuryVaultBare is
      * @param newPerformanceFee is the performance fee (6 decimals). ex: 20 * 10 ** 6 = 20%
      */
     function setPerformanceFee(uint256 newPerformanceFee) external onlyOwner {
-        require(
-            newPerformanceFee < 100 * Vault.FEE_MULTIPLIER,
-            "Invalid performance fee"
-        );
+        require(newPerformanceFee < 100 * Vault.FEE_MULTIPLIER, "T10");
 
         emit PerformanceFeeSet(performanceFee, newPerformanceFee);
 
@@ -318,41 +299,10 @@ contract RibbonTreasuryVaultBare is
      * @param newCap is the new cap for deposits
      */
     function setCap(uint256 newCap) external onlyOwner {
-        require(newCap > 0, "!newCap");
+        require(newCap > 0, "T11");
         ShareMath.assertUint104(newCap);
         emit CapSet(vaultParams.cap, newCap);
         vaultParams.cap = uint104(newCap);
-    }
-
-    /**
-     * @notice Sets the new discount on premiums for options we are selling
-     * @param newPremiumDiscount is the premium discount
-     */
-    function setPremiumDiscount(uint256 newPremiumDiscount) external onlyOwner {
-        require(
-            newPremiumDiscount > 0 &&
-                newPremiumDiscount < 100 * Vault.PREMIUM_DISCOUNT_MULTIPLIER,
-            "Invalid discount"
-        );
-
-        emit PremiumDiscountSet(premiumDiscount, newPremiumDiscount);
-
-        premiumDiscount = newPremiumDiscount;
-    }
-
-    /**
-     * @notice Sets the new auction duration
-     * @param newAuctionDuration is the auction duration
-     */
-    function setAuctionDuration(uint256 newAuctionDuration) external onlyOwner {
-        require(
-            newAuctionDuration >= MIN_AUCTION_DURATION,
-            "Invalid auction duration"
-        );
-
-        emit AuctionDurationSet(auctionDuration, newAuctionDuration);
-
-        auctionDuration = newAuctionDuration;
     }
 
     /**
@@ -360,7 +310,7 @@ contract RibbonTreasuryVaultBare is
      * @param newStrikeSelection is the address of the new strike selection contract
      */
     function setStrikeSelection(address newStrikeSelection) external onlyOwner {
-        require(newStrikeSelection != address(0), "!newStrikeSelection");
+        require(newStrikeSelection != address(0), "T12");
         strikeSelection = newStrikeSelection;
     }
 
@@ -372,10 +322,7 @@ contract RibbonTreasuryVaultBare is
         external
         onlyOwner
     {
-        require(
-            newOptionsPremiumPricer != address(0),
-            "!newOptionsPremiumPricer"
-        );
+        require(newOptionsPremiumPricer != address(0), "T13");
         optionsPremiumPricer = newOptionsPremiumPricer;
     }
 
@@ -383,39 +330,10 @@ contract RibbonTreasuryVaultBare is
      * @notice Optionality to set strike price manually
      * @param strikePrice is the strike price of the new oTokens (decimals = 8)
      */
-    function setStrikePrice(uint128 strikePrice)
-        external
-        onlyOwner
-    {
-        require(strikePrice > 0, "!strikePrice");
+    function setStrikePrice(uint128 strikePrice) external onlyOwner {
+        require(strikePrice > 0, "T14");
         overriddenStrikePrice = strikePrice;
         lastStrikeOverrideRound = vaultState.round;
-    }
-
-    /**
-     * @notice Set the maximum number of depositors
-     * @param newMaxDepositors is the new cap for number of depositors
-     */
-    function setMaxDepositors(uint256 newMaxDepositors)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(newMaxDepositors > 0, "!newMaxDepositors");
-        maxDepositors = newMaxDepositors;
-    }
-
-    /**
-     * @notice Set the minimum deposit amount
-     * @param newMinDeposit is the new minimum amount for deposit
-     */
-    function setMinDeposit(uint256 newMinDeposit)
-        external
-        onlyOwner
-        nonReentrant
-    {
-        require(newMinDeposit > 0, "!newMinDeposit");
-        minDeposit = newMinDeposit;
     }
 
     /************************************************
@@ -423,53 +341,11 @@ contract RibbonTreasuryVaultBare is
      ***********************************************/
 
     /**
-     * @notice Internal function to add new depositor address
-     * @param newDepositor is the address to include in the depositors list
-     */
-    function _addDepositor(address newDepositor) internal {
-        if (!depositorsMap[newDepositor]) {
-            require(newDepositor != address(0), "Depositor address null");
-            require(
-                (depositorsArray.length + 1) <= maxDepositors,
-                "Number of depositors exceeds limit"
-            );
-
-            depositorsMap[newDepositor] = true;
-            depositorsArray.push(newDepositor);
-        }
-    }
-
-    /**
-     * @notice Remove addresses from depositors list
-     * @param excludeDepositor is the address to exclude from the depositors list
-     */
-    function _removeDepositor(address excludeDepositor) internal {
-        address[] storage array = depositorsArray;
-        uint256 arrayLength = array.length;
-
-        require(depositorsMap[excludeDepositor], "Depositor does not exist");
-
-        depositorsMap[excludeDepositor] = false;
-
-        for (uint256 i = 0; i < arrayLength - 1; i++) {
-            if (excludeDepositor == array[i]) {
-                (array[i], array[arrayLength - 1]) = (
-                    array[arrayLength - 1],
-                    array[i]
-                );
-            }
-        }
-        array.pop();
-    }
-
-    /**
      * @notice Deposits the `asset` from msg.sender.
      * @param amount is the amount of `asset` to deposit
      */
     function deposit(uint256 amount) external nonReentrant {
-        require(amount > 0, "!amount");
-
-        _addDepositor(msg.sender);
+        require(amount > 0, "T15");
 
         _depositFor(amount, msg.sender);
 
@@ -491,17 +367,9 @@ contract RibbonTreasuryVaultBare is
         uint256 totalWithDepositedAmount = totalBalance().add(amount);
 
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
-        uint256 totalUserDeposit =
-            accountVaultBalance(msg.sender).add(depositReceipt.amount).add(
-                amount
-            );
 
-        require(totalWithDepositedAmount <= vaultParams.cap, "Exceed cap");
-        require(
-            totalWithDepositedAmount >= vaultParams.minimumSupply,
-            "Insufficient balance"
-        );
-        require(totalUserDeposit >= minDeposit, "Minimum deposit not reached");
+        require(totalWithDepositedAmount <= vaultParams.cap, "T16");
+        require(totalWithDepositedAmount >= vaultParams.minimumSupply, "T17");
 
         emit Deposit(creditor, amount, currentRound);
 
@@ -540,7 +408,7 @@ contract RibbonTreasuryVaultBare is
      * @param numShares is the number of shares to withdraw
      */
     function initiateWithdraw(uint256 numShares) external nonReentrant {
-        require(numShares > 0, "!numShares");
+        require(numShares > 0, "T18");
 
         // We do a max redeem before initiating a withdrawal
         // But we check if they must first have unredeemed shares
@@ -554,9 +422,8 @@ contract RibbonTreasuryVaultBare is
         // This caches the `round` variable used in shareBalances
         uint256 currentRound = vaultState.round;
         Vault.Withdrawal storage withdrawal = withdrawals[msg.sender];
-        uint256 withdrawalRound = withdrawal.round;
 
-        bool withdrawalIsSameRound = withdrawalRound == currentRound;
+        bool withdrawalIsSameRound = withdrawal.round == currentRound;
 
         emit InitiateWithdraw(msg.sender, numShares, currentRound);
 
@@ -566,27 +433,9 @@ contract RibbonTreasuryVaultBare is
         if (withdrawalIsSameRound) {
             withdrawalShares = existingShares.add(numShares);
         } else {
-            require(existingShares == 0, "Existing withdraw");
+            require(existingShares == 0, "T19");
             withdrawalShares = numShares;
             withdrawals[msg.sender].round = uint16(currentRound);
-        }
-
-        // Ensure withdrawal does not reduce user deposit below the minimum amount
-        uint256 vaultDecimals = vaultParams.decimals;
-        uint256 userBalance = accountVaultBalance(msg.sender);
-
-        uint256 withdrawAmount =
-            ShareMath.sharesToAsset(
-                numShares,
-                currentRound != 1
-                    ? roundPricePerShare[currentRound - 1]
-                    : 10**vaultDecimals,
-                vaultDecimals
-            );
-
-        if (userBalance > withdrawAmount) {
-            uint256 totalDeposit = userBalance.sub(withdrawAmount);
-            require(totalDeposit >= minDeposit, "Minimum deposit not reached");
         }
 
         ShareMath.assertUint128(withdrawalShares);
@@ -596,10 +445,6 @@ contract RibbonTreasuryVaultBare is
             uint256(vaultState.queuedWithdrawShares).add(numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
-
-        if (depositReceipt.amount == 0 && balanceOf(msg.sender) == numShares) {
-            _removeDepositor(msg.sender);
-        }
 
         _transfer(msg.sender, address(this), numShares);
     }
@@ -615,9 +460,9 @@ contract RibbonTreasuryVaultBare is
         uint256 withdrawalRound = withdrawal.round;
 
         // This checks if there is a withdrawal
-        require(withdrawalShares > 0, "Not initiated");
+        require(withdrawalShares > 0, "T20");
 
-        require(withdrawalRound < vaultState.round, "Round not closed");
+        require(withdrawalRound < vaultState.round, "T21");
 
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].shares = 0;
@@ -636,7 +481,7 @@ contract RibbonTreasuryVaultBare is
 
         _burn(address(this), withdrawalShares);
 
-        require(withdrawAmount > 0, "!withdrawAmount");
+        require(withdrawAmount > 0, "T22");
         transferAsset(msg.sender, withdrawAmount);
 
         return withdrawAmount;
@@ -647,7 +492,7 @@ contract RibbonTreasuryVaultBare is
      * @param numShares is the number of shares to redeem
      */
     function redeem(uint256 numShares) external nonReentrant {
-        require(numShares > 0, "!numShares");
+        require(numShares > 0, "T18");
         _redeem(numShares, false);
     }
 
@@ -682,7 +527,7 @@ contract RibbonTreasuryVaultBare is
         if (numShares == 0) {
             return;
         }
-        require(numShares <= unredeemedShares, "Exceeds available");
+        require(numShares <= unredeemedShares, "T23");
 
         // If we have a depositReceipt on the same round, BUT we have some unredeemed shares
         // we debit from the unredeemedShares, but leave the amount field intact
@@ -710,22 +555,11 @@ contract RibbonTreasuryVaultBare is
             depositReceipts[msg.sender];
 
         uint256 currentRound = vaultState.round;
-        require(amount > 0, "!amount");
-        require(depositReceipt.round == currentRound, "Invalid round");
+        require(amount > 0, "T15");
+        require(depositReceipt.round == currentRound, "T24");
 
         uint256 receiptAmount = depositReceipt.amount;
-        require(receiptAmount >= amount, "Exceed amount");
-
-        uint256 userBalance =
-            accountVaultBalance(msg.sender).add(receiptAmount);
-
-        if (userBalance > amount) {
-            uint256 totalUserDeposit = userBalance.sub(amount);
-            require(
-                totalUserDeposit >= minDeposit,
-                "Minimum deposit not reached"
-            );
-        }
+        require(receiptAmount >= amount, "T25");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
         depositReceipt.amount = uint104(receiptAmount.sub(amount));
@@ -734,10 +568,6 @@ contract RibbonTreasuryVaultBare is
         );
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
-
-        if (depositReceipt.amount == 0 && shares(msg.sender) == 0) {
-            _removeDepositor(msg.sender);
-        }
 
         transferAsset(msg.sender, amount);
     }
@@ -757,23 +587,6 @@ contract RibbonTreasuryVaultBare is
      ***********************************************/
 
     /*
-     * @notice Helper function that helps to save gas for writing values into the roundPricePerShare map.
-     *         Writing `1` into the map makes subsequent writes warm, reducing the gas from 20k to 5k.
-     *         Having 1 initialized beforehand will not be an issue as long as we round down share calculations to 0.
-     * @param numRounds is the number of rounds to initialize in the map
-     */
-    function initRounds(uint256 numRounds) external nonReentrant {
-        require(numRounds > 0, "!numRounds");
-
-        uint256 _round = vaultState.round;
-        for (uint256 i = 0; i < numRounds; i++) {
-            uint256 index = _round + i;
-            require(roundPricePerShare[index] == 0, "Initialized"); // AVOID OVERWRITING ACTUAL VALUES
-            roundPricePerShare[index] = ShareMath.PLACEHOLDER_UINT;
-        }
-    }
-
-    /*
      * @notice Helper function that performs most administrative tasks
      * such as setting next option, minting new shares, getting vault fees, etc.
      * @param _lastQueuedWithdrawAmount is old queued withdraw amount
@@ -789,10 +602,10 @@ contract RibbonTreasuryVaultBare is
             uint256 queuedWithdrawAmount
         )
     {
-        require(block.timestamp >= optionState.nextOptionReadyAt, "!ready");
+        require(block.timestamp >= optionState.nextOptionReadyAt, "T26");
 
         newOption = optionState.nextOption;
-        require(newOption != address(0), "!nextOption");
+        require(newOption != address(0), "T27");
 
         uint256 currentRound = vaultState.round;
         address recipient = feeRecipient;
@@ -806,9 +619,9 @@ contract RibbonTreasuryVaultBare is
                 newPricePerShare,
                 mintShares,
                 managementFeeInAsset
-            ) = VaultLifecycleTreasuryBare.rollover(
+            ) = VaultLifecycleTreasury.rollover(
                 vaultState,
-                VaultLifecycleTreasuryBare.RolloverParams(
+                VaultLifecycleTreasury.RolloverParams(
                     vaultParams.decimals,
                     IERC20(vaultParams.asset).balanceOf(address(this)),
                     totalSupply(),
@@ -840,6 +653,10 @@ contract RibbonTreasuryVaultBare is
             transferAsset(payable(recipient), managementFeeInAsset);
         }
 
+        lockedBalance = lockedBalance.sub(
+            lockedBalance.mul(reserveRatio).div(10**Vault.OTOKEN_DECIMALS)
+        );
+
         return (newOption, lockedBalance, queuedWithdrawAmount);
     }
 
@@ -857,11 +674,19 @@ contract RibbonTreasuryVaultBare is
      * @notice Sets the next option the vault will be shorting, and closes the existing short.
      *         This allows all the users to withdraw if the next option is malicious.
      */
-    function commitAndClose() external nonReentrant {
+    function commitAndClose() external virtual nonReentrant {
+        _commitAndClose();
+    }
+
+    /**
+     * @notice Sets the next option the vault will be shorting, and closes the existing short.
+     *         This allows all the users to withdraw if the next option is malicious.
+     */
+    function _commitAndClose() internal {
         address oldOption = optionState.currentOption;
 
-        VaultLifecycleTreasuryBare.CloseParams memory closeParams =
-            VaultLifecycleTreasuryBare.CloseParams({
+        VaultLifecycleTreasury.CloseParams memory closeParams =
+            VaultLifecycleTreasury.CloseParams({
                 OTOKEN_FACTORY: OTOKEN_FACTORY,
                 USDC: USDC,
                 currentOption: oldOption,
@@ -877,7 +702,7 @@ contract RibbonTreasuryVaultBare is
             uint256 strikePrice,
             uint256 delta
         ) =
-            VaultLifecycleTreasuryBare.commitAndClose(
+            VaultLifecycleTreasury.commitAndClose(
                 strikeSelection,
                 optionsPremiumPricer,
                 premiumDiscount,
@@ -889,23 +714,13 @@ contract RibbonTreasuryVaultBare is
         emit NewOptionStrikeSelected(strikePrice, delta);
 
         ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
 
         uint256 nextOptionReady = block.timestamp.add(DELAY);
-        require(
-            nextOptionReady <= type(uint32).max,
-            "Overflow nextOptionReady"
-        );
+        require(nextOptionReady <= type(uint32).max, "T28");
         optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
         _closeShort(oldOption);
-
-        // In case chargeAndDistribute was not called last round, call
-        // the function to conclude last round's performance fee and distribution
-        if (IERC20(USDC).balanceOf(address(this)) > MIN_DUST_AMOUNT) {
-            _chargeAndDistribute();
-        }
     }
 
     /**
@@ -922,7 +737,7 @@ contract RibbonTreasuryVaultBare is
 
         if (oldOption != address(0)) {
             uint256 withdrawAmount =
-                VaultLifecycleTreasuryBare.settleShort(GAMMA_CONTROLLER);
+                VaultLifecycleTreasury.settleShort(GAMMA_CONTROLLER);
             emit CloseShort(oldOption, withdrawAmount, msg.sender);
         }
     }
@@ -944,48 +759,37 @@ contract RibbonTreasuryVaultBare is
 
         emit OpenShort(newOption, lockedBalance, msg.sender);
 
-        oTokenMintAmount = VaultLifecycleTreasuryBare.createShort(
+        oTokenMintAmount = VaultLifecycleTreasury.createShort(
             GAMMA_CONTROLLER,
             MARGIN_POOL,
             newOption,
             lockedBalance
         );
-
-        _startAuction();
     }
 
     /**
-     * @notice Initiate the gnosis auction.
+     * @notice Sends oToken to buyer
+     * @param _buyer is the buyer of the oToken
      */
-    function startAuction() external onlyKeeper nonReentrant {
-        _startAuction();
-    }
-
-    function _startAuction() private {
-        GnosisAuction.AuctionDetails memory auctionDetails;
-
-        uint256 currOtokenPremium = currentOtokenPremium;
-
-        require(currOtokenPremium > 0, "!currentOtokenPremium");
-
-        uint256 stableDecimals = IERC20Detailed(USDC).decimals();
-
-        auctionDetails.oTokenAddress = optionState.currentOption;
-        auctionDetails.gnosisEasyAuction = GNOSIS_EASY_AUCTION;
-        auctionDetails.asset = USDC;
-        auctionDetails.assetDecimals = stableDecimals;
-        auctionDetails.oTokenPremium = currOtokenPremium;
-        auctionDetails.duration = auctionDuration;
-
-        optionAuctionID = VaultLifecycleTreasuryBare.startAuction(auctionDetails);
+    function sendOTokens(address _buyer) external onlyOwner nonReentrant {
+        require(_buyer != address(0), "T29");
+        IERC20 oToken = IERC20(optionState.currentOption);
+        oToken.safeTransfer(_buyer, oToken.balanceOf(address(this)));
     }
 
     /**
      * @notice Burn the remaining oTokens left over from gnosis auction.
      */
     function burnRemainingOTokens() external onlyKeeper nonReentrant {
+        _burnRemainingOTokens();
+    }
+
+    /**
+     * @notice Burn the remaining oTokens left over from gnosis auction.
+     */
+    function _burnRemainingOTokens() internal {
         uint256 unlockedAssetAmount =
-            VaultLifecycleTreasuryBare.burnOtokens(
+            VaultLifecycleTreasury.burnOtokens(
                 GAMMA_CONTROLLER,
                 optionState.currentOption
             );
@@ -993,93 +797,6 @@ contract RibbonTreasuryVaultBare is
         vaultState.lockedAmount = uint104(
             uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
         );
-    }
-
-    /**
-     * @notice Settles the round's Gnosis auction and distribute the premiums earned
-     */
-    function concludeOptionsSale() external onlyKeeper nonReentrant {
-        VaultLifecycleTreasuryBare.settleAuction(
-            GNOSIS_EASY_AUCTION,
-            optionAuctionID
-        );
-
-        if (IERC20(USDC).balanceOf(address(this)) > MIN_DUST_AMOUNT) {
-            _chargeAndDistribute();
-        }
-    }
-
-    /**
-     * @notice Charge performance fee and distribute remaining to depositors addresses
-     */
-    function chargeAndDistribute() external onlyKeeper nonReentrant {
-        _chargeAndDistribute();
-    }
-
-    /**
-     * @notice Calculate performance fee and transfer to fee recipient
-     */
-    function _chargeAndDistribute() internal {
-        IERC20 stableAsset = IERC20(USDC);
-        uint256 stableBalance = stableAsset.balanceOf(address(this));
-
-        require(stableBalance > 0, "no premium to distribute");
-
-        _chargePerformanceFee(stableAsset, stableBalance);
-
-        _distributePremium(
-            stableAsset,
-            stableAsset.balanceOf(address(this)) // Get the new balance
-        );
-    }
-
-    /**
-     * @notice Charge performance fee
-     */
-    function _chargePerformanceFee(IERC20 token, uint256 amount) internal {
-        address recipient = feeRecipient;
-        uint256 transferAmount =
-            amount.mul(performanceFee).div(100 * Vault.FEE_MULTIPLIER);
-
-        token.safeTransfer(recipient, transferAmount);
-
-        // Performance fee for the round is charged after rollover
-        // hence we need to adjust the round to the previous
-        emit CollectPerformanceFee(
-            transferAmount,
-            vaultState.round - 1,
-            recipient
-        );
-    }
-
-    /**
-     * @notice Distribute the premium to depositor addresses
-     */
-    function _distributePremium(IERC20 token, uint256 amount) internal {
-        // Distribute to depositor address
-        address[] storage _depositors = depositorsArray;
-        uint256[] memory _amounts = new uint256[](_depositors.length);
-        uint256 totalSupply = totalSupply() - lastQueuedWithdrawAmount;
-
-        for (uint256 i = 0; i < _depositors.length; i++) {
-            // Distribute to depositors proportional to the amount of
-            // shares they own
-            address depositorAddress = _depositors[i];
-            _amounts[i] = shares(depositorAddress).mul(amount).div(totalSupply);
-
-            token.safeTransfer(depositorAddress, _amounts[i]);
-        }
-
-        emit DistributePremium(
-            amount,
-            _amounts,
-            _depositors,
-            vaultState.round - 1
-        );
-    }
-
-    function setCurrentOtokenPremium(uint256 newOtokenPremium) public onlyKeeper {
-        currentOtokenPremium = newOtokenPremium;
     }
 
     /************************************************
@@ -1219,10 +936,7 @@ contract RibbonTreasuryVaultBare is
         address recipient,
         uint256 amount
     ) internal override {
-        require(
-            recipient == address(this) || sender == address(this),
-            "Treasury rToken is not transferrable"
-        );
+        require(recipient == address(this) || sender == address(this), "T30");
         return ERC20Upgradeable._transfer(sender, recipient, amount);
     }
 }

@@ -792,33 +792,7 @@ library VaultLifecycleTreasury {
         pure
         returns (uint256 nextExpiry)
     {
-        if (period == 7) {
-            nextExpiry = DateTime.getNextFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? nextExpiry + 1 weeks
-                : nextExpiry;
-        } else if (period == 14) {
-            nextExpiry = DateTime.getNextFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? nextExpiry + 2 weeks
-                : nextExpiry + 1 weeks;
-        } else if (period == 30) {
-            nextExpiry = DateTime.getMonthLastFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? DateTime.getMonthLastFriday(nextExpiry + 1 weeks)
-                : nextExpiry;
-        } else if (period == 90) {
-            nextExpiry = DateTime.getQuarterLastFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? DateTime.getQuarterLastFriday(nextExpiry + 1 weeks)
-                : nextExpiry;
-        } else if (period == 180) {
-            nextExpiry = DateTime.getBiannualLastFriday(timestamp);
-            nextExpiry = nextExpiry <= timestamp
-                ? DateTime.getBiannualLastFriday(nextExpiry + 1 weeks)
-                : nextExpiry;
-        }
-
+        nextExpiry = timestamp + period * 1 days;
         nextExpiry = nextExpiry - (nextExpiry % (24 hours)) + (8 hours);
     }
 
