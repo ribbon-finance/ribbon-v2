@@ -241,6 +241,7 @@ function behavesLikeRibbonOptionsVault(params: {
   let firstOptionExpiry: number;
   let optionId: string;
   let PCT_MULTIPLIER = 10000;
+  let OTOKEN_DECIMALS = 8;
 
   describe(`${params.name}`, () => {
     let initSnapshotId: string;
@@ -1221,6 +1222,31 @@ function behavesLikeRibbonOptionsVault(params: {
           "Ownable: caller is not the owner"
         );
       });
+      it("reverts if AB is lower than PCT_MULTIPLIER", async function () {
+        await expect(
+          vault.connect(ownerSigner).setCouponState(0, 9950, 0)
+        ).to.be.revertedWith("A1");
+      });
+      it("reverts if coupon type is FIXED and CB is not zero", async function () {
+        await expect(
+          vault.connect(ownerSigner).setCouponState(0, 10500, 1)
+        ).to.be.revertedWith("A2");
+      });
+      it("reverts if coupon type is VANILLA and CB is not equal to AB", async function () {
+        await expect(
+          vault.connect(ownerSigner).setCouponState(3, 10500, 0)
+        ).to.be.revertedWith("A3");
+      });
+      it("reverts if coupon type is PHOENIX/PHOENIX-MEMORY and CB is 0", async function () {
+        await expect(
+          vault.connect(ownerSigner).setCouponState(2, 10500, 0)
+        ).to.be.revertedWith("A4");
+      });
+      it("reverts if coupon type is PHOENIX/PHOENIX-MEMORY and CB equal or higher to AB", async function () {
+        await expect(
+          vault.connect(ownerSigner).setCouponState(2, 10500, 10500)
+        ).to.be.revertedWith("A5");
+      });
       it("successfully sets coupon type", async function () {
         assert.equal((await vault.couponState())[1], 3);
         assert.equal((await vault.couponState())[3], 10500);
@@ -1336,7 +1362,41 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await time.revertToSnapShot(snapshot0);
       });
-      it("sucessfully returns data for VANILLA coupon type", async function () {
+      it("sucessfully returns data for VANILLA coupon type when autocall is never breached", async function () {
+        snapshot0 = await time.takeSnapshot();
+
+        // set prices for observation such that autocall barrier is never hit
+        const expiry = await currentOtoken.expiryTimestamp();
+
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+        ];
+
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
+
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
+
+        const [nCouponsEarned, earnedAmt, autocallTS] =
+          await vault.couponsEarned();
+
+        assert.equal(nCouponsEarned.toString(), 0);
+        assert.equal(earnedAmt.toString(), 0);
+        assert.equal(autocallTS.toString(), expiry.toString());
+
+        await time.revertToSnapShot(snapshot0);
+      });
+      it("sucessfully returns data for VANILLA coupon type when autocall is breached", async function () {
         // autocall seller transfers premium
         await premiumContract
           .connect(autocallSellerSigner)
@@ -1345,36 +1405,25 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on observation 5 - max payoff
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")) * obsFreq;
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")) * obsFreq;
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")) * obsFreq;
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")) * obsFreq;
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")) * obsFreq;
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.add(1),
+        ];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs5, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         const [nCouponsEarned, earnedAmt, autocallTS] =
           await vault.couponsEarned();
@@ -1413,24 +1462,19 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on observation 3
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")) * obsFreq;
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")) * obsFreq;
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")) * obsFreq;
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [AB.sub(1), AB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         const [nCouponsEarned, earnedAmt, autocallTS] =
           await vault.couponsEarned();
@@ -1440,7 +1484,7 @@ function behavesLikeRibbonOptionsVault(params: {
           earnedAmt.toString(),
           premiumAmount.div(5).mul(3).toString()
         );
-        assert.equal(autocallTS.toString(), obs3.toString());
+        assert.equal(autocallTS.toString(), observations[2].toString());
       });
       it("sucessfully returns data for PHOENIX coupon type", async function () {
         await time.revertToSnapShot(snapshot1);
@@ -1477,42 +1521,19 @@ function behavesLikeRibbonOptionsVault(params: {
         // autocall barrier is hit on observation 4
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")) * obsFreq;
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")) * obsFreq;
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")) * obsFreq;
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")) * obsFreq;
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, CB.sub(1));
+        const observations = [];
+        const expirationPrices = [CB.sub(1), CB.add(1), CB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, CB.add(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        const [nCouponsEarned_obs2, earnedAmt_obs2, autocallTS_obs2] =
-          await vault.couponsEarned();
-
-        // intermediate check after observation 2
-        assert.equal(nCouponsEarned_obs2.toString(), 1);
-        assert.equal(
-          earnedAmt_obs2.toString(),
-          premiumAmount.div(5).mul(1).toString()
-        );
-        assert.equal(autocallTS_obs2.toString(), expiry.toString());
-
-        // continue to remaining observations
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, CB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         const [nCouponsEarned, earnedAmt, autocallTS] =
           await vault.couponsEarned();
@@ -1522,7 +1543,7 @@ function behavesLikeRibbonOptionsVault(params: {
           earnedAmt.toString(),
           premiumAmount.div(5).mul(2).toString()
         );
-        assert.equal(autocallTS.toString(), obs4.toString());
+        assert.equal(autocallTS.toString(), observations[3].toString());
       });
       it("sucessfully returns data for PHOENIX_MEMORY coupon type", async function () {
         await time.revertToSnapShot(snapshot2);
@@ -1558,42 +1579,19 @@ function behavesLikeRibbonOptionsVault(params: {
         // autocall barrier is hit on observation 4
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")) * obsFreq;
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")) * obsFreq;
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")) * obsFreq;
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")) * obsFreq;
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, CB.sub(1));
+        const observations = [];
+        const expirationPrices = [CB.sub(1), CB.add(1), CB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, CB.add(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        const [nCouponsEarned_obs2, earnedAmt_obs2, autocallTS_obs2] =
-          await vault.couponsEarned();
-
-        // intermediate check after observation 2
-        assert.equal(nCouponsEarned_obs2.toString(), 2);
-        assert.equal(
-          earnedAmt_obs2.toString(),
-          premiumAmount.div(5).mul(2).toString()
-        );
-        assert.equal(autocallTS_obs2.toString(), expiry.toString());
-
-        // continue to remaining observations
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, CB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         const [nCouponsEarned, earnedAmt, autocallTS] =
           await vault.couponsEarned();
@@ -1603,12 +1601,13 @@ function behavesLikeRibbonOptionsVault(params: {
           earnedAmt.toString(),
           premiumAmount.div(5).mul(4).toString()
         );
-        assert.equal(autocallTS.toString(), obs4.toString());
+        assert.equal(autocallTS.toString(), observations[3].toString());
       });
     });
 
     describe("#commitAndClose", () => {
       time.revertToSnapshotAfterEach();
+      let obsFreq;
 
       it("reverts if autocall barrier has not been breached before expiry", async function () {
         await approve(assetContract, vault, depositAmount, userSigner);
@@ -1628,13 +1627,9 @@ function behavesLikeRibbonOptionsVault(params: {
           await vault.currentOption()
         );
 
-        const vaultOtokenBalBefore = await currentOtoken.balanceOf(
-          vault.address
-        );
-
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -1648,24 +1643,19 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on observation 3
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [AB.sub(1), AB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         // tokens are sent to autocall seller but only a part is returned
         await vault.connect(ownerSigner).sendOTokens(autocallSeller);
@@ -1700,7 +1690,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -1714,24 +1705,35 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on observation 3
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [AB.sub(1), AB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
+
+        // reserve ratio / locked amount check
+        const reserveRatio = initialSpotPrice
+          .sub(strikePrice)
+          .mul(10 ** OTOKEN_DECIMALS)
+          .div(initialSpotPrice);
+
+        const lockedAmount = (await vault.vaultState())[1];
+
+        assert.equal(
+          lockedAmount
+            .mul(10 ** OTOKEN_DECIMALS)
+            .div(depositAmount)
+            .toString(),
+          (10 ** OTOKEN_DECIMALS - reserveRatio).toString()
+        );
 
         await vault.commitAndClose();
 
@@ -1773,6 +1775,20 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.accountVaultBalance(user)).toString(),
           depositAmount.toString()
         );
+
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 0); // optionType
+        assert.equal((await vault.putOption())[1], 0); // nOptionType
+        assert.equal((await vault.putOption())[2], 0); // payoff
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and DIP downside earlier than maturity", async function () {
@@ -1800,7 +1816,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -1814,24 +1831,35 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on observation 3
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [AB.sub(1), AB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
+
+        // reserve ratio / locked amount check
+        const reserveRatio = initialSpotPrice
+          .sub(strikePrice)
+          .mul(10 ** OTOKEN_DECIMALS)
+          .div(initialSpotPrice);
+
+        const lockedAmount = (await vault.vaultState())[1];
+
+        assert.equal(
+          lockedAmount
+            .mul(10 ** OTOKEN_DECIMALS)
+            .div(depositAmount)
+            .toString(),
+          (10 ** OTOKEN_DECIMALS - reserveRatio).toString()
+        );
 
         await vault.commitAndClose();
 
@@ -1873,6 +1901,27 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.accountVaultBalance(user)).toString(),
           depositAmount.toString()
         );
+
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 1); // optionType
+        assert.equal((await vault.putOption())[1], 1); // nOptionType
+        assert.equal(
+          (await vault.putOption())[2].toString(),
+          initialSpotPrice
+            .sub(strikePrice)
+            .mul(10 ** tokenDecimals)
+            .div(10 ** OTOKEN_DECIMALS)
+            .toString()
+        ); // payoff
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and LEVERED downside earlier than maturity", async function () {
@@ -1900,7 +1949,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -1914,24 +1963,23 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on observation 3
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [AB.sub(1), AB.sub(1), AB.add(1)];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
+
+        // reserve ratio / locked amount check
+        const lockedAmount = (await vault.vaultState())[1];
+        assert.equal(lockedAmount.toString(), depositAmount); // levered
 
         await vault.commitAndClose();
 
@@ -1973,6 +2021,20 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.accountVaultBalance(user)).toString(),
           depositAmount.toString()
         );
+
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 2); // optionType
+        assert.equal((await vault.putOption())[1], 2); // nOptionType
+        assert.equal((await vault.putOption())[2], 0); // payoff
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity OTM", async function () {
@@ -1999,7 +2061,8 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -2013,42 +2076,47 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is hit on the last observation (observation 5)
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.add(1),
+        ];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs5, AB.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         // Increase beyond dispute period
         await time.increase(ORACLE_DISPUTE_PERIOD);
 
         // otokens are sent to MM
         await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        // reserve ratio / locked amount check
+        const reserveRatio = initialSpotPrice
+          .sub(strikePrice)
+          .mul(10 ** OTOKEN_DECIMALS)
+          .div(initialSpotPrice);
+
+        const lockedAmount = (await vault.vaultState())[1];
+
+        assert.equal(
+          lockedAmount
+            .mul(10 ** OTOKEN_DECIMALS)
+            .div(depositAmount)
+            .toString(),
+          (10 ** OTOKEN_DECIMALS - reserveRatio).toString()
+        );
 
         await vault.commitAndClose();
 
@@ -2089,6 +2157,20 @@ function behavesLikeRibbonOptionsVault(params: {
         // otokens are not burned and are sent from the vault to MM/autocall seller
         assert.equal(mmOtokenBal.toString(), vaultOtokenBalBefore.toString());
         assert.equal(vaultOtokenBalAfter, 0);
+
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 0); // optionType
+        assert.equal((await vault.putOption())[1], 0); // nOptionType
+        assert.equal((await vault.putOption())[2], 0); // payoff
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity ITM", async function () {
@@ -2115,7 +2197,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
+        const priceAtExpiry = strikePrice.div(2);
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -2129,44 +2213,47 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is never it and last observation is below strike price
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          priceAtExpiry,
+        ];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        const strikePrice = await currentOtoken.strikePrice();
-        const priceAtExpiry = strikePrice.div(2);
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs5, priceAtExpiry);
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         // Increase beyond dispute period
         await time.increase(ORACLE_DISPUTE_PERIOD);
 
         // otokens are sent to MM
         await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        // reserve ratio / locked amount check
+        const reserveRatio = initialSpotPrice
+          .sub(strikePrice)
+          .mul(10 ** OTOKEN_DECIMALS)
+          .div(initialSpotPrice);
+
+        const lockedAmount = (await vault.vaultState())[1];
+
+        assert.equal(
+          lockedAmount
+            .mul(10 ** OTOKEN_DECIMALS)
+            .div(depositAmount)
+            .toString(),
+          (10 ** OTOKEN_DECIMALS - reserveRatio).toString()
+        );
 
         await vault.commitAndClose();
 
@@ -2217,6 +2304,20 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnLt(mmOtokenBal, oTokenBal.mul(100001).div(100000));
         assert.bnGt(mmOtokenBal, oTokenBal.mul(99999).div(100000));
 
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 0); // optionType
+        assert.equal((await vault.putOption())[1], 0); // nOptionType
+        assert.equal((await vault.putOption())[2], 0); // payoff
+
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
         console.log("priceAtExpiry", priceAtExpiry.toString());
@@ -2251,7 +2352,7 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
         const strikePrice = await currentOtoken.strikePrice();
 
         await premiumContract
@@ -2266,42 +2367,47 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is never and last ovbservation is just above strike price (observation 5)
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          strikePrice.add(1),
+        ];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs5, strikePrice.add(1));
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         // Increase beyond dispute period
         await time.increase(ORACLE_DISPUTE_PERIOD);
 
         // otokens are sent to MM
         await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        // reserve ratio / locked amount check
+        const reserveRatio = initialSpotPrice
+          .sub(strikePrice)
+          .mul(10 ** OTOKEN_DECIMALS)
+          .div(initialSpotPrice);
+
+        const lockedAmount = (await vault.vaultState())[1];
+
+        assert.equal(
+          lockedAmount
+            .mul(10 ** OTOKEN_DECIMALS)
+            .div(depositAmount)
+            .toString(),
+          (10 ** OTOKEN_DECIMALS - reserveRatio).toString()
+        );
 
         await vault.commitAndClose();
 
@@ -2339,6 +2445,27 @@ function behavesLikeRibbonOptionsVault(params: {
         // otokens are not burned and are sent from the vault and to MM/autocall seller
         assert.equal(mmOtokenBal.toString(), vaultOtokenBalBefore.toString());
         assert.equal(vaultOtokenBalAfter, 0);
+
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 1); // optionType
+        assert.equal((await vault.putOption())[1], 1); // nOptionType
+        assert.equal(
+          (await vault.putOption())[2].toString(),
+          initialSpotPrice
+            .sub(strikePrice)
+            .mul(10 ** tokenDecimals)
+            .div(10 ** OTOKEN_DECIMALS)
+            .toString()
+        ); // payoff
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and DIP downside after maturity ITM", async function () {
@@ -2366,7 +2493,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
+        const priceAtExpiry = strikePrice.div(2);
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -2380,44 +2509,47 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is never it and last observation is below strike price
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          priceAtExpiry,
+        ];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        const strikePrice = await currentOtoken.strikePrice();
-        const priceAtExpiry = strikePrice.div(2);
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs5, priceAtExpiry);
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         // Increase beyond dispute period
         await time.increase(ORACLE_DISPUTE_PERIOD);
 
         // otokens are sent to MM
         await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        // reserve ratio / locked amount check
+        const reserveRatio = initialSpotPrice
+          .sub(strikePrice)
+          .mul(10 ** OTOKEN_DECIMALS)
+          .div(initialSpotPrice);
+
+        const lockedAmount = (await vault.vaultState())[1];
+
+        assert.equal(
+          lockedAmount
+            .mul(10 ** OTOKEN_DECIMALS)
+            .div(depositAmount)
+            .toString(),
+          (10 ** OTOKEN_DECIMALS - reserveRatio).toString()
+        );
 
         await vault.commitAndClose();
 
@@ -2484,6 +2616,27 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.bnLt(mmOtokenBal, oTokenBal.mul(100001).div(100000));
         assert.bnGt(mmOtokenBal, oTokenBal.mul(99999).div(100000));
 
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 1); // optionType
+        assert.equal((await vault.putOption())[1], 1); // nOptionType
+        assert.equal(
+          (await vault.putOption())[2].toString(),
+          initialSpotPrice
+            .sub(strikePrice)
+            .mul(10 ** tokenDecimals)
+            .div(10 ** OTOKEN_DECIMALS)
+            .toString()
+        ); // payoff
+
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
         console.log("priceAtExpiry", priceAtExpiry.toString());
@@ -2522,7 +2675,9 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const premiumAmount = BigNumber.from("5000000000"); // 1000 USDC
         const numTotalObs = await vault.numTotalObs(); // 5 total observations
-        const obsFreq = BigNumber.from("518400"); // 6 days
+        obsFreq = BigNumber.from("518400"); // 6 days
+        const strikePrice = await currentOtoken.strikePrice();
+        const priceAtExpiry = strikePrice.div(2);
 
         await premiumContract
           .connect(autocallSellerSigner)
@@ -2536,44 +2691,35 @@ function behavesLikeRibbonOptionsVault(params: {
         // set prices for observation such that autocall barrier is never it and last observation is below strike price
 
         const expiry = await currentOtoken.expiryTimestamp();
-        const obs5 = expiry - numTotalObs.sub(BigNumber.from("5")).mul(obsFreq);
-        const obs4 = expiry - numTotalObs.sub(BigNumber.from("4")).mul(obsFreq);
-        const obs3 = expiry - numTotalObs.sub(BigNumber.from("3")).mul(obsFreq);
-        const obs2 = expiry - numTotalObs.sub(BigNumber.from("2")).mul(obsFreq);
-        const obs1 = expiry - numTotalObs.sub(BigNumber.from("1")).mul(obsFreq);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs1, AB.sub(1));
+        const observations = [];
+        const expirationPrices = [
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          AB.sub(1),
+          priceAtExpiry,
+        ];
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs2, AB.sub(1));
+        for (let i = 0; i < expirationPrices.length; i++) {
+          const obs = expiry - numTotalObs.sub(BigNumber.from(i + 1)) * obsFreq;
+          observations.push(obs);
 
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs3, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs4, AB.sub(1));
-
-        await time.increase(obsFreq.add(1));
-        const strikePrice = await currentOtoken.strikePrice();
-        const priceAtExpiry = strikePrice.div(2);
-        await oracle
-          .connect(pricerSigner)
-          .setExpiryPrice(params.asset, obs5, priceAtExpiry);
+          await time.increase(obsFreq.add(1));
+          await oracle
+            .connect(pricerSigner)
+            .setExpiryPrice(params.asset, observations[i], expirationPrices[i]);
+        }
 
         // Increase beyond dispute period
         await time.increase(ORACLE_DISPUTE_PERIOD);
 
         // otokens are sent to MM
         await vault.connect(ownerSigner).sendOTokens(autocallSeller);
+
+        // reserve ratio / locked amount check
+        const lockedAmount = (await vault.vaultState())[1];
+        assert.equal(lockedAmount.toString(), depositAmount); // levered
 
         await vault.commitAndClose();
 
@@ -2618,6 +2764,20 @@ function behavesLikeRibbonOptionsVault(params: {
 
         const oTokenBal = depositAmount.mul(10 ** 10).div(strikePrice); // 8 decimals for price plus 2 decimals to adjust for USDC that only has 6 decimals
         assert.equal(mmOtokenBal.toString(), oTokenBal.toString());
+
+        // state changes
+        assert.equal((await vault.couponState())[0], 3); // couponType
+        assert.equal((await vault.couponState())[1], 3); // nCouponType
+        assert.equal((await vault.couponState())[2], 10500); // AB
+        assert.equal((await vault.couponState())[3], 10500); // nAB
+        assert.equal((await vault.couponState())[4], 10500); // CB
+        assert.equal((await vault.couponState())[5], 10500); // nCB
+        assert.equal(await vault.obsFreq(), 518400);
+        assert.equal(await vault.period(), 30);
+        assert.equal(await vault.numTotalObs(), 5);
+        assert.equal((await vault.putOption())[0], 2); // optionType
+        assert.equal((await vault.putOption())[1], 2); // nOptionType
+        assert.equal((await vault.putOption())[2], 0); // payoff
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
