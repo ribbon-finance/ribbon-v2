@@ -61,8 +61,6 @@ abstract contract AutocallVaultStorageV1 {
     uint256 public numTotalObs;
     // Next period
     uint256 internal nPeriod;
-    // Buyer of the autocall
-    address public autocallBuyer;
     // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
     address public autocallSeller;
 }
