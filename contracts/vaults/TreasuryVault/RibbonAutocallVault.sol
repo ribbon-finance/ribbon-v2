@@ -106,8 +106,8 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         _initialize(_initParams, _vaultParams);
         _verifyCouponState(
             _couponState.nCouponType,
-            _couponState.nAB,
-            _couponState.nCB
+            _couponState.AB,
+            _couponState.CB
         );
 
         require(_autocallSeller != address(0), "A7");

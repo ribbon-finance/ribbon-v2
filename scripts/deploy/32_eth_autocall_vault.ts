@@ -131,9 +131,9 @@ const main = async ({
   const initOptionType = 0;
   const initCouponType = 3;
   const initAB = 10500;
-  const initNAB = 10500;
+  const initNAB = 0;
   const initCB = 10500;
-  const initNCB = 10500;
+  const initNCB = 0;
   const obsFreq = 518400; // 6 days
   const autocallSeller = "0x0000000000000000000000000000000000000001";
 

@@ -367,9 +367,9 @@ function behavesLikeRibbonOptionsVault(params: {
       const initializeOptionType = 0; // VANILLA
       const initializeCouponType = 3; // VANILLA
       const initializeAB = 10500;
-      const initializeNAB = 10500;
+      const initializeNAB = 0;
       const initializenCB = 10500;
-      const initializenNCB = 10500;
+      const initializenNCB = 0;
 
       const obsFreq = 518400; // 6 days
 
