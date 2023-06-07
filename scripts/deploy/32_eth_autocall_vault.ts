@@ -2,20 +2,13 @@ import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import {
   CHAINID,
-  USDC_PRICE_ORACLE,
-  OptionsPremiumPricerInStables_BYTECODE,
-  ETH_PRICE_ORACLE,
   WETH_ADDRESS,
   USDC_ADDRESS,
   OTOKEN_FACTORY,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
 } from "../../constants/constants";
-import OptionsPremiumPricerInStables_ABI from "../../constants/abis/OptionsPremiumPricerInStables.json";
-import ManualVolOracle_ABI from "../../constants/abis/ManualVolOracle.json";
 import { AUCTION_DURATION, PREMIUM_DISCOUNT } from "../utils/constants";
-
-import { getDeltaStep } from "../../test/helpers/utils";
 
 const main = async ({
   network,
