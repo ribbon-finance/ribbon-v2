@@ -116,7 +116,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
 
         putOption.nOptionType = _optionType;
-        couponState.nCouponType = _couponState.nCouponType;
+        couponState.nCouponType = _couponState.couponType;
         couponState.nAB = _couponState.AB;
         couponState.nCB = _couponState.CB;
 
