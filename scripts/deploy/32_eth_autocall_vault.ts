@@ -36,33 +36,9 @@ const main = async ({
     return;
   }
 
-  const manualVolOracle = await deployments.get("ManualVolOracle");
-  const underlyingOracle = ETH_PRICE_ORACLE[chainId];
-  const stablesOracle = USDC_PRICE_ORACLE[chainId];
-
-  const manualVolOracleContract = await ethers.getContractAt(
-    ManualVolOracle_ABI,
-    manualVolOracle.address
-  );
-  const optionId = await manualVolOracleContract.getOptionId(
-    getDeltaStep("WETH"),
-    WETH_ADDRESS[chainId],
-    USDC_ADDRESS[chainId],
-    true
-  );
-
-  const pricer = await deploy("OptionsPremiumPricerWETH", {
-    from: deployer,
-    contract: {
-      abi: OptionsPremiumPricerInStables_ABI,
-      bytecode: OptionsPremiumPricerInStables_BYTECODE,
-    },
-    args: [optionId, manualVolOracle.address, underlyingOracle, stablesOracle],
-  });
+  const pricer = await deployments.get("OptionsPremiumPricerETHPut");
 
   console.log(`AutocallVaultWETH pricer @ ${pricer.address}`);
-
-  // Can't verify pricer because it's compiled with 0.7.3
 
   const strikeSelection = await deploy("ManualStrikeSelectionAutocall", {
     contract: "ManualStrikeSelection",
@@ -85,6 +61,7 @@ const main = async ({
     contract: "VaultLifecycleTreasury",
     from: deployer,
   });
+
   console.log(`VaultLifeCycleTreasury @ ${lifecycleTreasury.address}`);
 
   // deploy logic
