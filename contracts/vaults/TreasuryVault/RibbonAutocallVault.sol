@@ -105,7 +105,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     ) external initializer {
         _initialize(_initParams, _vaultParams);
         _verifyCouponState(
-            _couponState.nCouponType,
+            _couponState.couponType,
             _couponState.AB,
             _couponState.CB
         );
