@@ -98,12 +98,10 @@ const main = async ({
   }
 
   // Autocall vault specific initArgs
-  const initOptionType = 0;
-  const initCouponType = 3;
-  const initAB = 10500;
-  const initNAB = 0;
-  const initCB = 10500;
-  const initNCB = 0;
+  const optionType = 0;
+  const couponType = 3;
+  const AB = 10500;
+  const CB = 10500;
   const obsFreq = 518400; // 6 days
   const autocallSeller = "0x0000000000000000000000000000000000000001";
 
@@ -132,14 +130,14 @@ const main = async ({
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1500"),
     },
-    initOptionType,
+    optionType,
     [
-      initCouponType,
-      initCouponType,
-      initAB,
-      initNAB,
-      initCB,
-      initNCB,
+      couponType,
+      0,
+      AB,
+      0,
+      CB,
+      0,
     ],
     obsFreq,
     autocallSeller,
