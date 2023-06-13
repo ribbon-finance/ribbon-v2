@@ -502,6 +502,16 @@ export const NETWORK_NAMES = {
 export const STETH_ETH_CRV_POOL = "0xDC24316b9AE028F1497c275EB9192a3Ea0f67022";
 
 /**
+ * Autocall vault specific initArgs
+ */
+export const OPTION_TYPE = 1; // DIP
+export const COUPON_TYPE = 0; // FIXED
+export const AB = 10000; // autocall is 100%
+export const CB = 0; // FIXED requires 0 CB
+export const OBSERVATION_FREQUENCY = 604800; // 7 days
+export const AUTOCALL_SELLER = ""; // Marex address
+
+/**
  * RVol Bytecode
  */
 export const OptionsPremiumPricerInETH_BYTECODE =

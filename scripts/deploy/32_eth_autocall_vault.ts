@@ -7,6 +7,12 @@ import {
   OTOKEN_FACTORY,
   GAMMA_CONTROLLER,
   MARGIN_POOL,
+  OPTION_TYPE,
+  COUPON_TYPE,
+  AB,
+  CB,
+  OBSERVATION_FREQUENCY,
+  AUTOCALL_SELLER,
 } from "../../constants/constants";
 import { AUCTION_DURATION, PREMIUM_DISCOUNT } from "../utils/constants";
 
@@ -97,14 +103,6 @@ const main = async ({
     console.log(error);
   }
 
-  // Autocall vault specific initArgs
-  const optionType = 1; // DIP
-  const couponType = 0; // FIXED
-  const AB = 10000; // autocall is 100%
-  const CB = 0; // FIXED requires 0 CB
-  const obsFreq = 604800; // 7 days
-  const autocallSeller = ""; // Marex address
-
   const initArgs = [
     {
       _owner: owner,
@@ -130,17 +128,17 @@ const main = async ({
       minimumSupply: BigNumber.from(10).pow(10),
       cap: parseEther("1500"),
     },
-    optionType,
+    OPTION_TYPE,
     [
-      couponType,
+      COUPON_TYPE,
       0,
       AB,
       0,
       CB,
       0,
     ],
-    obsFreq,
-    autocallSeller,
+    OBSERVATION_FREQUENCY,
+    AUTOCALL_SELLER,
   ];
 
   const AutocallVault = await ethers.getContractFactory("RibbonAutocallVault", {
