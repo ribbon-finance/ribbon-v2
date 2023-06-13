@@ -98,12 +98,12 @@ const main = async ({
   }
 
   // Autocall vault specific initArgs
-  const optionType = 0;
-  const couponType = 3;
-  const AB = 10500;
-  const CB = 10500;
-  const obsFreq = 518400; // 6 days
-  const autocallSeller = "0x0000000000000000000000000000000000000001";
+  const optionType = 1; // DIP
+  const couponType = 0; // FIXED
+  const AB = 10000; // autocall is 100%
+  const CB = 0; // FIXED requires 0 CB
+  const obsFreq = 604800; // 7 days
+  const autocallSeller = ""; // Marex address
 
   const initArgs = [
     {
@@ -117,10 +117,10 @@ const main = async ({
       _optionsPremiumPricer: pricer.address,
       _strikeSelection: strikeSelection.address,
       _premiumDiscount: PREMIUM_DISCOUNT,
-      _auctionDuration: AUCTION_DURATION,
-      _period: 30,
-      _maxDepositors: 10,
-      _minDeposit: parseEther("10"),
+      _auctionDuration: AUCTION_DURATION, // arbitrary value since it is not used in any case
+      _period: 14, // 14 days
+      _maxDepositors: 10, // arbitrary value since it is not used in any case
+      _minDeposit: 0, // arbitrary since it is not used in any case
     },
     {
       isPut: true,
