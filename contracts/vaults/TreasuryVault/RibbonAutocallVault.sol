@@ -499,7 +499,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _AB,
         uint256 _CB
     ) internal pure {
-        require(_AB > PCT_MULTIPLIER, "A1");
+        require(_AB >= PCT_MULTIPLIER, "A1");
 
         if (_couponType == CouponType.FIXED) {
             // Coupon Barrier = 0
