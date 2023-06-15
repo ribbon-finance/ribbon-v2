@@ -84,6 +84,13 @@ export default {
         mnemonic: process.env.FUJI_MNEMONIC,
       },
     },
+    arbitrum: {
+      url: process.env.ARB_URI,
+      chainId: 42161,
+      accounts: {
+        mnemonic: process.env.ARB_MNEMONIC,
+      },
+    },
   },
   namedAccounts: {
     deployer: {
@@ -95,6 +102,7 @@ export default {
       43113: "0x422f7Bb366608723c8fe61Ac6D923023dCCBC3d7",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      42161: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
     },
     owner: {
       default: 0,
@@ -105,6 +113,7 @@ export default {
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      42161: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
     },
     keeper: {
       default: 0,
@@ -115,6 +124,7 @@ export default {
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0xA4290C9EAe274c7A8FbC57A1E68AdC3E95E7C67e",
       1313161555: "0xA4290C9EAe274c7A8FbC57A1E68AdC3E95E7C67e",
+      42161: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
     },
     admin: {
       default: 0,
@@ -125,6 +135,7 @@ export default {
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      42161: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
     },
     feeRecipient: {
       default: 0,
@@ -135,6 +146,7 @@ export default {
       43113: "0x004FCF8052D3c7eCb7558ac0068882425a055528",
       1313161554: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
       1313161555: "0x46B4E6143Fb6ded2e5FBd87887Ef4f50f716dcA0",
+      42161: "0xF8368119Bb1073Cf01B841848725d81b542A4c19",
     },
   },
   mocha: {
@@ -145,6 +157,9 @@ export default {
       CHAINID === 1 || CHAINID === 42
         ? process.env.ETHERSCAN_API_KEY
         : process.env.SNOWTRACE_API_KEY,
+  },
+  arbiscan: {
+    apiKey: process.env.ARBISCAN_API_KEY
   },
   gasReporter: {
     enabled: true,
