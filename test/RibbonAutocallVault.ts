@@ -23,6 +23,7 @@ import {
   ManualVolOracle_BYTECODE,
   NULL_ADDR,
   ORACLE_DISPUTE_PERIOD,
+  PLACEHOLDER_ADDR,
 } from "../constants/constants";
 import {
   setupOracle,
@@ -633,6 +634,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.couponState())[3], 10500);
         assert.equal((await vault.couponState())[5], 10500);
         assert.equal(await vault.autocallSeller(), autocallSeller);
+        assert.equal(await vault.nAutocallSeller(), autocallSeller);
         assert.equal(await vault.numTotalObs(), 5);
       });
 
@@ -1236,6 +1238,30 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
 
+    describe("#setAutocallSeller", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts if caller is not owner", async function () {
+        await expect(
+          vault.setAutocallSeller(autocallSeller)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+      it("reverts if autocall seller is 0", async function () {
+        await expect(
+          vault.connect(ownerSigner).setAutocallSeller(NULL_ADDR)
+        ).to.be.revertedWith("A7");
+      });
+      it("successfully sets the new autocall seller", async function () {
+        assert.equal(await vault.nAutocallSeller(), autocallSeller);
+
+        await vault
+          .connect(ownerSigner)
+          .setAutocallSeller(PLACEHOLDER_ADDR);
+
+        assert.equal(await vault.nAutocallSeller(), PLACEHOLDER_ADDR);
+      });
+    });
+
     describe("#couponsEarned", () => {
       time.revertToSnapshotAfterTest();
       let initialSpotPrice;
@@ -1726,6 +1752,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 0); // optionType
         assert.equal((await vault.putOption())[1], 0); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and DIP downside earlier than maturity", async function () {
@@ -1859,6 +1886,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(10 ** OTOKEN_DECIMALS)
             .toString()
         ); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and LEVERED downside earlier than maturity", async function () {
@@ -1972,6 +2000,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 2); // optionType
         assert.equal((await vault.putOption())[1], 2); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity OTM", async function () {
@@ -2109,6 +2138,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 0); // optionType
         assert.equal((await vault.putOption())[1], 0); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity ITM", async function () {
@@ -2255,6 +2285,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 0); // optionType
         assert.equal((await vault.putOption())[1], 0); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
@@ -2404,6 +2435,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(10 ** OTOKEN_DECIMALS)
             .toString()
         ); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and DIP downside after maturity ITM", async function () {
@@ -2574,6 +2606,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(10 ** OTOKEN_DECIMALS)
             .toString()
         ); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
@@ -2716,6 +2749,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 2); // optionType
         assert.equal((await vault.putOption())[1], 2); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());

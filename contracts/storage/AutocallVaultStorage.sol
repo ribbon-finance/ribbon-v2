@@ -63,6 +63,8 @@ abstract contract AutocallVaultStorageV1 {
     uint256 internal nPeriod;
     // Seller of the autocall - they are the counterparty for the short vanilla put + digital put
     address public autocallSeller;
+    // The new seller of the autocall
+    address public nAutocallSeller;
 }
 
 // We are following Compound's method of upgrading new contract implementations

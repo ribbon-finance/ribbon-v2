@@ -123,6 +123,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         nObsFreq = _obsFreq;
         nPeriod = period;
         autocallSeller = _autocallSeller;
+        nAutocallSeller = _autocallSeller;
         numTotalObs = (period * 1 days) / _obsFreq;
     }
 
@@ -212,6 +213,16 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
+     * @notice Sets the new autocall seller
+     * @param _autocallSeller is the autocall seller address
+     */
+    function setAutocallSeller(address _autocallSeller) external onlyOwner {
+        require(_autocallSeller != address(0), "A7");
+
+        nAutocallSeller = _autocallSeller;
+    }
+
+    /**
      * @dev Overrides RibbonTreasuryVault commitAndClose()
      */
     function commitAndClose() external override nonReentrant {
@@ -260,6 +271,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         obsFreq = nObsFreq;
         period = nPeriod;
         numTotalObs = (period * 1 days) / obsFreq;
+
+        // Set autocall seller
+        autocallSeller = nAutocallSeller;
     }
 
     /**
