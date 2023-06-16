@@ -13,8 +13,6 @@ import {
   AUCTION_DURATION,
   PERFORMANCE_FEE,
   PREMIUM_DISCOUNT,
-  STRIKE_STEP,
-  ARB_STRIKE_MULTIPLIER,
 } from "../utils/constants";
 
 import { getDeltaStep } from "../../test/helpers/utils";
@@ -66,10 +64,10 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("StrikeSelectionARB", {
-    contract: "PercentStrikeSelection",
+  const strikeSelection = await deploy("ManualStrikeSelectionARB", {
+    contract: "ManualStrikeSelection",
     from: deployer,
-    args: [pricer.address, ARB_STRIKE_MULTIPLIER, STRIKE_STEP.ARB],
+    args: [],
   });
 
   console.log(
@@ -79,11 +77,7 @@ const main = async ({
   try {
     await run("verify:verify", {
       address: strikeSelection.address,
-      constructorArguments: [
-        pricer.address,
-        ARB_STRIKE_MULTIPLIER,
-        STRIKE_STEP.ARB,
-      ],
+      constructorArguments: [],
     });
   } catch (error) {
     console.log(error);
