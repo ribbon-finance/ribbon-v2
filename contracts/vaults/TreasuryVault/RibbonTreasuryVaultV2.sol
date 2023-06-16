@@ -840,7 +840,6 @@ contract RibbonTreasuryVaultV2 is
         emit NewOptionStrikeSelected(strikePrice, delta);
 
         ShareMath.assertUint104(premium);
-        currentOtokenPremium = uint104(premium);
         optionState.nextOption = otokenAddress;
 
         uint256 nextOptionReady = block.timestamp.add(DELAY);
@@ -995,10 +994,6 @@ contract RibbonTreasuryVaultV2 is
             _depositors,
             vaultState.round - 1
         );
-    }
-
-    function setCurrentOtokenPremium(uint256 newOtokenPremium) public onlyKeeper {
-        currentOtokenPremium = newOtokenPremium;
     }
 
     /************************************************

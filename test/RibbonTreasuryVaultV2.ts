@@ -1265,8 +1265,7 @@ function behavesLikeRibbonOptionsVault(params: {
           (await vault.overriddenStrikePrice()).toString(),
           newStrikePrice.toString()
         );
-
-        await vault.connect(ownerSigner).commitAndClose({ from: owner });
+        await vault.connect(ownerSigner).commitAndClose();
 
         assert.equal(
           (
@@ -1275,23 +1274,6 @@ function behavesLikeRibbonOptionsVault(params: {
             ).strikePrice()
           ).toString(),
           newStrikePrice.toString()
-        );
-
-        const expiryTimestampOfNewOption = await (
-          await getContractAt("IOtoken", await vault.nextOption())
-        ).expiryTimestamp();
-
-        assert.bnEqual(
-          await vault.currentOtokenPremium(),
-          (
-            await optionsPremiumPricer.getPremiumInStables(
-              newStrikePrice,
-              expiryTimestampOfNewOption,
-              params.isPut
-            )
-          )
-            .mul(await vault.premiumDiscount())
-            .div(1000)
         );
       });
 
