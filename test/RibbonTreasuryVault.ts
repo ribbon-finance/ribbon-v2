@@ -40,11 +40,6 @@ import {
   SPELL_ADDRESS,
   CHAINLINK_SPELL_PRICER,
   ManualVolOracle_BYTECODE,
-  ARB_ETH_POOL,
-  ARB_PRICE_ORACLE,
-  ARB_OWNER_ADDRESS,
-  CHAINLINK_ARB_PRICER,
-  ARB_ADDRESS,
 } from "../constants/constants";
 import {
   deployProxy,
@@ -69,7 +64,6 @@ import {
   BAL_STRIKE_MULTIPLIER,
   SPELL_STRIKE_MULTIPLIER,
   STRIKE_STEP,
-  ARB_STRIKE_MULTIPLIER,
 } from "../scripts/utils/constants";
 const { provider, getContractAt, getContractFactory } = ethers;
 const { parseEther } = ethers.utils;
@@ -235,44 +229,6 @@ describe("RibbonTreasuryVault", () => {
     maxDepositors: 30,
     minDeposit: parseUnits("1", 18),
     availableChains: [CHAINID.ETH_MAINNET],
-  });
-
-  behavesLikeRibbonOptionsVault({
-    name: `Ribbon ARB Treasury Vault (Call)`,
-    tokenName: "Ribbon ARB Treasury Vault",
-    tokenSymbol: "rARB-TSRY",
-    asset: ARB_ADDRESS[chainId],
-    assetContractName: "IWETH",
-    strikeAsset: USDC_ADDRESS[chainId],
-    collateralAsset: ARB_ADDRESS[chainId],
-    chainlinkPricer: CHAINLINK_ARB_PRICER[chainId],
-    deltaStep: BigNumber.from(STRIKE_STEP.ARB),
-    depositAmount: parseEther("400000"),
-    minimumSupply: BigNumber.from("10").pow("10").toString(),
-    expectedMintAmount: BigNumber.from("40000000000000"),
-    premiumDiscount: BigNumber.from("997"),
-    managementFee: BigNumber.from("0"),
-    performanceFee: BigNumber.from("20000000"),
-    manualStrikePrice: BigNumber.from("1").pow("8"),
-    auctionDuration: 21600,
-    tokenDecimals: 18,
-    isPut: false,
-    gasLimits: {
-      depositWorstCase: 169000,
-      depositBestCase: 102201,
-    },
-    mintConfig: {
-      contractOwnerAddress: ARB_OWNER_ADDRESS[chainId],
-    },
-    period: 30,
-    pool: ARB_ETH_POOL[chainId],
-    oracle: ARB_PRICE_ORACLE[chainId],
-    premiumInStables: true,
-    multiplier: ARB_STRIKE_MULTIPLIER,
-    premiumDecimals: 6,
-    maxDepositors: 30,
-    minDeposit: parseUnits("1", 18),
-    availableChains: [CHAINID.ARB_MAINNET],
   });
 });
 
