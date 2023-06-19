@@ -158,9 +158,6 @@ export default {
         ? process.env.ETHERSCAN_API_KEY
         : process.env.SNOWTRACE_API_KEY,
   },
-  arbiscan: {
-    apiKey: process.env.ARBISCAN_API_KEY
-  },
   gasReporter: {
     enabled: true,
   },
