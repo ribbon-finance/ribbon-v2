@@ -23,6 +23,7 @@ import {
   ManualVolOracle_BYTECODE,
   NULL_ADDR,
   ORACLE_DISPUTE_PERIOD,
+  PLACEHOLDER_ADDR,
 } from "../constants/constants";
 import {
   setupOracle,
@@ -367,10 +368,9 @@ function behavesLikeRibbonOptionsVault(params: {
       const initializeOptionType = 0; // VANILLA
       const initializeCouponType = 3; // VANILLA
       const initializeAB = 10500;
-      const initializeNAB = 10500;
+      const initializeNAB = 0;
       const initializenCB = 10500;
-      const initializenNCB = 10500;
-      const autocallBuyer = user;
+      const initializenNCB = 0;
 
       const obsFreq = 518400; // 6 days
 
@@ -409,7 +409,6 @@ function behavesLikeRibbonOptionsVault(params: {
           initializenNCB,
         ],
         obsFreq,
-        autocallBuyer,
         autocallSeller,
       ];
 
@@ -634,8 +633,8 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.couponState())[1], 3);
         assert.equal((await vault.couponState())[3], 10500);
         assert.equal((await vault.couponState())[5], 10500);
-        assert.equal(await vault.autocallBuyer(), user);
         assert.equal(await vault.autocallSeller(), autocallSeller);
+        assert.equal(await vault.nAutocallSeller(), autocallSeller);
         assert.equal(await vault.numTotalObs(), 5);
       });
 
@@ -677,14 +676,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           vault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("Initializable: contract is already initialized");
@@ -728,14 +726,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("!_owner");
@@ -779,14 +776,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("!_keeper");
@@ -830,14 +826,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("!_feeRecipient");
@@ -881,14 +876,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("!cap");
@@ -932,14 +926,13 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("!asset");
@@ -983,68 +976,16 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             obsFreq,
-            user,
             NULL_ADDR
           )
         ).to.be.revertedWith("A7");
-      });
-
-      it("reverts when autocallBuyer is 0", async function () {
-        const initializeArgs1 = [
-          owner,
-          keeper,
-          feeRecipient,
-          managementFee,
-          performanceFee,
-          tokenName,
-          tokenSymbol,
-          optionsPremiumPricer.address,
-          strikeSelection.address,
-          premiumDiscount,
-          auctionDuration,
-          period,
-          maxDepositors,
-          minDeposit,
-        ];
-
-        const initializeArgs2 = [
-          isPut,
-          tokenDecimals,
-          isPut ? USDC_ADDRESS[chainId] : asset,
-          asset,
-          minimumSupply,
-          parseEther("2000000"),
-        ];
-
-        const initializeArgs3 = [
-          initializeCouponType,
-          initializeCouponType,
-          initializeAB,
-          initializeNAB,
-          initializenCB,
-          initializenNCB,
-        ];
-
-        await expect(
-          testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
-          ](
-            initializeArgs1,
-            initializeArgs2,
-            initializeOptionType,
-            initializeArgs3,
-            obsFreq,
-            NULL_ADDR,
-            autocallSeller
-          )
-        ).to.be.revertedWith("A6");
       });
 
       it("reverts when observation frequency is 0 or not a multiple of period", async function () {
@@ -1085,28 +1026,26 @@ function behavesLikeRibbonOptionsVault(params: {
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             0,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("A8");
 
         await expect(
           testVault[
-            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)"
+            "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)"
           ](
             initializeArgs1,
             initializeArgs2,
             initializeOptionType,
             initializeArgs3,
             345600,
-            user,
             autocallSeller
           )
         ).to.be.revertedWith("A8");
@@ -1296,6 +1235,30 @@ function behavesLikeRibbonOptionsVault(params: {
         await expect(tx)
           .to.emit(vault, "PeriodAndObsFreqSet")
           .withArgs(0, 86400, 30, 60);
+      });
+    });
+
+    describe("#setAutocallSeller", () => {
+      time.revertToSnapshotAfterTest();
+
+      it("reverts if caller is not owner", async function () {
+        await expect(
+          vault.setAutocallSeller(autocallSeller)
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+      it("reverts if autocall seller is 0", async function () {
+        await expect(
+          vault.connect(ownerSigner).setAutocallSeller(NULL_ADDR)
+        ).to.be.revertedWith("A7");
+      });
+      it("successfully sets the new autocall seller", async function () {
+        assert.equal(await vault.nAutocallSeller(), autocallSeller);
+
+        await vault
+          .connect(ownerSigner)
+          .setAutocallSeller(PLACEHOLDER_ADDR);
+
+        assert.equal(await vault.nAutocallSeller(), PLACEHOLDER_ADDR);
       });
     });
 
@@ -1753,27 +1716,27 @@ function behavesLikeRibbonOptionsVault(params: {
           returnAmt.sub(premiumAmount).toString()
         );
 
-        // user transfers the deposit amount and receives 3 coupons earned
+        // user transfers the deposit amount
         const earnedAmt = premiumAmount.div(numTotalObs).mul(3);
         assert.equal(
           userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
-          depositAmount.sub(earnedAmt).toString()
+          depositAmount.toString()
         );
 
-        // vault receives deposit
+        // vault receives deposit plus the earned amount
         assert.equal(
           vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // since it was an early termination all unexpired oTokens were burned
         assert.bnGt(vaultOtokenBalBefore, 0);
         assert.equal(vaultOtokenBalAfter, 0);
 
-        // user vault account balance stays the same since coupons were directly transferred to autocall buyer
+        // user vault account balance increases by the earned amount
         assert.equal(
           (await vault.accountVaultBalance(user)).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // state changes
@@ -1789,6 +1752,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 0); // optionType
         assert.equal((await vault.putOption())[1], 0); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and DIP downside earlier than maturity", async function () {
@@ -1879,27 +1843,27 @@ function behavesLikeRibbonOptionsVault(params: {
           returnAmt.sub(premiumAmount).toString()
         );
 
-        // user transfers the deposit amount and receives 3 coupons earned
+        // user transfers the deposit amount
         const earnedAmt = premiumAmount.div(numTotalObs).mul(3);
         assert.equal(
           userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
-          depositAmount.sub(earnedAmt).toString()
+          depositAmount.toString()
         );
 
-        // vault receives deposit
+        // vault receives deposit plus the earned amount
         assert.equal(
           vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // since it was an early termination all unexpired oTokens were burned
         assert.bnGt(vaultOtokenBalBefore, 0);
         assert.equal(vaultOtokenBalAfter, 0);
 
-        // user vault account balance stays the same since coupons were directly transferred to autocall buyer
+        // user vault account balance increases by the earned amount
         assert.equal(
           (await vault.accountVaultBalance(user)).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // state changes
@@ -1922,6 +1886,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(10 ** OTOKEN_DECIMALS)
             .toString()
         ); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and LEVERED downside earlier than maturity", async function () {
@@ -1999,27 +1964,27 @@ function behavesLikeRibbonOptionsVault(params: {
           returnAmt.sub(premiumAmount).toString()
         );
 
-        // user transfers the deposit amount and receives 3 coupons earned
+        // user transfers the deposit amount
         const earnedAmt = premiumAmount.div(numTotalObs).mul(3);
         assert.equal(
           userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
-          depositAmount.sub(earnedAmt).toString()
+          depositAmount.toString()
         );
 
-        // vault receives deposit
+        // vault receives deposit plus the earned amount
         assert.equal(
           vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // since it was an early termination all unexpired oTokens were burned
         assert.bnGt(vaultOtokenBalBefore, 0);
         assert.equal(vaultOtokenBalAfter, 0);
 
-        // user vault account balance stays the same since coupons were directly transferred to autocall buyer
+        // user vault account balance increases by the earned amount
         assert.equal(
           (await vault.accountVaultBalance(user)).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // state changes
@@ -2035,6 +2000,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 2); // optionType
         assert.equal((await vault.putOption())[1], 2); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity OTM", async function () {
@@ -2136,22 +2102,23 @@ function behavesLikeRibbonOptionsVault(params: {
           premiumAmount.toString()
         );
 
-        // user transfers the deposit amount and receives the full coupon value
+        // user transfers the deposit amount
         assert.equal(
           userUSDCBalBefore.sub(userUSDCBalAfter).toString(),
-          depositAmount.sub(premiumAmount).toString()
+          depositAmount.toString()
         );
 
-        // vault receives deposit
+        // vault receives deposit plus the earned amount
+        const earnedAmt = premiumAmount;
         assert.equal(
           vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
-        // user vault account balance stays the same as the deposited amount
+        // user vault account balance increases by the earned amount
         assert.equal(
           (await vault.accountVaultBalance(user)).toString(),
-          depositAmount.toString()
+          depositAmount.add(earnedAmt).toString()
         );
 
         // otokens are not burned and are sent from the vault to MM/autocall seller
@@ -2171,6 +2138,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 0); // optionType
         assert.equal((await vault.putOption())[1], 0); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and VANILLA downside after maturity ITM", async function () {
@@ -2210,7 +2178,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(initialSpotPrice)
           .div(PCT_MULTIPLIER);
 
-        // set prices for observation such that autocall barrier is never it and last observation is below strike price
+        // set prices for observation such that autocall barrier is never hit and last observation is below strike price
 
         const expiry = await currentOtoken.expiryTimestamp();
 
@@ -2279,7 +2247,7 @@ function behavesLikeRibbonOptionsVault(params: {
         // vault receives deposit and loses the ITM payout to MM
         const payoutITM = mmOtokenBal
           .mul(strikePrice.sub(priceAtExpiry))
-          .div(10 ** (8 + 8 - params.tokenDecimals)); // 10**8 is otoken and price decimals, 10
+          .div(10 ** (8 + 8 - params.tokenDecimals)); // 10**8 is otoken and price decimals
 
         assert.equal(
           vaultUSDCBalAfter.sub(vaultUSDCBalBefore).toString(),
@@ -2317,6 +2285,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 0); // optionType
         assert.equal((await vault.putOption())[1], 0); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
@@ -2364,7 +2333,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(initialSpotPrice)
           .div(PCT_MULTIPLIER);
 
-        // set prices for observation such that autocall barrier is never and last ovbservation is just above strike price (observation 5)
+        // set prices for observation such that autocall barrier is never and last observation is just above strike price (observation 5)
 
         const expiry = await currentOtoken.expiryTimestamp();
 
@@ -2466,6 +2435,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(10 ** OTOKEN_DECIMALS)
             .toString()
         ); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
       });
 
       it("successfully commit and closes an autocall with VANILLA coupon and DIP downside after maturity ITM", async function () {
@@ -2506,7 +2476,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(initialSpotPrice)
           .div(PCT_MULTIPLIER);
 
-        // set prices for observation such that autocall barrier is never it and last observation is below strike price
+        // set prices for observation such that autocall barrier is never hit and last observation is below strike price
 
         const expiry = await currentOtoken.expiryTimestamp();
 
@@ -2636,6 +2606,7 @@ function behavesLikeRibbonOptionsVault(params: {
             .div(10 ** OTOKEN_DECIMALS)
             .toString()
         ); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
@@ -2688,7 +2659,7 @@ function behavesLikeRibbonOptionsVault(params: {
           .mul(initialSpotPrice)
           .div(PCT_MULTIPLIER);
 
-        // set prices for observation such that autocall barrier is never it and last observation is below strike price
+        // set prices for observation such that autocall barrier is never hit and last observation is below strike price
 
         const expiry = await currentOtoken.expiryTimestamp();
 
@@ -2778,6 +2749,7 @@ function behavesLikeRibbonOptionsVault(params: {
         assert.equal((await vault.putOption())[0], 2); // optionType
         assert.equal((await vault.putOption())[1], 2); // nOptionType
         assert.equal((await vault.putOption())[2], 0); // payoff
+        assert.equal(await vault.autocallSeller(), autocallSeller);
 
         console.log("initialSpotPrice", initialSpotPrice.toString());
         console.log("strikePrice", strikePrice.toString());
@@ -2789,22 +2761,6 @@ function behavesLikeRibbonOptionsVault(params: {
       });
     });
   });
-}
-
-async function depositIntoVault(
-  asset: string,
-  vault: Contract,
-  amount: BigNumberish,
-  signer?: SignerWithAddress
-) {
-  if (typeof signer !== "undefined") {
-    vault = vault.connect(signer);
-  }
-  if (asset === WETH_ADDRESS[chainId]) {
-    await vault.depositETH({ value: amount });
-  } else {
-    await vault.deposit(amount);
-  }
 }
 
 async function approve(

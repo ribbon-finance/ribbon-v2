@@ -97,7 +97,7 @@ export async function deployProxyAutocall(
   const logic = await LogicContract.deploy(...logicDeployParams);
 
   const initBytes = LogicContract.interface.encodeFunctionData(
-    "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address,address)",
+    "initialize((address,address,address,uint256,uint256,string,string,address,address,uint32,uint256,uint256,uint256,uint256),(bool,uint8,address,address,uint56,uint104),uint8,(uint8,uint8,uint256,uint256,uint256,uint256),uint256,address)",
     initializeArgs
   );
 

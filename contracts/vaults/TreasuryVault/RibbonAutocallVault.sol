@@ -26,7 +26,6 @@ import {
  * A3: !VANILLA
  * A4: !_CB
  * A5: !PHOENIX
- * A6: !_autocallBuyer
  * A7: !_autocallSeller
  * A8: !_obsFreq
  * A9: !_period
@@ -94,7 +93,6 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
      * @param _optionType is type of the next put option
      * @param _couponState is the coupon state
      * @param _obsFreq is the observation frequency of autocall
-     * @param _autocallBuyer is the autocall buyer
      * @param _autocallSeller is the autocall seller
      */
     function initialize(
@@ -103,31 +101,29 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         OptionType _optionType,
         CouponState calldata _couponState,
         uint256 _obsFreq,
-        address _autocallBuyer,
         address _autocallSeller
     ) external initializer {
         _initialize(_initParams, _vaultParams);
         _verifyCouponState(
-            _couponState.nCouponType,
-            _couponState.nAB,
-            _couponState.nCB
+            _couponState.couponType,
+            _couponState.AB,
+            _couponState.CB
         );
 
-        require(_autocallBuyer != address(0), "A6");
         require(_autocallSeller != address(0), "A7");
 
         // Observation frequency must evenly divide the period
         require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
 
         putOption.nOptionType = _optionType;
-        couponState.nCouponType = _couponState.nCouponType;
+        couponState.nCouponType = _couponState.couponType;
         couponState.nAB = _couponState.AB;
         couponState.nCB = _couponState.CB;
 
         nObsFreq = _obsFreq;
         nPeriod = period;
-        autocallBuyer = _autocallBuyer;
         autocallSeller = _autocallSeller;
+        nAutocallSeller = _autocallSeller;
         numTotalObs = (period * 1 days) / _obsFreq;
     }
 
@@ -217,6 +213,16 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
+     * @notice Sets the new autocall seller
+     * @param _autocallSeller is the autocall seller address
+     */
+    function setAutocallSeller(address _autocallSeller) external onlyOwner {
+        require(_autocallSeller != address(0), "A7");
+
+        nAutocallSeller = _autocallSeller;
+    }
+
+    /**
      * @dev Overrides RibbonTreasuryVault commitAndClose()
      */
     function commitAndClose() external override nonReentrant {
@@ -232,8 +238,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _autocallState(expiry);
 
         // Calculate coupons earned
-        (, uint256 earnedAmt, uint256 returnAmt) =
-            _couponsEarned(nCBBreaches, lastCBBreach);
+        (, , uint256 returnAmt) = _couponsEarned(nCBBreaches, lastCBBreach);
 
         // If before expiry, attempt to autocall
         if (block.timestamp < expiry) {
@@ -243,11 +248,6 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             _burnRemainingOTokens();
             // Require vault possessed all oTokens sold to counterparties
             require(vaultState.lockedAmount == 0, "A11");
-        }
-
-        // Transfer earned coupons to autocall buyer
-        if (earnedAmt > 0) {
-            transferAsset(autocallBuyer, earnedAmt);
         }
 
         // Transfer unearned coupons back to autocall seller
@@ -271,6 +271,9 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         obsFreq = nObsFreq;
         period = nPeriod;
         numTotalObs = (period * 1 days) / obsFreq;
+
+        // Set autocall seller
+        autocallSeller = nAutocallSeller;
     }
 
     /**
@@ -510,7 +513,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         uint256 _AB,
         uint256 _CB
     ) internal pure {
-        require(_AB > PCT_MULTIPLIER, "A1");
+        require(_AB >= PCT_MULTIPLIER, "A1");
 
         if (_couponType == CouponType.FIXED) {
             // Coupon Barrier = 0
