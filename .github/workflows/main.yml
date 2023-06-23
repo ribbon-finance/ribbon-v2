@@ -45,6 +45,8 @@ jobs:
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
           FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
+          ARBITRUM_URI: "https://arbitrum-one.public.blastapi.io"
+          ARBITRUM_MNEMONIC: ${{ secrets.MAINNET_URI }}
           CI: true
       - run: yarn test
         env:
@@ -59,6 +61,8 @@ jobs:
           AVAX_MNEMONIC: ${{ secrets.AVAX_MNEMONIC }}
           FUJI_URI: "https://api.avax-test.network/ext/bc/C/rpc"
           FUJI_MNEMONIC: ${{ secrets.FUJI_MNEMONIC }}
+          ARBITRUM_URI: "https://arbitrum-one.public.blastapi.io"
+          ARBITRUM_MNEMONIC: ${{ secrets.MAINNET_URI }}
           CI: true
   lint:
     runs-on: ubuntu-latest
