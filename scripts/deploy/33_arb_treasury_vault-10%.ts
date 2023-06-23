@@ -28,7 +28,7 @@ const main = async ({
   const { deploy } = deployments;
   const { deployer, owner, keeper, admin, feeRecipient } =
     await getNamedAccounts();
-  console.log(`33 - Deploying ARB Treasury Vault on ${network.name}`);
+  console.log(`33 - Deploying ARB Treasury Vault 10% on ${network.name}`);
 
   const chainId = network.config.chainId;
   if (chainId !== CHAINID.ARB_MAINNET) {
@@ -64,7 +64,7 @@ const main = async ({
 
   // Can't verify pricer because it's compiled with 0.7.3
 
-  const strikeSelection = await deploy("ManualStrikeSelectionARB", {
+  const strikeSelection = await deploy("ManualStrikeSelectionARB-10%", {
     contract: "ManualStrikeSelection",
     from: deployer,
     args: [],
@@ -126,7 +126,7 @@ const main = async ({
     initArgs
   );
 
-  const proxy = await deploy("RibbonTreasuryVaultARB", {
+  const proxy = await deploy("RibbonTreasuryVaultARB-10%", {
     contract: "AdminUpgradeabilityProxy",
     from: deployer,
     args: [logicDeployment.address, admin, initData],
@@ -143,7 +143,7 @@ const main = async ({
     console.log(error);
   }
 };
-main.tags = ["RibbonTreasuryVaultARB"];
+main.tags = ["RibbonTreasuryVaultARB-10%"];
 main.dependencies = []; //["ManualVolOracle", "RibbonTreasuryVaultV2Logic"];
 
 export default main;
