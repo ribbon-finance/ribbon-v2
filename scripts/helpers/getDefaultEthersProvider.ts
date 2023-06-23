@@ -7,6 +7,7 @@ export const TEST_URI = {
   [CHAINID.ETH_MAINNET]: process.env.TEST_URI,
   [CHAINID.AVAX_MAINNET]: process.env.AVAX_URI,
   [CHAINID.AVAX_FUJI]: process.env.FUJI_URI,
+  [CHAINID.ARB_MAINNET]: process.env.ARB_URI,
 };
 
 export type Networks = "mainnet" | "kovan";

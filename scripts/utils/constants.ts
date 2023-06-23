@@ -13,6 +13,7 @@ export const STRIKE_STEP = {
   BAL: 0.1 * 1e8,
   SPELL: 1000, // 0.00001 * 1e8
   SAMB: 100000, // 0.001 * 1e8
+  ARB: 0.01 * 1e8,
 };
 
 export const STRIKE_DELTA = 1000; // 0.1d
@@ -29,6 +30,7 @@ export const BADGER_STRIKE_MULTIPLIER = 125;
 export const BAL_STRIKE_MULTIPLIER = 125;
 export const SPELL_STRIKE_MULTIPLIER = 125;
 export const SAMB_STRIKE_MULTIPLIER = 125;
+export const ARB_STRIKE_MULTIPLIER = 125;
 export const ETH_STRIKE_MULTIPLIER = 75;
 
 /**

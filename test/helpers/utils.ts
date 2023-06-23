@@ -727,6 +727,7 @@ export const getDeltaStep = (asset: string) => {
       return BigNumber.from("1");
     case "BAL":
     case "SPELL":
+    case "ARB":
     case "BADGER":
       return BigNumber.from("0");
     case "WETH":
