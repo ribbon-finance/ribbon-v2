@@ -118,7 +118,7 @@ const main = async ({
       _auctionDuration: AUCTION_DURATION, // arbitrary value since it is not used in any case
       _period: 14, // 14 days
       _maxDepositors: 10, // arbitrary value since it is not used in any case
-      _minDeposit: 0, // arbitrary since it is not used in any case
+      _minDeposit: 1, // arbitrary since it is not used in any case
     },
     {
       isPut: true,
