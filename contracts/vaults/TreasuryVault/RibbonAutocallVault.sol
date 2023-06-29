@@ -108,10 +108,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         require(_autocallSeller != address(0), "A7");
 
-        uint256 currentPeriod = period;
+        uint256 _period = period;
 
         // Observation frequency must evenly divide the period
-        require(_obsFreq > 0 && (currentPeriod * 1 days) % _obsFreq == 0, "A8");
+        require(_obsFreq > 0 && (_period * 1 days) % _obsFreq == 0, "A8");
 
         putOption.nOptionType = _optionType;
         couponState.nCouponType = _couponState.couponType;
@@ -119,10 +119,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         couponState.nCB = _couponState.CB;
 
         nObsFreq = _obsFreq;
-        nPeriod = currentPeriod;
+        nPeriod = _period;
         autocallSeller = _autocallSeller;
         nAutocallSeller = _autocallSeller;
-        numTotalObs = (currentPeriod * 1 days) / _obsFreq;
+        numTotalObs = (_period * 1 days) / _obsFreq;
     }
 
     /**
@@ -394,11 +394,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             uint256 returnAmt
         )
     {
-        uint256 currentReserveRatio = reserveRatio;
+        uint256 _reserveRatio = reserveRatio;
         
         uint256 nonLockedAmt =
-            (vaultState.lockedAmount * currentReserveRatio) /
-                (10**Vault.OTOKEN_DECIMALS - currentReserveRatio);
+            (vaultState.lockedAmount * _reserveRatio) /
+                (10**Vault.OTOKEN_DECIMALS - _reserveRatio);
 
         uint256 totalPremium =
             IERC20(vaultParams.asset).balanceOf(address(this)) -
@@ -417,11 +417,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
          *                  means autocall barrier has been hit and we get all previous
          *                  coupons
          */
-        CouponType currentCouponType = couponState.couponType;
+        CouponType _couponType = couponState.couponType;
         
         bool hasMemory =
-            (currentCouponType == CouponType.PHOENIX_MEMORY ||
-                currentCouponType == CouponType.VANILLA)
+            (_couponType == CouponType.PHOENIX_MEMORY ||
+                _couponType == CouponType.VANILLA)
                 ? true
                 : false;
         nCouponsEarned = hasMemory ? lastCBBreach : nCBBreaches;
