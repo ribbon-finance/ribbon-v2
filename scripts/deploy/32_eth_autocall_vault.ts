@@ -170,6 +170,6 @@ const main = async ({
   }
 };
 main.tags = ["AutocallVaultWETH"];
-main.dependencies = []; // ["ManualVolOracle"];
+main.dependencies = []; // ["OptionsPremiumPricerETHPut"];
 
 export default main;

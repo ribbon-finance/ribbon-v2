@@ -509,8 +509,7 @@ export const COUPON_TYPE = 0; // FIXED
 export const AB = 10000; // autocall is 100%
 export const CB = 0; // FIXED requires 0 CB
 export const OBSERVATION_FREQUENCY = 604800; // 7 days
-export const AUTOCALL_SELLER = ""; // Marex address
-
+export const AUTOCALL_SELLER = "0x43a43D3404eaC5fA1ec4F4BB0879495D500e390b"; // test trade address
 /**
  * RVol Bytecode
  */
