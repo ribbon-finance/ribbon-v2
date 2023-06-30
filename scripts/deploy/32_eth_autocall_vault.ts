@@ -122,7 +122,7 @@ const main = async ({
     },
     {
       isPut: true,
-      decimals: 18,
+      decimals: 6,
       asset: USDC_ADDRESS[chainId],
       underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
