@@ -742,6 +742,7 @@ library VaultLifecycleTreasury {
         );
         require(bytes(_initParams._tokenName).length > 0, "!_tokenName");
         require(bytes(_initParams._tokenSymbol).length > 0, "!_tokenSymbol");
+        require((_initParams._period > 0), "!_period");
         require(
             _initParams._optionsPremiumPricer != address(0),
             "!_optionsPremiumPricer"

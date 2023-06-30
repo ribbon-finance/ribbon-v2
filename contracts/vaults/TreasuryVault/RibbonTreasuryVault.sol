@@ -443,10 +443,8 @@ contract RibbonTreasuryVault is
 
         for (uint256 i = 0; i < arrayLength - 1; i++) {
             if (excludeDepositor == array[i]) {
-                (array[i], array[arrayLength - 1]) = (
-                    array[arrayLength - 1],
-                    array[i]
-                );
+                array[i] = array[arrayLength - 1];
+                break;
             }
         }
         array.pop();
