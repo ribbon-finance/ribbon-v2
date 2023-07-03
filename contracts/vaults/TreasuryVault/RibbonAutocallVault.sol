@@ -370,10 +370,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         if (_nOptionType == OptionType.DIP) {
             payoff = _price - _nextStrikePrice;
 
-        uint256 decimals = vaultParams.decimals;
-        payoff = decimals > Vault.OTOKEN_DECIMALS
-            ? payoff * 10**(decimals - Vault.OTOKEN_DECIMALS)
-            : payoff / 10**(Vault.OTOKEN_DECIMALS - decimals);
+            uint256 decimals = vaultParams.decimals;
+            payoff = decimals > Vault.OTOKEN_DECIMALS
+                ? payoff * 10**(decimals - Vault.OTOKEN_DECIMALS)
+                : payoff / 10**(Vault.OTOKEN_DECIMALS - decimals);
         }
     }
 
@@ -395,7 +395,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         )
     {
         uint256 _reserveRatio = reserveRatio;
-        
+
         uint256 nonLockedAmt =
             (vaultState.lockedAmount * _reserveRatio) /
                 (10**Vault.OTOKEN_DECIMALS - _reserveRatio);
@@ -418,7 +418,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
          *                  coupons
          */
         CouponType _couponType = couponState.couponType;
-        
+
         bool hasMemory =
             (_couponType == CouponType.PHOENIX_MEMORY ||
                 _couponType == CouponType.VANILLA)
@@ -449,16 +449,16 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             return (0, 0, 0);
         }
 
-        uint256 currentObsFreq = obsFreq;
+        uint256 _obsFreq = obsFreq;
 
-        uint256 startTS = _expiry - (numTotalObs - 1) * currentObsFreq;
+        uint256 startTS = _expiry - (numTotalObs - 1) * _obsFreq;
         (, uint256 lastTS) = _lastObservation(_expiry);
         address underlying = vaultParams.underlying;
 
         autocallTS = _expiry;
 
         // For every previous observation timestamp
-        for (uint256 ts = startTS; ts <= lastTS; ts += currentObsFreq) {
+        for (uint256 ts = startTS; ts <= lastTS; ts += _obsFreq) {
             uint256 obsPrice = ORACLE.getExpiryPrice(underlying, ts);
             require(obsPrice > 0, "A12");
             // If coupon barrier breached
@@ -481,7 +481,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         // Convert to index
         if (lastCBBreach > 0) {
-            lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / currentObsFreq;
+            lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / _obsFreq;
         }
     }
 
@@ -496,17 +496,17 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         view
         returns (uint256 index, uint256 ts)
     {
-        uint256 currentObsFreq = obsFreq;
-        uint256 currentNumTotalObs = numTotalObs;
+        uint256 _obsFreq = obsFreq;
+        uint256 _numTotalObs = numTotalObs;
 
         index =
-            currentNumTotalObs -
+            _numTotalObs -
             (
                 _expiry > block.timestamp
-                    ? (_expiry - block.timestamp + currentObsFreq) / currentObsFreq
+                    ? (_expiry - block.timestamp + _obsFreq) / _obsFreq
                     : 0
             );
-        ts = _expiry - (currentNumTotalObs - index) * currentObsFreq;
+        ts = _expiry - (_numTotalObs - index) * _obsFreq;
     }
 
     /**
