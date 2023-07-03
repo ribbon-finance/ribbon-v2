@@ -118,11 +118,11 @@ const main = async ({
       _auctionDuration: AUCTION_DURATION, // arbitrary value since it is not used in any case
       _period: 14, // 14 days
       _maxDepositors: 10, // arbitrary value since it is not used in any case
-      _minDeposit: 0, // arbitrary since it is not used in any case
+      _minDeposit: 1, // arbitrary since it is not used in any case
     },
     {
       isPut: true,
-      decimals: 18,
+      decimals: 6,
       asset: USDC_ADDRESS[chainId],
       underlying: WETH_ADDRESS[chainId],
       minimumSupply: BigNumber.from(10).pow(10),
@@ -170,6 +170,6 @@ const main = async ({
   }
 };
 main.tags = ["AutocallVaultWETH"];
-main.dependencies = []; // ["ManualVolOracle"];
+main.dependencies = []; // ["OptionsPremiumPricerETHPut"];
 
 export default main;
