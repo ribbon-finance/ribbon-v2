@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AutocallVaultStorage} from "../../storage/AutocallVaultStorage.sol";
 import {
     VaultLifecycleTreasury
@@ -112,8 +108,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         require(_autocallSeller != address(0), "A7");
 
+        uint256 _period = period;
+
         // Observation frequency must evenly divide the period
-        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
+        require(_obsFreq > 0 && (_period * 1 days) % _obsFreq == 0, "A8");
 
         putOption.nOptionType = _optionType;
         couponState.nCouponType = _couponState.couponType;
@@ -121,10 +119,10 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         couponState.nCB = _couponState.CB;
 
         nObsFreq = _obsFreq;
-        nPeriod = period;
+        nPeriod = _period;
         autocallSeller = _autocallSeller;
         nAutocallSeller = _autocallSeller;
-        numTotalObs = (period * 1 days) / _obsFreq;
+        numTotalObs = (_period * 1 days) / _obsFreq;
     }
 
     /**
@@ -204,7 +202,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         onlyOwner
     {
         require(_period > 0, "A9");
-        require(_obsFreq > 0 && (period * 1 days) % _obsFreq == 0, "A8");
+        require(_obsFreq > 0 && (_period * 1 days) % _obsFreq == 0, "A8");
 
         emit PeriodAndObsFreqSet(obsFreq, _obsFreq, period, _period);
 
@@ -311,7 +309,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         _setReserveRatio(_putOption.nOptionType, _spotPrice, _strikePrice);
 
         // Set next option payoff
-        putOption.payoff = _setPutOptionPayoff(
+        putOption.payoff = _getPutOptionPayoff(
             _putOption.nOptionType,
             _spotPrice,
             _strikePrice
@@ -349,13 +347,13 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
     }
 
     /**
-     * @dev Sets the option payoff
+     * @dev Gets the option payoff
      * @param _nOptionType is the type of the next option
      * @param _price is the spot price of the new option
      * @param _nextStrikePrice is the strike price of the next option
      * @return payoff is the enhanced payoff amount
      */
-    function _setPutOptionPayoff(
+    function _getPutOptionPayoff(
         OptionType _nOptionType,
         uint256 _price,
         uint256 _nextStrikePrice
@@ -371,12 +369,12 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         if (_nOptionType == OptionType.DIP) {
             payoff = _price - _nextStrikePrice;
-        }
 
-        uint256 decimals = vaultParams.decimals;
-        payoff = decimals > Vault.OTOKEN_DECIMALS
-            ? payoff * 10**(decimals - Vault.OTOKEN_DECIMALS)
-            : payoff / 10**(Vault.OTOKEN_DECIMALS - decimals);
+            uint256 decimals = vaultParams.decimals;
+            payoff = decimals > Vault.OTOKEN_DECIMALS
+                ? payoff * 10**(decimals - Vault.OTOKEN_DECIMALS)
+                : payoff / 10**(Vault.OTOKEN_DECIMALS - decimals);
+        }
     }
 
     /**
@@ -396,9 +394,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             uint256 returnAmt
         )
     {
+        uint256 _reserveRatio = reserveRatio;
+
         uint256 nonLockedAmt =
-            (vaultState.lockedAmount * reserveRatio) /
-                (10**Vault.OTOKEN_DECIMALS - reserveRatio);
+            (vaultState.lockedAmount * _reserveRatio) /
+                (10**Vault.OTOKEN_DECIMALS - _reserveRatio);
 
         uint256 totalPremium =
             IERC20(vaultParams.asset).balanceOf(address(this)) -
@@ -417,9 +417,11 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
          *                  means autocall barrier has been hit and we get all previous
          *                  coupons
          */
+        CouponType _couponType = couponState.couponType;
+
         bool hasMemory =
-            (couponState.couponType == CouponType.PHOENIX_MEMORY ||
-                couponState.couponType == CouponType.VANILLA)
+            (_couponType == CouponType.PHOENIX_MEMORY ||
+                _couponType == CouponType.VANILLA)
                 ? true
                 : false;
         nCouponsEarned = hasMemory ? lastCBBreach : nCBBreaches;
@@ -447,14 +449,16 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
             return (0, 0, 0);
         }
 
-        uint256 startTS = _expiry - (numTotalObs - 1) * obsFreq;
+        uint256 _obsFreq = obsFreq;
+
+        uint256 startTS = _expiry - (numTotalObs - 1) * _obsFreq;
         (, uint256 lastTS) = _lastObservation(_expiry);
         address underlying = vaultParams.underlying;
 
         autocallTS = _expiry;
 
         // For every previous observation timestamp
-        for (uint256 ts = startTS; ts <= lastTS; ts += obsFreq) {
+        for (uint256 ts = startTS; ts <= lastTS; ts += _obsFreq) {
             uint256 obsPrice = ORACLE.getExpiryPrice(underlying, ts);
             require(obsPrice > 0, "A12");
             // If coupon barrier breached
@@ -477,7 +481,7 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
 
         // Convert to index
         if (lastCBBreach > 0) {
-            lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / obsFreq;
+            lastCBBreach = numTotalObs - (_expiry - lastCBBreach) / _obsFreq;
         }
     }
 
@@ -492,14 +496,17 @@ contract RibbonAutocallVault is RibbonTreasuryVaultLite, AutocallVaultStorage {
         view
         returns (uint256 index, uint256 ts)
     {
+        uint256 _obsFreq = obsFreq;
+        uint256 _numTotalObs = numTotalObs;
+
         index =
-            numTotalObs -
+            _numTotalObs -
             (
                 _expiry > block.timestamp
-                    ? (_expiry - block.timestamp + obsFreq) / obsFreq
+                    ? (_expiry - block.timestamp + _obsFreq) / _obsFreq
                     : 0
             );
-        ts = _expiry - (numTotalObs - index) * obsFreq;
+        ts = _expiry - (_numTotalObs - index) * _obsFreq;
     }
 
     /**

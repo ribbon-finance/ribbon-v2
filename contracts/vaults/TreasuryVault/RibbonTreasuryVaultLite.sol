@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.4;
 
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     SafeERC20
@@ -67,7 +66,6 @@ contract RibbonTreasuryVaultLite is
     RibbonTreasuryVaultLiteStorage
 {
     using SafeERC20 for IERC20;
-    using SafeMath for uint256;
     using ShareMath for Vault.DepositReceipt;
 
     /************************************************
@@ -279,7 +277,7 @@ contract RibbonTreasuryVaultLite is
                 : WEEKS_PER_YEAR / (_period / 7);
 
         // We are dividing annualized management fee by num weeks in a year
-        return _managementFee.mul(Vault.FEE_MULTIPLIER).div(feeDivider);
+        return _managementFee * (Vault.FEE_MULTIPLIER) / (feeDivider);
     }
 
     /**
@@ -364,7 +362,7 @@ contract RibbonTreasuryVaultLite is
      */
     function _depositFor(uint256 amount, address creditor) private {
         uint256 currentRound = vaultState.round;
-        uint256 totalWithDepositedAmount = totalBalance().add(amount);
+        uint256 totalWithDepositedAmount = totalBalance() + (amount);
 
         Vault.DepositReceipt memory depositReceipt = depositReceipts[creditor];
 
@@ -385,7 +383,7 @@ contract RibbonTreasuryVaultLite is
 
         // If we have a pending deposit in the current round, we add on to the pending deposit
         if (currentRound == depositReceipt.round) {
-            uint256 newAmount = uint256(depositReceipt.amount).add(amount);
+            uint256 newAmount = uint256(depositReceipt.amount) + (amount);
             depositAmount = newAmount;
         }
 
@@ -397,7 +395,7 @@ contract RibbonTreasuryVaultLite is
             unredeemedShares: uint128(unredeemedShares)
         });
 
-        uint256 newTotalPending = uint256(vaultState.totalPending).add(amount);
+        uint256 newTotalPending = uint256(vaultState.totalPending) + (amount);
         ShareMath.assertUint128(newTotalPending);
 
         vaultState.totalPending = uint128(newTotalPending);
@@ -431,7 +429,7 @@ contract RibbonTreasuryVaultLite is
 
         uint256 withdrawalShares;
         if (withdrawalIsSameRound) {
-            withdrawalShares = existingShares.add(numShares);
+            withdrawalShares = existingShares + (numShares);
         } else {
             require(existingShares == 0, "T19");
             withdrawalShares = numShares;
@@ -442,7 +440,7 @@ contract RibbonTreasuryVaultLite is
         withdrawals[msg.sender].shares = uint128(withdrawalShares);
 
         uint256 newQueuedWithdrawShares =
-            uint256(vaultState.queuedWithdrawShares).add(numShares);
+            uint256(vaultState.queuedWithdrawShares) + (numShares);
         ShareMath.assertUint128(newQueuedWithdrawShares);
         vaultState.queuedWithdrawShares = uint128(newQueuedWithdrawShares);
 
@@ -467,7 +465,7 @@ contract RibbonTreasuryVaultLite is
         // We leave the round number as non-zero to save on gas for subsequent writes
         withdrawals[msg.sender].shares = 0;
         vaultState.queuedWithdrawShares = uint128(
-            uint256(vaultState.queuedWithdrawShares).sub(withdrawalShares)
+            uint256(vaultState.queuedWithdrawShares) - (withdrawalShares)
         );
 
         uint256 withdrawAmount =
@@ -538,7 +536,7 @@ contract RibbonTreasuryVaultLite is
 
         ShareMath.assertUint128(numShares);
         depositReceipts[msg.sender].unredeemedShares = uint128(
-            unredeemedShares.sub(numShares)
+            unredeemedShares - (numShares)
         );
 
         emit Redeem(msg.sender, numShares, depositReceipt.round);
@@ -562,9 +560,9 @@ contract RibbonTreasuryVaultLite is
         require(receiptAmount >= amount, "T25");
 
         // Subtraction underflow checks already ensure it is smaller than uint104
-        depositReceipt.amount = uint104(receiptAmount.sub(amount));
+        depositReceipt.amount = uint104(receiptAmount - (amount));
         vaultState.totalPending = uint128(
-            uint256(vaultState.totalPending).sub(amount)
+            uint256(vaultState.totalPending) - (amount)
         );
 
         emit InstantWithdraw(msg.sender, amount, currentRound);
@@ -578,7 +576,7 @@ contract RibbonTreasuryVaultLite is
     function completeWithdraw() external nonReentrant {
         uint256 withdrawAmount = _completeWithdraw();
         lastQueuedWithdrawAmount = uint128(
-            uint256(lastQueuedWithdrawAmount).sub(withdrawAmount)
+            uint256(lastQueuedWithdrawAmount) - (withdrawAmount)
         );
     }
 
@@ -653,8 +651,8 @@ contract RibbonTreasuryVaultLite is
             transferAsset(payable(recipient), managementFeeInAsset);
         }
 
-        lockedBalance = lockedBalance.sub(
-            lockedBalance.mul(reserveRatio).div(10**Vault.OTOKEN_DECIMALS)
+        lockedBalance = lockedBalance - (
+            lockedBalance * (reserveRatio) / (10**Vault.OTOKEN_DECIMALS)
         );
 
         return (newOption, lockedBalance, queuedWithdrawAmount);
@@ -716,7 +714,7 @@ contract RibbonTreasuryVaultLite is
         ShareMath.assertUint104(premium);
         optionState.nextOption = otokenAddress;
 
-        uint256 nextOptionReady = block.timestamp.add(DELAY);
+        uint256 nextOptionReady = block.timestamp + (DELAY);
         require(nextOptionReady <= type(uint32).max, "T28");
         optionState.nextOptionReadyAt = uint32(nextOptionReady);
 
@@ -795,7 +793,7 @@ contract RibbonTreasuryVaultLite is
             );
 
         vaultState.lockedAmount = uint104(
-            uint256(vaultState.lockedAmount).sub(unlockedAssetAmount)
+            uint256(vaultState.lockedAmount) - (unlockedAssetAmount)
         );
     }
 
@@ -832,7 +830,7 @@ contract RibbonTreasuryVaultLite is
      */
     function shares(address account) public view returns (uint256) {
         (uint256 heldByAccount, uint256 heldByVault) = shareBalances(account);
-        return heldByAccount.add(heldByVault);
+        return heldByAccount + (heldByVault);
     }
 
     /**
@@ -881,7 +879,7 @@ contract RibbonTreasuryVaultLite is
      */
     function totalBalance() public view returns (uint256) {
         return
-            uint256(vaultState.lockedAmount).add(
+            uint256(vaultState.lockedAmount) + (
                 IERC20(vaultParams.asset).balanceOf(address(this))
             );
     }
