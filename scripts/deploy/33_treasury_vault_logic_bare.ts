@@ -15,7 +15,7 @@ const main = async ({
 
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
-  console.log(`12 - Deploying Treasury Vault logic on ${network.name}`);
+  console.log(`12 - Deploying Treasury Vault Bare logic on ${network.name}`);
 
   const lifecycleTreasury = await deploy("VaultLifecycleTreasuryBare", {
     contract: "VaultLifecycleTreasuryBare",
