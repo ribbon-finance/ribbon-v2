@@ -641,28 +641,6 @@ contract RibbonVault is
      ***********************************************/
 
     /**
-     * @notice Returns the asset balance held on the vault for the account
-     * @param account is the address to lookup balance for
-     * @return the amount of `asset` custodied by the vault for the user
-     */
-    function accountVaultBalance(address account)
-        external
-        view
-        returns (uint256)
-    {
-        uint256 _decimals = vaultParams.decimals;
-        uint256 assetPerShare =
-            ShareMath.pricePerShare(
-                totalSupply(),
-                totalBalance(),
-                vaultState.totalPending,
-                _decimals
-            );
-        return
-            ShareMath.sharesToAsset(shares(account), assetPerShare, _decimals);
-    }
-
-    /**
      * @notice Getter for returning the account's share balance including unredeemed shares
      * @param account is the account to lookup share balance for
      * @return the share balance
@@ -697,19 +675,6 @@ contract RibbonVault is
             );
 
         return (balanceOf(account), unredeemedShares);
-    }
-
-    /**
-     * @notice The price of a unit of share denominated in the `asset`
-     */
-    function pricePerShare() external view returns (uint256) {
-        return
-            ShareMath.pricePerShare(
-                totalSupply(),
-                totalBalance(),
-                vaultState.totalPending,
-                vaultParams.decimals
-            );
     }
 
     /**

@@ -551,4 +551,39 @@ contract RibbonThetaVault is RibbonVault, RibbonThetaVaultStorage {
             heldByAccount
         );
     }
+
+    /************************************************
+     *  GETTERS
+     ***********************************************/
+
+    /**
+     * @notice Returns the asset balance held on the vault for the account
+     * @param account is the address to lookup balance for
+     * @return the amount of `asset` custodied by the vault for the user
+     */
+    function accountVaultBalance(address account)
+        external
+        view
+        returns (uint256)
+    {
+        uint assetPerShare = getAssetPerShare();
+        return
+            ShareMath.sharesToAsset(shares(account), assetPerShare, vaultParams.decimals);
+    }
+
+    /**
+     * @notice The price of a unit of share denominated in the `asset`
+     */
+    function pricePerShare() external view returns (uint256) {
+       return getAssetPerShare();
+    }
+
+    function getAssetPerShare() internal view returns(uint) {
+            return ShareMath.pricePerShare(
+                totalSupply() - vaultState.queuedWithdrawShares,
+                totalBalance() - uint(lastQueuedWithdrawAmount),
+                vaultState.totalPending,
+                vaultParams.decimals
+            );
+    }
 }
