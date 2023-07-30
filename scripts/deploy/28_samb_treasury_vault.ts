@@ -1,9 +1,6 @@
 import { run } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
-import {
-  CHAINID,
-  SAMB_ADDRESS,
-} from "../../constants/constants";
+import { CHAINID, SAMB_ADDRESS } from "../../constants/constants";
 import {
   AUCTION_DURATION,
   PERFORMANCE_FEE,
@@ -30,7 +27,7 @@ const main = async ({
     return;
   }
 
-  const logicDeployment = await deployments.get("RibbonTreasuryVaultLogicSAMB");
+  const logicDeployment = await deployments.get("RibbonTreasuryVaultLogicBare");
   console.log(`LogicDeployment @ ${logicDeployment.address}`);
   const lifecycleAddress = logicDeployment.libraries.VaultLifecycleTreasuryBare;
   console.log(`VaultLifeCycleTreasuryBare @ ${lifecycleAddress}`);
@@ -39,7 +36,7 @@ const main = async ({
     "RibbonTreasuryVaultBare",
     {
       libraries: {
-        VaultLifecycleTreasury: lifecycleAddress,
+        VaultLifecycleTreasuryBare: lifecycleAddress,
       },
     }
   );
@@ -59,7 +56,7 @@ const main = async ({
       _auctionDuration: AUCTION_DURATION,
       _period: 30,
       _maxDepositors: 30,
-      _minDeposit: parseEther("5"),
+      _minDeposit: 10000000000,
     },
     {
       isPut: false,
@@ -93,6 +90,6 @@ const main = async ({
   }
 };
 main.tags = ["RibbonTreasuryVaultSAMB"];
-main.dependencies = []; //["ManualVolOracle", "RibbonTreasuryVaultLogic"];
+main.dependencies = ["RibbonTreasuryVaultLogicBare"];
 
 export default main;
